@@ -1,0 +1,23 @@
+---
+/**
+ * A page built on the canvas: its sections rendered with the site's theme, exactly as the editor shows them.
+ *
+ *   <Page sections={entry.data.page} />
+ */
+import { fontLinks, librarySrcset, type PageNode, renderPage, type Theme } from '@materializecms/core/page'
+import { getTheme } from '../content.ts'
+
+interface Props {
+  sections?: PageNode[] | null
+  /** Defaults to the theme saved in the panel. */
+  theme?: Theme
+}
+
+const { sections, theme } = Astro.props
+const active = theme ?? (await getTheme())
+const { html, css } = renderPage(sections ?? [], active, { srcset: librarySrcset })
+---
+
+{fontLinks(active).map((href) => <link rel="stylesheet" href={href} />)}
+<style is:inline set:html={css}></style>
+<Fragment set:html={html} />

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { PageNode } from './page.ts'
 import { SLUG_PATTERN } from './slug.ts'
 import { ANCHOR_PATTERN, BLOCK_STYLE, type BlockStyle } from './style.ts'
 
@@ -21,6 +22,7 @@ export type FieldKind =
   | 'link'
   | 'relation'
   | 'blocks'
+  | 'page'
   | 'group'
   | 'array'
   | 'seo'
@@ -345,6 +347,25 @@ function color<const O extends Common<boolean>>(o?: O): Field<string, Req<O>> {
   return field('color', o, {}, () => z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Usa un colore nel formato #rrggbb'))
 }
 
+const pageNodeSchema: z.ZodType<PageNode> = z.lazy(() =>
+  z
+    .object({
+      id: z.string().min(1),
+      type: z.enum(['frame', 'text', 'image', 'button']),
+      name: z.string().max(120).optional(),
+      children: z.array(pageNodeSchema).optional(),
+    })
+    .loose(),
+) as unknown as z.ZodType<PageNode>
+
+/**
+ * A page composed on the canvas: sections of frames, text, images and buttons, with their design.
+ * Render it with `renderPage` from `@materializecms/core/page`, or the Astro `<Page>` component.
+ */
+function page<const O extends Common<boolean>>(o?: O): Field<PageNode[], Req<O>> {
+  return field('page', { localized: true, ...o }, {}, () => z.array(pageNodeSchema).max(200))
+}
+
 function json<const O extends Common<boolean>>(o?: O): Field<unknown, Req<O>> {
   return field('json', o, {}, () => z.json())
 }
@@ -362,6 +383,7 @@ export const f = {
   link,
   relation,
   blocks,
+  page,
   group,
   array,
   seo,

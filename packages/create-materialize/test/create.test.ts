@@ -28,7 +28,7 @@ describe('createProject', () => {
     expect(pkg.dependencies['@materializecms/cli']).toMatch(/^\^\d+\.\d+\.\d+/)
     const layout = await readFile(join(dir, 'src/layouts/Site.astro'), 'utf8')
     expect(layout).toContain("?? 'Studio rossi'")
-    expect(existsSync(join(dir, 'src/blocks/Hero.astro'))).toBe(true)
+    expect(await readFile(join(dir, 'materialize.config.ts'), 'utf8')).toContain('f.page(')
   })
 
   it('keeps quotes in the site name from breaking the code', async () => {

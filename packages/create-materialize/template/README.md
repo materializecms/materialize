@@ -8,16 +8,16 @@ Sito creato con [Materialize](https://www.npmjs.com/package/create-materialize):
 npm run dev
 ```
 
-Apri http://localhost:4321/admin, crea l’account di amministratore e poi una pagina con indirizzo `home`.
+Apri http://localhost:4321/admin, crea l’account di amministratore e poi una pagina con indirizzo `home`: parti da una pagina pronta o componila con le sezioni della libreria.
 
 ## Dove mettere le mani
 
 | Cosa | Dove |
 | --- | --- |
-| Modello dei contenuti (raccolte, blocchi, campi) | `materialize.config.ts` |
-| Aspetto di ogni blocco | `src/blocks/` — un componente per blocco, con lo stesso nome |
-| Intestazione, piè di pagina, menu | `src/layouts/Site.astro` |
-| Colori, caratteri, spaziature | `src/styles/site.css` |
+| Pagine, sezioni, animazioni | Il pannello, sulla tela |
+| Colori, caratteri e forme del sito | Il pannello, scheda **Stili** dell’editor |
+| Modello dei contenuti (raccolte e campi) | `materialize.config.ts` |
+| Struttura HTML comune (meta, caratteri) | `src/layouts/Site.astro` |
 
 ## Comandi
 

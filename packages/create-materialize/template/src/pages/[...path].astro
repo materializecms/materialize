@@ -1,5 +1,5 @@
 ---
-import Blocks from '@materializecms/astro/components/Blocks.astro'
+import Page from '@materializecms/astro/components/Page.astro'
 import { type Entry, getRoutes } from '@materializecms/astro/content'
 import Site from '../layouts/Site.astro'
 
@@ -17,42 +17,58 @@ const { entry } = Astro.props as { entry: Entry | null }
 {
   entry ? (
     <Site title={entry.title} entry={entry}>
-      <Blocks blocks={entry.data.blocks} />
+      <Page sections={entry.data.page} />
     </Site>
   ) : (
     <Site title="Benvenuto">
-      <section class="wrap welcome">
+      <main class="welcome">
         <p class="eyebrow">Materialize</p>
         <h1>Il sito è pronto.</h1>
-        <p class="soft">
-          Apri il pannello, crea una pagina con indirizzo <code>home</code> e pubblicala: comparirà qui.
-        </p>
-        <a class="button" href="/admin">Apri il pannello</a>
-      </section>
+        <p>Apri il pannello, crea una pagina con indirizzo <code>home</code> e pubblicala: comparirà qui.</p>
+        <a href="/admin">Apri il pannello →</a>
+      </main>
     </Site>
   )
 }
 
 <style>
   .welcome {
-    padding: clamp(96px, 14vw, 180px) 0;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: clamp(96px, 16vw, 200px) 24px;
+    font-family: 'Geist Variable', system-ui, sans-serif;
+  }
+  .eyebrow {
+    font: 500 12px/1 'Geist Mono Variable', ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.6;
   }
   h1 {
-    margin-top: 20px;
-    font-size: clamp(44px, 7vw, 88px);
+    margin: 20px 0 0;
+    font: 400 clamp(48px, 8vw, 92px) / 1 'Instrument Serif', Georgia, serif;
+    letter-spacing: -0.025em;
   }
-  p.soft {
-    margin-top: 24px;
-    max-width: 44ch;
-    font-size: 19px;
+  p {
+    margin: 24px 0 0;
+    font-size: 18px;
+    line-height: 1.6;
+    opacity: 0.75;
   }
   code {
     font-size: 0.9em;
     padding: 2px 6px;
     border-radius: 6px;
-    background: var(--paper-2);
+    background: rgb(127 127 127 / 0.14);
   }
-  .button {
+  a {
+    display: inline-flex;
     margin-top: 36px;
+    padding: 14px 24px;
+    border-radius: 999px;
+    background: #a8502a;
+    color: #fff;
+    font-weight: 500;
+    text-decoration: none;
   }
 </style>

@@ -1,4 +1,5 @@
 import type { Collection, Field, Fields, MaterializeConfig } from '@materializecms/core'
+import { normalizeTheme, type Theme } from '@materializecms/core/page'
 import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
 
@@ -93,6 +94,12 @@ async function published(collection: string, locale?: string): Promise<Entry[]> 
   return Promise.all(
     docs.map(async (doc) => toEntry(cfg, doc, await resolveFields(def.fields, doc.publishedData ?? {}, 'published'))),
   )
+}
+
+/** The design theme chosen in the panel, used by pages built on the canvas. */
+export async function getTheme(): Promise<Theme> {
+  const { settings } = await getRuntime()
+  return normalizeTheme(settings ? await settings.get('theme') : null)
 }
 
 /** Published entries of a collection, in the default locale unless another is given. */

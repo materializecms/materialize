@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
+/* Fonts a site theme can pick, so the canvas shows pages as they will look. */
+@import "@fontsource/instrument-serif";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

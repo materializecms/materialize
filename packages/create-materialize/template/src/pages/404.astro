@@ -3,21 +3,25 @@ import Site from '../layouts/Site.astro'
 ---
 
 <Site title="Pagina non trovata">
-  <section class="wrap missing">
+  <main>
     <h1>Questa pagina non c’è.</h1>
     <p>Forse è stata spostata. <a href="/">Torna alla home</a>.</p>
-  </section>
+  </main>
 </Site>
 
 <style>
-  .missing {
-    padding: 160px 0;
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 160px 24px;
+    font-family: 'Geist Variable', system-ui, sans-serif;
   }
   h1 {
-    font-size: clamp(48px, 7vw, 96px);
+    margin: 0;
+    font: 400 clamp(44px, 7vw, 88px) / 1 'Instrument Serif', Georgia, serif;
   }
   p {
     margin-top: 24px;
-    color: var(--ink-2);
+    font-size: 18px;
   }
 </style>

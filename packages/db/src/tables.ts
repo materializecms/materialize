@@ -78,6 +78,14 @@ export const invites = sqliteTable('invites', {
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+/** Site-wide settings edited in the panel, such as the design theme. One JSON value per key. */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value', { mode: 'json' }).$type<unknown>().notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedBy: text('updated_by'),
+})
+
 /** Uploaded files. The file lives in storage under `key`; documents reference it as `/media/<key>`. */
 export const media = sqliteTable(
   'media',
@@ -172,5 +180,13 @@ export const MIGRATIONS: string[][] = [
     'ALTER TABLE users ADD COLUMN last_seen_at INTEGER',
     // Before this column, sign-ins were only visible through the sessions still open.
     'UPDATE users SET last_seen_at = (SELECT MAX(created_at) FROM sessions WHERE sessions.user_id = users.id)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      updated_by TEXT
+    )`,
   ],
 ]

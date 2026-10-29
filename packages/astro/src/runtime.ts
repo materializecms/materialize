@@ -6,7 +6,9 @@ import {
   type ContentStore,
   createAuthStore,
   createContentStore,
+  createSettingsStore,
   openDatabase,
+  type SettingsStore,
 } from '@materializecms/db'
 
 /** What the site needs from Materialize while Astro renders: the live schema and the stores. */
@@ -14,6 +16,8 @@ export interface Runtime {
   config: () => MaterializeConfig
   content: ContentStore
   auth: AuthStore
+  /** Site-wide settings, such as the design theme. */
+  settings?: SettingsStore
 }
 
 // Shared through globalThis: `materialize dev` sets it before starting Astro, and Astro's own
@@ -62,7 +66,12 @@ export function loadRuntime(root: string): Promise<Runtime> {
       ? `file:${resolveFile(root, config.database.url.slice('file:'.length))}`
       : config.database.url
     const database = await openDatabase({ url, authToken: config.database.authToken })
-    return { config: () => config, content: createContentStore(database.db), auth: createAuthStore(database.db) }
+    return {
+      config: () => config,
+      content: createContentStore(database.db),
+      auth: createAuthStore(database.db),
+      settings: createSettingsStore(database.db),
+    }
   })()
   holder[KEY] = pending
   return pending

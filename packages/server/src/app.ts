@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 import {
   type Collection,
   describeCollection,
@@ -9,12 +10,14 @@ import {
   type ValidationIssue,
   validate,
 } from '@materializecms/core'
+import { normalizeTheme } from '@materializecms/core/page'
 import {
   type AuthStore,
   type ContentStore,
   createAuthStore,
   createContentStore,
   createMediaStore,
+  createSettingsStore,
   type Database,
   EmailTakenError,
   type MediaAsset,
@@ -30,6 +33,7 @@ import { HTTPException } from 'hono/http-exception'
 import { secureHeaders } from 'hono/secure-headers'
 import { z } from 'zod'
 import { serveAdmin } from './admin.ts'
+import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { statusPage } from './status-page.ts'
@@ -109,7 +113,10 @@ export function createApp(ctx: ServerContext) {
   const auth: AuthStore = createAuthStore(ctx.database.db)
   const allowLogin = createLimiter(10, 60_000)
   const mediaStore = createMediaStore(ctx.database.db)
+  const settings = createSettingsStore(ctx.database.db)
   const files = createMediaFiles(ctx.config().media.dir)
+  // Fonts are cached next to the media library (.materialize/fonts by default).
+  const fonts = createFonts(join(dirname(resolve(ctx.config().media.dir)), 'fonts'))
   const app = new Hono<Env>()
 
   const collection = (name: string): Collection => {
@@ -388,6 +395,17 @@ export function createApp(ctx: ServerContext) {
 
   // ---------- management API ----------
 
+  // The site's design theme: colors, fonts and roundness used by pages built on the canvas.
+  app.get('/api/theme', requireUser, async (c) => c.json({ theme: normalizeTheme(await settings.get('theme')) }))
+
+  app.put('/api/theme', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ theme: z.record(z.string(), z.unknown()) }))
+    const theme = normalizeTheme(input.theme)
+    await settings.set('theme', theme, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ theme })
+  })
+
   app.get('/api/overview', requireUser, async (c) => {
     const known = new Set(ctx.config().collections.map((col) => col.name))
     const overview = await content.overview(locale(c.req.query('locale')))
@@ -553,6 +571,36 @@ export function createApp(ctx: ServerContext) {
       'cache-control': 'public, max-age=31536000, immutable',
     })
   }
+  // ---------- fonts: Google Fonts served from this site ----------
+
+  app.get('/api/fonts', requireUser, async (c) => c.json({ items: await fonts.list() }))
+
+  app.get('/fonts/:file', async (c) => {
+    const id = c.req.param('file').replace(/\.css$/, '')
+    if (!c.req.param('file').endsWith('.css') || !FONT_ID.test(id)) return c.text('Not found', 404)
+    try {
+      return c.body(await fonts.css(id), 200, {
+        'content-type': 'text/css; charset=utf-8',
+        'cache-control': 'public, max-age=86400',
+      })
+    } catch {
+      return c.text('Font not available', 404)
+    }
+  })
+
+  app.get('/fonts/:id/:file', async (c) => {
+    const { id, file } = c.req.param()
+    if (!FONT_ID.test(id) || !FONT_FILE.test(file)) return c.text('Not found', 404)
+    try {
+      return c.body(new Uint8Array(await fonts.file(id, file)), 200, {
+        'content-type': 'font/woff2',
+        'cache-control': 'public, max-age=31536000, immutable',
+      })
+    } catch {
+      return c.text('Font not available', 404)
+    }
+  })
+
   app.get('/media/:file', async (c) => {
     const file = c.req.param('file')
     const variant = /^(.+)@(\d{2,4})\.(avif|webp|jpg|png)$/.exec(file)

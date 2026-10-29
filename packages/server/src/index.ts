@@ -6,6 +6,7 @@ import { type Database, openDatabase } from '@materializecms/db'
 import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'
+export { createFonts, type FontInfo, type Fonts } from './fonts.ts'
 export { createMediaFiles, type MediaFiles } from './media.ts'
 export { hashPassword, verifyPassword } from './password.ts'
 
@@ -27,7 +28,7 @@ export interface ServerOptions {
   onPublish?: () => void
 }
 
-const OWN = /^\/(api|admin|media)(\/|\?|$)/
+const OWN = /^\/(api|admin|media|fonts)(\/|\?|$)/
 
 export async function startServer(initial: MaterializeConfig, options: ServerOptions = {}): Promise<RunningServer> {
   let config = initial

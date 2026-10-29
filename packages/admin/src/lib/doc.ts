@@ -41,6 +41,7 @@ export function emptyValue(field: FieldDescription): unknown {
     case 'boolean':
       return false
     case 'blocks':
+    case 'page':
     case 'array':
       return []
     case 'richText':

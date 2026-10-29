@@ -416,12 +416,12 @@ export function MenuItem({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 [&>svg]:size-4 [&>svg]:shrink-0',
+        'flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 [&>svg]:size-4 [&>svg]:shrink-0',
         danger ? 'text-danger' : 'text-fg',
       )}
     >
       {icon}
-      <span className="flex-1 truncate">{children}</span>
+      <span className={cx('min-w-0 flex-1', typeof children === 'string' && 'truncate')}>{children}</span>
       {hint && <span className="text-[12px] text-fg3">{hint}</span>}
       {checked && <Check className="text-accent" />}
     </button>

@@ -19,3 +19,4 @@ export {
 } from './content.ts'
 export { type Database, type Db, openDatabase } from './database.ts'
 export { createMediaStore, type MediaAsset, type MediaStore } from './media.ts'
+export { createSettingsStore, type SettingsStore } from './settings.ts'

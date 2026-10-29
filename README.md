@@ -72,6 +72,10 @@ Nei template le relazioni arrivano già risolte: un campo `relation` contiene i 
 
 In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si vede subito. In produzione (`materialize start`) il sito è fatto di file statici e si rigenera da solo dopo ogni pubblicazione, di solito in meno di un secondo: la nuova versione sostituisce la precedente solo quando è completa.
 
+## Caratteri
+
+Nella scheda **Stili** dell’editor si può scegliere qualsiasi Google Font (circa 2000). I file non vengono caricati da Google: Materialize li scarica una volta da Fontsource, li conserva in `.materialize/fonts` e li serve dal sito stesso su `/fonts/…`, così i visitatori non contattano terze parti. Con `materialize build` i caratteri usati finiscono in `dist/` insieme alle pagine.
+
 ## Lo schema è codice
 
 I contenuti si definiscono in `materialize.config.ts`, con tipi TypeScript ricavati automaticamente:

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { watch } from 'node:fs'
-import { relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
-import { createAuthStore, createContentStore } from '@materializecms/db'
-import { createMediaFiles, startServer, VERSION } from '@materializecms/server'
+import { createAuthStore, createContentStore, createSettingsStore } from '@materializecms/db'
+import { createFonts, createMediaFiles, startServer, VERSION } from '@materializecms/server'
 import { findConfig, loadConfig } from './load-config.ts'
-import { buildSite, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
+import { buildSite, exportFonts, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 
 const dim = (s: string) => styleText('dim', s)
 const accent = (s: string) => styleText(['bold', 'blue'], s)
@@ -59,6 +59,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     const started = performance.now()
     await buildSite(cwd, `${cwd}/dist`)
     const images = await exportMedia(`${cwd}/dist/client`, createMediaFiles(config.media.dir))
+    await exportFonts(`${cwd}/dist/client`, createFonts(join(dirname(resolve(config.media.dir)), 'fonts')))
     const elapsed = Math.round(performance.now() - started)
     console.log(`  ${ok('✓')} Sito generato in dist/client ${dim(`(${images} immagini, ${elapsed} ms)`)}`)
     process.exit(0)
@@ -91,6 +92,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
       config: () => current,
       content: createContentStore(server.database.db),
       auth: createAuthStore(server.database.db),
+      settings: createSettingsStore(server.database.db),
     })
     if (mode === 'dev') {
       const site = await startDevSite(cwd, port + 1)

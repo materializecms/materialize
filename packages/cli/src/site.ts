@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { MediaFiles } from '@materializecms/server'
+import type { Fonts, MediaFiles } from '@materializecms/server'
 
 export const ASTRO_CONFIGS = ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']
 
@@ -69,6 +69,28 @@ export async function exportMedia(client: string, files: MediaFiles): Promise<nu
     copied++
   }
   return copied
+}
+
+/** Writes the self-hosted fonts the built pages link to (/fonts/<id>.css and its files) into the static site. */
+export async function exportFonts(client: string, fonts: Fonts): Promise<number> {
+  const ids = new Set<string>()
+  const walk = async (dir: string) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) await walk(path)
+      else if (entry.name.endsWith('.html'))
+        for (const m of (await readFile(path, 'utf8')).matchAll(/\/fonts\/([a-z0-9-]+)\.css/g)) ids.add(m[1] as string)
+    }
+  }
+  await walk(client)
+  for (const id of ids) {
+    const css = await fonts.css(id)
+    await mkdir(join(client, 'fonts', id), { recursive: true })
+    await writeFile(join(client, 'fonts', `${id}.css`), css)
+    for (const m of css.matchAll(/\/fonts\/[a-z0-9-]+\/([a-z0-9-]+\.woff2)/g))
+      await writeFile(join(client, 'fonts', id, m[1] as string), await fonts.file(id, m[1] as string))
+  }
+  return ids.size
 }
 
 const TYPES: Record<string, string> = {

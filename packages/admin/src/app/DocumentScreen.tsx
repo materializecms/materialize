@@ -46,6 +46,7 @@ import { fullDate, relativeTime } from '../lib/format.ts'
 import { useHistory } from '../lib/history.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
+import { PageEditor } from '../page/PageEditor.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { localeName } from './Sidebar.tsx'
@@ -109,8 +110,9 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
   const [panel, setPanel] = usePref<'on' | 'off'>('mz-doc-panel', 'on')
   const blocksField = fields.find((f) => f.kind === 'blocks')
+  const pageField = fields.find((f) => f.kind === 'page')
   const [modePref, setMode] = usePref<Mode>('mz-mode', 'design')
-  const mode: Mode = blocksField ? modePref : 'content'
+  const mode: Mode = blocksField || pageField ? modePref : 'content'
 
   const cleaned = useMemo(() => clean(fields, history.value), [fields, history.value])
   const current = JSON.stringify(cleaned)
@@ -356,7 +358,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             onIssues={() => showIssues()}
           />
 
-          {blocksField && (
+          {(blocksField || pageField) && (
             <div className="absolute left-1/2 -translate-x-1/2">
               <Segmented
                 value={mode}
@@ -369,7 +371,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                         <FileText /> Contenuto
                       </>
                     ),
-                    title: 'Modifica i campi',
+                    title: pageField ? 'Scrivi testi e cambia immagini sulla pagina' : 'Modifica i campi',
                   },
                   {
                     value: 'design',
@@ -394,7 +396,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             </IconButton>
             <div className="mx-1 h-5 w-px bg-line" />
             <ThemeSwitch compact />
-            {mode === 'content' && (
+            {mode === 'content' && !pageField && (
               <IconButton
                 label="Pannello documento"
                 active={panel === 'on'}
@@ -405,7 +407,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             )}
             <Popover
               align="end"
-              width={220}
+              width={268}
               trigger={({ toggle, ref }) => (
                 <IconButton ref={ref} label="Altre azioni" onClick={toggle}>
                   <MoreHorizontal />
@@ -480,7 +482,9 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
           </div>
         </header>
 
-        {mode === 'design' && blocksField ? (
+        {pageField ? (
+          <PageEditor collection={collection} pageField={pageField} data={history.value} onChange={set} mode={mode} />
+        ) : mode === 'design' && blocksField ? (
           <DesignMode
             collection={collection}
             blocksField={blocksField}

@@ -1,4 +1,5 @@
 import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
+import type { Theme } from '@materializecms/core/page'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -44,6 +45,15 @@ export interface DocumentSummary {
   publishedAt: string | null
   /** First image in the document, for thumbnails. */
   image?: string | null
+}
+
+export interface FontInfo {
+  id: string
+  family: string
+  category: string
+  weights: number[]
+  styles: string[]
+  variable: boolean
 }
 
 export interface Overview {
@@ -163,6 +173,9 @@ export const api = {
   logout: () => request<{ ok: true }>('POST', '/auth/logout'),
   me: () => request<{ user: User }>('GET', '/auth/me'),
   schema: () => request<Schema>('GET', '/schema'),
+  theme: () => request<{ theme: Theme }>('GET', '/theme'),
+  fonts: () => request<{ items: FontInfo[] }>('GET', '/fonts'),
+  saveTheme: (theme: Theme) => request<{ theme: Theme }>('PUT', '/theme', { theme }),
   overview: (locale: string) => request<Overview>('GET', `/overview${q({ locale })}`),
   list: (collection: string, params: { locale?: string; search?: string; limit?: number; offset?: number }) =>
     request<{ items: DocumentSummary[]; total: number }>('GET', `/collections/${collection}${q(params)}`),
