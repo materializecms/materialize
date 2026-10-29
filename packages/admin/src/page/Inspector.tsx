@@ -26,12 +26,14 @@ import {
   AlignVerticalSpaceAround,
   ArrowDown,
   ArrowUp,
+  ClipboardPaste,
   Columns3,
   Copy,
   CornerLeftUp,
   Group,
   ImagePlus,
   LayoutGrid,
+  Paintbrush,
   Play,
   Rows3,
   Trash2,
@@ -54,6 +56,9 @@ import {
   SizeExtra,
   TypographyExtra,
 } from './DesignFields.tsx'
+import { FormSection, InputSection } from './FormFields.tsx'
+import { HoverSection } from './HoverSection.tsx'
+import { IconSection } from './IconSection.tsx'
 import { InteractionsSection } from './Interactions.tsx'
 import { nodeIcon } from './Layers.tsx'
 
@@ -100,6 +105,8 @@ export function Inspector({
   view,
   count = 1,
   onAlign,
+  onCopyStyle,
+  onPasteStyle,
   onGroup,
   onUngroup,
   textStyles,
@@ -132,6 +139,8 @@ export function Inspector({
   /** How many elements are selected: design changes go to all of them. */
   count?: number
   onAlign: (how: AlignHow) => void
+  onCopyStyle: () => void
+  onPasteStyle: () => void
   onGroup: () => void
   onUngroup: () => void
   textStyles: TextStyleActions
@@ -256,6 +265,12 @@ export function Inspector({
             <Ungroup />
           </IconButton>
         )}
+        <IconButton label="Copia lo stile · ⌥⌘C" onClick={onCopyStyle}>
+          <Paintbrush />
+        </IconButton>
+        <IconButton label="Incolla lo stile · ⌥⌘V" onClick={onPasteStyle}>
+          <ClipboardPaste />
+        </IconButton>
         <IconButton label="Duplica · ⌘D" onClick={onDuplicate}>
           <Copy />
         </IconButton>
@@ -459,6 +474,11 @@ export function Inspector({
                 checked={!!node.newTab}
                 onChange={(v) => onContent({ newTab: v || undefined })}
               />
+              <Toggle
+                label="Invia il modulo che lo contiene"
+                checked={!!node.submit}
+                onChange={(v) => onContent({ submit: v || undefined })}
+              />
             </>
           )}
         </Section>
@@ -467,6 +487,13 @@ export function Inspector({
       <SceneSection node={node} palette={palette} onContent={onContent} onPickImage={() => onPickImage('sceneImage')} />
 
       <MediaContent node={node} onContent={onContent} onPickPoster={() => onPickImage('poster')} canCode={canCode} />
+
+      <FormSection node={node} isSec={isSec} onContent={onContent} />
+      <InputSection node={node} onContent={onContent} />
+
+      {node.type === 'icon' && (
+        <IconSection node={node} p={p} palette={palette} onProps={onProps} onContent={onContent} />
+      )}
 
       {isI && (
         <Section title="Immagine">
@@ -1029,6 +1056,8 @@ export function Inspector({
         }}
         onPreview={onPreview}
       />
+
+      <HoverSection node={node} palette={palette} isSec={isSec} onProps={onProps} />
 
       <PositionSection {...design} />
       <EffectsSection {...design} />

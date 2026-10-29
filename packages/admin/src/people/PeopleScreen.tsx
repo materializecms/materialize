@@ -13,6 +13,7 @@ import {
   Popover,
   Segmented,
   Spinner,
+  Switch,
   toast,
 } from '../components/ui.tsx'
 import { ApiError, api, type Member, type User } from '../lib/api.ts'
@@ -34,7 +35,7 @@ export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
   )
 }
 
-/** A link to hand over: there is no email service yet, so people copy it and send it themselves. */
+/** A link to hand over when email is not set up (Impostazioni → Email): people copy it and send it themselves. */
 function LinkDialog({
   link,
   onClose,
@@ -86,7 +87,7 @@ function InviteDialog({
 }: {
   open: boolean
   onClose: () => void
-  onCreated: (link: string, email: string) => void
+  onCreated: (link: string, email: string, mailed?: boolean) => void
 }) {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -99,8 +100,8 @@ function InviteDialog({
     setBusy(true)
     setError(null)
     try {
-      const { link } = await api.invite({ email, name: name || undefined, role })
-      onCreated(link, email)
+      const { link, mailed } = await api.invite({ email, name: name || undefined, role })
+      onCreated(link, email, mailed)
       setEmail('')
       setName('')
     } catch (err) {
@@ -178,7 +179,11 @@ export function PeopleScreen() {
 
   const reset = async (person: Member) => {
     try {
-      const { link: url } = await api.resetLink(person.id)
+      const { link: url, mailed } = await api.resetLink(person.id)
+      if (mailed) {
+        toast(`Link per la nuova password inviato a ${person.email}`)
+        return
+      }
       setLink({
         url,
         title: `Nuova password per ${person.name}`,
@@ -290,6 +295,7 @@ export function PeopleScreen() {
                 </div>
               ))}
             </section>
+            <EditorialSetting />
 
             {people.data.invites.length > 0 && (
               <section className="mt-8">
@@ -313,11 +319,16 @@ export function PeopleScreen() {
                         size="sm"
                         onClick={async () => {
                           try {
-                            const { link: url } = await api.invite({
+                            const { link: url, mailed } = await api.invite({
                               email: invite.email,
                               name: invite.name || undefined,
                               role: invite.role,
                             })
+                            if (mailed) {
+                              toast(`Nuovo invito inviato a ${invite.email}`)
+                              refresh()
+                              return
+                            }
                             setLink({
                               url,
                               title: 'Nuovo link di invito',
@@ -355,9 +366,13 @@ export function PeopleScreen() {
       <InviteDialog
         open={inviting}
         onClose={() => setInviting(false)}
-        onCreated={(url, email) => {
+        onCreated={(url, email, mailed) => {
           setInviting(false)
           refresh()
+          if (mailed) {
+            toast(`Invito inviato per email a ${email}`)
+            return
+          }
           setLink({
             url,
             title: 'Invito pronto',
@@ -391,5 +406,41 @@ export function PeopleScreen() {
         La persona non potrà più entrare nel pannello e verrà disconnessa subito. I contenuti che ha creato restano.
       </Dialog>
     </div>
+  )
+}
+
+/** Whether editors may change the layout of pages, or only their texts, links and images. */
+function EditorialSetting() {
+  const queryClient = useQueryClient()
+  const editorial = useQuery({ queryKey: ['editorial'], queryFn: api.editorial }).data?.editorial
+  if (!editorial) return null
+  const on = !!editorial.editorsContentOnly
+  return (
+    <section className="mt-6 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+      <Switch
+        checked={on}
+        label="I redattori modificano solo i contenuti"
+        onChange={async (editorsContentOnly) => {
+          try {
+            queryClient.setQueryData(['editorial'], await api.saveEditorial({ editorsContentOnly }))
+            toast(
+              editorsContentOnly
+                ? 'I redattori ora modificano solo i contenuti'
+                : 'I redattori possono anche impaginare',
+            )
+          } catch (error) {
+            toast((error as Error).message, 'error')
+          }
+        }}
+      />
+      <div>
+        <div className="text-[13px] font-medium">I redattori modificano solo i contenuti</div>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+          Chi ha il ruolo di redattore apre le pagine in modalità Contenuto: scrive testi, cambia immagini e
+          collegamenti, ma non può spostare, aggiungere o restilizzare gli elementi. Il design resta agli
+          amministratori.
+        </p>
+      </div>
+    </section>
   )
 }

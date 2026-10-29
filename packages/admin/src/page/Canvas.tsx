@@ -114,10 +114,14 @@ export function Canvas({
   onPatch,
   onSelectMany,
   rulers = false,
+  onContextMenu,
   typeAhead,
+  marks = [],
   onDropNew,
   preview = false,
   data,
+  entry,
+  frameWidth,
 }: {
   nodes: PageNode[]
   theme: Theme
@@ -144,8 +148,12 @@ export function Canvas({
   onPatch: (patches: [string, Partial<NodeProps>][]) => void
   /** The elements inside a selection box. */
   onSelectMany: (ids: string[]) => void
+  /** Right click on an element: the editor's menu of actions. */
+  onContextMenu?: (id: string, x: number, y: number) => void
   /** Rulers along the top and left edges, in page pixels. */
   rulers?: boolean
+  /** Other people's selections and elements with open comments, drawn over the page. */
+  marks?: { id: string; label: string; color: string; kind: 'person' | 'pin' }[]
   /** Characters typed on a selected text before editing began, inserted once it starts. */
   typeAhead?: React.RefObject<string>
   /** A section or element dragged in from the library. */
@@ -154,15 +162,20 @@ export function Canvas({
   preview?: boolean
   /** Entries for lists bound to a collection. */
   data?: Record<string, BoundEntry[]>
+  /** On a template page: the entry shown. */
+  entry?: BoundEntry
+  /** The page's width on this device (a preset of the device, or the default). */
+  frameWidth?: number
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string | null>(null)
-  const [boxes, setBoxes] = useState<{ sel: Box | null; hover: Box | null; others: Box[] }>({
+  const [boxes, setBoxes] = useState<{ sel: Box | null; hover: Box | null; others: Box[]; marks: Box[] }>({
     sel: null,
     hover: null,
     others: [],
+    marks: [],
   })
   const [guides, setGuides] = useState<Guide[]>([])
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
@@ -182,7 +195,7 @@ export function Canvas({
   }, [])
   const [height, setHeight] = useState(800)
   const [available, setAvailable] = useState(1000)
-  const width = DEVICE_WIDTH[device]
+  const width = frameWidth ?? DEVICE_WIDTH[device]
   const fit = Math.max(0.2, Math.min(1, (available - 96) / width))
   const scale = zoom === 'fit' ? fit : zoom
   const editingRef = useRef(editing)
@@ -201,8 +214,9 @@ export function Canvas({
         animations: preview ? 'site' : playing ? 'replay' : 'none',
         srcset: librarySrcset,
         data,
+        entry,
       }),
-    [nodes, theme, playing, preview, data],
+    [nodes, theme, playing, preview, data, entry],
   )
 
   // The page is plain HTML from the renderer; while a text is being edited in place, it is left alone.
@@ -229,9 +243,10 @@ export function Canvas({
       sel: boxOf(selected),
       hover: hover !== selected ? boxOf(hover) : null,
       others: selection.flatMap((id) => (id === selected ? [] : (boxOf(id) ?? []))),
+      marks: marks.flatMap((m) => boxOf(m.id) ?? []),
     })
     setHeight(page.scrollHeight)
-  }, [selected, hover, selection])
+  }, [selected, hover, selection, marks])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure whenever the page or its scale changes
   useLayoutEffect(() => {
@@ -320,8 +335,13 @@ export function Canvas({
     }
   }, [editing])
 
-  const idAt = (target: EventTarget | null) =>
-    (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mz-id]')?.dataset.mzId ?? null
+  /** The element under the pointer that can be picked: locked ones pass the click to their container. */
+  const idAt = (target: EventTarget | null) => {
+    let el = (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mz-id]') ?? null
+    while (el && findNode(nodes, el.dataset.mzId)?.node.locked)
+      el = el.parentElement?.closest<HTMLElement>('[data-mz-id]') ?? null
+    return el?.dataset.mzId ?? null
+  }
 
   const elOf = (id: string) => root.current?.querySelector<HTMLElement>(`[data-mz-id="${CSS.escape(id)}"]`) ?? null
 
@@ -434,7 +454,7 @@ export function Canvas({
       }
       setMarquee(box)
       const inside = [...page.querySelectorAll<HTMLElement>('[data-mz-id]')].filter((el) => {
-        if (el.offsetParent === null) return false
+        if (el.offsetParent === null || findNode(nodes, el.dataset.mzId)?.node.locked) return false
         const r = el.getBoundingClientRect()
         const x = r.left - b.left
         const y = r.top - b.top
@@ -841,6 +861,13 @@ export function Canvas({
                 }}
                 onPointerLeave={() => setHover(null)}
                 onPointerDown={onPointerDown}
+                onContextMenu={(e) => {
+                  if (preview || !onContextMenu) return
+                  const id = idAt(e.target)
+                  if (!id) return
+                  e.preventDefault()
+                  onContextMenu(id, e.clientX, e.clientY)
+                }}
                 onDragStart={(e) => e.preventDefault()}
                 onDragOver={onDragOver}
                 onDragLeave={(e) => e.currentTarget === e.target && setIndicator(null)}
@@ -865,6 +892,38 @@ export function Canvas({
                   {hoverNode.name || typeLabel(hoverNode)}
                 </div>
               )}
+              {marks.map((m) => {
+                const b = boxes.marks.find((x) => x.id === m.id)
+                if (!b) return null
+                return m.kind === 'person' ? (
+                  <div key={`p${m.label}${m.id}`}>
+                    <div
+                      className="absolute rounded-[2px] border-2"
+                      style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2, borderColor: m.color }}
+                    />
+                    <div
+                      className="absolute rounded-[4px] px-1.5 py-px text-[11px] font-medium whitespace-nowrap text-white"
+                      style={{
+                        left: b.x + b.w - 1,
+                        top: Math.max(0, b.y - 20),
+                        background: m.color,
+                        transform: 'translateX(-100%)',
+                      }}
+                    >
+                      {m.label}
+                    </div>
+                  </div>
+                ) : (
+                  <span
+                    key={`c${m.id}`}
+                    title={`${m.label} ${m.label === '1' ? 'commento aperto' : 'commenti aperti'}`}
+                    className="absolute flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10.5px] font-semibold text-white shadow"
+                    style={{ left: b.x + b.w - 10, top: b.y - 10, background: m.color }}
+                  >
+                    {m.label}
+                  </span>
+                )
+              })}
               {boxes.others.map((b) => (
                 <div
                   key={b.id}
@@ -1178,6 +1237,8 @@ export function typeLabel(n: PageNode): string {
   if (n.type === 'video') return 'Video'
   if (n.type === 'embed') return 'Codice'
   if (n.type === 'scene') return 'Scena WebGL'
+  if (n.type === 'icon') return 'Icona'
+  if (n.type === 'input') return 'Campo'
   return 'Pulsante'
 }
 

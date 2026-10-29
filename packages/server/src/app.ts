@@ -10,14 +10,17 @@ import {
   type ValidationIssue,
   validate,
 } from '@materializecms/core'
-import { normalizeTheme } from '@materializecms/core/page'
+import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
+import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import {
   type AuthStore,
   type ContentStore,
   createAuthStore,
+  createCommentStore,
   createContentStore,
   createMediaStore,
   createSettingsStore,
+  createSubmissionStore,
   type Database,
   EmailTakenError,
   type MediaAsset,
@@ -34,6 +37,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import { z } from 'zod'
 import { serveAdmin } from './admin.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
+import { isConfigured, type MailSettings, publicMail, sendMail, submissionText } from './mail.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { statusPage } from './status-page.ts'
@@ -75,6 +79,51 @@ const credentials = z.object({ email: z.email(), password: z.string().min(1) })
 const setupBody = z.object({ email: z.email(), name: z.string().trim().min(1), password: z.string().min(10) })
 const roleSchema = z.enum(['admin', 'editor'])
 const documentBody = z.object({ data: z.record(z.string(), z.unknown()), locale: z.string().optional() })
+
+const mediaRef = z
+  .object({
+    src: z.string().min(1).max(1000),
+    alt: z.string().max(500),
+    width: z.number().optional(),
+    height: z.number().optional(),
+  })
+  .optional()
+const short = z.string().trim().max(200).optional()
+const siteSeoSchema = z.object({
+  siteName: short,
+  titleTemplate: short,
+  description: z.string().max(300).optional(),
+  image: mediaRef,
+  favicon: mediaRef,
+  xHandle: short,
+  business: z
+    .object({
+      type: z
+        .enum(['Organization', 'LocalBusiness', 'ProfessionalService', 'Store', 'Restaurant', 'Person'])
+        .optional(),
+      name: short,
+      logo: mediaRef,
+      phone: short,
+      email: short,
+      street: short,
+      city: short,
+      postalCode: short,
+      region: short,
+      country: short,
+      hours: short,
+      sameAs: z.array(z.string().trim().max(500)).max(20).optional(),
+    })
+    .optional(),
+  blockAi: z.boolean().optional(),
+  disallow: z.array(z.string().trim().max(300)).max(100).optional(),
+  google: short,
+  bing: short,
+})
+const redirectSchema = z.object({
+  from: z.string().trim().min(1).max(500),
+  to: z.string().trim().min(1).max(1000),
+  auto: z.boolean().optional(),
+})
 
 async function body<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
   const json = await c.req.json().catch(() => {
@@ -125,6 +174,15 @@ export function createApp(ctx: ServerContext) {
   const allowLogin = createLimiter(10, 60_000)
   const mediaStore = createMediaStore(ctx.database.db)
   const settings = createSettingsStore(ctx.database.db)
+  const submissions = createSubmissionStore(ctx.database.db)
+  const comments = createCommentStore(ctx.database.db)
+  /**
+   * Who has a document open, in memory: each editor checks in every few seconds with the element it
+   * has selected. Gone after 30 s of silence.
+   */
+  const presence = new Map<string, Map<string, { id: string; name: string; selected: string | null; at: number }>>()
+  // A form can be sent a few times a minute from one address: enough for people, not for spam.
+  const allowForm = createLimiter(5, 60_000)
   const files = createMediaFiles(ctx.config().media.dir)
   // Fonts are cached next to the media library (.materialize/fonts by default).
   const fonts = createFonts(join(dirname(resolve(ctx.config().media.dir)), 'fonts'))
@@ -138,6 +196,16 @@ export function createApp(ctx: ServerContext) {
         'embed_admin_only',
         'Solo un amministratore può aggiungere o modificare il codice personalizzato',
       )
+  }
+
+  /** Editors who may only change contents (Persone → Redattori): words, links and images, not the layout. */
+  const contentOnly = async (user: User) =>
+    user.role !== 'admin' && !!(await settings.get<{ editorsContentOnly?: boolean }>('editorial'))?.editorsContentOnly
+  const designLocked = () =>
+    new ApiError(403, 'content_only', 'Puoi modificare testi, collegamenti e immagini, non il layout della pagina')
+  const guardDesign = async (user: User, before: unknown, after: unknown) => {
+    const pages = (v: unknown) => (Array.isArray(v) ? (v as PageNode[]) : [])
+    if (!sameDesign(pages(before), pages(after)) && (await contentOnly(user))) throw designLocked()
   }
 
   const collection = (name: string): Collection => {
@@ -176,6 +244,14 @@ export function createApp(ctx: ServerContext) {
   const requireAdmin: MiddlewareHandler<Env> = async (c, next) => {
     if (c.get('user').role !== 'admin') throw new ApiError(403, 'forbidden', 'Only administrators can do this')
     await next()
+  }
+
+  /** The public address of a document, with the locale prefix outside the default locale. */
+  const publicUrl = (def: Collection, locale: string, data: Record<string, unknown>): string | null => {
+    if (!def.url) return null
+    const path = def.url(data as never)
+    if (locale === ctx.config().locales.default) return path
+    return `/${locale}${path === '/' ? '' : path}`
   }
 
   /** A document as the admin sees it, with what still needs fixing before it can be published. */
@@ -219,6 +295,11 @@ export function createApp(ctx: ServerContext) {
 
   app.use('*', secureHeaders())
   app.use('/api/*', csrf())
+  // Answers change with every edit: browsers must not reuse them.
+  app.use('/api/*', async (c, next) => {
+    await next()
+    if (!c.res.headers.has('cache-control')) c.res.headers.set('cache-control', 'no-store')
+  })
 
   app.onError((error, c) => {
     if (error instanceof HTTPException) return error.getResponse()
@@ -313,7 +394,18 @@ export function createApp(ctx: ServerContext) {
         createdBy: c.get('user').id,
         ttlMs: INVITE_TTL,
       })
-      return c.json({ invite, link: linkPath(token) }, 201)
+      const link = linkPath(token)
+      const mailed = await mailLink(
+        c,
+        input.email,
+        'Il tuo invito',
+        [
+          `${c.get('user').name} ti ha invitato a lavorare sul sito con Materialize.`,
+          'Apri questo link per scegliere la tua password ed entrare:',
+        ],
+        link,
+      )
+      return c.json({ invite, link, mailed }, 201)
     } catch (error) {
       if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
       throw error
@@ -358,7 +450,15 @@ export function createApp(ctx: ServerContext) {
       createdBy: c.get('user').id,
       ttlMs: RESET_TTL,
     })
-    return c.json({ invite, link: linkPath(token) }, 201)
+    const link = linkPath(token)
+    const mailed = await mailLink(
+      c,
+      target.email,
+      'Nuova password',
+      ['È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:'],
+      link,
+    )
+    return c.json({ invite, link, mailed }, 201)
   })
 
   // ---------- one-time links (no session needed) ----------
@@ -432,11 +532,240 @@ export function createApp(ctx: ServerContext) {
 
   app.put('/api/globals', requireUser, async (c) => {
     const input = await body(c, z.object({ globals: z.record(z.string(), z.record(z.string(), z.unknown())) }))
-    const before = (await settings.get('globals')) ?? {}
+    const before = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
     guardEmbeds(c.get('user'), before, input.globals)
+    const ids = [...new Set([...Object.keys(before), ...Object.keys(input.globals)])].sort()
+    await guardDesign(
+      c.get('user'),
+      ids.map((id) => before[id] ?? { id, type: 'frame' }),
+      ids.map((id) => (input.globals[id] as PageNode | undefined) ?? { id, type: 'frame' }),
+    )
     await settings.set('globals', input.globals, c.get('user').id)
     ctx.onPublish?.()
     return c.json({ globals: input.globals })
+  })
+
+  // ---------- comments and presence ----------
+
+  app.get('/api/documents/:id/comments', requireUser, async (c) =>
+    c.json({ items: await comments.list(c.req.param('id')) }),
+  )
+
+  app.post('/api/documents/:id/comments', requireUser, async (c) => {
+    const input = await body(
+      c,
+      z.object({ nodeId: z.string().max(200).nullable(), body: z.string().trim().min(1).max(4000) }),
+    )
+    const user = c.get('user')
+    const comment = await comments.add({
+      documentId: c.req.param('id'),
+      nodeId: input.nodeId,
+      authorId: user.id,
+      authorName: user.name,
+      body: input.body,
+    })
+    return c.json({ comment }, 201)
+  })
+
+  app.patch('/api/comments/:id', requireUser, async (c) => {
+    const input = await body(c, z.object({ resolved: z.boolean() }))
+    await comments.resolve(c.req.param('id'), input.resolved)
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/comments/:id', requireUser, async (c) => {
+    const comment = await comments.get(c.req.param('id'))
+    if (!comment) throw new ApiError(404, 'not_found', 'Comment not found')
+    const user = c.get('user')
+    if (comment.authorId !== user.id && user.role !== 'admin')
+      throw new ApiError(403, 'forbidden', 'Only the author or an admin can delete a comment')
+    await comments.remove(comment.id)
+    return c.body(null, 204)
+  })
+
+  app.post('/api/documents/:id/presence', requireUser, async (c) => {
+    const input = await body(c, z.object({ selected: z.string().max(200).nullable() }))
+    const user = c.get('user')
+    const docId = c.req.param('id')
+    const now = Date.now()
+    const here = presence.get(docId) ?? new Map()
+    here.set(user.id, { id: user.id, name: user.name, selected: input.selected, at: now })
+    presence.set(docId, here)
+    for (const [k, p] of here) if (now - p.at > 30_000) here.delete(k)
+    return c.json({ others: [...here.values()].filter((p) => p.id !== user.id).map(({ at: _, ...p }) => p) })
+  })
+
+  // ---------- email and forms ----------
+
+  /** Sends a one-time link by email when email is set up; false when it is not (the link is shown instead). */
+  const mailLink = async (c: Context<Env>, to: string, subject: string, lines: string[], path: string) => {
+    const mail = await settings.get<MailSettings>('mail')
+    if (!isConfigured(mail)) return false
+    try {
+      const url = new URL(path, new URL(c.req.url).origin).toString()
+      await sendMail(mail, { to, subject, text: `${lines.join('\n')}\n\n${url}\n` })
+      return true
+    } catch (error) {
+      console.error('Materialize: email not sent', error)
+      return false
+    }
+  }
+
+  app.get('/api/mail', requireUser, requireAdmin, async (c) =>
+    c.json({ mail: publicMail(await settings.get<MailSettings>('mail')) }),
+  )
+
+  app.put('/api/mail', requireUser, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        mail: z.object({
+          host: z.string().max(200),
+          port: z.number().int().min(1).max(65535),
+          security: z.enum(['tls', 'starttls', 'none']),
+          user: z.string().max(200),
+          // Empty: keep the saved password. null: remove it.
+          pass: z.string().max(500).nullable().optional(),
+          from: z.string().max(200),
+          to: z.string().max(200),
+        }),
+      }),
+    )
+    const before = await settings.get<MailSettings>('mail')
+    const pass = input.mail.pass === null ? '' : input.mail.pass || before?.pass || ''
+    const mail: MailSettings = { ...input.mail, pass }
+    await settings.set('mail', mail, c.get('user').id)
+    return c.json({ mail: publicMail(mail) })
+  })
+
+  app.post('/api/mail/test', requireUser, requireAdmin, async (c) => {
+    const mail = await settings.get<MailSettings>('mail')
+    if (!isConfigured(mail)) throw new ApiError(400, 'mail_not_configured', 'Email is not set up')
+    const to = mail.to || c.get('user').email
+    try {
+      await sendMail(mail, {
+        to,
+        subject: 'Prova di invio da Materialize',
+        text: 'Se leggi questo messaggio, l’invio delle email dal sito funziona.',
+      })
+    } catch (error) {
+      throw new ApiError(422, 'mail_failed', error instanceof Error ? error.message : 'Sending failed')
+    }
+    return c.json({ ok: true, to })
+  })
+
+  // A form on the site: the message is kept, and sent by email when email is set up.
+  app.post('/api/forms/:form', async (c) => {
+    const form = c.req.param('form').slice(0, 80)
+    const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'local'
+    if (!allowForm(`${ip}:${form}`)) throw new ApiError(429, 'too_many_attempts', 'Too many messages, wait a minute')
+    const isJson = (c.req.header('content-type') ?? '').includes('application/json')
+    const raw = (isJson ? await c.req.json().catch(() => ({})) : await c.req.parseBody()) as Record<string, unknown>
+    const page = typeof raw._page === 'string' ? raw._page.slice(0, 300) : (c.req.header('referer') ?? '').slice(0, 300)
+    // A field people never see: bots fill it in.
+    const trap = typeof raw._gotcha === 'string' && raw._gotcha.length > 0
+    const data: Record<string, string> = {}
+    for (const [k, v] of Object.entries(raw)) {
+      if (k.startsWith('_') || typeof v !== 'string' || Object.keys(data).length >= 30) continue
+      data[k.slice(0, 80)] = v.slice(0, 5000)
+    }
+    if (!trap && Object.values(data).some((v) => v.trim())) {
+      const saved = await submissions.add({ form, page, data })
+      const mail = await settings.get<MailSettings>('mail')
+      if (isConfigured(mail) && mail.to) {
+        const replyTo = Object.entries(data).find(([k, v]) => /mail/i.test(k) && /^[^\s@]+@[^\s@]+$/.test(v))?.[1]
+        sendMail(mail, {
+          to: mail.to,
+          subject: `Nuovo messaggio dal sito${typeof raw._subject === 'string' ? `: ${raw._subject.slice(0, 120)}` : ''}`,
+          text: submissionText(page, data),
+          replyTo,
+        })
+          .then(() => submissions.markMailed(saved.id))
+          .catch((error) => console.error('Materialize: email not sent', error))
+      }
+    }
+    // Without JavaScript the browser posted the form itself: back to the page, marked as sent.
+    if (!isJson) {
+      const back = (c.req.header('referer') ?? '/').split('#')[0]
+      return c.redirect(`${back}#inviato`, 303)
+    }
+    return c.json({ ok: true })
+  })
+
+  app.get('/api/submissions', requireUser, async (c) => {
+    const limit = Math.min(Number(c.req.query('limit') ?? 50), 200)
+    const offset = Math.max(Number(c.req.query('offset') ?? 0), 0)
+    return c.json(await submissions.list(limit, offset))
+  })
+
+  app.patch('/api/submissions/:id', requireUser, async (c) => {
+    const input = await body(c, z.object({ read: z.boolean() }))
+    await submissions.markRead(c.req.param('id'), input.read)
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/submissions/:id', requireUser, requireAdmin, async (c) => {
+    await submissions.remove(c.req.param('id'))
+    return c.body(null, 204)
+  })
+
+  // Who may change what: editors limited to contents, if the admins want so.
+  app.get('/api/editorial', requireUser, async (c) =>
+    c.json({ editorial: (await settings.get<{ editorsContentOnly?: boolean }>('editorial')) ?? {} }),
+  )
+
+  app.put('/api/editorial', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ editorial: z.object({ editorsContentOnly: z.boolean().optional() }) }))
+    await settings.set('editorial', input.editorial, c.get('user').id)
+    return c.json({ editorial: input.editorial })
+  })
+
+  // Search engines: site-wide settings and redirects from old addresses.
+  app.get('/api/seo', requireUser, async (c) => c.json({ seo: (await settings.get<SiteSeo>('seo')) ?? {} }))
+
+  app.put('/api/seo', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ seo: siteSeoSchema }))
+    await settings.set('seo', input.seo, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ seo: input.seo })
+  })
+
+  // Every address on the site: published pages and old addresses that redirect, to check links.
+  app.get('/api/urls', requireUser, async (c) => {
+    const urls: string[] = []
+    for (const def of ctx.config().collections) {
+      if (!def.url) continue
+      for (const doc of await content.published(def.name)) {
+        const url = doc.publishedData ? publicUrl(def, doc.locale, doc.publishedData) : null
+        if (url) urls.push(url)
+      }
+    }
+    const redirects = (await settings.get<Redirect[]>('redirects')) ?? []
+    return c.json({ urls: [...new Set([...urls, ...redirects.map((r) => r.from)])] })
+  })
+
+  app.get('/api/redirects', requireUser, async (c) =>
+    c.json({ redirects: (await settings.get<Redirect[]>('redirects')) ?? [] }),
+  )
+
+  app.put('/api/redirects', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ redirects: z.array(redirectSchema).max(2000) }))
+    const redirects = input.redirects
+      .map((r) => ({ ...r, from: normalizePath(r.from), to: /^https?:\/\//.test(r.to) ? r.to : normalizePath(r.to) }))
+      .filter((r, i, all) => r.from !== r.to && all.findIndex((o) => o.from === r.from) === i)
+    await settings.set('redirects', redirects, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ redirects })
+  })
+
+  // Template pages: a page designed on the canvas that shows each entry of a collection.
+  app.get('/api/templates', requireUser, async (c) => c.json({ templates: (await settings.get('templates')) ?? {} }))
+
+  app.put('/api/templates', requireUser, async (c) => {
+    const input = await body(c, z.object({ templates: z.record(z.string(), z.string()) }))
+    await settings.set('templates', input.templates, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ templates: input.templates })
   })
 
   // Reusable components with their variants.
@@ -446,6 +775,8 @@ export function createApp(ctx: ServerContext) {
     const input = await body(c, z.object({ components: z.record(z.string(), z.record(z.string(), z.unknown())) }))
     const before = (await settings.get('components')) ?? {}
     guardEmbeds(c.get('user'), before, input.components)
+    if (JSON.stringify(before) !== JSON.stringify(input.components) && (await contentOnly(c.get('user'))))
+      throw designLocked()
     await settings.set('components', input.components, c.get('user').id)
     ctx.onPublish?.()
     return c.json({ components: input.components })
@@ -520,8 +851,11 @@ export function createApp(ctx: ServerContext) {
   app.put('/api/documents/:id', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     const input = await body(c, documentBody)
-    const draft = draftData(collection(existing.collection), input.data)
+    const def = collection(existing.collection)
+    const draft = draftData(def, input.data)
     guardEmbeds(c.get('user'), existing.data, draft.data)
+    for (const [name, f] of Object.entries(def.fields))
+      if (f.kind === 'page') await guardDesign(c.get('user'), existing.data[name], draft.data[name])
     const doc = await slugGuard(() => content.update(existing.id, { ...draft, userId: c.get('user').id }))
     return c.json(toJson(doc as StoredDocument))
   })
@@ -529,7 +863,21 @@ export function createApp(ctx: ServerContext) {
   app.post('/api/documents/:id/publish', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     // Validated now, not at save time: drafts may be incomplete and the schema may have changed since.
-    const data = publishableData(collection(existing.collection), existing.data)
+    const def = collection(existing.collection)
+    const data = publishableData(def, existing.data)
+    // A published page that moves keeps its old address working: a permanent redirect to the new one.
+    const before = existing.publishedData ? publicUrl(def, existing.locale, existing.publishedData) : null
+    const after = publicUrl(def, existing.locale, data)
+    if (after) {
+      // A page now living at an old address takes it back from its redirect.
+      const redirects = (await settings.get<Redirect[]>('redirects')) ?? []
+      const next =
+        before && before !== after
+          ? addMove(redirects, before, after)
+          : redirects.filter((r) => normalizePath(r.from) !== normalizePath(after))
+      if (next.length !== redirects.length || next.some((r, i) => r !== redirects[i]))
+        await settings.set('redirects', next, c.get('user').id)
+    }
     const doc = (await content.publish(existing.id, c.get('user').id, data)) as StoredDocument
     ctx.onPublish?.()
     return c.json(toJson(doc))

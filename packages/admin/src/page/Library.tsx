@@ -1,11 +1,23 @@
 import { buildSection, LIBRARY } from '@materializecms/core/library'
 import { type Component, type PageNode, pageRootStyle, renderSections, type Theme } from '@materializecms/core/page'
-import { Code, Image as ImageIcon, MousePointerClick, Rows3, Search, Sparkles, Trash2, Type, Video } from 'lucide-react'
+import {
+  Code,
+  Image as ImageIcon,
+  MousePointerClick,
+  Rows3,
+  Search,
+  Shapes,
+  Sparkles,
+  TextCursorInput,
+  Trash2,
+  Type,
+  Video,
+} from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Kbd } from '../components/ui.tsx'
 import { DRAG_ELEMENT, DRAG_SECTION } from './Canvas.tsx'
 
-export type ElementKind = 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene'
+export type ElementKind = 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene' | 'icon' | 'input'
 
 const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.ReactNode }[] = [
   { kind: 'frame', label: 'Contenitore', key: 'F', icon: <Rows3 /> },
@@ -15,6 +27,8 @@ const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.Rea
   { kind: 'video', label: 'Video', key: 'V', icon: <Video /> },
   { kind: 'embed', label: 'Codice', key: 'C', icon: <Code /> },
   { kind: 'scene', label: 'WebGL', key: 'G', icon: <Sparkles /> },
+  { kind: 'icon', label: 'Icona', key: 'O', icon: <Shapes /> },
+  { kind: 'input', label: 'Campo', key: 'K', icon: <TextCursorInput /> },
 ]
 
 const TILE_W = 1280

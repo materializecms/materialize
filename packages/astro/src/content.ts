@@ -1,5 +1,6 @@
-import type { Collection, Field, Fields, MaterializeConfig } from '@materializecms/core'
+import type { Collection, Field, Fields, MaterializeConfig, Media } from '@materializecms/core'
 import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
+import type { Redirect, SitemapPage, SiteSeo } from '@materializecms/core/seo'
 import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
 
@@ -102,6 +103,21 @@ export async function getGlobals(): Promise<Record<string, PageNode>> {
   return ((settings ? await settings.get('globals') : null) as Record<string, PageNode> | null) ?? {}
 }
 
+/**
+ * The canvas page chosen in the panel as the template of a collection's entries, as published;
+ * null when the collection has none (its entries keep their own layout).
+ */
+export async function getTemplate(collection: string): Promise<PageNode[] | null> {
+  const { settings, config } = await getRuntime()
+  const id = ((settings ? await settings.get('templates') : null) as Record<string, string> | null)?.[collection]
+  if (!id) return null
+  for (const c of config().collections) {
+    const found = (await published(c.name).catch(() => [])).find((e) => e.id === id)
+    if (found && Array.isArray(found.data.page)) return found.data.page as PageNode[]
+  }
+  return null
+}
+
 /** Reusable components, by id. */
 export async function getComponents(): Promise<Record<string, Component>> {
   const { settings } = await getRuntime()
@@ -179,4 +195,69 @@ export async function previewEntry(collection: string, locale: string, data: Dat
 export async function blocksFieldOf(collection: string): Promise<string | undefined> {
   const { config } = await getRuntime()
   return Object.entries(collectionOf(config(), collection).fields).find(([, f]) => f.kind === 'blocks')?.[0]
+}
+
+/** Site-wide settings for search engines and sharing (Impostazioni → SEO). */
+export async function getSiteSeo(): Promise<SiteSeo> {
+  const { settings } = await getRuntime()
+  return ((settings ? await settings.get('seo') : null) as SiteSeo | null) ?? {}
+}
+
+/** Old addresses and where they now live. */
+export async function getRedirects(): Promise<Redirect[]> {
+  const { settings } = await getRuntime()
+  return ((settings ? await settings.get('redirects') : null) as Redirect[] | null) ?? []
+}
+
+/**
+ * The same page in every language it is published in: translations share the collection and
+ * the slug (singletons and pages without a slug match on the collection alone).
+ */
+export async function getAlternates(entry: Entry): Promise<{ locale: string; url: string }[]> {
+  if (!entry.url) return []
+  const { config } = await getRuntime()
+  const cfg = config()
+  const out: { locale: string; url: string }[] = []
+  for (const locale of cfg.locales.available) {
+    if (locale === entry.locale) {
+      out.push({ locale, url: entry.url })
+      continue
+    }
+    const same = (await published(entry.collection, locale)).find((e) => e.slug === entry.slug)
+    if (same?.url) out.push({ locale, url: same.url })
+  }
+  return out
+}
+
+/** Every published page search engines may index, for sitemap.xml. */
+export async function getSitemapPages(): Promise<SitemapPage[]> {
+  const { config } = await getRuntime()
+  const pages: SitemapPage[] = []
+  for (const collection of config().collections) {
+    if (!collection.url) continue
+    for (const entry of await published(collection.name)) {
+      if (!entry.url || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
+      const alternates = await getAlternates(entry)
+      pages.push({ url: entry.url, updatedAt: entry.publishedAt, alternates })
+    }
+  }
+  return pages.sort((a, b) => a.url.localeCompare(b.url))
+}
+
+/** The first image in a document's data (a cover, a hero), to share the page when no image is chosen. */
+export function firstImage(value: unknown, depth = 0): Media | undefined {
+  if (!value || typeof value !== 'object' || depth > 6) return undefined
+  const v = value as Record<string, unknown>
+  const picture = typeof v.alt === 'string' || v.type === 'image'
+  if (
+    picture &&
+    typeof v.src === 'string' &&
+    /\.(jpe?g|png|webp|avif)$|^\/media\/.+\.(jpe?g|png|webp|avif)/i.test(v.src)
+  )
+    return { src: v.src, alt: typeof v.alt === 'string' ? v.alt : '' }
+  for (const child of Array.isArray(value) ? value : Object.values(v)) {
+    const found = firstImage(child, depth + 1)
+    if (found) return found
+  }
+  return undefined
 }

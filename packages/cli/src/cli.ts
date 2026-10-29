@@ -3,6 +3,7 @@ import { watch } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
+import { type Redirect, resolveRedirect } from '@materializecms/core/seo'
 import { createAuthStore, createContentStore, createSettingsStore } from '@materializecms/db'
 import { createFonts, createMediaFiles, startServer, VERSION } from '@materializecms/server'
 import { findConfig, loadConfig } from './load-config.ts'
@@ -75,9 +76,24 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   }
   let production: ProductionSite | undefined
   let contentChanged = () => {}
+  let redirectOf: (path: string) => Promise<string | null> = async () => null
   const server = await startServer(config, {
     port,
-    site: withSite ? (req, res) => siteHandler(req, res) : undefined,
+    site: withSite
+      ? async (req, res) => {
+          // Old addresses (moved pages, Impostazioni → SEO) answer with a permanent redirect.
+          if (req.method === 'GET' || req.method === 'HEAD') {
+            const url = new URL(req.url ?? '/', 'http://site')
+            const to = await redirectOf(url.pathname)
+            if (to) {
+              res.writeHead(301, { location: to + url.search })
+              res.end()
+              return
+            }
+          }
+          return siteHandler(req, res)
+        }
+      : undefined,
     onPublish: () => {
       void production?.rebuild()
       contentChanged()
@@ -88,12 +104,17 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     const runtime = await import('@materializecms/astro/runtime')
     contentChanged = runtime.contentChanged
     const { setRuntime } = runtime
+    const settings = createSettingsStore(server.database.db)
     setRuntime({
       config: () => current,
       content: createContentStore(server.database.db),
       auth: createAuthStore(server.database.db),
-      settings: createSettingsStore(server.database.db),
+      settings,
     })
+    redirectOf = async (path) => {
+      if (/\.[a-z0-9]+$/i.test(path) && !path.endsWith('.html')) return null
+      return resolveRedirect((await settings.get<Redirect[]>('redirects')) ?? [], path)
+    }
     if (mode === 'dev') {
       const site = await startDevSite(cwd, port + 1)
       siteHandler = site.handle

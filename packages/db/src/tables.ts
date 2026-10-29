@@ -104,6 +104,37 @@ export const media = sqliteTable(
   (t) => [index('media_created').on(t.createdAt)],
 )
 
+/** Messages sent from forms on the site, with what was filled in. */
+export const submissions = sqliteTable(
+  'submissions',
+  {
+    id: text('id').primaryKey(),
+    form: text('form').notNull(),
+    page: text('page').notNull().default(''),
+    data: text('data', { mode: 'json' }).$type<Record<string, string>>().notNull(),
+    read: integer('read', { mode: 'boolean' }).notNull().default(false),
+    mailed: integer('mailed', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('submissions_created').on(t.createdAt)],
+)
+
+/** Notes left on a page in the editor, pinned to an element or to the whole page. */
+export const comments = sqliteTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    nodeId: text('node_id'),
+    authorId: text('author_id'),
+    authorName: text('author_name').notNull().default(''),
+    body: text('body').notNull(),
+    resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('comments_document').on(t.documentId)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -188,5 +219,30 @@ export const MIGRATIONS: string[][] = [
       updated_at INTEGER NOT NULL,
       updated_by TEXT
     )`,
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY,
+      form TEXT NOT NULL,
+      page TEXT NOT NULL DEFAULT '',
+      data TEXT NOT NULL,
+      read INTEGER NOT NULL DEFAULT 0,
+      mailed INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`,
+    'CREATE INDEX IF NOT EXISTS submissions_created ON submissions (created_at)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      node_id TEXT,
+      author_id TEXT,
+      author_name TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL,
+      resolved INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`,
+    'CREATE INDEX IF NOT EXISTS comments_document ON comments (document_id)',
   ],
 ]

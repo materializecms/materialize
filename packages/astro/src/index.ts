@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AstroIntegration } from 'astro'
+import { getRedirects } from './content.ts'
 import { hasRuntime, loadRuntime, onContentChange } from './runtime.ts'
 
 export type { Entry } from './content.ts'
@@ -75,6 +76,29 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
           entrypoint: new URL('./preview.astro', import.meta.url),
           prerender: false,
         })
+        // A site's own sitemap.xml or robots.txt (in src/pages or public/) wins over these.
+        const own = (name: string) =>
+          ['src/pages', 'public'].some((dir) =>
+            ['', '.ts', '.js'].some((ext) => existsSync(resolve(root, dir, `${name}${ext}`))),
+          )
+        for (const name of ['sitemap.xml', 'robots.txt']) {
+          if (own(name)) continue
+          injectRoute({
+            pattern: `/${name}`,
+            entrypoint: new URL(`./routes/${name}.ts`, import.meta.url),
+            prerender: true,
+          })
+        }
+        // Old addresses: real redirects in dev, small redirect pages in the static build.
+        const redirects = await getRedirects().catch(() => [])
+        if (redirects.length)
+          updateConfig({
+            redirects: Object.fromEntries(
+              redirects
+                .filter((r) => r.from !== r.to)
+                .map((r) => [r.from, { status: 301 as const, destination: r.to }]),
+            ),
+          })
         updateConfig({ vite: { plugins: [sitePlugin(root, resolved)] } })
       },
     },

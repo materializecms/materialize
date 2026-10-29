@@ -127,7 +127,7 @@ const RAW: [string, string, [string, string, string][]][] = [
     'contact',
     'Contatti',
     [
-      ['form', 'Con modulo', 'form email'],
+      ['form', 'Con modulo', 'modulo di contatto form email messaggio richiesta preventivo'],
       ['simple', 'Essenziale', 'email'],
       ['locations', 'Sedi', 'indirizzi mappa'],
     ],
@@ -575,11 +575,17 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
         person('Davide Ferri', 'Direzione lavori', 1),
       ]),
     ])
-  const field = (l: string, ph: string) =>
-    F('Campo', { gap: 6 }, [
-      T('fl', 'Etichetta', l, 'small', { weight: 500 }),
-      T('fi', 'Campo', ph, 'small', { color: 'muted', bg: 'surface', padX: 14, padY: 12, radius: 8, border: true }),
-    ])
+  // A real contact form: what is sent arrives in the panel (Impostazioni → Messaggi) and by email.
+  const field = (label: string, fieldName: string, inputKind: PageNode['inputKind'], p: P = {}): PageNode => ({
+    id: newId(),
+    type: 'input',
+    name: label,
+    text: label,
+    fieldName,
+    inputKind,
+    width: 'fill',
+    ...p,
+  })
   if (key === 'contact.form')
     return S('Contatti', { layout: 'row', gap: 64, over: { mobile: { layout: 'col', gap: 32 } } }, [
       F('Testo', { gap: 16 }, [
@@ -588,12 +594,27 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
         T('subtitle', 'Sottotitolo', 'Rispondiamo entro due giorni lavorativi.', 'body', { color: 'muted' }),
         T('address', 'Indirizzo', 'Via [indirizzo] · Milano', 'small'),
       ]),
-      F('Modulo', { gap: 16, padX: 32, padY: 32, radius: 'card', scheme: 'surface' }, [
-        field('Nome', 'Il tuo nome'),
-        field('Email', 'nome@esempio.it'),
-        field('Messaggio', 'Raccontaci il tuo spazio…'),
-        B('cta', 'Pulsante', 'Invia richiesta', 'primary'),
-      ]),
+      F(
+        'Modulo',
+        {
+          gap: 16,
+          padX: 32,
+          padY: 32,
+          radius: 'card',
+          scheme: 'surface',
+          form: { subject: 'Richiesta dal sito', success: 'Grazie! Ti rispondiamo entro due giorni lavorativi.' },
+        },
+        [
+          field('Nome', 'nome', 'text', { required: true, placeholder: 'Il tuo nome' }),
+          field('Email', 'email', 'email', { required: true, placeholder: 'nome@esempio.it' }),
+          field('Tipo di progetto', 'progetto', 'select', {
+            options: ['Casa nuova', 'Ristrutturazione', 'Interni', 'Altro'],
+          }),
+          field('Messaggio', 'messaggio', 'textarea', { placeholder: 'Raccontaci il tuo spazio…' }),
+          field('Acconsento a essere ricontattato', 'privacy', 'checkbox', { required: true }),
+          B('cta', 'Pulsante', 'Invia richiesta', 'primary', { submit: true }),
+        ],
+      ),
     ])
   if (key === 'cta.banner')
     return S('Invito', { scheme: 'inverse', align: 'center', gap: 22, size: 'l' }, [

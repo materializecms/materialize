@@ -11,9 +11,12 @@
     "./page": "./src/page.ts",
     "./library": "./src/library.ts",
     "./motion": "./src/motion.ts",
-    "./scene": "./src/scene.ts"
+    "./scene": "./src/scene.ts",
+    "./icons": "./src/icons.ts",
+    "./seo": "./src/seo.ts"
   },
   "dependencies": {
+    "lucide": "1.64.0",
     "three": "0.186.1",
     "zod": "4.6.7"
   },

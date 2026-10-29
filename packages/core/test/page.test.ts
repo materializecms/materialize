@@ -237,3 +237,89 @@ describe('text styles', () => {
     expect(renderSections([{ id: 's', type: 'frame', children: [n] }], theme).css).toContain('font-size:4rem')
   })
 })
+
+describe('hover variants', () => {
+  it('turns the other variant into hover states, and never saves them into the component', () => {
+    const card: PageNode = {
+      id: 'card',
+      type: 'frame',
+      bg: 'surface',
+      children: [{ id: 'title', type: 'text', text: 'Interni', color: 'text' }],
+    }
+    const { component, ref } = makeComponent(card, 'Scheda')
+    const accent = {
+      id: 'v2',
+      name: 'Accento',
+      node: { ...structuredClone(component.variants[0]?.node as PageNode), bg: null, scheme: 'accent' as const },
+    }
+    const comps = { [component.id]: { ...component, variants: [...component.variants, accent] } }
+    const shown = expandComponents([{ ...ref, hoverVariant: 'v2' }], comps)[0] as PageNode
+    expect(shown.hoverStyle).toMatchObject({ on: 'self', bg: 'accent', color: 'onAccent' })
+    expect(shown.children?.[0]?.hoverStyle).toMatchObject({ on: 'card', color: 'onAccent' })
+    const back = collapseComponents([shown], comps)
+    expect(back.components[component.id]?.variants[0]?.node.hoverStyle).toBeUndefined()
+    expect(back.nodes[0]?.hoverVariant).toBe('v2')
+    const css = renderSections([{ id: 's', type: 'frame', children: [shown] }], DEFAULT_THEME).css
+    expect(css).toContain('[data-mz-group]:hover')
+  })
+})
+
+describe('icons, template pages, named colors, breakpoints', () => {
+  it('draws icons and shapes, and keeps pasted SVG to drawing', () => {
+    const { html } = renderSections(
+      [
+        {
+          id: 's',
+          type: 'frame',
+          children: [
+            { id: 'a', type: 'icon', icon: 'ArrowRight' },
+            { id: 'b', type: 'icon', icon: 'shape:arch' },
+            { id: 'c', type: 'icon', svg: '<svg onload="x()"><script>alert(1)</script><path d="M0 0"/></svg>' },
+          ],
+        },
+      ],
+      DEFAULT_THEME,
+    )
+    expect(html.match(/<svg/g)).toHaveLength(3)
+    expect(html).not.toContain('<script')
+    expect(html).not.toContain('onload')
+  })
+
+  it('fills elements of a template page from the entry, but not those inside lists', () => {
+    const page: PageNode[] = [
+      {
+        id: 's',
+        type: 'frame',
+        children: [
+          { id: 't', type: 'text', field: 'title', text: 'Titolo' },
+          {
+            id: 'l',
+            type: 'frame',
+            bind: { collection: 'p' },
+            children: [{ id: 'x', type: 'text', field: 'title', text: '' }],
+          },
+        ],
+      },
+    ]
+    const { html } = renderSections(page, DEFAULT_THEME, {
+      entry: { title: 'Casa sul lago', url: '/a', data: {} },
+      data: { p: [{ title: 'Altro progetto', url: '/b', data: {} }] },
+    })
+    expect(html).toContain('Casa sul lago')
+    expect(html).toContain('Altro progetto')
+  })
+
+  it('uses named colors and the theme breakpoints', () => {
+    const theme = {
+      ...DEFAULT_THEME,
+      swatches: [{ id: 'sw-sage', name: 'Salvia', light: '#7a8b6f', dark: '#9fb08f' }],
+      breakpoints: { tablet: 1199, mobile: 699 },
+    }
+    const { css } = renderSections(
+      [{ id: 's', type: 'frame', bg: 'sw-sage', over: { mobile: { gap: 8 } }, children: [] }],
+      theme,
+    )
+    expect(css).toMatch(/#7a8b6f|#9fb08f/)
+    expect(css).toContain('max-width:699px')
+  })
+})

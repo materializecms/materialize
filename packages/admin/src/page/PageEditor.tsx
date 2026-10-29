@@ -2,6 +2,7 @@ import { buildSection } from '@materializecms/core/library'
 import {
   type BoundEntry,
   type Breakpoint,
+  breakpointsOf,
   type Component,
   cloneNode,
   collapseComponents,
@@ -30,10 +31,14 @@ import {
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Code,
+  Columns3,
   Eye,
   Image as ImageIcon,
+  Keyboard,
   Layers as LayersIcon,
+  ListOrdered,
   Maximize,
+  MessageSquare,
   Minus,
   Monitor,
   MousePointerClick,
@@ -42,9 +47,12 @@ import {
   Plus,
   Rows3,
   Ruler,
+  Search,
+  Shapes,
   Smartphone,
   Sparkles,
   Tablet,
+  TextCursorInput,
   Type,
   Video,
 } from 'lucide-react'
@@ -57,20 +65,38 @@ import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { type AlignHow, alignPatches } from './align.ts'
 import { Canvas, type DropTarget, type Mode } from './Canvas.tsx'
+import { CommentsPanel } from './CommentsPanel.tsx'
+import { ContentPanel, SectionsIndex } from './ContentPanel.tsx'
+import { ContextMenu, type MenuEntry } from './ContextMenu.tsx'
+import { SwatchesContext } from './controls.tsx'
+import { DevicesView } from './DevicesView.tsx'
 import { loadFont } from './fonts.ts'
+import { ShortcutsDialog, Tour } from './Help.tsx'
 import { Inspector } from './Inspector.tsx'
 import { Layers } from './Layers.tsx'
 import { type ElementKind, Library } from './Library.tsx'
 import { simplify } from './runs.ts'
+import { SeoPanel } from './SeoPanel.tsx'
 import { ThemePanel } from './ThemePanel.tsx'
 
-type Tab = 'layers' | 'add' | 'styles'
+type Tab = 'layers' | 'add' | 'styles' | 'seo'
 
 /** The sections of a ready-made page. */
 const STARTER = ['nav.classic', 'hero.split', 'features.cols', 'cta.banner', 'footer.simple']
 
 /** Properties that are content, the same on every device. */
 const CONTENT_KEYS = new Set<string>([
+  'locked',
+  'form',
+  'inputKind',
+  'fieldName',
+  'placeholder',
+  'required',
+  'options',
+  'submit',
+  'icon',
+  'svg',
+  'hoverVariant',
   'textStyle',
   'stickyHide',
   'stickyGlass',
@@ -94,6 +120,73 @@ const CONTENT_KEYS = new Set<string>([
   'bgImage',
   'bgDim',
 ])
+
+/** Colors of the other people on the page, by order of arrival. */
+const PRESENCE_COLORS = ['#e11d48', '#0891b2', '#7c3aed', '#16a34a', '#ea580c']
+
+/** What "copy style" carries: the look, not content, size or place (as in Figma). */
+const STYLE_KEYS = [
+  'bg',
+  'gradient',
+  'scheme',
+  'color',
+  'radius',
+  'border',
+  'borderW',
+  'borderColor',
+  'divider',
+  'topline',
+  'shadow',
+  'opa',
+  'blend',
+  'blurFx',
+  'gray',
+  'glass',
+  'padX',
+  'padY',
+  'style',
+  'textStyle',
+  'font',
+  'fontSize',
+  'weight',
+  'tracking',
+  'leading',
+  'italic',
+  'upper',
+  'talign',
+  'textGradient',
+  'variant',
+  'hover',
+  'hoverStyle',
+  'anim',
+  'animDur',
+  'animDelay',
+  'animTrig',
+] as const
+
+type StyleCopy = { props: Partial<NodeProps>; over: PageNode['over'] }
+
+function copyStyle(n: PageNode): StyleCopy {
+  const pick = (from: Partial<NodeProps> | undefined) =>
+    Object.fromEntries(STYLE_KEYS.flatMap((k) => (from && k in from ? [[k, from[k as keyof NodeProps]]] : [])))
+  return { props: pick(n), over: { tablet: pick(n.over?.tablet), mobile: pick(n.over?.mobile) } }
+}
+
+/** The copied look on another element: its own style values give way, everything else stays. */
+function pasteStyle(n: PageNode, c: StyleCopy): PageNode {
+  const out: PageNode = { ...n }
+  for (const k of STYLE_KEYS) delete (out as unknown as Record<string, unknown>)[k]
+  Object.assign(out, c.props)
+  const over: PageNode['over'] = {}
+  for (const bp of ['tablet', 'mobile'] as const) {
+    const own: Partial<NodeProps> = { ...n.over?.[bp] }
+    for (const k of STYLE_KEYS) delete (own as Record<string, unknown>)[k]
+    const merged = { ...own, ...c.over?.[bp] }
+    if (Object.keys(merged).length) over[bp] = merged
+  }
+  out.over = over
+  return out
+}
 
 /** The element without its own typography, so a shared text style shows through on every device. */
 function clearTypography(n: PageNode): PageNode {
@@ -139,6 +232,19 @@ function newElement(kind: ElementKind): PageNode {
       radius: 'card',
       width: 'fill',
     }
+  if (kind === 'input')
+    return {
+      id,
+      type: 'input',
+      name: 'Campo',
+      text: 'Email',
+      fieldName: 'email',
+      inputKind: 'email',
+      placeholder: 'nome@esempio.it',
+      width: 'fill',
+    }
+  if (kind === 'icon')
+    return { id, type: 'icon', name: 'Icona', icon: 'ArrowUpRight', color: 'text', width: 'fixed', fixedW: 32 }
   if (kind === 'scene')
     return {
       id,
@@ -185,12 +291,15 @@ export function PageEditor({
   data,
   onChange,
   mode,
+  docId,
 }: {
   collection: CollectionDescription
   pageField: FieldDescription
   data: Data
   onChange: (next: Data, group?: string) => void
   mode: Mode
+  /** The document being edited, once saved: it can be the template of a collection. */
+  docId?: string
 }) {
   const { user, schema, locale } = useSession()
   const queryClient = useQueryClient()
@@ -233,17 +342,88 @@ export function PageEditor({
     ),
   })
   // The selection: the last element picked is the one the inspector shows; shift adds more.
+  // Template pages: this page may show each entry of a collection, previewed with one of them.
+  const templatesQuery = useQuery({ queryKey: ['templates'], queryFn: api.templates, staleTime: Infinity })
+  const templates = templatesQuery.data?.templates ?? {}
+  const templateOf = docId ? (Object.entries(templates).find(([, id]) => id === docId)?.[0] ?? null) : null
+  const samples = useQuery({
+    queryKey: ['entries', templateOf, locale],
+    queryFn: () => api.entries(templateOf as string, locale),
+    enabled: !!templateOf,
+    staleTime: 30_000,
+  })
+  const [sampleIndex, setSampleIndex] = useState(0)
+  const sample = samples.data?.items[sampleIndex] ?? samples.data?.items[0]
+  const sampleEntry = useMemo(
+    () => (templateOf && sample ? { title: sample.title, url: sample.url, data: sample.data } : undefined),
+    [templateOf, sample],
+  )
+  const setTemplateOf = (name: string | null) => {
+    if (!docId) return
+    const next = Object.fromEntries(Object.entries(templates).filter(([, id]) => id !== docId))
+    if (name) next[name] = docId
+    queryClient.setQueryData(['templates'], { templates: next })
+    api.saveTemplates(next).catch((e: Error) => toast(e.message, 'error'))
+  }
+  // Comments and who else has the page open.
+  const [commenting, setCommenting] = useState(false)
+  const commentsQuery = useQuery({
+    queryKey: ['comments', docId],
+    queryFn: () => api.comments(docId as string),
+    enabled: !!docId,
+    refetchInterval: 30_000,
+  })
+  const openComments = useMemo(() => (commentsQuery.data?.items ?? []).filter((c) => !c.resolved), [commentsQuery.data])
+  const [others, setOthers] = useState<{ id: string; name: string; selected: string | null }[]>([])
   const [selection, setSelection] = useState<string[]>([])
   const selected = selection[selection.length - 1] ?? null
   const setSelected = useCallback((id: string | null) => setSelection(id ? [id] : []), [])
   const selectionRef = useRef(selection)
   selectionRef.current = selection
+
+  // Presence: check in every few seconds (and when the selection changes) with what is selected.
+  const selectedRef = useRef<string | null>(null)
+  selectedRef.current = selection[selection.length - 1] ?? null
+  useEffect(() => {
+    if (!docId) return
+    let stopped = false
+    const beat = () =>
+      api
+        .presence(docId, selectedRef.current)
+        .then((r) => !stopped && setOthers(r.others))
+        .catch(() => {})
+    beat()
+    const timer = setInterval(beat, 8000)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [docId])
+  const lastSelected = selection[selection.length - 1] ?? null
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tell the others soon after the selection changes
+  useEffect(() => {
+    if (!docId) return
+    const t = setTimeout(
+      () =>
+        api
+          .presence(docId, lastSelected)
+          .then((r) => setOthers(r.others))
+          .catch(() => {}),
+      600,
+    )
+    return () => clearTimeout(t)
+  }, [lastSelected])
   const toggleSelected = (id: string) => setSelection((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   const [editing, setEditing] = useState<string | null>(null)
   const [device, setDevice] = useState<Breakpoint>('desktop')
+  const [sideBySide, setSideBySide] = useState(false)
+  const [widths, setWidths] = useState<Record<Breakpoint, number>>({ desktop: 1280, tablet: 768, mobile: 390 })
   const [zoom, setZoom] = useState<'fit' | number>('fit')
   const [fitZoom, setFitZoom] = useState(1)
   const [tab, setTab] = usePref<Tab>('mz-page-tab', 'layers')
+  const [contentTab, setContentTab] = usePref<'sections' | 'seo'>('mz-content-tab', 'sections')
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [tourPref, setTourPref] = usePref<'todo' | 'done'>('mz-tour', 'todo')
   const [rulerPref, setRulerPref] = usePref<'on' | 'off'>('mz-rulers', 'on')
   const rulers = rulerPref === 'on'
   const setRulers = (on: boolean) => setRulerPref(on ? 'on' : 'off')
@@ -254,10 +434,38 @@ export function PageEditor({
   )
   const clipboard = useRef<PageNode | null>(null)
   const typeAhead = useRef('')
+  const styleClipboard = useRef<StyleCopy | null>(null)
+  const styleActions = {
+    copy: () => {
+      const n = findNode(nodesRef.current, selected)?.node
+      if (!n) return
+      styleClipboard.current = copyStyle(n)
+      toast('Stile copiato: ⌥⌘V per incollarlo su altri elementi')
+    },
+    paste: () => {
+      const c = styleClipboard.current
+      if (!c) {
+        toast('Prima copia lo stile di un elemento (⌥⌘C)', 'error')
+        return
+      }
+      setNodes(
+        selectionRef.current.reduce((list, id) => updateNode(list, id, (n) => pasteStyle(n, c)), nodesRef.current),
+      )
+    },
+  }
 
   const themeQuery = useQuery({ queryKey: ['theme'], queryFn: api.theme, staleTime: Infinity })
   const theme = themeQuery.data?.theme ?? DEFAULT_THEME
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Screen widths to try each design on, within the theme's breakpoints.
+  const limits = breakpointsOf(theme)
+  const widthPresets: Record<Breakpoint, number[]> = {
+    desktop: [1280, 1440, 1920, limits.tablet + 1].filter((w, i, a) => w > limits.tablet && a.indexOf(w) === i),
+    tablet: [768, 834, limits.tablet].filter(
+      (w, i, a) => w > limits.mobile && w <= limits.tablet && a.indexOf(w) === i,
+    ),
+    mobile: [390, 360, 430, limits.mobile].filter((w, i, a) => w <= limits.mobile && a.indexOf(w) === i),
+  }
   const setTheme = (next: Theme) => {
     queryClient.setQueryData(['theme'], { theme: next })
     clearTimeout(saveTimer.current)
@@ -497,12 +705,12 @@ export function PageEditor({
   }
 
   /** Brings a new section into view on the canvas, once drawn. */
-  const revealOnCanvas = (id: string) =>
+  const revealOnCanvas = (id: string, block: ScrollLogicalPosition = 'nearest') =>
     setTimeout(
       () =>
         document
           .querySelector(`[data-mz-canvas] [data-mz-id="${CSS.escape(id)}"]`)
-          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+          ?.scrollIntoView({ block, behavior: 'smooth' }),
       80,
     )
 
@@ -657,6 +865,15 @@ export function PageEditor({
       const n = findNode(nodesRef.current, id)?.node
       if (n) replaceNode(id, showCopy({ ...refOf(n), overrides: null }))
     },
+    setHoverVariant: (id: string, variantId: string | null) => {
+      const n = findNode(nodesRef.current, id)?.node
+      if (!n) return
+      const { hoverVariant: _, ...ref } = refOf(n)
+      replaceNode(id, showCopy(variantId ? { ...ref, hoverVariant: variantId } : ref))
+    },
+    setChild: (childId: string, patch: Partial<PageNode>) => setProps(childId, patch as Partial<NodeProps>),
+    pickChildImage: (childId: string) => setPicking({ id: childId, target: 'src' }),
+    select: (childId: string) => setSelected(childId),
     insert: (cid: string) => {
       const def = componentsRef.current[cid]
       if (!def?.variants[0]) return
@@ -724,6 +941,102 @@ export function PageEditor({
     setNodes(next)
   }
 
+  const copyNode = (id: string) => {
+    clipboard.current = findNode(nodesRef.current, id)?.node ?? null
+    if (clipboard.current) toast('Copiato')
+  }
+  const pasteNode = () => {
+    if (!clipboard.current) return
+    const copy = cloneNode(clipboard.current)
+    if (copy.section || findNode(nodesRef.current, clipboard.current.id)?.depth === 0) {
+      const f = findNode(nodesRef.current, selected)
+      const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
+      setNodes(insertNode(nodesRef.current, null, index, copy))
+      setSelected(copy.id)
+    } else insertAfterSelection(copy)
+  }
+
+  // ---------- right-click menu ----------
+
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const openMenu = (id: string, x: number, y: number) => {
+    if (!selectionRef.current.includes(id)) setSelected(id)
+    setMenu({ x, y })
+  }
+  const menuItems = (): MenuEntry[] => {
+    const f = findNode(nodesRef.current, selected)
+    if (!f) return []
+    const n = f.node
+    const many = selection.length > 1
+    const isSection = f.depth === 0
+    const hidden = !!resolveNode(n, device).hidden
+    return [
+      {
+        label: 'Seleziona il contenitore',
+        hint: 'Esc',
+        onClick: () => setSelected(f.parent?.id ?? null),
+        disabled: !f.parent,
+      },
+      {
+        label: 'Seleziona gli elementi vicini',
+        hint: '⌘A',
+        onClick: () => setSelection([...f.siblings.map((x) => x.id).filter((x) => x !== n.id), n.id]),
+      },
+      'separator',
+      {
+        label: 'Rinomina',
+        onClick: () =>
+          setTimeout(
+            () => document.querySelector<HTMLInputElement>('input[aria-label="Nome del livello"]')?.select(),
+            50,
+          ),
+        disabled: many,
+      },
+      { label: 'Duplica', hint: '⌘D', onClick: duplicateSelection },
+      { label: 'Copia', hint: '⌘C', onClick: () => copyNode(n.id), disabled: many },
+      { label: 'Incolla', hint: '⌘V', onClick: pasteNode, disabled: !clipboard.current },
+      { label: 'Copia lo stile', hint: '⌥⌘C', onClick: styleActions.copy, disabled: many },
+      { label: 'Incolla lo stile', hint: '⌥⌘V', onClick: styleActions.paste, disabled: !styleClipboard.current },
+      'separator',
+      ...(many ? [{ label: 'Raggruppa', hint: '⌘G', onClick: group }] : []),
+      ...(n.type === 'frame' && !isSection && !n.component && n.children?.length
+        ? [{ label: 'Separa', hint: '⇧⌘G', onClick: ungroup }]
+        : []),
+      { label: 'Sposta su', hint: '⌥↑', onClick: () => move(n.id, -1), disabled: f.index === 0 || many },
+      {
+        label: 'Sposta giù',
+        hint: '⌥↓',
+        onClick: () => move(n.id, 1),
+        disabled: f.index === f.siblings.length - 1 || many,
+      },
+      'separator',
+      ...(n.type === 'frame' && !n.component && !many
+        ? [{ label: 'Crea componente', onClick: () => componentActions.make(n.id) }]
+        : []),
+      ...(isSection && !n.global && !many
+        ? [{ label: 'Rendi sezione globale', onClick: () => setProps(n.id, { global: newId() } as Partial<NodeProps>) }]
+        : []),
+      'separator',
+      {
+        label: hidden ? 'Mostra su questo dispositivo' : 'Nascondi su questo dispositivo',
+        onClick: () => setPropsMany(selectionRef.current.map((id) => [id, { hidden: !hidden }])),
+      },
+      {
+        label: n.locked ? 'Sblocca' : 'Blocca',
+        hint: n.locked ? undefined : 'fermo sulla tela',
+        onClick: () => setPropsMany(selectionRef.current.map((id) => [id, { locked: !n.locked || undefined }])),
+      },
+      { label: 'Commenta', onClick: () => setCommenting(true), disabled: !docId || many },
+      'separator',
+      {
+        label: many ? `Elimina ${selection.length} elementi` : 'Elimina',
+        hint: '⌫',
+        onClick: removeSelection,
+        danger: true,
+      },
+    ]
+  }
+
   const play = useCallback(() => {
     setPlaying(Date.now())
     setTimeout(() => setPlaying(0), 2600)
@@ -766,6 +1079,11 @@ export function PageEditor({
         e.preventDefault()
         const f = findNode(nodesRef.current, id)
         if (f) setSelection([...f.siblings.map((n) => n.id).filter((x) => x !== id), id])
+      } else if (id && e.altKey && mod && (e.code === 'KeyC' || e.code === 'KeyV')) {
+        // Copy and paste the look, as in Figma (⌥ changes the letter on macOS: by physical key).
+        e.preventDefault()
+        if (e.code === 'KeyC') styleActions.copy()
+        else styleActions.paste()
       } else if (id && e.altKey && mod && /^Key[WASDHV]$/.test(e.code)) {
         // By physical key: with ⌥ held, macOS types other letters (⌥S is ß).
         e.preventDefault()
@@ -774,17 +1092,10 @@ export function PageEditor({
         )[e.code as 'KeyA']
         if (how) align(how)
       } else if (id && mod && e.key.toLowerCase() === 'c') {
-        clipboard.current = findNode(nodesRef.current, id)?.node ?? null
-        if (clipboard.current) toast('Copiato')
+        copyNode(id)
       } else if (mod && e.key.toLowerCase() === 'v' && clipboard.current) {
         e.preventDefault()
-        const copy = cloneNode(clipboard.current)
-        if (copy.section || findNode(nodesRef.current, clipboard.current.id)?.depth === 0) {
-          const f = findNode(nodesRef.current, id)
-          const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
-          setNodes(insertNode(nodesRef.current, null, index, copy))
-          setSelected(copy.id)
-        } else insertAfterSelection(copy)
+        pasteNode()
       } else if (id && e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault()
         move(id, e.key === 'ArrowUp' ? -1 : 1)
@@ -807,6 +1118,9 @@ export function PageEditor({
           e.preventDefault()
           setSelected(n.children[0].id)
         }
+      } else if (e.key === '?' && !mod) {
+        e.preventDefault()
+        setShowShortcuts(true)
       } else if (!mod && !e.altKey && e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault()
         setRulers(!rulers)
@@ -824,9 +1138,19 @@ export function PageEditor({
         typeAhead.current += e.key
         setEditing(id)
       } else if (!mod && !e.altKey && mode === 'design') {
-        const kind = ({ f: 'frame', t: 'text', i: 'image', b: 'button', v: 'video', c: 'embed', g: 'scene' } as const)[
-          e.key.toLowerCase()
-        ]
+        const kind = (
+          {
+            f: 'frame',
+            t: 'text',
+            i: 'image',
+            b: 'button',
+            v: 'video',
+            c: 'embed',
+            g: 'scene',
+            o: 'icon',
+            k: 'input',
+          } as const
+        )[e.key.toLowerCase()]
         if (kind) {
           e.preventDefault()
           insertAfterSelection(newElement(kind))
@@ -859,7 +1183,8 @@ export function PageEditor({
       return false
     }
     climb(nodesRef.current, [])
-    const def = schema.collections.find((c) => c.name === name)
+    // On a template page, elements outside lists show the entry being shown.
+    const def = schema.collections.find((c) => c.name === (name ?? templateOf))
     if (!def) return null
     return [
       { value: 'title', label: 'Titolo' },
@@ -884,330 +1209,567 @@ export function PageEditor({
     ]
   }
 
+  // On the canvas: who else is on which element, and the elements with open comments.
+  const marks = useMemo(() => {
+    const out: { id: string; label: string; color: string; kind: 'person' | 'pin' }[] = []
+    others.forEach((o, i) => {
+      if (o.selected)
+        out.push({
+          id: o.selected,
+          label: o.name,
+          color: PRESENCE_COLORS[i % PRESENCE_COLORS.length] ?? '#e11d48',
+          kind: 'person',
+        })
+    })
+    const counts = new Map<string, number>()
+    for (const c of openComments) if (c.nodeId) counts.set(c.nodeId, (counts.get(c.nodeId) ?? 0) + 1)
+    for (const [id, n] of counts) out.push({ id, label: String(n), color: '#f59e0b', kind: 'pin' })
+    return out
+  }, [others, openComments])
+
+  const swatchTokens = useMemo(
+    () => (theme.swatches ?? []).map((sw) => ({ value: sw.id, label: sw.name })),
+    [theme.swatches],
+  )
+
   const otherFields = collection.fields.filter((f) => f.name !== pageField.name)
   const selectedNode = info?.node ?? null
 
   return (
-    <div className="flex min-h-0 flex-1">
-      {/* left: layers, library, styles */}
-      <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel">
-        <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
-          {(
-            [
-              ['layers', 'Livelli', <LayersIcon key="l" />],
-              ['add', 'Aggiungi', <Plus key="a" />],
-              ['styles', 'Stili', <Palette key="s" />],
-            ] as const
-          ).map(([value, label, icon]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTab(value)}
-              className={cx(
-                'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-medium transition-colors [&_svg]:size-3.5',
-                tab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
-              )}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
-        {tab === 'layers' && (
-          <Layers
-            nodes={nodes}
-            selected={selected}
-            selection={selection}
-            onSelect={(id, add) => (add && id ? toggleSelected(id) : setSelected(id))}
-            onRename={(id, name) => setProps(id, { name: name || undefined })}
-            onToggleHidden={(id) => {
-              const n = findNode(nodesRef.current, id)?.node
-              if (n) setProps(id, { hidden: !resolveNode(n, device).hidden })
-            }}
-            onMove={moveTo}
-            hiddenOf={(n) => !!resolveNode(n, device).hidden}
-          />
-        )}
-        {tab === 'add' && (
-          <Library
-            theme={theme}
-            brand={schema.site.name}
-            onAddElement={(kind) => insertAfterSelection(newElement(kind))}
-            onAddSection={addSection}
-            globals={globals}
-            components={components}
-            onAddComponent={componentActions.insert}
-            onRemoveComponent={(cid) => {
-              const def = componentsRef.current[cid]
-              if (def) storeComponents({ ...componentsRef.current, [cid]: { ...def, archived: true } })
-            }}
-            onAddGlobal={(gid) => {
-              const f = findNode(nodesRef.current, selected)
-              const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
-              const ref: PageNode = { ...(globals[gid] as PageNode), id: newId(), global: gid }
-              setNodes(insertNode(nodesRef.current, null, index, ref))
-              setSelected(ref.id)
-              revealOnCanvas(ref.id)
-            }}
-          />
-        )}
-        {tab === 'styles' && <ThemePanel theme={theme} onChange={setTheme} canEdit={user.role === 'admin'} />}
-      </aside>
-
-      {/* center: toolbar and canvas */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
-          {mode === 'design' && (
-            <div className="flex items-center gap-0.5">
+    <SwatchesContext.Provider value={swatchTokens}>
+      <div className="flex min-h-0 flex-1">
+        {/* left: layers, library, styles */}
+        {mode === 'content' ? (
+          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel">
+            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
               {(
                 [
-                  ['frame', 'Contenitore · F', <Rows3 key="f" />],
-                  ['text', 'Testo · T', <Type key="t" />],
-                  ['image', 'Immagine · I', <ImageIcon key="i" />],
-                  ['button', 'Pulsante · B', <MousePointerClick key="b" />],
-                  ['video', 'Video · V', <Video key="v" />],
-                  ['embed', 'Codice · C', <Code key="c" />],
-                  ['scene', 'Scena WebGL · G', <Sparkles key="g" />],
+                  ['sections', 'Sezioni', <ListOrdered key="s" />],
+                  ['seo', 'SEO', <Search key="q" />],
                 ] as const
-              ).map(([kind, label, icon]) => (
-                <IconButton
-                  key={kind}
-                  label={`Aggiungi ${label}`}
-                  onClick={() => insertAfterSelection(newElement(kind))}
+              ).map(([value, label, icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setContentTab(value)}
+                  className={cx(
+                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                    contentTab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
+                  )}
                 >
                   {icon}
-                </IconButton>
+                  {label}
+                </button>
               ))}
             </div>
-          )}
-          {mode === 'content' && (
-            <span className="text-[12px] text-fg2">Clicca un testo per scriverci, un’immagine per cambiarla.</span>
-          )}
-          <div className="flex-1" />
-          <Segmented
-            size="sm"
-            value={device}
-            onChange={(d) => {
-              setDevice(d)
-              setZoom('fit')
-            }}
-            options={[
-              { value: 'desktop', label: <Monitor />, title: 'Desktop · 1280 px' },
-              { value: 'tablet', label: <Tablet />, title: 'Tablet · 768 px' },
-              { value: 'mobile', label: <Smartphone />, title: 'Mobile · 390 px' },
-            ]}
-          />
-          <div className="flex-1" />
-          <div className="flex items-center gap-0.5">
+            {contentTab === 'sections' ? (
+              <SectionsIndex
+                nodes={nodes}
+                current={findNode(nodes, selected)?.root.id ?? null}
+                onSelect={(id) => {
+                  setSelected(id)
+                  revealOnCanvas(id, 'start')
+                }}
+              />
+            ) : (
+              <SeoPanel
+                nodes={nodes}
+                data={data}
+                seoField={otherFields.find((f) => f.kind === 'seo')}
+                onChange={onChange}
+                onSelect={(id) => {
+                  setSelected(id)
+                  revealOnCanvas(id)
+                }}
+              />
+            )}
+          </aside>
+        ) : (
+          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel">
+            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
+              {(
+                [
+                  ['layers', 'Livelli', <LayersIcon key="l" />],
+                  ['add', 'Aggiungi', <Plus key="a" />],
+                  ['styles', 'Stili', <Palette key="s" />],
+                  ['seo', 'SEO', <Search key="q" />],
+                ] as const
+              ).map(([value, label, icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTab(value)}
+                  className={cx(
+                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                    tab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
+            {tab === 'layers' && (
+              <Layers
+                nodes={nodes}
+                selected={selected}
+                selection={selection}
+                onSelect={(id, add) => (add && id ? toggleSelected(id) : setSelected(id))}
+                onRename={(id, name) => setProps(id, { name: name || undefined })}
+                onToggleHidden={(id) => {
+                  const n = findNode(nodesRef.current, id)?.node
+                  if (n) setProps(id, { hidden: !resolveNode(n, device).hidden })
+                }}
+                onMove={moveTo}
+                onContextMenu={openMenu}
+                hiddenOf={(n) => !!resolveNode(n, device).hidden}
+              />
+            )}
+            {tab === 'add' && (
+              <Library
+                theme={theme}
+                brand={schema.site.name}
+                onAddElement={(kind) => insertAfterSelection(newElement(kind))}
+                onAddSection={addSection}
+                globals={globals}
+                components={components}
+                onAddComponent={componentActions.insert}
+                onRemoveComponent={(cid) => {
+                  const def = componentsRef.current[cid]
+                  if (def) storeComponents({ ...componentsRef.current, [cid]: { ...def, archived: true } })
+                }}
+                onAddGlobal={(gid) => {
+                  const f = findNode(nodesRef.current, selected)
+                  const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
+                  const ref: PageNode = { ...(globals[gid] as PageNode), id: newId(), global: gid }
+                  setNodes(insertNode(nodesRef.current, null, index, ref))
+                  setSelected(ref.id)
+                  revealOnCanvas(ref.id)
+                }}
+              />
+            )}
+            {tab === 'styles' && <ThemePanel theme={theme} onChange={setTheme} canEdit={user.role === 'admin'} />}
+            {tab === 'seo' && (
+              <SeoPanel
+                nodes={nodes}
+                data={data}
+                seoField={otherFields.find((f) => f.kind === 'seo')}
+                onChange={onChange}
+                onSelect={(id) => {
+                  setSelected(id)
+                  revealOnCanvas(id)
+                }}
+              />
+            )}
+          </aside>
+        )}
+
+        {/* center: toolbar and canvas */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
+            {mode === 'design' && (
+              <div className="flex items-center gap-0.5">
+                {(
+                  [
+                    ['frame', 'Contenitore · F', <Rows3 key="f" />],
+                    ['text', 'Testo · T', <Type key="t" />],
+                    ['image', 'Immagine · I', <ImageIcon key="i" />],
+                    ['button', 'Pulsante · B', <MousePointerClick key="b" />],
+                    ['video', 'Video · V', <Video key="v" />],
+                    ['embed', 'Codice · C', <Code key="c" />],
+                    ['scene', 'Scena WebGL · G', <Sparkles key="g" />],
+                    ['icon', 'Icona o forma · O', <Shapes key="o" />],
+                    ['input', 'Campo di un modulo · K', <TextCursorInput key="k" />],
+                  ] as const
+                ).map(([kind, label, icon]) => (
+                  <IconButton
+                    key={kind}
+                    label={`Aggiungi ${label}`}
+                    onClick={() => insertAfterSelection(newElement(kind))}
+                  >
+                    {icon}
+                  </IconButton>
+                ))}
+              </div>
+            )}
+            {mode === 'content' && (
+              <span className="text-[12px] text-fg2">Clicca un testo per scriverci, un’immagine per cambiarla.</span>
+            )}
+            <div className="flex-1" />
+            <Segmented
+              size="sm"
+              value={device}
+              onChange={(d) => {
+                setDevice(d)
+                setZoom('fit')
+              }}
+              options={[
+                { value: 'desktop', label: <Monitor />, title: `Desktop · ${widths.desktop} px` },
+                { value: 'tablet', label: <Tablet />, title: `Tablet · ${widths.tablet} px` },
+                { value: 'mobile', label: <Smartphone />, title: `Mobile · ${widths.mobile} px` },
+              ]}
+            />
+            <select
+              aria-label="Larghezza dell’anteprima"
+              title="Larghezza dello schermo su cui provi la pagina"
+              value={widths[device]}
+              onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
+              className="h-7 rounded-md bg-transparent px-1 font-mono text-[11.5px] text-fg2 outline-none hover:bg-hover"
+            >
+              {widthPresets[device].map((w) => (
+                <option key={w} value={w}>
+                  {w} px
+                </option>
+              ))}
+            </select>
             <IconButton
-              label="Riduci lo zoom"
-              onClick={() => setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))}
+              label="Tutti i dispositivi affiancati"
+              active={sideBySide}
+              onClick={() => setSideBySide(!sideBySide)}
             >
-              <Minus />
+              <Columns3 />
             </IconButton>
-            <button
-              type="button"
-              title="Adatta alla finestra"
-              onClick={() => setZoom('fit')}
-              className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[11.5px] text-fg2 hover:bg-hover hover:text-fg"
-            >
-              {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
-            </button>
-            <IconButton
-              label="Aumenta lo zoom"
-              onClick={() => setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))}
-            >
-              <Plus />
-            </IconButton>
-            <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
-              <Maximize />
-            </IconButton>
-            <IconButton label="Righelli · ⇧R" active={rulers} onClick={() => setRulers(!rulers)}>
-              <Ruler />
-            </IconButton>
-            <div className="mx-1 h-5 w-px bg-line" />
-            <IconButton label="Riproduci le animazioni" onClick={play}>
-              <Play />
-            </IconButton>
-            <button
-              type="button"
-              onClick={() => setPreviewing(!previewing)}
-              title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
-              className={cx(
-                'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
-                previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
+            <div className="flex-1" />
+            <div className="flex items-center gap-0.5">
+              <IconButton
+                label="Riduci lo zoom"
+                onClick={() => setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))}
+              >
+                <Minus />
+              </IconButton>
+              <button
+                type="button"
+                title="Adatta alla finestra"
+                onClick={() => setZoom('fit')}
+                className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[11.5px] text-fg2 hover:bg-hover hover:text-fg"
+              >
+                {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
+              </button>
+              <IconButton
+                label="Aumenta lo zoom"
+                onClick={() => setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))}
+              >
+                <Plus />
+              </IconButton>
+              <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
+                <Maximize />
+              </IconButton>
+              <IconButton label="Scorciatoie da tastiera · ?" onClick={() => setShowShortcuts(true)}>
+                <Keyboard />
+              </IconButton>
+              <IconButton label="Righelli · ⇧R" active={rulers} onClick={() => setRulers(!rulers)}>
+                <Ruler />
+              </IconButton>
+              <button
+                type="button"
+                title="Commenti sulla pagina"
+                onClick={() => setCommenting(!commenting)}
+                className={cx(
+                  'relative flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors [&_svg]:size-3.5',
+                  commenting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
+                )}
+              >
+                <MessageSquare />
+                {openComments.length > 0 && <span className="font-mono">{openComments.length}</span>}
+              </button>
+              {others.length > 0 && (
+                <div
+                  className="ml-1 flex -space-x-1.5"
+                  title={`${others.map((o) => o.name).join(', ')} ${others.length === 1 ? 'sta' : 'stanno'} lavorando su questa pagina: chi salva per ultimo sovrascrive.`}
+                >
+                  {others.map((o, i) => (
+                    <span
+                      key={o.id}
+                      className="flex size-6 items-center justify-center rounded-full border-2 border-panel text-[10.5px] font-semibold text-white"
+                      style={{ background: PRESENCE_COLORS[i % PRESENCE_COLORS.length] }}
+                    >
+                      {o.name.trim().slice(0, 1).toUpperCase()}
+                    </span>
+                  ))}
+                </div>
               )}
-            >
-              <Eye />
-              {previewing ? 'Esci dall’anteprima' : 'Anteprima'}
-            </button>
-          </div>
-        </div>
-        {nodes.length === 0 ? (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px] p-8">
-            <div className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-center shadow-pop">
-              <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                <LayersIcon className="size-5" />
-              </div>
-              <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">Da dove vuoi partire?</h2>
-              <p className="mt-1 text-[13px] text-fg2">
-                Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della
-                libreria.
-              </p>
-              <div className="mt-5 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNodes(STARTER.map((k) => buildSection(k, schema.site.name)))
-                    setTimeout(play, 60)
-                  }}
-                  className="h-10 rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110"
-                >
-                  Pagina pronta: menu, apertura, servizi, invito e piè di pagina
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab('add')}
-                  className="h-10 rounded-lg border border-line2 text-[13px] font-medium hover:bg-hover"
-                >
-                  Pagina vuota: scelgo io le sezioni
-                </button>
-              </div>
+              <div className="mx-1 h-5 w-px bg-line" />
+              <IconButton label="Riproduci le animazioni" onClick={play}>
+                <Play />
+              </IconButton>
+              <button
+                type="button"
+                onClick={() => setPreviewing(!previewing)}
+                title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
+                className={cx(
+                  'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                  previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
+                )}
+              >
+                <Eye />
+                {previewing && 'Esci dall’anteprima'}
+              </button>
             </div>
           </div>
-        ) : (
-          <Canvas
-            nodes={nodes}
-            theme={theme}
-            device={device}
-            zoom={zoom}
-            mode={mode}
-            selected={selected}
-            selection={selection}
-            editing={editing}
-            playing={playing}
-            preview={previewing}
-            data={boundData}
-            onSelect={(id, add) => {
-              if (add && id) toggleSelected(id)
-              else setSelected(id)
-              if (editing && id !== editing) setEditing(null)
-            }}
-            onEdit={setEditing}
-            onCommitText={commitText}
-            onPickImage={(id) => setPicking({ id, target: 'src' })}
-            onFitZoom={setFitZoom}
-            onResize={(id, patch) => setProps(id, patch)}
-            onMove={moveTo}
-            onMoveMany={moveManyTo}
-            onPatch={(patches) => setPropsMany(patches)}
-            onSelectMany={(ids) => {
-              setSelection(ids)
-              if (editing) setEditing(null)
-            }}
-            rulers={rulers}
-            typeAhead={typeAhead}
-            onDropNew={(item, target, sectionIndex) => {
-              if (item.section) {
-                if (item.section.startsWith('component:')) {
-                  componentActions.insert(item.section.slice(10))
-                  return
+          {nodes.length === 0 ? (
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px] p-8">
+              <div className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-center shadow-pop">
+                <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <LayersIcon className="size-5" />
+                </div>
+                <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">Da dove vuoi partire?</h2>
+                <p className="mt-1 text-[13px] text-fg2">
+                  Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della
+                  libreria.
+                </p>
+                <div className="mt-5 grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNodes(STARTER.map((k) => buildSection(k, schema.site.name)))
+                      setTimeout(play, 60)
+                    }}
+                    className="h-10 rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110"
+                  >
+                    Pagina pronta: menu, apertura, servizi, invito e piè di pagina
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('add')}
+                    className="h-10 rounded-lg border border-line2 text-[13px] font-medium hover:bg-hover"
+                  >
+                    Pagina vuota: scelgo io le sezioni
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : sideBySide ? (
+            <DevicesView
+              nodes={nodes}
+              theme={theme}
+              widths={widths}
+              data={boundData}
+              entry={sampleEntry}
+              onPick={(d, id) => {
+                setSideBySide(false)
+                setDevice(d)
+                setZoom('fit')
+                setSelected(id)
+              }}
+            />
+          ) : (
+            <Canvas
+              nodes={nodes}
+              theme={theme}
+              device={device}
+              frameWidth={widths[device]}
+              zoom={zoom}
+              mode={mode}
+              selected={selected}
+              selection={selection}
+              editing={editing}
+              playing={playing}
+              preview={previewing}
+              data={boundData}
+              entry={sampleEntry}
+              onSelect={(id, add) => {
+                if (add && id) toggleSelected(id)
+                else setSelected(id)
+                if (editing && id !== editing) setEditing(null)
+              }}
+              onEdit={setEditing}
+              onCommitText={commitText}
+              onPickImage={(id) => setPicking({ id, target: 'src' })}
+              onFitZoom={setFitZoom}
+              onResize={(id, patch) => setProps(id, patch)}
+              onMove={moveTo}
+              onMoveMany={moveManyTo}
+              onPatch={(patches) => setPropsMany(patches)}
+              onSelectMany={(ids) => {
+                setSelection(ids)
+                if (editing) setEditing(null)
+              }}
+              rulers={rulers}
+              onContextMenu={openMenu}
+              typeAhead={typeAhead}
+              marks={marks}
+              onDropNew={(item, target, sectionIndex) => {
+                if (item.section) {
+                  if (item.section.startsWith('component:')) {
+                    componentActions.insert(item.section.slice(10))
+                    return
+                  }
+                  const gid = item.section.startsWith('global:') ? item.section.slice(7) : null
+                  const section: PageNode =
+                    gid && globals[gid]
+                      ? { ...(globals[gid] as PageNode), id: newId(), global: gid }
+                      : buildSection(item.section, schema.site.name)
+                  setNodes(insertNode(nodesRef.current, null, sectionIndex, section))
+                  setSelected(section.id)
+                  setTimeout(play, 60)
+                } else if (item.element) {
+                  const node = newElement(item.element as ElementKind)
+                  if (target) placeAt(node, target)
+                  else insertAfterSelection(node)
                 }
-                const gid = item.section.startsWith('global:') ? item.section.slice(7) : null
-                const section: PageNode =
-                  gid && globals[gid]
-                    ? { ...(globals[gid] as PageNode), id: newId(), global: gid }
-                    : buildSection(item.section, schema.site.name)
-                setNodes(insertNode(nodesRef.current, null, sectionIndex, section))
-                setSelected(section.id)
-                setTimeout(play, 60)
-              } else if (item.element) {
-                const node = newElement(item.element as ElementKind)
-                if (target) placeAt(node, target)
-                else insertAfterSelection(node)
+              }}
+            />
+          )}
+        </div>
+
+        {/* right: element or page */}
+        <aside className="w-[288px] shrink-0 overflow-y-auto border-l border-line bg-panel">
+          {commenting ? (
+            <CommentsPanel docId={docId} nodes={nodes} selected={selected} onSelect={setSelected} />
+          ) : mode === 'content' ? (
+            <ContentPanel
+              nodes={nodes}
+              selected={selected}
+              onSelect={(id) => {
+                setSelected(id)
+                revealOnCanvas(id)
+              }}
+              onText={(id, runs) => commitText(id, { runs })}
+              onContent={(id, patch, group) => setProps(id, patch, group)}
+              onPickImage={(id) => setPicking({ id, target: 'src' })}
+              footer={
+                <FieldsForm
+                  fields={otherFields.filter((f) => f.kind !== 'seo')}
+                  value={data}
+                  onChange={onChange}
+                  path={[]}
+                />
               }
-            }}
-          />
-        )}
-      </div>
+            />
+          ) : selectedNode && info ? (
+            <Inspector
+              key={selectedNode.id}
+              node={selectedNode}
+              view={withTextStyle(selectedNode, theme)}
+              count={selection.length}
+              onAlign={align}
+              onCopyStyle={styleActions.copy}
+              onPasteStyle={styleActions.paste}
+              onGroup={group}
+              onUngroup={ungroup}
+              textStyles={{ list: textStyleList, canEdit: user.role === 'admin', ...textStyleActions }}
+              collectionFields={collectionFields}
+              depth={info.depth}
+              device={device}
+              onProps={setSelectionProps}
+              onContent={(patch, group) => setProps(selectedNode.id, patch, group)}
+              onReset={(keys) => resetProps(selectedNode.id, keys)}
+              onPickImage={(target) => setPicking({ id: selectedNode.id, target })}
+              onPlay={play}
+              onPreview={() => setPreviewing(true)}
+              onDuplicate={duplicateSelection}
+              onDelete={removeSelection}
+              onMove={(dir) => move(selectedNode.id, dir)}
+              onSelectParent={info.parent ? () => setSelected(info.parent?.id ?? null) : null}
+              palette={palette(theme)}
+              parentLayout={info.parent ? (resolveNode(info.parent, device).layout ?? 'col') : null}
+              canCode={user.role === 'admin'}
+              components={components}
+              componentActions={componentActions}
+              onMakeGlobal={() => setProps(selectedNode.id, { global: newId() } as Partial<NodeProps>)}
+              onUnlinkGlobal={() =>
+                setNodes(
+                  updateNode(nodesRef.current, selectedNode.id, (n) => {
+                    const { global: _, ...rest } = n
+                    return rest
+                  }),
+                )
+              }
+              collections={schema.collections
+                .filter((c) => !c.singleton)
+                .map((c) => ({ value: c.name, label: c.label }))}
+              boundFields={boundFieldsFor(selectedNode.id)}
+            />
+          ) : (
+            <div>
+              <div className="border-b border-line px-3.5 py-3">
+                <div className="text-[13px] font-semibold">Pagina</div>
+                <p className="mt-0.5 text-[11.5px] text-fg3">
+                  {nodes.length === 1 ? '1 sezione' : `${nodes.length} sezioni`} · seleziona un elemento sulla tela per
+                  modificarlo.
+                </p>
+              </div>
+              <div className="space-y-2 border-b border-line px-3.5 py-3">
+                <div className="text-[12px] font-semibold">Modello</div>
+                {docId ? (
+                  <>
+                    <select
+                      aria-label="Modello per le voci di una raccolta"
+                      value={templateOf ?? ''}
+                      onChange={(e) => setTemplateOf(e.target.value || null)}
+                      className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12px] outline-none focus:border-accent"
+                    >
+                      <option value="">Pagina normale</option>
+                      {schema.collections
+                        .filter((c) => !c.singleton && c.name !== collection.name)
+                        .map((c) => (
+                          <option key={c.name} value={c.name}>
+                            Modello per ogni voce di “{c.label}”
+                          </option>
+                        ))}
+                    </select>
+                    {templateOf ? (
+                      <>
+                        <p className="text-[11px] leading-relaxed text-fg3">
+                          Ogni voce usa questa pagina. Seleziona un testo o un’immagine e scegli quale campo mostra, in
+                          “Dato collegato”.
+                        </p>
+                        {(samples.data?.items.length ?? 0) > 0 && (
+                          <select
+                            aria-label="Voce mostrata nell’anteprima"
+                            value={sampleIndex}
+                            onChange={(e) => setSampleIndex(Number(e.target.value))}
+                            className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12px] outline-none focus:border-accent"
+                          >
+                            {samples.data?.items.map((it, i) => (
+                              <option key={it.id} value={i}>
+                                Anteprima con: {it.title}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[11px] leading-relaxed text-fg3">
+                        Una pagina può fare da modello per tutte le voci di una raccolta, come la pagina di ogni
+                        progetto.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[11px] text-fg3">Salva la pagina per usarla come modello.</p>
+                )}
+              </div>
+              <div className="px-3.5 py-4">
+                <FieldsForm fields={otherFields} value={data} onChange={onChange} path={[]} />
+              </div>
+            </div>
+          )}
+        </aside>
 
-      {/* right: element or page */}
-      <aside className="w-[288px] shrink-0 overflow-y-auto border-l border-line bg-panel">
-        {selectedNode && info ? (
-          <Inspector
-            key={selectedNode.id}
-            node={selectedNode}
-            view={withTextStyle(selectedNode, theme)}
-            count={selection.length}
-            onAlign={align}
-            onGroup={group}
-            onUngroup={ungroup}
-            textStyles={{ list: textStyleList, canEdit: user.role === 'admin', ...textStyleActions }}
-            collectionFields={collectionFields}
-            depth={info.depth}
-            device={device}
-            onProps={setSelectionProps}
-            onContent={(patch, group) => setProps(selectedNode.id, patch, group)}
-            onReset={(keys) => resetProps(selectedNode.id, keys)}
-            onPickImage={(target) => setPicking({ id: selectedNode.id, target })}
-            onPlay={play}
-            onPreview={() => setPreviewing(true)}
-            onDuplicate={duplicateSelection}
-            onDelete={removeSelection}
-            onMove={(dir) => move(selectedNode.id, dir)}
-            onSelectParent={info.parent ? () => setSelected(info.parent?.id ?? null) : null}
-            palette={palette(theme)}
-            parentLayout={info.parent ? (resolveNode(info.parent, device).layout ?? 'col') : null}
-            canCode={user.role === 'admin'}
-            components={components}
-            componentActions={componentActions}
-            onMakeGlobal={() => setProps(selectedNode.id, { global: newId() } as Partial<NodeProps>)}
-            onUnlinkGlobal={() =>
-              setNodes(
-                updateNode(nodesRef.current, selectedNode.id, (n) => {
-                  const { global: _, ...rest } = n
-                  return rest
-                }),
-              )
+        <ContextMenu at={menu} items={menu ? menuItems() : []} onClose={() => setMenu(null)} />
+        <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+        {tourPref === 'todo' && mode === 'design' && <Tour onDone={() => setTourPref('done')} />}
+        <MediaPicker
+          open={!!picking}
+          onClose={() => setPicking(null)}
+          onPick={(asset) => {
+            if (!picking) return
+            if (picking.target === 'bgImage') setProps(picking.id, { bgImage: { src: asset.url, alt: asset.alt } })
+            else if (picking.target === 'poster') setProps(picking.id, { poster: asset.url })
+            else if (picking.target === 'sceneImage') {
+              const current = findNode(nodesRef.current, picking.id)?.node
+              const scene = current?.scene ?? { preset: 'distort' as const }
+              if (asset.url.endsWith('.glb'))
+                setProps(picking.id, { scene: { ...scene, preset: 'model', model: asset.url } })
+              else setProps(picking.id, { scene: { ...scene, image: asset.url } })
+            } else {
+              const current = findNode(nodesRef.current, picking.id)?.node
+              setProps(picking.id, { src: asset.url, alt: current?.alt || asset.alt })
             }
-            collections={schema.collections.filter((c) => !c.singleton).map((c) => ({ value: c.name, label: c.label }))}
-            boundFields={boundFieldsFor(selectedNode.id)}
-          />
-        ) : (
-          <div>
-            <div className="border-b border-line px-3.5 py-3">
-              <div className="text-[13px] font-semibold">Pagina</div>
-              <p className="mt-0.5 text-[11.5px] text-fg3">
-                {nodes.length === 1 ? '1 sezione' : `${nodes.length} sezioni`} · seleziona un elemento sulla tela per
-                modificarlo.
-              </p>
-            </div>
-            <div className="px-3.5 py-4">
-              <FieldsForm fields={otherFields} value={data} onChange={onChange} path={[]} />
-            </div>
-          </div>
-        )}
-      </aside>
-
-      <MediaPicker
-        open={!!picking}
-        onClose={() => setPicking(null)}
-        onPick={(asset) => {
-          if (!picking) return
-          if (picking.target === 'bgImage') setProps(picking.id, { bgImage: { src: asset.url, alt: asset.alt } })
-          else if (picking.target === 'poster') setProps(picking.id, { poster: asset.url })
-          else if (picking.target === 'sceneImage') {
-            const current = findNode(nodesRef.current, picking.id)?.node
-            const scene = current?.scene ?? { preset: 'distort' as const }
-            if (asset.url.endsWith('.glb'))
-              setProps(picking.id, { scene: { ...scene, preset: 'model', model: asset.url } })
-            else setProps(picking.id, { scene: { ...scene, image: asset.url } })
-          } else {
-            const current = findNode(nodesRef.current, picking.id)?.node
-            setProps(picking.id, { src: asset.url, alt: current?.alt || asset.alt })
-          }
-        }}
-      />
-    </div>
+          }}
+        />
+      </div>
+    </SwatchesContext.Provider>
   )
 }

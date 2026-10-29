@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react'
 import { cx, Switch } from '../components/ui.tsx'
 
 /** A titled group of the inspector. */
@@ -250,6 +250,9 @@ const TOKENS: { value: string; label: string }[] = [
   { value: 'onInverse', label: 'Su inverso' },
 ]
 
+/** The theme's named colors ("Verde salvia"), offered next to the built-in ones in every color field. */
+export const SwatchesContext = createContext<{ value: string; label: string }[]>([])
+
 /** A theme color (follows the theme) or any color picked freely. */
 export function ColorField({
   value,
@@ -263,6 +266,8 @@ export function ColorField({
   /** Label of the empty choice, when there is one. */
   none?: string
 }) {
+  const named = useContext(SwatchesContext)
+  const tokens = [...TOKENS, ...named]
   const custom = !!value && !palette[value]
   const shown = value ? (palette[value] ?? value) : 'transparent'
   return (
@@ -280,7 +285,7 @@ export function ColorField({
           )}
         />
       )}
-      {TOKENS.map((t) => (
+      {tokens.map((t) => (
         <button
           key={t.value}
           type="button"
@@ -314,7 +319,7 @@ export function ColorField({
       {/* The chosen theme color by name: the swatches alone do not say it. */}
       {!custom && (
         <span className="w-full text-[10.5px] text-fg3">
-          {value ? (TOKENS.find((t) => t.value === value)?.label ?? value) : (none ?? '')}
+          {value ? (tokens.find((t) => t.value === value)?.label ?? value) : (none ?? '')}
         </span>
       )}
     </div>

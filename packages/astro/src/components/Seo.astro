@@ -1,0 +1,45 @@
+---
+import { expandComponents, expandGlobals, type PageNode } from '@materializecms/core/page'
+/**
+ * Everything search engines and social networks read in a page's head: title, description,
+ * canonical, robots, sharing cards, other languages and structured data. Put it inside <head>.
+ */
+import { headHtml, pageHead } from '@materializecms/core/seo'
+import { type Entry, firstImage, getAlternates, getComponents, getGlobals, getSiteSeo } from '../content.ts'
+import { getRuntime } from '../runtime.ts'
+
+interface Props {
+  /** The page; without it (a 404, say) only the title and the site defaults are written. */
+  entry?: Entry
+  title: string
+  description?: string
+  /** Name of the site when Impostazioni → SEO has none. */
+  siteName?: string
+}
+
+const { entry, title, description, siteName } = Astro.props
+const saved = await getSiteSeo()
+const site = { ...saved, siteName: saved.siteName || siteName }
+const { config } = await getRuntime()
+// Canvas pages: components and shared sections hold most of the images.
+const page = Array.isArray(entry?.data.page)
+  ? expandComponents(expandGlobals(entry.data.page as PageNode[], await getGlobals()), await getComponents())
+  : null
+const html = headHtml(
+  pageHead({
+    title,
+    url: entry?.url ?? null,
+    locale: entry?.locale ?? config().locales.default,
+    seo: entry?.data.seo,
+    site,
+    siteUrl: Astro.site,
+    alternates: entry ? await getAlternates(entry) : [],
+    defaultLocale: config().locales.default,
+    publishedAt: entry?.publishedAt,
+    description,
+    image: entry ? firstImage(page ?? entry.data) : undefined,
+  }),
+)
+---
+
+<Fragment set:html={html} />

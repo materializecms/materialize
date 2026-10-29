@@ -19,11 +19,13 @@ import { getComponents, getEntries, getGlobals, getTheme } from '../content.ts'
 
 interface Props {
   sections?: PageNode[] | null
+  /** On a template page: the entry it shows (elements with a field take its values). */
+  entry?: { title: string; url: string | null; data: Record<string, unknown> }
   /** Defaults to the theme saved in the panel. */
   theme?: Theme
 }
 
-const { sections, theme } = Astro.props
+const { sections, theme, entry } = Astro.props
 const active = theme ?? (await getTheme())
 const nodes = expandComponents(expandGlobals(sections ?? [], await getGlobals()), await getComponents())
 // Published entries for the lists bound to a collection.
@@ -35,7 +37,8 @@ walk(nodes, (n) => {
 for (const name of bound) {
   data[name] = (await getEntries(name).catch(() => [])).map((e) => ({ title: e.title, url: e.url, data: e.data }))
 }
-const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data })
+const page = entry ? { title: entry.title, url: entry.url, data: entry.data } : undefined
+const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page })
 ---
 
 {pageFontLinks(active, nodes).map((href) => <link rel="stylesheet" href={href} />)}

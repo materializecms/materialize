@@ -11,9 +11,12 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   LayoutTemplate,
+  Lock,
   MousePointerClick,
   Rows3,
+  Shapes,
   Sparkles,
+  TextCursorInput,
   Type,
   Video,
 } from 'lucide-react'
@@ -29,6 +32,8 @@ export function nodeIcon(n: PageNode, depth: number) {
   if (n.type === 'video') return <Video />
   if (n.type === 'embed') return <Code />
   if (n.type === 'scene') return <Sparkles />
+  if (n.type === 'icon') return <Shapes />
+  if (n.type === 'input') return <TextCursorInput />
   if (depth === 0) return n.global ? <Globe /> : <LayoutTemplate />
   if (n.layout === 'row') return <Columns3 />
   if (n.layout === 'grid') return <LayoutGrid />
@@ -49,6 +54,7 @@ export function Layers({
   onRename,
   onToggleHidden,
   onMove,
+  onContextMenu,
   hiddenOf,
 }: {
   nodes: PageNode[]
@@ -60,6 +66,8 @@ export function Layers({
   onToggleHidden: (id: string) => void
   /** Moves `id` before, after or inside `target`. */
   onMove: (id: string, target: Drop) => void
+  /** Right click on a row: the editor's menu of actions. */
+  onContextMenu: (id: string, x: number, y: number) => void
   /** Whether a node is hidden on the device being edited. */
   hiddenOf: (n: PageNode) => boolean
 }) {
@@ -174,6 +182,10 @@ export function Layers({
                 setDrop(null)
               }}
               onClick={(e) => onSelect(n.id, e.shiftKey || e.metaKey || e.ctrlKey)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                onContextMenu(n.id, e.clientX, e.clientY)
+              }}
               onDoubleClick={() => setRenaming(n.id)}
               onKeyDown={(e) => {
                 if (e.key === 'F2' || (e.key === 'Enter' && selected === n.id)) {
@@ -212,6 +224,7 @@ export function Layers({
                 {nodeIcon(n, depth)}
               </span>
               <span className={cx('truncate', depth === 0 && 'font-medium', isSel && 'font-medium')}>{name}</span>
+              {n.locked && <Lock className="size-3 shrink-0 text-fg3" aria-label="Bloccato" />}
             </button>
           )}
           {renaming !== n.id && (

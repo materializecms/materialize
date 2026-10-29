@@ -112,7 +112,11 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   const blocksField = fields.find((f) => f.kind === 'blocks')
   const pageField = fields.find((f) => f.kind === 'page')
   const [modePref, setMode] = usePref<Mode>('mz-mode', 'design')
-  const mode: Mode = blocksField || pageField ? modePref : 'content'
+  // Editors may be limited to contents (Persone): the page opens in content mode, without the switch.
+  const contentOnly =
+    useQuery({ queryKey: ['editorial'], queryFn: api.editorial, staleTime: 60_000 }).data?.editorial
+      .editorsContentOnly === true && user.role !== 'admin'
+  const mode: Mode = (blocksField || pageField) && !contentOnly ? modePref : 'content'
 
   const cleaned = useMemo(() => clean(fields, history.value), [fields, history.value])
   const current = JSON.stringify(cleaned)
@@ -358,7 +362,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             onIssues={() => showIssues()}
           />
 
-          {(blocksField || pageField) && (
+          {(blocksField || pageField) && !contentOnly && (
             <div className="absolute left-1/2 -translate-x-1/2">
               <Segmented
                 value={mode}
@@ -483,7 +487,14 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
         </header>
 
         {pageField ? (
-          <PageEditor collection={collection} pageField={pageField} data={history.value} onChange={set} mode={mode} />
+          <PageEditor
+            collection={collection}
+            pageField={pageField}
+            data={history.value}
+            onChange={set}
+            mode={mode}
+            docId={doc?.id}
+          />
         ) : mode === 'design' && blocksField ? (
           <DesignMode
             collection={collection}

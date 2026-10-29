@@ -1,5 +1,6 @@
 import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
 import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/core/page'
+import type { Redirect, SiteSeo } from '@materializecms/core/seo'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -96,6 +97,38 @@ export interface MediaAsset {
   usage?: number
 }
 
+export interface MailSettings {
+  host: string
+  port: number
+  security: 'tls' | 'starttls' | 'none'
+  user: string
+  from: string
+  to: string
+  /** A password is saved (it is never sent back). */
+  hasPassword?: boolean
+}
+
+export interface Submission {
+  id: string
+  form: string
+  page: string
+  data: Record<string, string>
+  read: boolean
+  mailed: boolean
+  createdAt: string
+}
+
+export interface PageComment {
+  id: string
+  documentId: string
+  nodeId: string | null
+  authorId: string | null
+  authorName: string
+  body: string
+  resolved: boolean
+  createdAt: string
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
@@ -153,6 +186,7 @@ const MESSAGES: Record<string, string> = {
   remove_self: 'Non puoi rimuovere te stesso',
   invalid_link: 'Il link non è valido o è scaduto: chiedine uno nuovo a chi ti ha invitato',
   wrong_password: 'La password attuale non è corretta',
+  mail_not_configured: 'Prima configura l’invio delle email: server e mittente',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -179,6 +213,36 @@ export const api = {
   saveComponents: (components: Record<string, Component>) =>
     request<{ components: Record<string, Component> }>('PUT', '/components', { components }),
   globals: () => request<{ globals: Record<string, PageNode> }>('GET', '/globals'),
+  comments: (docId: string) => request<{ items: PageComment[] }>('GET', `/documents/${docId}/comments`),
+  addComment: (docId: string, input: { nodeId: string | null; body: string }) =>
+    request<{ comment: PageComment }>('POST', `/documents/${docId}/comments`, input),
+  resolveComment: (id: string, resolved: boolean) => request<{ ok: true }>('PATCH', `/comments/${id}`, { resolved }),
+  removeComment: (id: string) => request<void>('DELETE', `/comments/${id}`),
+  presence: (docId: string, selected: string | null) =>
+    request<{ others: { id: string; name: string; selected: string | null }[] }>(
+      'POST',
+      `/documents/${docId}/presence`,
+      { selected },
+    ),
+  mail: () => request<{ mail: MailSettings }>('GET', '/mail'),
+  saveMail: (mail: MailSettings & { pass?: string | null }) =>
+    request<{ mail: MailSettings }>('PUT', '/mail', { mail }),
+  testMail: () => request<{ ok: true; to: string }>('POST', '/mail/test'),
+  submissions: (params: { limit?: number; offset?: number } = {}) =>
+    request<{ items: Submission[]; total: number; unread: number }>('GET', `/submissions${q(params)}`),
+  markSubmission: (id: string, read: boolean) => request<{ ok: true }>('PATCH', `/submissions/${id}`, { read }),
+  removeSubmission: (id: string) => request<void>('DELETE', `/submissions/${id}`),
+  templates: () => request<{ templates: Record<string, string> }>('GET', '/templates'),
+  seo: () => request<{ seo: SiteSeo }>('GET', '/seo'),
+  saveSeo: (seo: SiteSeo) => request<{ seo: SiteSeo }>('PUT', '/seo', { seo }),
+  redirects: () => request<{ redirects: Redirect[] }>('GET', '/redirects'),
+  urls: () => request<{ urls: string[] }>('GET', '/urls'),
+  editorial: () => request<{ editorial: { editorsContentOnly?: boolean } }>('GET', '/editorial'),
+  saveEditorial: (editorial: { editorsContentOnly?: boolean }) =>
+    request<{ editorial: { editorsContentOnly?: boolean } }>('PUT', '/editorial', { editorial }),
+  saveRedirects: (redirects: Redirect[]) => request<{ redirects: Redirect[] }>('PUT', '/redirects', { redirects }),
+  saveTemplates: (templates: Record<string, string>) =>
+    request<{ templates: Record<string, string> }>('PUT', '/templates', { templates }),
   saveGlobals: (globals: Record<string, PageNode>) =>
     request<{ globals: Record<string, PageNode> }>('PUT', '/globals', { globals }),
   entries: (collection: string, locale: string) =>
@@ -202,12 +266,12 @@ export const api = {
     request<StoredDocument>('POST', `/documents/${id}/revisions/${revision}/restore`),
   people: () => request<{ users: Member[]; invites: Invite[] }>('GET', '/users'),
   invite: (input: { email: string; name?: string; role: User['role'] }) =>
-    request<{ invite: Invite; link: string }>('POST', '/users/invites', input),
+    request<{ invite: Invite; link: string; mailed?: boolean }>('POST', '/users/invites', input),
   revokeInvite: (id: string) => request<void>('DELETE', `/users/invites/${encodeURIComponent(id)}`),
   updateUser: (id: string, input: { role?: User['role']; name?: string }) =>
     request<{ user: User }>('PATCH', `/users/${id}`, input),
   removeUser: (id: string) => request<void>('DELETE', `/users/${id}`),
-  resetLink: (id: string) => request<{ invite: Invite; link: string }>('POST', `/users/${id}/reset`),
+  resetLink: (id: string) => request<{ invite: Invite; link: string; mailed?: boolean }>('POST', `/users/${id}/reset`),
   inviteInfo: (token: string) =>
     request<{ kind: Invite['kind']; email: string; name: string; role: User['role']; expiresAt: string; site: string }>(
       'GET',

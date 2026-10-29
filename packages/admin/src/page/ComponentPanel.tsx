@@ -1,5 +1,5 @@
-import type { Component, PageNode } from '@materializecms/core/page'
-import { Component as ComponentIcon, Plus, RotateCcw, Unlink } from 'lucide-react'
+import { type Component, type PageNode, plainText } from '@materializecms/core/page'
+import { Component as ComponentIcon, Eye, EyeOff, ImagePlus, Plus, RotateCcw, Unlink } from 'lucide-react'
 import { useState } from 'react'
 import { Row, Section, Select } from './controls.tsx'
 
@@ -12,6 +12,25 @@ export interface ComponentActions {
   detach: (id: string) => void
   reset: (id: string) => void
   insert: (cid: string) => void
+  setHoverVariant: (id: string, variantId: string | null) => void
+  /** Content of an element inside this copy (text, visibility). */
+  setChild: (childId: string, patch: Partial<PageNode>) => void
+  pickChildImage: (childId: string) => void
+  /** Selects an element inside the copy, to change it in the inspector. */
+  select: (childId: string) => void
+}
+
+/** The elements a copy can change for itself, in order: its "properties". */
+function properties(node: PageNode): PageNode[] {
+  const out: PageNode[] = []
+  const visit = (list: PageNode[]) => {
+    for (const c of list) {
+      if (['text', 'button', 'image', 'icon'].includes(c.type)) out.push(c)
+      if (c.children) visit(c.children)
+    }
+  }
+  visit(node.children ?? [])
+  return out
 }
 
 const btn =
@@ -110,6 +129,53 @@ export function ComponentPanel({
           </button>
         </form>
       )}
+      {def.variants.length > 1 && (
+        <Row label="Al passaggio" hint="La copia prende i colori di un’altra variante sotto il puntatore">
+          <Select
+            label="Variante al passaggio del mouse"
+            value={node.hoverVariant ?? ''}
+            options={[
+              { value: '', label: 'Nessuna' },
+              ...def.variants.filter((v) => v.id !== variant?.id).map((v) => ({ value: v.id, label: v.name })),
+            ]}
+            onChange={(v) => actions.setHoverVariant(node.id, v || null)}
+          />
+        </Row>
+      )}
+      <div className="space-y-1.5 rounded-lg border border-line p-2">
+        <div className="text-[11px] font-medium text-fg2">Proprietà di questa copia</div>
+        {properties(node).map((c) => (
+          <div key={c.id} className="flex items-center gap-1.5">
+            <button
+              type="button"
+              title={c.hidden ? 'Mostra in questa copia' : 'Nascondi in questa copia'}
+              aria-label={c.hidden ? `Mostra ${c.name ?? ''}` : `Nascondi ${c.name ?? ''}`}
+              onClick={() => actions.setChild(c.id, { hidden: !c.hidden })}
+              className="flex size-6 shrink-0 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+            >
+              {c.hidden ? <EyeOff /> : <Eye />}
+            </button>
+            {c.type === 'text' || c.type === 'button' ? (
+              <input
+                aria-label={c.name || 'Testo'}
+                title={c.name}
+                value={c.type === 'text' ? plainText(c) : (c.text ?? '')}
+                onChange={(e) => actions.setChild(c.id, { text: e.target.value, runs: null })}
+                className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => (c.type === 'image' ? actions.pickChildImage(c.id) : actions.select(c.id))}
+                className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line2 px-2 text-left text-[12px] text-fg2 hover:text-fg [&_svg]:size-3.5"
+              >
+                <ImagePlus className="shrink-0" />
+                <span className="truncate">{c.name || (c.type === 'image' ? 'Immagine' : 'Icona')}</span>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
       <p className="text-[11px] leading-relaxed text-fg3">
         Il design vale per tutte le copie di questa variante; testi, immagini e link restano di questa copia
         {own ? ` (${own} ${own === 1 ? 'elemento modificato' : 'elementi modificati'})` : ''}.

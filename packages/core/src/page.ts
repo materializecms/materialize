@@ -6,6 +6,8 @@
  * renders correctly at any width: in the editor's device frames, in thumbnails and on the site.
  */
 
+import { iconRatio, iconSvg } from './icons.ts'
+
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile'
 export type ColorToken =
   | 'bg'
@@ -86,6 +88,8 @@ export interface NodeProps {
   animDelay?: 0 | 1 | 2 | 3
   animTrig?: 'load' | 'scroll'
   hover?: 'none' | 'lift' | 'grow' | 'dim' | 'zoomimg'
+  /** Its own look under the pointer: on the element itself, or when the card around it is hovered. */
+  hoverStyle?: HoverStyle | null
   /** Interactions played by the motion runtime (scroll, hover, click, pointer…). */
   interactions?: Interaction[] | null
   /** Stays in place while its container scrolls past (position: sticky); on a section, a fixed menu. */
@@ -139,6 +143,25 @@ export interface NodeProps {
   controls?: boolean
   // embed
   html?: string
+  /** Locked in the editor: not picked or moved on the canvas (still in the layers). */
+  locked?: boolean
+  /** A container that is a contact form: what it sends goes to the panel and by email. */
+  form?: { subject?: string; success?: string } | null
+  // input: a field of a form; its label is `text`
+  inputKind?: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox'
+  /** The name the value arrives with ("email", "messaggio"). */
+  fieldName?: string
+  placeholder?: string
+  required?: boolean
+  /** select: the choices. */
+  options?: string[]
+  /** A button that sends the form it is in. */
+  submit?: boolean
+  // icon: a Lucide icon by name, "shape:arch" for a filled shape, or custom SVG markup
+  icon?: string | null
+  svg?: string | null
+  /** Line icons: stroke width in the icon's 24-unit grid. */
+  strokeW?: number | null
   /** A WebGL scene: the element itself (type "scene") or a frame's background. */
   scene?: SceneConfig | null
   /** Section address for links within the page: #anchor. */
@@ -183,6 +206,20 @@ export interface NodeProps {
   href?: string
   newTab?: boolean
   variant?: 'primary' | 'secondary' | 'ghost'
+}
+
+/** A hover state: what changes, and what triggers it. */
+export interface HoverStyle {
+  /** self: the pointer on the element · card: on the nearest container that is a link or has a hover state. */
+  on?: 'self' | 'card'
+  bg?: string | null
+  color?: string | null
+  borderColor?: string | null
+  /** Scale (1 = as is), lift in px (negative = up), opacity 0–1. */
+  scale?: number | null
+  y?: number | null
+  opa?: number | null
+  shadow?: 'none' | 'sm' | 'lg' | null
 }
 
 /** Which entries a bound list shows, in what order, and how many at a time. */
@@ -281,11 +318,13 @@ export interface PageNode extends NodeProps {
   component?: string
   /** Which variant of the component this copy shows. */
   componentVariant?: string
+  /** The variant this copy turns into under the pointer (colors and opacity follow it). */
+  hoverVariant?: string | null
   /** Content this copy changes, by the id of the element inside the component. */
   overrides?: Record<string, Partial<NodeProps>> | null
   /** A section shared by every page that uses it (menu, footer): the content lives in the site's globals. */
   global?: string
-  type: 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene'
+  type: 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene' | 'icon' | 'input'
   /** Library origin of a section ("hero.split"), shown in the layers. */
   section?: string
   children?: PageNode[]
@@ -321,6 +360,18 @@ export interface Theme {
   transition?: 'none' | 'fade' | 'slide'
   /** Named text styles elements can share. */
   textStyles?: SharedTextStyle[]
+  /** Where tablet and mobile designs start: container widths in px (defaults 1023 and 639). */
+  breakpoints?: { tablet: number; mobile: number }
+  /** Colors with a name, beyond the theme's own: one value for the light theme, one for the dark. */
+  swatches?: Swatch[]
+}
+
+export interface Swatch {
+  /** Used as the color token in elements ("sw-…"). */
+  id: string
+  name: string
+  light: string
+  dark: string
 }
 
 /** What an interaction changes: offsets in px, rotations in degrees, opacity 0–1, blur in px, clip in %. */
@@ -484,8 +535,17 @@ export const ANIMATIONS: { value: Animation; label: string }[] = [
   { value: 'pop', label: 'Rimbalzo' },
 ]
 
-/** Container widths: tablet up to 1023 px, mobile up to 639 px. */
+/** Container widths: tablet up to 1023 px, mobile up to 639 px (the theme can move them). */
 export const BREAKPOINTS = { tablet: 1023, mobile: 639 } as const
+
+/** The theme's breakpoints, kept sensible: mobile below tablet, both within real screen sizes. */
+export function breakpointsOf(theme: Theme): { tablet: number; mobile: number } {
+  const clamp = (v: unknown, lo: number, hi: number, d: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(hi, Math.max(lo, v))) : d
+  const tablet = clamp(theme.breakpoints?.tablet, 600, 1600, BREAKPOINTS.tablet)
+  const mobile = clamp(theme.breakpoints?.mobile, 320, tablet - 40, Math.min(BREAKPOINTS.mobile, tablet - 40))
+  return { tablet, mobile }
+}
 export const DEVICE_WIDTH: Record<Breakpoint, number> = { desktop: 1280, tablet: 768, mobile: 390 }
 
 // ---------- tree helpers ----------
@@ -606,7 +666,15 @@ export type Palette = Record<string, string>
 export function palette(theme: Theme): Palette {
   const c = theme.colors[theme.mode]
   const dark = theme.mode === 'dark'
+  // Named colors join the palette under their id; only real colors get through to the stylesheet.
+  const swatches = Object.fromEntries(
+    (theme.swatches ?? []).flatMap((sw) => {
+      const v = (dark ? sw.dark : sw.light)?.trim()
+      return v && SAFE_COLOR.test(v) ? [[sw.id, v]] : []
+    }),
+  )
   return {
+    ...swatches,
     ...c,
     border: rgba(c.text, 0.12),
     borderInv: rgba(c.onInverse, 0.18),
@@ -693,6 +761,11 @@ export interface RenderOptions {
   base?: boolean
   /** Entries of the collections that bound lists show, by collection name. */
   data?: Record<string, BoundEntry[]>
+  /**
+   * The entry a template page shows (a project's page): elements with a field take its values,
+   * except inside bound lists, which have their own entries.
+   */
+  entry?: BoundEntry
 }
 
 /** What a bound list needs from an entry. */
@@ -790,7 +863,19 @@ export interface Component {
 }
 
 /** What a copy of a component keeps for itself: its content and where it sits. */
-export const OVERRIDE_KEYS = ['text', 'runs', 'src', 'alt', 'href', 'newTab', 'poster', 'focal'] as const
+export const OVERRIDE_KEYS = [
+  'text',
+  'runs',
+  'src',
+  'alt',
+  'href',
+  'newTab',
+  'poster',
+  'focal',
+  'icon',
+  'svg',
+  'hidden',
+] as const
 const PLACEMENT_KEYS = [
   'pos',
   'top',
@@ -804,8 +889,49 @@ const PLACEMENT_KEYS = [
   'rowSpan',
   'hidden',
   'name',
+  'hoverVariant',
 ] as const
 const SEP = '~'
+
+/** Colors a scheme gives a container and its texts, as theme tokens. */
+const SCHEME_TOKENS: Record<string, { bg: string; fg: string; muted: string }> = {
+  accent: { bg: 'accent', fg: 'onAccent', muted: 'onAccentMuted' },
+  inverse: { bg: 'inverse', fg: 'onInverse', muted: 'onInverseMuted' },
+  surface: { bg: 'surface', fg: 'text', muted: 'muted' },
+}
+
+/**
+ * A copy that changes variant under the pointer: what differs in colors and opacity between its
+ * variant and the hover one becomes hover states, on the copy and on the elements inside it.
+ */
+function withHoverVariant(tree: PageNode, hover: PageNode, prefix: string): PageNode {
+  const target = new Map<string, PageNode>()
+  walk([hover], (c) => target.set(c.id, c))
+  const scheme = hover.scheme && hover.scheme !== tree.scheme ? SCHEME_TOKENS[hover.scheme] : undefined
+  return mapTree(tree, (c) => {
+    const isRoot = !c.id.includes(SEP)
+    const h = target.get(isRoot ? hover.id : c.id.slice(prefix.length))
+    if (!h) return c
+    const hs: HoverStyle = { ...c.hoverStyle, on: isRoot ? 'self' : 'card' }
+    const differs = (k: 'bg' | 'color' | 'borderColor' | 'opa') =>
+      JSON.stringify(h[k] ?? null) !== JSON.stringify(c[k] ?? null)
+    if (differs('bg') && h.bg) hs.bg = h.bg
+    if (differs('color') && h.color) hs.color = h.color
+    if (differs('borderColor') && h.borderColor) hs.borderColor = h.borderColor
+    if (differs('opa')) hs.opa = h.opa ?? 1
+    if (scheme) {
+      // The hover variant's scheme: its background on the copy, its text colors inside.
+      if (isRoot) {
+        hs.bg = hs.bg ?? scheme.bg
+        hs.color = hs.color ?? scheme.fg
+      } else if (c.type === 'text' || c.type === 'icon' || c.type === 'button') {
+        hs.color = hs.color ?? ((h.color ?? c.color) === 'muted' ? scheme.muted : scheme.fg)
+      }
+    }
+    const changed = hs.bg || hs.color || hs.borderColor || hs.opa != null
+    return changed || isRoot ? { ...c, hoverStyle: hs } : c
+  })
+}
 
 function mapTree(n: PageNode, fn: (n: PageNode) => PageNode): PageNode {
   const out = fn(n)
@@ -835,6 +961,12 @@ export function expandComponents(nodes: PageNode[], components: Record<string, C
           component: n.component,
           componentVariant: variant.id,
           overrides: n.overrides ?? null,
+        }
+        const hover = n.hoverVariant ? def.variants.find((v) => v.id === n.hoverVariant) : undefined
+        if (hover && hover.id !== variant.id) {
+          const id = node.id
+          // The hover states are made on every expansion: they never go back into the component.
+          node = { ...withHoverVariant({ ...node, id: variant.node.id }, hover.node, prefix), id }
         }
       }
     }
@@ -867,6 +999,11 @@ export function collapseComponents(
         const id = c.id === n.id ? variant.node.id : c.id.startsWith(prefix) ? c.id.slice(prefix.length) : c.id
         const before = original.get(id)
         const out: PageNode = { ...c, id }
+        // Hover states made from the hover variant belong to this copy's expansion, not to the component.
+        if (n.hoverVariant) {
+          if (before?.hoverStyle) out.hoverStyle = before.hoverStyle
+          else delete out.hoverStyle
+        }
         if (before) {
           const own: Partial<NodeProps> = {}
           for (const k of OVERRIDE_KEYS) {
@@ -971,6 +1108,14 @@ const BASE_CSS = `
 .mz-page [data-hover="zoomimg"]:hover img{transform:scale(1.07)}
 .mz-page .mz-scene{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
 .mz-page [data-mz-later]{display:none!important}
+.mz-page .mz-trap{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
+.mz-page .mz-field-label{font-size:.85em;opacity:.8}
+.mz-page .mz-field{width:100%;font:inherit;color:inherit;background:transparent;border:1px solid var(--mz-field-line);border-radius:var(--mz-field-r);padding:12px 14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.mz-page .mz-field:focus{border-color:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 15%,transparent)}
+.mz-page textarea.mz-field{resize:vertical;min-height:120px}
+.mz-page .mz-check{width:18px;height:18px;accent-color:currentColor}
+.mz-page .mz-form-msg{font-size:.95em;padding-top:4px}
+.mz-page :where(button.mz-n){font:inherit;cursor:pointer;border:none}
 .mz-page .mz-more{display:flex;justify-content:center;width:100%;padding-top:32px}
 .mz-page [data-mz-sticky]{transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .3s,backdrop-filter .3s,box-shadow .3s}
 .mz-page [data-mz-sticky].mz-away{transform:translateY(-100%)}
@@ -1160,6 +1305,20 @@ function nodeStyle(
     s.alignItems = al[p.align ?? 'start'] ?? 'flex-start'
     s.justifyContent = jm[p.justify ?? 'start'] ?? 'flex-start'
     if (p.bgImage?.src || p.marquee || p.scene) s.overflow = 'hidden'
+  } else if (n.type === 'input') {
+    s.display = 'flex'
+    s.flexDirection = p.inputKind === 'checkbox' ? 'row' : 'column'
+    s.alignItems = p.inputKind === 'checkbox' ? 'center' : 'stretch'
+    s.gap = p.inputKind === 'checkbox' ? '10px' : '8px'
+    s.color = col(p.color ?? 'text')
+    s['--mz-field-line' as 'color'] = col('line')
+    s['--mz-field-r' as 'color'] = rad(p.radius ?? 'card')
+    s.borderRadius = '0'
+  } else if (n.type === 'icon') {
+    s.display = 'block'
+    s.aspectRatio = p.h ? 'auto' : (p.ratio ?? (p.svg ? '1/1' : iconRatio(p.icon))).replace('/', ' / ')
+    s.color = col(p.color ?? 'text')
+    s.lineHeight = '0'
   } else if (n.type === 'scene') {
     s.display = 'block'
     s.position = 'relative'
@@ -1296,6 +1455,11 @@ export function renderSections(
   options: RenderOptions = {},
 ): { html: string; css: string } {
   sections = applyTextStyles(sections, theme)
+  const limits = breakpointsOf(theme)
+  if (options.entry) {
+    const entry = options.entry
+    sections = sections.map((n) => bindTo(n, entry))
+  }
   const C = palette(theme)
   const mode = options.animations ?? 'site'
   const desktop: string[] = []
@@ -1336,6 +1500,33 @@ export function renderSections(
     if (c.depth === 0 && p.anchor && /^[a-z][a-z0-9-]*$/.test(p.anchor)) attrs.push(`id="${p.anchor}"`)
     if (p.interactions?.length) attrs.push(`data-mz-motion="${esc(JSON.stringify(p.interactions))}"`)
     if (p.hover && p.hover !== 'none') attrs.push(`data-hover="${p.hover}"`)
+    // A container that reacts to the pointer is a "card": elements inside can change with it.
+    if (n.type === 'frame' && (p.href || p.hoverStyle || (p.hover && p.hover !== 'none'))) attrs.push('data-mz-group')
+    if (p.hoverStyle) {
+      const h = p.hoverStyle
+      const hc = (t: string) => color(C, t, d.scheme)
+      const decls = [
+        h.bg ? `background:${hc(h.bg)}` : '',
+        h.color ? `color:${hc(h.color)}` : '',
+        h.borderColor ? `border-color:${hc(h.borderColor)}` : '',
+        // Individual transform properties: they add to the motion runtime's transform instead of replacing it.
+        h.scale != null && h.scale !== 1 ? `scale:${Number(h.scale)}` : '',
+        h.y ? `translate:0 ${Number(h.y)}px` : '',
+        h.opa != null && h.opa < 1 ? `opacity:${Number(h.opa)}` : '',
+        h.shadow === 'lg'
+          ? 'box-shadow:0 18px 40px rgba(0,0,0,.18)'
+          : h.shadow === 'sm'
+            ? 'box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.1)'
+            : '',
+      ].filter(Boolean)
+      if (decls.length) {
+        const sel = h.on === 'card' ? `.mz-page [data-mz-group]:hover .${cls}` : `.mz-page .${cls}:hover`
+        desktop.push(
+          `.mz-page .${cls}{transition:background-color .3s,color .3s,border-color .3s,scale .45s cubic-bezier(.2,.8,.2,1),translate .45s cubic-bezier(.2,.8,.2,1),opacity .3s,box-shadow .45s}` +
+            `@media (hover:hover){${sel}{${decls.join(';')}}}`,
+        )
+      }
+    }
 
     if (n.type === 'frame') {
       const scheme = d.scheme
@@ -1428,6 +1619,12 @@ export function renderSections(
       // A frame with an address is a link (cards in a bound list).
       if (p.href && !isSec)
         return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}" style="text-decoration:none;color:inherit">${content}</a>`
+      if (p.form && !isSec) {
+        // A contact form: posted to the server (also without JavaScript); a trap field catches bots.
+        const subject = p.form.subject ? `<input type="hidden" name="_subject" value="${esc(p.form.subject)}">` : ''
+        const ok = esc(p.form.success || 'Grazie, abbiamo ricevuto il tuo messaggio.')
+        return `<form ${attrs.join(' ')} action="/api/forms/${esc(n.id)}" method="post" data-mz-form="${ok}">${subject}<input type="text" name="_gotcha" class="mz-trap" tabindex="-1" autocomplete="off" aria-hidden="true">${content}</form>${more}`
+      }
       return `<${tag} ${attrs.join(' ')}>${content}</${tag}>${more}`
     }
     if (n.type === 'text') {
@@ -1439,9 +1636,40 @@ export function renderSections(
       }
       return `<${tag} ${attrs.join(' ')}>${runsHtml(p)}</${tag}>`
     }
+    if (n.type === 'button' && p.submit) {
+      return `<button type="submit" ${attrs.join(' ')}>${esc(p.text ?? '')}</button>`
+    }
     if (n.type === 'button') {
       const target = p.newTab ? ' target="_blank" rel="noopener"' : ''
       return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}"${target}>${esc(p.text ?? '')}</a>`
+    }
+    if (n.type === 'input') {
+      const kind = p.inputKind ?? 'text'
+      const name = esc((p.fieldName || p.text || 'campo').toString().slice(0, 60))
+      const req = p.required ? ' required' : ''
+      // On the canvas the fields are pictures of fields: clicking selects them.
+      const still = options.editor ? ' tabindex="-1" readonly' : ''
+      const ph = p.placeholder ? ` placeholder="${esc(p.placeholder)}"` : ''
+      const label = `<span class="mz-field-label">${esc(p.text ?? '')}${p.required ? ' <span aria-hidden="true">*</span>' : ''}</span>`
+      let field: string
+      if (kind === 'textarea')
+        field = `<textarea class="mz-field" name="${name}" rows="5"${ph}${req}${still}></textarea>`
+      else if (kind === 'select')
+        field = `<select class="mz-field" name="${name}"${req}${options.editor ? ' tabindex="-1"' : ''}>${(
+          p.options ?? []
+        )
+          .map((o) => `<option>${esc(o)}</option>`)
+          .join('')}</select>`
+      else if (kind === 'checkbox')
+        return `<label ${attrs.join(' ')}><input type="checkbox" class="mz-check" name="${name}" value="sì"${req}${options.editor ? ' tabindex="-1"' : ''}>${label}</label>`
+      else field = `<input class="mz-field" type="${kind}" name="${name}"${ph}${req}${still}>`
+      return `<label ${attrs.join(' ')}>${label}${field}</label>`
+    }
+    if (n.type === 'icon') {
+      const label = p.alt ? ` role="img" aria-label="${esc(p.alt)}"` : ' aria-hidden="true"'
+      const inner = iconSvg(p)
+      if (p.href) return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}"${label}>${inner}</a>`
+      return `<span ${attrs.join(' ')}${label}>${inner}</span>`
     }
     if (n.type === 'scene') {
       const cfg = p.scene ?? { preset: 'mesh' as const }
@@ -1480,8 +1708,8 @@ export function renderSections(
   const css = [
     options.base === false ? '' : BASE_CSS,
     desktop.join(''),
-    tablet.length ? `@container mzpage (max-width:${BREAKPOINTS.tablet}px){${tablet.join('')}}` : '',
-    mobile.length ? `@container mzpage (max-width:${BREAKPOINTS.mobile}px){${mobile.join('')}}` : '',
+    tablet.length ? `@container mzpage (max-width:${limits.tablet}px){${tablet.join('')}}` : '',
+    mobile.length ? `@container mzpage (max-width:${limits.mobile}px){${mobile.join('')}}` : '',
     reduced(motion),
     scroll.length ? reduced([`@supports (animation-timeline:view()){${scroll.join('')}}`]) : '',
   ].join('\n')
@@ -1504,7 +1732,8 @@ function bindTo(n: PageNode, entry: BoundEntry): PageNode {
     } else if ((n.type === 'button' || n.type === 'frame') && n.field === 'url') out.href = entry.url ?? '#'
   }
   if (n.type === 'button' && n.field !== 'url' && entry.url && !n.href?.startsWith('http')) out.href = entry.url
-  if (n.children) out.children = n.children.map((ch) => bindTo(ch, entry))
+  // A list inside takes its values from its own entries.
+  if (n.children && !n.bind) out.children = n.children.map((ch) => bindTo(ch, entry))
   return out
 }
 
@@ -1596,4 +1825,19 @@ export function normalizeTheme(value: unknown): Theme {
       dark: { ...DEFAULT_THEME.colors.dark, ...(t.colors?.dark ?? {}) },
     },
   }
+}
+
+/** What content mode may change: words, links and pictures, never layout or style. */
+export const CONTENT_ONLY_KEYS = ['text', 'runs', 'src', 'alt', 'href', 'newTab', 'focal', 'poster', 'bgImage']
+
+/** True when two versions of a page differ only in their contents (texts, links, images). */
+export function sameDesign(a: PageNode[], b: PageNode[]): boolean {
+  const strip = (list: PageNode[]): unknown =>
+    list.map((n) => {
+      const copy: Record<string, unknown> = { ...n }
+      for (const k of CONTENT_ONLY_KEYS) delete copy[k]
+      if (n.children) copy.children = strip(n.children)
+      return copy
+    })
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b))
 }

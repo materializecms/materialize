@@ -6,6 +6,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'media' }
   | { name: 'people' }
+  | { name: 'settings'; tab?: 'mail' | 'messages' | 'seo' }
   | { name: 'invite'; token: string }
   | { name: 'collection'; collection: string }
   | { name: 'document'; collection: string; id: string }
@@ -22,6 +23,8 @@ export function parse(pathname: string): Route {
   // Collection names cannot start with "_", so built-in screens never clash with them.
   if (collection === '_media') return { name: 'media' }
   if (collection === '_people') return { name: 'people' }
+  if (collection === '_settings')
+    return { name: 'settings', tab: id === 'messaggi' ? 'messages' : id === 'seo' ? 'seo' : 'mail' }
   if (collection === '_invite' && id) return { name: 'invite', token: id }
   if (!id) return { name: 'collection', collection }
   if (id === 'new') return { name: 'new', collection }
@@ -36,6 +39,8 @@ export function href(route: Route): string {
       return `${BASE}/_media`
     case 'people':
       return `${BASE}/_people`
+    case 'settings':
+      return `${BASE}/_settings${route.tab === 'messages' ? '/messaggi' : route.tab === 'seo' ? '/seo' : ''}`
     case 'invite':
       return `${BASE}/_invite/${route.token}`
     case 'collection':

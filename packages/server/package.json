@@ -13,7 +13,11 @@
     "@materializecms/core": "0.1.0",
     "@materializecms/db": "0.1.0",
     "hono": "4.13.14",
+    "nodemailer": "10.1.1",
     "sharp": "0.35.5",
     "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "8.0.2"
   }
 }

@@ -156,6 +156,53 @@ export interface MotionOptions {
   site?: boolean
 }
 
+/**
+ * Contact forms: sent without leaving the page, with the form's message once received. Without
+ * JavaScript the browser posts them itself and comes back with #inviato.
+ */
+function forms(root: ParentNode): () => void {
+  const list = [...root.querySelectorAll<HTMLFormElement>('form[data-mz-form]')]
+  const done = (form: HTMLFormElement, text: string, failed = false) => {
+    let msg = form.querySelector<HTMLElement>(':scope > .mz-form-msg')
+    if (!msg) {
+      msg = document.createElement('p')
+      msg.className = 'mz-form-msg'
+      msg.setAttribute('role', 'status')
+      form.append(msg)
+    }
+    msg.textContent = text
+    // Not `hidden`: the elements' own display would win over it.
+    if (!failed)
+      for (const el of form.querySelectorAll<HTMLElement>(':scope > :not(.mz-form-msg)')) el.style.display = 'none'
+  }
+  if (location.hash === '#inviato') for (const f of list) done(f, f.dataset.mzForm ?? '')
+  const onSubmit = async (e: Event) => {
+    const form = e.target as HTMLFormElement
+    if (!list.includes(form)) return
+    e.preventDefault()
+    const data = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v)]))
+    data._page = location.pathname
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')
+    if (button) button.disabled = true
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      done(form, form.dataset.mzForm ?? '')
+    } catch (error) {
+      const tooMany = error instanceof Error && error.message === '429'
+      done(form, tooMany ? 'Troppi invii ravvicinati: riprova tra un minuto.' : 'Invio non riuscito: riprova.', true)
+    } finally {
+      if (button) button.disabled = false
+    }
+  }
+  root.addEventListener('submit', onSubmit)
+  return () => root.removeEventListener('submit', onSubmit)
+}
+
 /** "Show more" under bound lists: each click reveals the next entries already on the page. */
 function moreButtons(root: ParentNode): () => void {
   const onClick = (e: Event) => {
@@ -174,7 +221,7 @@ function moreButtons(root: ParentNode): () => void {
 export function startMotion(root: ParentNode = document, options: MotionOptions = {}): () => void {
   if (typeof window === 'undefined') return () => {}
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const cleanups: (() => void)[] = [stickyMenus(root, options.scroller), moreButtons(root)]
+  const cleanups: (() => void)[] = [stickyMenus(root, options.scroller), moreButtons(root), forms(root)]
   const targets = new Map<HTMLElement, Target>()
   const players: Player[] = []
   const scroller = options.scroller

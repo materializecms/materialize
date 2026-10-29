@@ -11,6 +11,7 @@ import {
   LogOut,
   Newspaper,
   Search,
+  Settings,
   SlidersHorizontal,
   UserRound,
   Users,
@@ -135,6 +136,11 @@ export function Sidebar() {
         <NavItem route={{ name: 'media' }} active={route.name === 'media'} label="Media" count={overview.data?.media}>
           <TintIcon color="#0ea5e9" size="sm">
             <Images />
+          </TintIcon>
+        </NavItem>
+        <NavItem route={{ name: 'settings', tab: 'messages' }} active={route.name === 'settings'} label="Impostazioni">
+          <TintIcon color="#64748b" size="sm">
+            <Settings />
           </TintIcon>
         </NavItem>
         {user.role === 'admin' && (

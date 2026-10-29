@@ -7,6 +7,7 @@ import { useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
+import { SettingsScreen } from '../settings/SettingsScreen.tsx'
 import { AuthScreen } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
@@ -77,7 +78,11 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
   )
 
   const collection =
-    route.name === 'home' || route.name === 'media' || route.name === 'people' || route.name === 'invite'
+    route.name === 'home' ||
+    route.name === 'media' ||
+    route.name === 'people' ||
+    route.name === 'settings' ||
+    route.name === 'invite'
       ? undefined
       : schema.collections.find((c) => c.name === route.collection)
 
@@ -101,6 +106,8 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
             <MediaLibrary />
           ) : route.name === 'people' ? (
             <PeopleScreen />
+          ) : route.name === 'settings' ? (
+            <SettingsScreen tab={route.tab} />
           ) : !collection ? (
             <Fatal
               message={`La collezione "${'collection' in route ? route.collection : ''}" non esiste nello schema.`}

@@ -1,5 +1,12 @@
-import { fontStack, TEXT_STYLES, type Theme, type ThemeColors } from '@materializecms/core/page'
-import { Moon, Sun, Trash2 } from 'lucide-react'
+import {
+  breakpointsOf,
+  fontStack,
+  type Swatch,
+  TEXT_STYLES,
+  type Theme,
+  type ThemeColors,
+} from '@materializecms/core/page'
+import { Moon, Plus, Sun, Trash2 } from 'lucide-react'
 import { NumField, Row, Section, Seg, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
 
@@ -25,6 +32,7 @@ export function ThemePanel({
   canEdit: boolean
 }) {
   const colors = theme.colors[theme.mode]
+  const swatches = theme.swatches ?? []
   const set = (patch: Partial<Theme>) => onChange({ ...theme, ...patch })
   const setColor = (key: keyof ThemeColors, value: string) =>
     onChange({ ...theme, colors: { ...theme.colors, [theme.mode]: { ...colors, [key]: value } } })
@@ -82,6 +90,74 @@ export function ThemePanel({
               </label>
             ))}
           </div>
+        </Section>
+        <Section
+          title="Colori personalizzati"
+          action={
+            <button
+              type="button"
+              title="Aggiungi un colore"
+              aria-label="Aggiungi un colore"
+              onClick={() =>
+                set({
+                  swatches: [
+                    ...swatches,
+                    {
+                      id: `sw-${Date.now().toString(36)}`,
+                      name: `Colore ${swatches.length + 1}`,
+                      light: '#7a8b6f',
+                      dark: '#9fb08f',
+                    },
+                  ],
+                })
+              }
+              className="flex size-6 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+            >
+              <Plus />
+            </button>
+          }
+        >
+          {swatches.length === 0 && (
+            <p className="text-[11.5px] leading-relaxed text-fg3">
+              Colori del marchio con un nome, da usare in ogni campo colore. Hanno una tinta per il tema chiaro e una
+              per quello scuro.
+            </p>
+          )}
+          {swatches.map((sw) => {
+            const update = (patch: Partial<Swatch>) =>
+              set({ swatches: swatches.map((x) => (x.id === sw.id ? { ...x, ...patch } : x)) })
+            return (
+              <div key={sw.id} className="group/sw flex items-center gap-1.5">
+                {(['light', 'dark'] as const).map((m) => (
+                  <input
+                    key={m}
+                    type="color"
+                    title={m === 'light' ? 'Nel tema chiaro' : 'Nel tema scuro'}
+                    aria-label={`${sw.name}: ${m === 'light' ? 'tema chiaro' : 'tema scuro'}`}
+                    value={sw[m]}
+                    onChange={(e) => update({ [m]: e.target.value })}
+                    className="size-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[5px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
+                  />
+                ))}
+                <input
+                  aria-label="Nome del colore"
+                  defaultValue={sw.name}
+                  onBlur={(e) => e.currentTarget.value.trim() && update({ name: e.currentTarget.value.trim() })}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[12.5px] outline-none hover:border-line2 focus:border-accent"
+                />
+                <button
+                  type="button"
+                  title="Elimina il colore: gli elementi che lo usano tornano al colore del contenitore"
+                  aria-label={`Elimina ${sw.name}`}
+                  onClick={() => set({ swatches: swatches.filter((x) => x.id !== sw.id) })}
+                  className="flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/sw:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            )
+          })}
         </Section>
         <Section title="Caratteri">
           <Row label="Titoli">
@@ -146,6 +222,27 @@ export function ThemePanel({
           </Row>
           <Row label="Schede" hint="Raggio degli angoli di immagini e schede">
             <NumField value={theme.cardRadius} onChange={(v) => set({ cardRadius: v ?? 0 })} max={48} />
+          </Row>
+        </Section>
+        <Section title="Punti di rottura">
+          <p className="text-[11px] leading-relaxed text-fg3">
+            Sotto queste larghezze il sito usa le modifiche fatte per tablet e per mobile.
+          </p>
+          <Row label="Tablet sotto">
+            <NumField
+              value={breakpointsOf(theme).tablet + 1}
+              min={601}
+              max={1601}
+              onChange={(v) => v && set({ breakpoints: { ...breakpointsOf(theme), tablet: v - 1 } })}
+            />
+          </Row>
+          <Row label="Mobile sotto">
+            <NumField
+              value={breakpointsOf(theme).mobile + 1}
+              min={321}
+              max={1200}
+              onChange={(v) => v && set({ breakpoints: { ...breakpointsOf(theme), mobile: v - 1 } })}
+            />
           </Row>
         </Section>
         <Section title="Esperienza">

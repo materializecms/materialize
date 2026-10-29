@@ -109,6 +109,17 @@ export interface Seo {
   description?: string
   image?: Media
   noindex?: boolean
+  /** Search engines index the page but do not follow its links. */
+  nofollow?: boolean
+  /** Title and description when shared (Facebook, LinkedIn, WhatsApp, X), if different. */
+  socialTitle?: string
+  socialDescription?: string
+  /** The address search engines should consider the original, when this page repeats another. */
+  canonical?: string
+  /** Structured data: what kind of page this is (see SCHEMA_TYPES in seo.ts). */
+  schema?: 'article' | 'project' | 'service' | 'event' | 'faq'
+  faq?: { q: string; a: string }[]
+  event?: { start?: string; end?: string; place?: string; address?: string; online?: boolean; price?: string }
 }
 
 /** Inline text with formatting marks. */
@@ -339,6 +350,25 @@ function seo<const O extends Common<boolean>>(o?: O): Field<Seo, Req<O>> {
       description: z.string().max(170).optional(),
       image: mediaSchema.optional(),
       noindex: z.boolean().optional(),
+      nofollow: z.boolean().optional(),
+      socialTitle: z.string().max(90).optional(),
+      socialDescription: z.string().max(200).optional(),
+      canonical: z.string().max(500).optional(),
+      schema: z.enum(['article', 'project', 'service', 'event', 'faq']).optional(),
+      faq: z
+        .array(z.object({ q: z.string().max(300), a: z.string().max(3000) }))
+        .max(50)
+        .optional(),
+      event: z
+        .object({
+          start: z.string().optional(),
+          end: z.string().optional(),
+          place: z.string().optional(),
+          address: z.string().optional(),
+          online: z.boolean().optional(),
+          price: z.string().optional(),
+        })
+        .optional(),
     }),
   )
 }
@@ -351,7 +381,7 @@ const pageNodeSchema: z.ZodType<PageNode> = z.lazy(() =>
   z
     .object({
       id: z.string().min(1),
-      type: z.enum(['frame', 'text', 'image', 'button', 'video', 'embed', 'scene']),
+      type: z.enum(['frame', 'text', 'image', 'button', 'video', 'embed', 'scene', 'icon', 'input']),
       name: z.string().max(120).optional(),
       children: z.array(pageNodeSchema).optional(),
     })
