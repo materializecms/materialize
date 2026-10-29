@@ -106,7 +106,8 @@ interface Player {
 /** A fixed menu that lies over the next section: pull that section up by the menu's height. */
 export function layoutSticky(root: ParentNode = document) {
   for (const el of root.querySelectorAll<HTMLElement>('[data-mz-sticky~="overlay"]')) {
-    el.style.marginBottom = `${-el.offsetHeight}px`
+    // With nothing below to lie over, it keeps its place (a page with only the menu stays visible).
+    el.style.marginBottom = el.nextElementSibling ? `${-el.offsetHeight}px` : ''
   }
 }
 

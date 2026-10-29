@@ -259,7 +259,14 @@ export function Timeline({
 
 function pick(state: Required<MotionProps>, used: PropDef[]): MotionProps {
   const out: MotionProps = {}
-  for (const p of used) out[p.key] = Math.round(state[p.key] * 100) / 100
+  for (const p of used) {
+    const v = state[p.key]
+    // Whole pixels and degrees; opacity, scale and the like keep two decimals, within their range.
+    const fine = p.key === 'opacity' || p.key === 'scale'
+    out[p.key] = fine ? Math.round(v * 100) / 100 : Math.round(v)
+  }
+  if (out.opacity !== undefined) out.opacity = Math.min(1, Math.max(0, out.opacity))
+  if (out.clip !== undefined) out.clip = Math.min(100, Math.max(0, out.clip))
   return out
 }
 

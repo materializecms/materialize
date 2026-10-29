@@ -491,8 +491,19 @@ export function PageEditor({
     const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
     setNodes(insertNode(nodesRef.current, null, index, section))
     setSelected(section.id)
+    revealOnCanvas(section.id)
     setTimeout(play, 60)
   }
+
+  /** Brings a new section into view on the canvas, once drawn. */
+  const revealOnCanvas = (id: string) =>
+    setTimeout(
+      () =>
+        document
+          .querySelector(`[data-mz-canvas] [data-mz-id="${CSS.escape(id)}"]`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+      80,
+    )
 
   const duplicate = (id: string) => {
     const f = findNode(nodesRef.current, id)
@@ -742,23 +753,24 @@ export function PageEditor({
       if (id && (e.key === 'Backspace' || e.key === 'Delete')) {
         e.preventDefault()
         removeSelection()
-      } else if (id && mod && e.key.toLowerCase() === 'd') {
+      } else if (id && mod && !e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault()
         duplicateSelection()
       } else if (id && mod && e.key.toLowerCase() === 'g') {
         e.preventDefault()
         if (e.shiftKey) ungroup()
         else group()
-      } else if (id && mod && e.key.toLowerCase() === 'a') {
+      } else if (id && mod && !e.altKey && e.key.toLowerCase() === 'a') {
         // Everything next to the selected element, in the same container.
         e.preventDefault()
         const f = findNode(nodesRef.current, id)
         if (f) setSelection([...f.siblings.map((n) => n.id).filter((x) => x !== id), id])
-      } else if (id && e.altKey && mod && /^[wasdhv]$/i.test(e.key)) {
+      } else if (id && e.altKey && mod && /^Key[WASDHV]$/.test(e.code)) {
+        // By physical key: with ⌥ held, macOS types other letters (⌥S is ß).
         e.preventDefault()
-        const how = ({ a: 'left', d: 'right', w: 'top', s: 'bottom', h: 'hcenter', v: 'vcenter' } as const)[
-          e.key.toLowerCase() as 'a'
-        ]
+        const how = (
+          { KeyA: 'left', KeyD: 'right', KeyW: 'top', KeyS: 'bottom', KeyH: 'hcenter', KeyV: 'vcenter' } as const
+        )[e.code as 'KeyA']
         if (how) align(how)
       } else if (id && mod && e.key.toLowerCase() === 'c') {
         clipboard.current = findNode(nodesRef.current, id)?.node ?? null
@@ -904,6 +916,7 @@ export function PageEditor({
               const ref: PageNode = { ...(globals[gid] as PageNode), id: newId(), global: gid }
               setNodes(insertNode(nodesRef.current, null, index, ref))
               setSelected(ref.id)
+              revealOnCanvas(ref.id)
             }}
           />
         )}

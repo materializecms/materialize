@@ -184,7 +184,8 @@ export function start3D(
   const size = () => {
     const w = canvas.clientWidth || 1
     const h = canvas.clientHeight || 1
-    if (canvas.width !== Math.round(w * renderer.getPixelRatio())) renderer.setSize(w, h, false)
+    const ratio = renderer.getPixelRatio()
+    if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) renderer.setSize(w, h, false)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }

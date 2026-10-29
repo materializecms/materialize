@@ -99,10 +99,13 @@ export function NumField({
   step = 1,
   label,
   placeholder,
+  suffix,
 }: {
   value: number | null | undefined
   onChange: (value: number | null) => void
   unit?: string
+  /** In place of the unit: a control inside the field (LenField's unit picker). */
+  suffix?: React.ReactNode
   min?: number
   max?: number
   step?: number
@@ -155,7 +158,7 @@ export function NumField({
         }}
         className="h-full w-full min-w-0 bg-transparent px-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg3"
       />
-      <span className="font-mono text-[10.5px] text-fg3">{unit}</span>
+      {suffix ?? <span className="font-mono text-[10.5px] text-fg3">{unit}</span>}
     </div>
   )
 }
@@ -346,33 +349,34 @@ export function LenField({
   useEffect(() => setUnit(parsed.unit), [parsed.unit])
   const fine = unit === 'em' || unit === 'rem'
   const emit = (n: number | null, u = unit) => onChange(n === null ? null : u === 'px' ? n : `${n}${u}`)
+  // The unit sits inside the field, so two lengths fit side by side (padding X and Y).
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1">
-      <NumField
-        value={parsed.n}
-        onChange={(n) => emit(n)}
-        unit=""
-        min={unit === 'px' ? min : Math.min(min, 0) && -100}
-        max={unit === 'px' ? max : unit === '%' || unit.startsWith('v') ? 1000 : 100}
-        step={fine ? 0.05 : 1}
-        label={label}
-        placeholder={placeholder}
-      />
-      <select
-        aria-label="Unità di misura"
-        value={unit}
-        onChange={(e) => {
-          setUnit(e.target.value)
-          if (parsed.n !== null) emit(parsed.n, e.target.value)
-        }}
-        className="h-7 w-12 shrink-0 rounded-md border border-line2 bg-input px-0.5 font-mono text-[11px] text-fg2 outline-none focus:border-accent"
-      >
-        {LEN_UNITS.map((u) => (
-          <option key={u} value={u}>
-            {u}
-          </option>
-        ))}
-      </select>
-    </div>
+    <NumField
+      value={parsed.n}
+      onChange={(n) => emit(n)}
+      min={unit === 'px' ? min : Math.min(min, 0) && -100}
+      max={unit === 'px' ? max : unit === '%' || unit.startsWith('v') ? 1000 : 100}
+      step={fine ? 0.05 : 1}
+      label={label}
+      placeholder={placeholder}
+      suffix={
+        <select
+          aria-label="Unità di misura"
+          title="Unità di misura"
+          value={unit}
+          onChange={(e) => {
+            setUnit(e.target.value)
+            if (parsed.n !== null) emit(parsed.n, e.target.value)
+          }}
+          className="-mr-1 shrink-0 cursor-pointer appearance-none bg-transparent font-mono text-[10.5px] text-fg3 outline-none hover:text-accent"
+        >
+          {LEN_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      }
+    />
   )
 }

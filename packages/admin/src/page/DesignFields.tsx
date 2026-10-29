@@ -532,7 +532,8 @@ export function SceneSection({
         <Toggle
           label="Usa una scena WebGL come sfondo"
           checked={!!cfg}
-          onChange={(v) => onContent({ scene: v ? { preset: 'mesh' } : null })}
+          // Behind a section's content: the section's own colors, so its texts stay readable.
+          onChange={(v) => onContent({ scene: v ? { preset: 'mesh', colors: ['bg', 'surface', 'accent'] } : null })}
         />
       )}
       {cfg && (
