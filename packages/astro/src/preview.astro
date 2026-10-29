@@ -1,0 +1,31 @@
+---
+/**
+ * Renders unsaved editor data with the site's own layout and block components, for the canvas
+ * in the admin's Design mode. Signed-in users only; the admin posts the current draft here.
+ */
+import { Layout } from 'virtual:materialize/site'
+import Blocks from './components/Blocks.astro'
+import { blocksFieldOf, previewEntry } from './content.ts'
+import { getRuntime } from './runtime.ts'
+
+export const prerender = false
+
+if (Astro.request.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+// Same check as the API: only the admin on this site may ask for drafts.
+const origin = Astro.request.headers.get('origin')
+const host = Astro.request.headers.get('host')
+if (origin && (!host || new URL(origin).host !== host)) return new Response('Forbidden', { status: 403 })
+const { auth } = await getRuntime()
+const token = Astro.cookies.get('mz_session')?.value
+if (!token || !(await auth.userForSession(token))) return new Response('Unauthorized', { status: 401 })
+
+const body = (await Astro.request.json()) as { collection: string; locale: string; data: Record<string, unknown> }
+;(Astro.locals as { materializePreview?: boolean }).materializePreview = true
+const entry = await previewEntry(body.collection, body.locale, body.data)
+const blocksField = await blocksFieldOf(body.collection)
+Astro.response.headers.set('cache-control', 'no-store')
+---
+
+<Layout title={entry.title} entry={entry} preview>
+  <Blocks blocks={blocksField ? entry.data[blocksField] : []} />
+</Layout>

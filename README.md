@@ -2,7 +2,7 @@
 
 CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
 
-> Stato: **fase 2 · Editor, prima parte**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI e il pannello di amministrazione con le modalità Contenuto e Design. Il renderer Astro (l'aspetto vero del sito sulla tela), la libreria media e il server MCP arrivano nelle fasi successive.
+> Stato: **renderer Astro**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design e il renderer: il sito si genera dai contenuti pubblicati e la tela mostra la pagina vera. La libreria media e il server MCP arrivano nelle fasi successive.
 
 ## Avvio rapido
 
@@ -13,16 +13,43 @@ npm install
 npm run dev
 ```
 
-Il sito d'esempio (Studio Rossi) parte su http://localhost:4321. Apri http://localhost:4321/admin: al primo accesso crei l'account amministratore direttamente dal pannello.
+Il sito d'esempio (Studio Rossi) parte su http://localhost:4321 e il pannello su http://localhost:4321/admin: al primo accesso crei l'account amministratore direttamente dal pannello. Sito, pannello e API vivono sullo stesso indirizzo.
 
 ## Il pannello
 
 - **Contenuto**: form generati dallo schema, con titolo in evidenza, editor di testo formattato, immagini con punto focale, relazioni, blocchi riordinabili e anteprima per i motori di ricerca.
-- **Design**: la pagina sulla tela, con livelli, inspector, inserimento di blocchi tra le sezioni, modifica del testo direttamente sulla tela e anteprima desktop, tablet e mobile.
+- **Design**: la pagina vera sulla tela, disegnata dai componenti del sito, con livelli, inspector, modifica del testo direttamente sulla pagina e anteprima desktop, tablet e mobile. Ogni modifica si vede subito: viene ridisegnato solo il blocco che cambia.
 - **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
 - Cronologia con ripristino, annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
 
-Per ora la tela usa uno stile neutro, uguale per ogni sito: mostra struttura e contenuti reali. L'aspetto definitivo arriverà con il renderer, che userà i componenti del sito.
+Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
+
+## Il sito
+
+Il sito è un progetto [Astro](https://astro.build) accanto a `materialize.config.ts`. Bastano poche convenzioni:
+
+- **Un componente per tipo di blocco** in `src/blocks`, con il nome del blocco: `ProjectsGrid.astro` disegna i blocchi `projectsGrid`. Riceve i campi del blocco e `field(nome)`: mettilo sull'elemento che mostra un testo (`<h1 {...field('title')}>`) e gli editor potranno modificarlo direttamente sulla tela.
+- **Un layout** in `src/layouts/Site.astro`, usato dalle pagine e dall'anteprima.
+- **Una rotta per tutte le pagine**: in `src/pages/[...path].astro`, `export const getStaticPaths = getRoutes` crea una pagina per ogni documento pubblicato che ha un indirizzo.
+
+```astro
+---
+import Blocks from '@materialize/astro/components/Blocks.astro'
+import { getRoutes } from '@materialize/astro/content'
+import Site from '../layouts/Site.astro'
+
+export const getStaticPaths = getRoutes
+const { entry } = Astro.props
+---
+
+<Site title={entry.title} entry={entry}>
+  <Blocks blocks={entry.data.blocks} />
+</Site>
+```
+
+Nei template le relazioni arrivano già risolte: un campo `relation` contiene i documenti collegati, con titolo, indirizzo e dati. Per il resto ci sono `getEntries`, `getEntry`, `getSingleton` e i componenti `RichText` e `Media` (immagini con punto focale).
+
+In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si vede subito. In produzione (`materialize start`) il sito è fatto di file statici e si rigenera da solo dopo ogni pubblicazione, di solito in meno di un secondo: la nuova versione sostituisce la precedente solo quando è completa.
 
 ## Lo schema è codice
 
@@ -59,15 +86,16 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 
 ## Struttura
 
-| Cartella                      | Contenuto                                                                                      |
-| ----------------------------- | ---------------------------------------------------------------------------------------------- |
-| `packages/core`               | Schema come codice: collezioni, blocchi, campi, tipi, validazione, descrizione per l'admin     |
-| `packages/db`                 | Documenti con bozza e versione pubblicata, revisioni, utenti e sessioni (Drizzle + libSQL)     |
-| `packages/server`             | API HTTP (Hono): setup, login, gestione contenuti, API pubblica; serve il pannello su `/admin` |
-| `packages/admin`              | Pannello di amministrazione (React, Tailwind, Tiptap), compilato con Vite                      |
-| `packages/cli`                | Comando `materialize dev` / `materialize start`                                                |
-| `packages/create-materialize` | `npm create materialize` per un nuovo progetto                                                 |
-| `examples/sito`       | Sito d'esempio di uno studio di architettura                                                   |
+| Cartella                      | Contenuto                                                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core`               | Schema come codice: collezioni, blocchi, campi, tipi, validazione, descrizione per l'admin                                |
+| `packages/db`                 | Documenti con bozza e versione pubblicata, revisioni, utenti e sessioni (Drizzle + libSQL)                                |
+| `packages/server`             | API HTTP (Hono): setup, login, gestione contenuti, API pubblica; serve il pannello su `/admin`                            |
+| `packages/admin`              | Pannello di amministrazione (React, Tailwind, Tiptap), compilato con Vite                                                 |
+| `packages/astro`              | Integrazione Astro: contenuti pubblicati per le pagine, componenti per blocchi e testo, anteprima delle bozze per la tela |
+| `packages/cli`                | Comando `materialize dev` / `materialize start`                                                                           |
+| `packages/create-materialize` | `npm create materialize` per un nuovo progetto                                                                            |
+| `examples/sito`       | Sito d'esempio di uno studio di architettura                                                                              |
 
 ## API
 
@@ -90,6 +118,10 @@ Le bozze non toccano il sito online finché non pubblichi. Le richieste di modif
 npm run dev         # compila il pannello e avvia l'esempio con ricarica dello schema
 npm run dev:admin   # sviluppo del pannello con ricarica istantanea (con npm run dev attivo)
 npm run build       # compila il pannello
+
+# nella cartella del sito
+npx materialize build   # genera il sito statico in dist/, da pubblicare su qualsiasi hosting
+npx materialize start   # produzione: sito statico, pannello e rigenerazione a ogni pubblicazione
 npm test            # test (Vitest)
 npm run typecheck   # TypeScript 7
 npm run lint        # Biome
@@ -104,8 +136,8 @@ npm run check       # tutto quanto sopra
 
 ## Prossimi passi
 
-1. Renderer Astro con pubblicazione incrementale, e tela con l'aspetto vero del sito.
+1. Media: caricamento, ottimizzazione delle immagini, CDN.
 2. Editor: stili e animazioni per blocco, più tipi di blocco, trascinamento sulla tela, modifica collaborativa.
-3. Media: caricamento, ottimizzazione, CDN.
+3. Utenti e inviti, traduzioni collegate tra loro.
 4. Server MCP e funzioni AI.
-5. Build dei pacchetti per la pubblicazione su npm.
+5. Build dei pacchetti per la pubblicazione su npm, e il sito nel modello di `create-materialize`.

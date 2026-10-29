@@ -3,6 +3,7 @@ import {
   ArrowUp,
   Copy,
   FileText,
+  Globe,
   GripVertical,
   Info,
   Monitor,
@@ -11,7 +12,17 @@ import {
   Tablet,
   Trash2,
 } from 'lucide-react'
-import { type DragEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type DragEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { useSession } from '../app/context.ts'
 import { cx, IconButton, Popover, Segmented } from '../components/ui.tsx'
 import { type BlockDef, BlockLibrary, blockIcon } from '../fields/BlockLibrary.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
@@ -19,6 +30,7 @@ import type { CollectionDescription, Data, FieldDescription, ValidationIssue } f
 import { blockTitle, countIssuesUnder, move, newBlock, newKey } from '../lib/doc.ts'
 import { usePref } from '../lib/prefs.ts'
 import { BlockPreview } from './BlockPreview.tsx'
+import { SiteCanvas } from './SiteCanvas.tsx'
 
 type Block = Record<string, unknown> & { _type: string; _key: string }
 type Device = 'desktop' | 'tablet' | 'mobile'
@@ -47,6 +59,8 @@ export function DesignMode({
   const max = blocksField.options.max as number | undefined
   const canAdd = max === undefined || blocks.length < max
 
+  const { schema, locale } = useSession()
+  const live = schema.preview === true
   const index = blocks.findIndex((b) => b._key === selected)
   const current = index >= 0 ? blocks[index] : undefined
 
@@ -136,6 +150,15 @@ export function DesignMode({
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [selected])
 
+  const errorKeys = useMemo(
+    () => new Set(blocks.filter((_, i) => countIssuesUnder(issues, `${blocksField.name}.${i}`) > 0).map((b) => b._key)),
+    [blocks, issues, blocksField.name],
+  )
+  const labels = useMemo(
+    () => Object.fromEntries(blocks.map((b) => [b._key, defs.find((d) => d.name === b._type)?.label ?? b._type])),
+    [blocks, defs],
+  )
+
   return (
     <div className="flex min-h-0 flex-1">
       <Layers
@@ -163,107 +186,161 @@ export function DesignMode({
             ]}
           />
           <span className="text-[11.5px] text-fg3 tabular-nums">{WIDTH[device]} px</span>
-          <span
-            className="absolute right-3 inline-flex items-center gap-1 text-[11.5px] text-fg3"
-            title="La tela mostra struttura e contenuti con uno stile neutro. L’aspetto definitivo arriva dai componenti del sito."
-          >
-            <Info className="size-3.5" /> Anteprima neutra
-          </span>
-        </div>
-        <Canvas device={device} onBackground={() => setSelected(null)}>
-          {blocks.length === 0 ? (
-            <EmptyPage defs={defs} onPick={(d) => insert(d, 0)} />
+          {live ? (
+            <span
+              className="absolute right-3 inline-flex items-center gap-1 text-[11.5px] text-fg3"
+              title="La tela usa il layout e i componenti del sito: è la pagina come la vedranno i visitatori."
+            >
+              <Globe className="size-3.5" /> Il sito vero
+            </span>
           ) : (
-            blocks.map((block, i) => {
-              const def = defs.find((d) => d.name === block._type)
-              const isSelected = block._key === selected
-              const errors = countIssuesUnder(issues, `${blocksField.name}.${i}`)
-              return (
-                <div key={block._key}>
-                  {i > 0 && canAdd && <Inserter defs={defs} onPick={(d) => insert(d, i)} />}
-                  <div
-                    data-block-key={block._key}
-                    role="presentation"
-                    onPointerDown={() => setSelected(block._key)}
-                    className={cx(
-                      'group/block relative',
-                      isSelected
-                        ? 'outline-2 -outline-offset-2 outline-[#3d5afe]'
-                        : errors
-                          ? 'outline-2 -outline-offset-2 outline-[#c4320a]/70'
-                          : 'hover:outline-2 hover:-outline-offset-2 hover:outline-[#3d5afe]/40',
-                    )}
-                  >
-                    <span
-                      className={cx(
-                        'pointer-events-none absolute top-0 left-0 z-10 inline-flex h-[22px] items-center gap-1 rounded-br-md px-2 font-sans text-[11px] font-medium text-white [&_svg]:size-3',
-                        isSelected
-                          ? 'bg-[#3d5afe]'
-                          : errors
-                            ? 'bg-[#c4320a]'
-                            : 'bg-[#3d5afe]/80 opacity-0 group-hover/block:opacity-100',
-                      )}
-                    >
-                      {blockIcon(block._type)}
-                      {def?.label ?? block._type}
-                      {errors > 0 && ` · ${errors} da sistemare`}
-                    </span>
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-lg border border-black/10 bg-white p-0.5 text-neutral-700 shadow-lg [&_button]:text-neutral-600 [&_button:hover]:bg-neutral-100 [&_button:hover]:text-neutral-950">
-                        <IconButton
-                          label="Sposta su (⌥↑)"
-                          disabled={i === 0}
-                          onClick={() => setBlocks(move(blocks, i, i - 1))}
-                        >
-                          <ArrowUp />
-                        </IconButton>
-                        <IconButton
-                          label="Sposta giù (⌥↓)"
-                          disabled={i === blocks.length - 1}
-                          onClick={() => setBlocks(move(blocks, i, i + 1))}
-                        >
-                          <ArrowDown />
-                        </IconButton>
-                        <IconButton label="Duplica (⌘D)" disabled={!canAdd} onClick={() => duplicate(i)}>
-                          <Copy />
-                        </IconButton>
-                        <IconButton label="Elimina (⌫)" onClick={() => remove(i)}>
-                          <Trash2 />
-                        </IconButton>
-                      </div>
-                    )}
-                    {def ? (
-                      <BlockPreview
-                        def={def}
-                        value={block}
-                        index={i}
-                        selected={isSelected}
-                        onField={(name, v) => updateBlock(i, { ...block, [name]: v }, `canvas:${block._key}:${name}`)}
-                      />
-                    ) : (
-                      <div className="bg-amber-50 px-8 py-10 text-[14px] text-amber-800">
-                        Il blocco “{block._type}” non esiste più nello schema.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })
+            <span
+              className="absolute right-3 inline-flex items-center gap-1 text-[11.5px] text-fg3"
+              title="La tela mostra struttura e contenuti con uno stile neutro. Collega un sito Astro per vedere l’aspetto definitivo."
+            >
+              <Info className="size-3.5" /> Anteprima neutra
+            </span>
           )}
-          {blocks.length > 0 && canAdd && (
-            <div className="flex justify-center bg-white py-6">
-              <AddButton defs={defs} onPick={(d) => insert(d, blocks.length)} />
+          {live && canAdd && (
+            <div className="absolute left-3">
+              <AddButton compact defs={defs} onPick={(d) => insert(d, index >= 0 ? index + 1 : blocks.length)} />
             </div>
           )}
-        </Canvas>
+        </div>
+        {live ? (
+          <SiteCanvas
+            collection={collection.name}
+            locale={locale}
+            data={data}
+            width={WIDTH[device]}
+            selected={selected}
+            errors={errorKeys}
+            labels={labels}
+            onSelect={setSelected}
+            onField={(key, field, text) => {
+              const i = blocks.findIndex((b) => b._key === key)
+              const block = blocks[i]
+              if (block) updateBlock(i, { ...block, [field]: text }, `canvas:${key}:${field}`)
+            }}
+          />
+        ) : (
+          <Canvas device={device} onBackground={() => setSelected(null)}>
+            {blocks.length === 0 ? (
+              <EmptyPage defs={defs} onPick={(d) => insert(d, 0)} />
+            ) : (
+              blocks.map((block, i) => {
+                const def = defs.find((d) => d.name === block._type)
+                const isSelected = block._key === selected
+                const errors = countIssuesUnder(issues, `${blocksField.name}.${i}`)
+                return (
+                  <div key={block._key}>
+                    {i > 0 && canAdd && <Inserter defs={defs} onPick={(d) => insert(d, i)} />}
+                    <div
+                      data-block-key={block._key}
+                      role="presentation"
+                      onPointerDown={() => setSelected(block._key)}
+                      className={cx(
+                        'group/block relative',
+                        isSelected
+                          ? 'outline-2 -outline-offset-2 outline-[#3d5afe]'
+                          : errors
+                            ? 'outline-2 -outline-offset-2 outline-[#c4320a]/70'
+                            : 'hover:outline-2 hover:-outline-offset-2 hover:outline-[#3d5afe]/40',
+                      )}
+                    >
+                      <span
+                        className={cx(
+                          'pointer-events-none absolute top-0 left-0 z-10 inline-flex h-[22px] items-center gap-1 rounded-br-md px-2 font-sans text-[11px] font-medium text-white [&_svg]:size-3',
+                          isSelected
+                            ? 'bg-[#3d5afe]'
+                            : errors
+                              ? 'bg-[#c4320a]'
+                              : 'bg-[#3d5afe]/80 opacity-0 group-hover/block:opacity-100',
+                        )}
+                      >
+                        {blockIcon(block._type)}
+                        {def?.label ?? block._type}
+                        {errors > 0 && ` · ${errors} da sistemare`}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-lg border border-black/10 bg-white p-0.5 text-neutral-700 shadow-lg [&_button]:text-neutral-600 [&_button:hover]:bg-neutral-100 [&_button:hover]:text-neutral-950">
+                          <IconButton
+                            label="Sposta su (⌥↑)"
+                            disabled={i === 0}
+                            onClick={() => setBlocks(move(blocks, i, i - 1))}
+                          >
+                            <ArrowUp />
+                          </IconButton>
+                          <IconButton
+                            label="Sposta giù (⌥↓)"
+                            disabled={i === blocks.length - 1}
+                            onClick={() => setBlocks(move(blocks, i, i + 1))}
+                          >
+                            <ArrowDown />
+                          </IconButton>
+                          <IconButton label="Duplica (⌘D)" disabled={!canAdd} onClick={() => duplicate(i)}>
+                            <Copy />
+                          </IconButton>
+                          <IconButton label="Elimina (⌫)" onClick={() => remove(i)}>
+                            <Trash2 />
+                          </IconButton>
+                        </div>
+                      )}
+                      {def ? (
+                        <BlockPreview
+                          def={def}
+                          value={block}
+                          index={i}
+                          selected={isSelected}
+                          onField={(name, v) => updateBlock(i, { ...block, [name]: v }, `canvas:${block._key}:${name}`)}
+                        />
+                      ) : (
+                        <div className="bg-amber-50 px-8 py-10 text-[14px] text-amber-800">
+                          Il blocco “{block._type}” non esiste più nello schema.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            {blocks.length > 0 && canAdd && (
+              <div className="flex justify-center bg-white py-6">
+                <AddButton defs={defs} onPick={(d) => insert(d, blocks.length)} />
+              </div>
+            )}
+          </Canvas>
+        )}
       </div>
 
       <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-line bg-panel">
         {current ? (
           <div>
-            <div className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b border-line bg-panel px-4">
+            <div className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b border-line bg-panel pr-2 pl-4">
               <span className="text-fg2 [&_svg]:size-4">{blockIcon(current._type)}</span>
-              <span className="text-[13px] font-semibold">{defs.find((d) => d.name === current._type)?.label}</span>
+              <span className="flex-1 truncate text-[13px] font-semibold">
+                {defs.find((d) => d.name === current._type)?.label}
+              </span>
+              <IconButton
+                label="Sposta su (⌥↑)"
+                disabled={index === 0}
+                onClick={() => setBlocks(move(blocks, index, index - 1))}
+              >
+                <ArrowUp />
+              </IconButton>
+              <IconButton
+                label="Sposta giù (⌥↓)"
+                disabled={index === blocks.length - 1}
+                onClick={() => setBlocks(move(blocks, index, index + 1))}
+              >
+                <ArrowDown />
+              </IconButton>
+              <IconButton label="Duplica (⌘D)" disabled={!canAdd} onClick={() => duplicate(index)}>
+                <Copy />
+              </IconButton>
+              <IconButton label="Elimina (⌫)" onClick={() => remove(index)}>
+                <Trash2 />
+              </IconButton>
             </div>
             <div className="p-4">
               {(() => {
@@ -339,17 +416,30 @@ function Canvas({ device, children, onBackground }: { device: Device; children: 
   )
 }
 
-function AddButton({ defs, onPick }: { defs: BlockDef[]; onPick: (def: BlockDef) => void }) {
+function AddButton({
+  defs,
+  onPick,
+  compact,
+}: {
+  defs: BlockDef[]
+  onPick: (def: BlockDef) => void
+  compact?: boolean
+}) {
   return (
     <Popover
       width={300}
-      align="center"
+      align={compact ? 'start' : 'center'}
       trigger={({ toggle, ref }) => (
         <button
           ref={ref}
           type="button"
           onClick={toggle}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-neutral-300 px-4 text-[13px] font-medium text-neutral-500 hover:border-[#3d5afe] hover:text-[#3d5afe]"
+          className={cx(
+            'inline-flex items-center gap-1.5 font-medium',
+            compact
+              ? 'h-7 rounded-md px-2 text-[12px] text-fg2 hover:bg-hover hover:text-fg'
+              : 'h-9 rounded-full border border-dashed border-neutral-300 px-4 text-[13px] text-neutral-500 hover:border-[#3d5afe] hover:text-[#3d5afe]',
+          )}
         >
           <Plus className="size-4" /> Aggiungi blocco
         </button>

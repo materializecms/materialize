@@ -1,0 +1,34 @@
+---
+/**
+ * Renders a list of blocks with the site's components from src/blocks.
+ * Each component receives the block's fields plus `field(name)`: spread it on the element showing
+ * a text field (`<h1 {...field('title')}>`) so editors can change that text right on the canvas.
+ */
+import { blocks as components } from 'virtual:materialize/site'
+
+interface Props {
+  blocks?: ({ _type: string; _key: string } & Record<string, unknown>)[] | null
+}
+
+const { blocks = [] } = Astro.props
+const preview = (Astro.locals as { materializePreview?: boolean }).materializePreview === true
+const field = preview ? (name: string) => ({ 'data-mz-field': name }) : () => ({})
+---
+
+{
+  (blocks ?? []).map((block) => {
+    const Component = components[block._type]
+    if (!preview) return Component ? <Component {...block} field={field} /> : null
+    return (
+      <div data-mz-block={block._key} data-mz-type={block._type}>
+        {Component ? (
+          <Component {...block} field={field} />
+        ) : (
+          <p style="padding:32px;font:14px system-ui;background:#fff7ed;color:#9a3412;margin:0">
+            Manca il componente per il blocco “{block._type}”: crealo in src/blocks.
+          </p>
+        )}
+      </div>
+    )
+  })
+}

@@ -1,0 +1,30 @@
+---
+/** An image from a media field, cropped around its focal point. */
+import type { Media } from '@materialize/core'
+import type { HTMLAttributes } from 'astro/types'
+
+interface Props extends Omit<HTMLAttributes<'img'>, 'src' | 'alt'> {
+  media?: Media | null
+  /** Load immediately: use it for the first image on the page. */
+  priority?: boolean
+}
+
+const { media, priority, style, ...rest } = Astro.props
+const position = media?.focal ? `object-position:${media.focal.x}% ${media.focal.y}%;` : ''
+---
+
+{
+  media?.src && (
+    <img
+      src={media.src}
+      alt={media.alt}
+      width={media.width}
+      height={media.height}
+      loading={priority ? 'eager' : 'lazy'}
+      fetchpriority={priority ? 'high' : undefined}
+      decoding="async"
+      style={`${position}${typeof style === 'string' ? style : ''}`}
+      {...rest}
+    />
+  )
+}

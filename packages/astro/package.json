@@ -1,0 +1,21 @@
+{
+  "name": "@materialize/astro",
+  "version": "0.1.0",
+  "description": "Astro integration for Materialize: build the site from published content and preview drafts on the editor canvas.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./content": "./src/content.ts",
+    "./runtime": "./src/runtime.ts",
+    "./components/*": "./src/components/*",
+    "./virtual": "./src/virtual.d.ts"
+  },
+  "dependencies": {
+    "@materialize/core": "0.1.0",
+    "@materialize/db": "0.1.0"
+  },
+  "peerDependencies": {
+    "astro": "^7.0.0"
+  }
+}

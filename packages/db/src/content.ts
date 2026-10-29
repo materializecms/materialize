@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, count, desc, eq, isNotNull, like, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNotNull, like, sql } from 'drizzle-orm'
 import type { Db } from './database.ts'
 import { documents, revisions } from './tables.ts'
 
@@ -157,6 +157,28 @@ export function createContentStore(db: Db) {
     async get(id: string): Promise<StoredDocument | null> {
       const row = await db.query.documents.findFirst({ where: eq(documents.id, id) })
       return row ? toDocument(row) : null
+    },
+
+    async getMany(ids: string[]): Promise<StoredDocument[]> {
+      if (!ids.length) return []
+      const rows = await db.select().from(documents).where(inArray(documents.id, ids))
+      return rows.map(toDocument)
+    },
+
+    /** Every published document of a collection (all locales unless one is given), oldest first. */
+    async published(collection: string, locale?: string): Promise<StoredDocument[]> {
+      const rows = await db
+        .select()
+        .from(documents)
+        .where(
+          and(
+            eq(documents.collection, collection),
+            isNotNull(documents.publishedAt),
+            locale ? eq(documents.locale, locale) : undefined,
+          ),
+        )
+        .orderBy(asc(documents.createdAt), asc(sql`rowid`))
+      return rows.map(toDocument)
     },
 
     async getBySlug(collection: string, slug: string, locale: string): Promise<StoredDocument | null> {

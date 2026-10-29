@@ -7,7 +7,8 @@
       "!**/.materialize",
       "!**/*.db",
       "!packages/create-materialize/template",
-      "!**/dist"
+      "!**/dist",
+      "!**/.astro"
     ]
   },
   "formatter": {
@@ -49,5 +50,18 @@
     "parser": {
       "tailwindDirectives": true
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off",
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    }
+  ]
 }

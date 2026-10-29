@@ -1,31 +1,63 @@
-import { serve } from '@hono/node-server'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { getRequestListener } from '@hono/node-server'
 import { ADMIN_DIST } from '@materialize/admin'
 import type { MaterializeConfig } from '@materialize/core'
-import { openDatabase } from '@materialize/db'
+import { type Database, openDatabase } from '@materialize/db'
 import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'
 export { hashPassword, verifyPassword } from './password.ts'
 
+/** Serves the public site: every request outside /api and /admin goes here. */
+export type SiteHandler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
+
 export interface RunningServer {
   url: string
+  database: Database
   /** Swap the schema without restarting: used by `materialize dev` when the config changes. */
   reload: (config: MaterializeConfig) => void
   close: () => Promise<void>
 }
 
-export async function startServer(initial: MaterializeConfig, options: { port?: number } = {}): Promise<RunningServer> {
+export interface ServerOptions {
+  port?: number
+  /** The site renderer. Without one, "/" shows a status page. */
+  site?: SiteHandler
+  onPublish?: () => void
+}
+
+const OWN = /^\/(api|admin)(\/|\?|$)/
+
+export async function startServer(initial: MaterializeConfig, options: ServerOptions = {}): Promise<RunningServer> {
   let config = initial
   const database = await openDatabase(config.database)
-  const app = createApp({ config: () => config, database, adminDir: ADMIN_DIST })
+  const app = createApp({
+    config: () => config,
+    database,
+    adminDir: ADMIN_DIST,
+    preview: !!options.site,
+    onPublish: options.onPublish,
+  })
+  const api = getRequestListener(app.fetch)
+  const site = options.site
+  const server = createServer((req, res) => {
+    if (site && !OWN.test(req.url ?? '/')) {
+      Promise.resolve(site(req, res)).catch((error) => {
+        console.error(error)
+        if (!res.headersSent) res.writeHead(500).end('Errore del sito')
+      })
+      return
+    }
+    void api(req, res)
+  })
   const port = options.port ?? config.server.port
-  const server = serve({ fetch: app.fetch, port })
   await new Promise<void>((resolve, reject) => {
-    server.once('listening', resolve)
     server.once('error', reject)
+    server.listen(port, resolve)
   })
   return {
     url: `http://localhost:${port}`,
+    database,
     reload: (next) => {
       config = next
     },
@@ -35,6 +67,7 @@ export async function startServer(initial: MaterializeConfig, options: { port?: 
           database.close()
           resolve()
         })
+        server.closeAllConnections()
       }),
   }
 }

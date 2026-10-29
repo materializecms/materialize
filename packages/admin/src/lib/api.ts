@@ -14,6 +14,8 @@ export interface User {
 
 export interface Schema {
   site: { name: string; url?: string }
+  /** The site renders previews with its own components (Astro): the canvas shows the real page. */
+  preview?: boolean
   locales: { default: string; available: string[] }
   collections: CollectionDescription[]
 }

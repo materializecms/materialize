@@ -86,6 +86,10 @@ export interface ServerContext {
   database: Database
   /** Folder with the built admin app, served at /admin. */
   adminDir?: string
+  /** True when a site renderer answers /_materialize/preview: the admin then shows the real site on the canvas. */
+  preview?: boolean
+  /** Called after the live content changes (publish, unpublish, delete), e.g. to rebuild the static site. */
+  onPublish?: () => void
 }
 
 export function createApp(ctx: ServerContext) {
@@ -230,6 +234,7 @@ export function createApp(ctx: ServerContext) {
     const config = ctx.config()
     return c.json({
       site: config.site,
+      preview: ctx.preview === true,
       locales: config.locales,
       collections: config.collections.map(describeCollection),
     })
@@ -282,17 +287,22 @@ export function createApp(ctx: ServerContext) {
     const existing = await loadDocument(c.req.param('id'))
     // Validated now, not at save time: drafts may be incomplete and the schema may have changed since.
     const data = publishableData(collection(existing.collection), existing.data)
-    return c.json(toJson((await content.publish(existing.id, c.get('user').id, data)) as StoredDocument))
+    const doc = (await content.publish(existing.id, c.get('user').id, data)) as StoredDocument
+    ctx.onPublish?.()
+    return c.json(toJson(doc))
   })
 
   app.post('/api/documents/:id/unpublish', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
-    return c.json(toJson((await content.unpublish(existing.id, c.get('user').id)) as StoredDocument))
+    const doc = (await content.unpublish(existing.id, c.get('user').id)) as StoredDocument
+    if (existing.publishedAt) ctx.onPublish?.()
+    return c.json(toJson(doc))
   })
 
   app.delete('/api/documents/:id', requireUser, requireAdmin, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     await content.remove(existing.id)
+    if (existing.publishedAt) ctx.onPublish?.()
     return c.body(null, 204)
   })
 

@@ -1,0 +1,47 @@
+---
+/** Renders Materialize rich text as plain semantic HTML: style it from the site's CSS. */
+import type { RichText, RichTextBlock, RichTextRun } from '@materialize/core'
+
+interface Props {
+  value?: RichText | null
+  class?: string
+}
+
+const { value, class: className } = Astro.props
+
+// Consecutive list items become one <ul>.
+type Group = { list: true; items: RichTextBlock[] } | { list: false; block: RichTextBlock }
+const groups: Group[] = []
+for (const block of value ?? []) {
+  const last = groups[groups.length - 1]
+  if (block.type === 'listItem' && last?.list) last.items.push(block)
+  else if (block.type === 'listItem') groups.push({ list: true, items: [block] })
+  else groups.push({ list: false, block })
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const safeHref = (href: string) => (/^(https?:|mailto:|tel:|\/|#)/i.test(href) ? href : '#')
+const run = (r: RichTextRun) => {
+  let html = escapeHtml(r.text).replace(/\n/g, '<br>')
+  if (r.bold) html = `<strong>${html}</strong>`
+  if (r.italic) html = `<em>${html}</em>`
+  if (r.href) html = `<a href="${escapeHtml(safeHref(r.href))}">${html}</a>`
+  return html
+}
+const inline = (b: RichTextBlock) => b.children.map(run).join('')
+---
+
+<div class={className}>
+  {
+    groups.map((g) => {
+      if (g.list) return <ul>{g.items.map((item) => <li set:html={inline(item)} />)}</ul>
+      const b = g.block
+      if (b.type === 'quote') return <blockquote set:html={inline(b)} />
+      if (b.type === 'heading' && b.level === 3) return <h3 set:html={inline(b)} />
+      if (b.type === 'heading' && b.level === 4) return <h4 set:html={inline(b)} />
+      if (b.type === 'heading') return <h2 set:html={inline(b)} />
+      return <p set:html={inline(b)} />
+    })
+  }
+</div>

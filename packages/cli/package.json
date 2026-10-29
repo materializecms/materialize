@@ -11,7 +11,17 @@
     ".": "./src/load-config.ts"
   },
   "dependencies": {
+    "@materialize/astro": "0.1.0",
     "@materialize/core": "0.1.0",
+    "@materialize/db": "0.1.0",
     "@materialize/server": "0.1.0"
+  },
+  "peerDependencies": {
+    "astro": "^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
   }
 }

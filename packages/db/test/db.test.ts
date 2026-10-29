@@ -86,6 +86,17 @@ describe('documents', () => {
     expect(history[0]?.data.title).toBe('Bozza finale')
   })
 
+  it('loads published documents for building the site', async () => {
+    const a = await content.create(page('Home', 'home'))
+    const b = await content.create(page('Contatti', 'contatti'))
+    await content.create({ ...page('Home', 'home'), locale: 'en' })
+    await content.publish(a.id)
+    await content.publish(b.id)
+    expect((await content.published('pages', 'it')).map((d) => d.slug)).toEqual(['home', 'contatti'])
+    expect(await content.published('pages', 'en')).toEqual([])
+    expect((await content.getMany([b.id, 'missing'])).map((d) => d.title)).toEqual(['Contatti'])
+  })
+
   it('unpublishes and deletes', async () => {
     const doc = await content.create(page('Temporanea', 'temp'))
     await content.publish(doc.id)

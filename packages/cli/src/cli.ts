@@ -3,8 +3,10 @@ import { watch } from 'node:fs'
 import { relative } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materialize/core'
+import { createAuthStore, createContentStore } from '@materialize/db'
 import { startServer, VERSION } from '@materialize/server'
 import { findConfig, loadConfig } from './load-config.ts'
+import { buildSite, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 
 const dim = (s: string) => styleText('dim', s)
 const accent = (s: string) => styleText(['bold', 'blue'], s)
@@ -14,8 +16,9 @@ const fail = (s: string) => styleText('red', s)
 const HELP = `
 ${accent('materialize')} ${dim(VERSION)}
 
-  materialize dev      Avvia il CMS e ricarica lo schema a ogni salvataggio
-  materialize start    Avvia il CMS in produzione
+  materialize dev      Avvia CMS e sito, ricarica lo schema a ogni salvataggio
+  materialize build    Genera il sito statico in dist/
+  materialize start    Avvia CMS e sito in produzione (il sito si rigenera a ogni pubblicazione)
   materialize --help   Mostra questo aiuto
 
 Opzioni
@@ -30,7 +33,7 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-async function run(mode: 'dev' | 'start', args: string[]): Promise<void> {
+async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<void> {
   const cwd = process.cwd()
   const path = findConfig(cwd)
   if (!path) {
@@ -47,14 +50,58 @@ async function run(mode: 'dev' | 'start', args: string[]): Promise<void> {
     process.exit(1)
   }
 
+  const withSite = hasSite(cwd)
+  if (mode === 'build') {
+    if (!withSite) {
+      console.error(fail('Non c’è un sito da generare: manca astro.config.ts in questa cartella.'))
+      process.exit(1)
+    }
+    const started = performance.now()
+    await buildSite(cwd, `${cwd}/dist`)
+    console.log(`  ${ok('✓')} Sito generato in dist/ ${dim(`(${Math.round(performance.now() - started)} ms)`)}`)
+    process.exit(0)
+  }
+
   const portFlag = args.indexOf('--port')
-  const port = portFlag >= 0 ? Number(args[portFlag + 1]) : undefined
-  const server = await startServer(config, { port })
+  const port = portFlag >= 0 ? Number(args[portFlag + 1]) : config.server.port
+  let current = config
+  // The site handler is swapped in once Astro is ready; until then visitors get a short wait page.
+  let siteHandler: Handler = (_req, res) => {
+    res.writeHead(503, { 'content-type': 'text/html; charset=utf-8', 'retry-after': '1' })
+    res.end('<meta http-equiv="refresh" content="1">Il sito si sta avviando…')
+  }
+  let production: ProductionSite | undefined
+  const server = await startServer(config, {
+    port,
+    site: withSite ? (req, res) => siteHandler(req, res) : undefined,
+    onPublish: () => void production?.rebuild(),
+  })
+  let closeSite: (() => Promise<void>) | undefined
+  if (withSite) {
+    const { setRuntime } = await import('@materialize/astro/runtime')
+    setRuntime({
+      config: () => current,
+      content: createContentStore(server.database.db),
+      auth: createAuthStore(server.database.db),
+    })
+    if (mode === 'dev') {
+      const site = await startDevSite(cwd, port + 1)
+      siteHandler = site.handle
+      closeSite = site.close
+    } else {
+      production = new ProductionSite(cwd, (message, success) =>
+        console.log(`  ${success ? ok('✓') : fail('✗')} ${message}`),
+      )
+      siteHandler = production.handle
+      void production.rebuild()
+    }
+  }
 
   console.log()
   console.log(`  ${accent('Materialize')} ${dim(VERSION)}  ${config.site.name}`)
   console.log()
-  console.log(`  ${dim('Locale')}      ${server.url}`)
+  console.log(`  ${dim((withSite ? 'Sito' : 'Locale').padEnd(12))}${server.url}`)
+  console.log(`  ${dim('Pannello')}    ${server.url}/admin`)
   console.log(`  ${dim('API')}         ${server.url}/api/schema`)
   console.log(`  ${dim('Database')}    ${config.database.url}`)
   console.log(`  ${dim('Collezioni')}  ${summary(config)}`)
@@ -69,6 +116,7 @@ async function run(mode: 'dev' | 'start', args: string[]): Promise<void> {
         try {
           const next = await loadConfig(path)
           server.reload(next)
+          current = next
           console.log(`  ${ok('✓')} Schema ricaricato ${dim(`(${summary(next)})`)}`)
         } catch (error) {
           console.log(`  ${fail('✗')} Lo schema ha un problema, resto sulla versione precedente:`)
@@ -79,6 +127,7 @@ async function run(mode: 'dev' | 'start', args: string[]): Promise<void> {
   }
 
   const stop = async () => {
+    await closeSite?.()
     await server.close()
     process.exit(0)
   }
@@ -87,7 +136,7 @@ async function run(mode: 'dev' | 'start', args: string[]): Promise<void> {
 }
 
 const [command = 'help', ...args] = process.argv.slice(2)
-if (command === 'dev' || command === 'start') {
+if (command === 'dev' || command === 'start' || command === 'build') {
   await run(command, args)
 } else if (command === '--version' || command === '-v') {
   console.log(VERSION)
