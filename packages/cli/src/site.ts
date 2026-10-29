@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs'
-import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { extname, join, normalize, resolve, sep } from 'node:path'
+import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import type { MediaFiles } from '@materialize/server'
 
 export const ASTRO_CONFIGS = ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']
 
@@ -33,6 +34,41 @@ export async function startDevSite(
 export async function buildSite(root: string, outDir: string): Promise<void> {
   const { build } = await import('astro')
   await build({ root, outDir, logLevel: 'warn' })
+}
+
+/**
+ * Copies every library image the built pages use (originals and resized copies) into the
+ * static output, so `dist/` works on any host without the Materialize server.
+ */
+export async function exportMedia(client: string, files: MediaFiles): Promise<number> {
+  const urls = new Set<string>()
+  const walk = async (dir: string) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) await walk(path)
+      else if (/\.(html|css|xml|json)$/.test(entry.name)) {
+        for (const match of (await readFile(path, 'utf8')).matchAll(/\/media\/[a-z0-9-]+\.[a-z]+(?:@\d+\.[a-z]+)?/g)) {
+          urls.add(match[0])
+        }
+      }
+    }
+  }
+  await walk(client)
+  let copied = 0
+  for (const url of urls) {
+    const name = url.slice('/media/'.length)
+    const parsed = /^(.+)@(\d+)\.(avif|webp|jpg|png)$/.exec(name)
+    const file = await files.open(
+      parsed ? (parsed[1] as string) : name,
+      parsed ? { width: Number(parsed[2]), format: parsed[3] as 'avif' | 'webp' | 'jpg' | 'png' } : undefined,
+    )
+    if (!file) continue
+    const target = join(client, url)
+    await mkdir(dirname(target), { recursive: true })
+    await copyFile(file.path, target)
+    copied++
+  }
+  return copied
 }
 
 const TYPES: Record<string, string> = {

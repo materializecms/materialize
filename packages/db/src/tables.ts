@@ -61,6 +61,24 @@ export const sessions = sqliteTable('sessions', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
+/** Uploaded files. The file lives in storage under `key`; documents reference it as `/media/<key>`. */
+export const media = sqliteTable(
+  'media',
+  {
+    id: text('id').primaryKey(),
+    key: text('key').notNull().unique(),
+    filename: text('filename').notNull(),
+    mime: text('mime').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    alt: text('alt').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    createdBy: text('created_by'),
+  },
+  (t) => [index('media_created').on(t.createdAt)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -104,5 +122,20 @@ export const MIGRATIONS: string[][] = [
       expires_at INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     )`,
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS media (
+      id TEXT PRIMARY KEY,
+      key TEXT NOT NULL UNIQUE,
+      filename TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      width INTEGER,
+      height INTEGER,
+      alt TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      created_by TEXT
+    )`,
+    'CREATE INDEX IF NOT EXISTS media_created ON media (created_at)',
   ],
 ]

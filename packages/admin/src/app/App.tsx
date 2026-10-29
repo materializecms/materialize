@@ -4,6 +4,7 @@ import { Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, useRoute } from '../lib/router.ts'
+import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { AuthScreen } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
@@ -70,15 +71,22 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
     [user, schema, activeLocale, setLocale],
   )
 
-  const collection = route.name === 'home' ? undefined : schema.collections.find((c) => c.name === route.collection)
+  const collection =
+    route.name === 'home' || route.name === 'media'
+      ? undefined
+      : schema.collections.find((c) => c.name === route.collection)
 
   return (
     <SessionContext.Provider value={session}>
       <div className="flex h-full min-h-0">
-        {(route.name === 'home' || route.name === 'collection' || collection?.singleton) && <Sidebar />}
+        {(route.name === 'home' || route.name === 'media' || route.name === 'collection' || collection?.singleton) && (
+          <Sidebar />
+        )}
         <main className="flex min-w-0 flex-1 flex-col">
           {route.name === 'home' ? (
             <Loading />
+          ) : route.name === 'media' ? (
+            <MediaLibrary />
           ) : !collection ? (
             <Fatal message={`La collezione "${route.collection}" non esiste nello schema.`} />
           ) : route.name === 'collection' ? (

@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { FileText, Monitor, Moon, Plus, Search, Sun } from 'lucide-react'
+import { FileText, Images, Monitor, Moon, Plus, Search, Sun } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
@@ -75,6 +75,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           run: () => navigate({ name: 'collection', collection: c.name }),
         })
       }
+    }
+    if (match('Media immagini libreria')) {
+      out.push({
+        id: 'go:media',
+        label: 'Media',
+        icon: <Images />,
+        group: 'Vai a',
+        run: () => navigate({ name: 'media' }),
+      })
     }
     for (const c of schema.collections) {
       if (c.singleton) continue

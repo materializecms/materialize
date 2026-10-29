@@ -362,9 +362,12 @@ export function Dialog({
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
-    panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
+  // Focus once when the dialog opens, not on every re-render.
+  useEffect(() => {
+    if (open) panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus()
+  }, [open])
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[14vh] backdrop-blur-[2px]">

@@ -4,9 +4,9 @@ import { relative } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materialize/core'
 import { createAuthStore, createContentStore } from '@materialize/db'
-import { startServer, VERSION } from '@materialize/server'
+import { createMediaFiles, startServer, VERSION } from '@materialize/server'
 import { findConfig, loadConfig } from './load-config.ts'
-import { buildSite, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
+import { buildSite, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 
 const dim = (s: string) => styleText('dim', s)
 const accent = (s: string) => styleText(['bold', 'blue'], s)
@@ -17,7 +17,7 @@ const HELP = `
 ${accent('materialize')} ${dim(VERSION)}
 
   materialize dev      Avvia CMS e sito, ricarica lo schema a ogni salvataggio
-  materialize build    Genera il sito statico in dist/
+  materialize build    Genera il sito statico in dist/client, immagini comprese
   materialize start    Avvia CMS e sito in produzione (il sito si rigenera a ogni pubblicazione)
   materialize --help   Mostra questo aiuto
 
@@ -58,7 +58,9 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     }
     const started = performance.now()
     await buildSite(cwd, `${cwd}/dist`)
-    console.log(`  ${ok('✓')} Sito generato in dist/ ${dim(`(${Math.round(performance.now() - started)} ms)`)}`)
+    const images = await exportMedia(`${cwd}/dist/client`, createMediaFiles(config.media.dir))
+    const elapsed = Math.round(performance.now() - started)
+    console.log(`  ${ok('✓')} Sito generato in dist/client ${dim(`(${images} immagini, ${elapsed} ms)`)}`)
     process.exit(0)
   }
 

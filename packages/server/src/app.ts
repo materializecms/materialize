@@ -13,18 +13,22 @@ import {
   type ContentStore,
   createAuthStore,
   createContentStore,
+  createMediaStore,
   type Database,
+  type MediaAsset,
   SlugTakenError,
   type StoredDocument,
   type User,
 } from '@materialize/db'
 import { type Context, Hono, type MiddlewareHandler } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { csrf } from 'hono/csrf'
 import { HTTPException } from 'hono/http-exception'
 import { secureHeaders } from 'hono/secure-headers'
 import { z } from 'zod'
 import { serveAdmin } from './admin.ts'
+import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { statusPage } from './status-page.ts'
 
@@ -36,7 +40,7 @@ type Env = { Variables: { user: User } }
 
 class ApiError extends HTTPException {
   constructor(
-    status: 400 | 401 | 403 | 404 | 409 | 422 | 429,
+    status: 400 | 401 | 403 | 404 | 409 | 413 | 422 | 429,
     code: string,
     message: string,
     issues?: ValidationIssue[],
@@ -96,6 +100,8 @@ export function createApp(ctx: ServerContext) {
   const content: ContentStore = createContentStore(ctx.database.db)
   const auth: AuthStore = createAuthStore(ctx.database.db)
   const allowLogin = createLimiter(10, 60_000)
+  const mediaStore = createMediaStore(ctx.database.db)
+  const files = createMediaFiles(ctx.config().media.dir)
   const app = new Hono<Env>()
 
   const collection = (name: string): Collection => {
@@ -316,6 +322,89 @@ export function createApp(ctx: ServerContext) {
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
     return c.json(toJson(doc))
+  })
+
+  // ---------- media ----------
+
+  const assetJson = (asset: MediaAsset) => ({ ...asset, url: mediaUrl(asset) })
+  const loadAsset = async (id: string) => {
+    const asset = await mediaStore.get(id)
+    if (!asset) throw new ApiError(404, 'not_found', 'This file does not exist')
+    return asset
+  }
+
+  app.get('/api/media', requireUser, async (c) => {
+    const result = await mediaStore.list({
+      search: c.req.query('search') || undefined,
+      limit: Number(c.req.query('limit') ?? 60),
+      offset: Number(c.req.query('offset') ?? 0),
+    })
+    return c.json({ total: result.total, items: result.items.map(assetJson) })
+  })
+
+  app.post(
+    '/api/media',
+    requireUser,
+    bodyLimit({
+      maxSize: MAX_UPLOAD + 64 * 1024,
+      onError: () => {
+        throw new ApiError(413, 'file_too_large', `Files can be at most ${MAX_UPLOAD / 1024 / 1024} MB`)
+      },
+    }),
+    async (c) => {
+      const body = await c.req.parseBody()
+      const file = body.file
+      if (!(file instanceof File)) throw new ApiError(400, 'missing_file', 'Send the file in the "file" field')
+      let saved: Awaited<ReturnType<typeof files.save>>
+      try {
+        saved = await files.save(file.name, Buffer.from(await file.arrayBuffer()))
+      } catch (error) {
+        if (error instanceof MediaError) throw new ApiError(422, 'invalid_file', error.message)
+        throw error
+      }
+      const asset = await mediaStore.create({
+        ...saved,
+        filename: file.name.slice(0, 200),
+        alt: typeof body.alt === 'string' ? body.alt : '',
+        createdBy: c.get('user').id,
+      })
+      return c.json(assetJson(asset), 201)
+    },
+  )
+
+  app.get('/api/media/:id', requireUser, async (c) => {
+    const asset = await loadAsset(c.req.param('id'))
+    return c.json({ ...assetJson(asset), usage: await mediaStore.usage(asset.key) })
+  })
+
+  app.patch('/api/media/:id', requireUser, async (c) => {
+    const asset = await loadAsset(c.req.param('id'))
+    const input = await body(c, z.object({ alt: z.string().max(500) }))
+    return c.json(assetJson((await mediaStore.update(asset.id, input)) as MediaAsset))
+  })
+
+  app.delete('/api/media/:id', requireUser, requireAdmin, async (c) => {
+    const asset = await loadAsset(c.req.param('id'))
+    await mediaStore.remove(asset.id)
+    await files.remove(asset.key)
+    return c.body(null, 204)
+  })
+
+  // Public files: /media/<key> is the original, /media/<key>@<width>.<format> a resized copy.
+  // Flat names, so a static export can hold both as plain files.
+  const sendFile = async (c: Context, key: string, variant?: { width: number; format: Output }) => {
+    const file = await files.open(key, variant)
+    if (!file) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404)
+    return c.body(fileBody(file.path), 200, {
+      'content-type': file.type,
+      'cache-control': 'public, max-age=31536000, immutable',
+    })
+  }
+  app.get('/media/:file', async (c) => {
+    const file = c.req.param('file')
+    const variant = /^(.+)@(\d{2,4})\.(avif|webp|jpg|png)$/.exec(file)
+    if (!variant) return sendFile(c, file)
+    return sendFile(c, variant[1] as string, { width: Number(variant[2]), format: variant[3] as Output })
   })
 
   // ---------- public delivery API: published content only ----------

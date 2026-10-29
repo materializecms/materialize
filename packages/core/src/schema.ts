@@ -71,6 +71,8 @@ export interface MaterializeConfig {
   collections: Collection[]
   locales: Locales
   database: { url: string; authToken?: string }
+  /** Where uploaded files are kept. */
+  media: { dir: string }
   server: { port: number }
 }
 
@@ -79,6 +81,7 @@ export interface ConfigInput {
   collections: Collection[]
   locales?: Partial<Locales>
   database?: { url?: string; authToken?: string }
+  media?: { dir?: string }
   server?: { port?: number }
 }
 
@@ -122,6 +125,7 @@ export function defineConfig(input: ConfigInput): MaterializeConfig {
     collections: input.collections,
     locales,
     database: { url: input.database?.url ?? 'file:.materialize/content.db', authToken: input.database?.authToken },
+    media: { dir: input.media?.dir ?? '.materialize/media' },
     server: { port: input.server?.port ?? 4321 },
   }
 }

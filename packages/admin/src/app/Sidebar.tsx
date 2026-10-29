@@ -6,6 +6,7 @@ import {
   FileText,
   Folder,
   Globe,
+  Images,
   LogOut,
   Monitor,
   Moon,
@@ -48,7 +49,7 @@ export function Sidebar() {
   const route = useRoute()
   const [theme, setTheme] = useTheme()
   const queryClient = useQueryClient()
-  const current = route.name === 'home' ? null : route.collection
+  const current = route.name === 'home' || route.name === 'media' ? null : route.collection
 
   const logout = async () => {
     await api.logout().catch(() => {})
@@ -99,6 +100,22 @@ export function Sidebar() {
             <span className="truncate">{c.label}</span>
           </a>
         ))}
+        <div className="px-2 pt-4 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Libreria</div>
+        <a
+          href={href({ name: 'media' })}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey) return
+            e.preventDefault()
+            navigate({ name: 'media' })
+          }}
+          className={cx(
+            'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
+            route.name === 'media' ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+          )}
+        >
+          <Images />
+          <span className="truncate">Media</span>
+        </a>
       </nav>
 
       <div className="space-y-1 border-t border-line p-2.5">

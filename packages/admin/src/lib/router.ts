@@ -4,6 +4,7 @@ const BASE = '/admin'
 
 export type Route =
   | { name: 'home' }
+  | { name: 'media' }
   | { name: 'collection'; collection: string }
   | { name: 'document'; collection: string; id: string }
   | { name: 'new'; collection: string }
@@ -16,6 +17,8 @@ export function parse(pathname: string): Route {
     .map(decodeURIComponent)
   const [collection, id] = parts
   if (!collection) return { name: 'home' }
+  // Collection names cannot start with "_", so built-in screens never clash with them.
+  if (collection === '_media') return { name: 'media' }
   if (!id) return { name: 'collection', collection }
   if (id === 'new') return { name: 'new', collection }
   return { name: 'document', collection, id }
@@ -25,6 +28,8 @@ export function href(route: Route): string {
   switch (route.name) {
     case 'home':
       return `${BASE}/`
+    case 'media':
+      return `${BASE}/_media`
     case 'collection':
       return `${BASE}/${route.collection}`
     case 'new':

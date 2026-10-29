@@ -1,5 +1,9 @@
 ---
-/** An image from a media field, cropped around its focal point. */
+/**
+ * An image from a media field, cropped around its focal point.
+ * Files from the media library get AVIF and WebP in several widths: browsers pick the
+ * lightest one for the screen, using `sizes` (how wide the image is shown; default: full width).
+ */
 import type { Media } from '@materialize/core'
 import type { HTMLAttributes } from 'astro/types'
 
@@ -9,22 +13,49 @@ interface Props extends Omit<HTMLAttributes<'img'>, 'src' | 'alt'> {
   priority?: boolean
 }
 
-const { media, priority, style, ...rest } = Astro.props
+const { media, priority, style, sizes = '100vw', ...rest } = Astro.props
 const position = media?.focal ? `object-position:${media.focal.x}% ${media.focal.y}%;` : ''
+
+// Same widths the server prepares (packages/server/src/media.ts).
+const WIDTHS = [320, 640, 960, 1280, 1600, 1920, 2560]
+const library = !!media?.src.startsWith('/media/') && !media.src.endsWith('.gif')
+const widths = library ? WIDTHS.filter((w, i) => i === 0 || !media?.width || w <= media.width) : []
+const srcset = (format: string) => widths.map((w) => `${media?.src}@${w}.${format} ${w}w`).join(', ')
+const fallback = media?.src.endsWith('.png') ? 'png' : 'jpg'
+const largest = widths[widths.length - 1]
 ---
 
 {
-  media?.src && (
-    <img
-      src={media.src}
-      alt={media.alt}
-      width={media.width}
-      height={media.height}
-      loading={priority ? 'eager' : 'lazy'}
-      fetchpriority={priority ? 'high' : undefined}
-      decoding="async"
-      style={`${position}${typeof style === 'string' ? style : ''}`}
-      {...rest}
-    />
-  )
+  media?.src &&
+    (library ? (
+      <picture style="display:contents">
+        <source type="image/avif" srcset={srcset('avif')} sizes={sizes} />
+        <source type="image/webp" srcset={srcset('webp')} sizes={sizes} />
+        <img
+          src={`${media.src}@${largest}.${fallback}`}
+          srcset={srcset(fallback)}
+          sizes={sizes}
+          alt={media.alt}
+          width={media.width}
+          height={media.height}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchpriority={priority ? 'high' : undefined}
+          decoding="async"
+          style={`${position}${typeof style === 'string' ? style : ''}`}
+          {...rest}
+        />
+      </picture>
+    ) : (
+      <img
+        src={media.src}
+        alt={media.alt}
+        width={media.width}
+        height={media.height}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchpriority={priority ? 'high' : undefined}
+        decoding="async"
+        style={`${position}${typeof style === 'string' ? style : ''}`}
+        {...rest}
+      />
+    ))
 }

@@ -2,7 +2,7 @@
 
 CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
 
-> Stato: **renderer Astro**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design e il renderer: il sito si genera dai contenuti pubblicati e la tela mostra la pagina vera. La libreria media e il server MCP arrivano nelle fasi successive.
+> Stato: **libreria media**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design, il renderer Astro e la libreria media con immagini ottimizzate. Il server MCP e le funzioni AI arrivano nelle fasi successive.
 
 ## Avvio rapido
 
@@ -20,6 +20,7 @@ Il sito d'esempio (Studio Rossi) parte su http://localhost:4321 e il pannello su
 - **Contenuto**: form generati dallo schema, con titolo in evidenza, editor di testo formattato, immagini con punto focale, relazioni, blocchi riordinabili e anteprima per i motori di ricerca.
 - **Design**: la pagina vera sulla tela, disegnata dai componenti del sito, con livelli, inspector, modifica del testo direttamente sulla pagina e anteprima desktop, tablet e mobile. Ogni modifica si vede subito: viene ridisegnato solo il blocco che cambia.
 - **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
+- **Media**: libreria con caricamento trascinando i file, ricerca, testo alternativo e conteggio delle pagine che usano ogni immagine. Dal campo immagine si carica, si sceglie dalla libreria o si trascina un file.
 - Cronologia con ripristino, annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
 
 Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
@@ -46,6 +47,10 @@ const { entry } = Astro.props
   <Blocks blocks={entry.data.blocks} />
 </Site>
 ```
+
+### Immagini
+
+Le immagini caricate perdono i metadati della fotocamera (posizione GPS compresa) e vengono raddrizzate. Il componente `Media` le serve in AVIF e WebP in più larghezze (`/media/foto.jpg@960.avif`), così ogni dispositivo scarica solo quello che gli serve: le varianti si creano alla prima richiesta e restano in cache in `.materialize/media`. Con `materialize build` le immagini usate dalle pagine finiscono in `dist/client`, pronte per qualsiasi hosting.
 
 Nei template le relazioni arrivano già risolte: un campo `relation` contiene i documenti collegati, con titolo, indirizzo e dati. Per il resto ci sono `getEntries`, `getEntry`, `getSingleton` e i componenti `RichText` e `Media` (immagini con punto focale).
 
@@ -99,16 +104,18 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 
 ## API
 
-| Metodo e percorso                                          | Descrizione                                                                                                    |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `GET /api/setup` · `POST /api/setup`                       | Primo amministratore (solo se non ne esiste uno)                                                               |
-| `POST /api/auth/login` · `logout` · `GET /api/auth/me`     | Sessione con cookie sicuro                                                                                     |
-| `GET /api/schema`                                          | Collezioni e campi, per costruire le form                                                                      |
-| `GET` · `POST /api/collections/:nome`                      | Elenco con ricerca, creazione con validazione                                                                  |
-| `GET` · `PUT` · `DELETE /api/documents/:id`                | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin) |
-| `POST /api/documents/:id/publish` · `unpublish`            | Pubblica la bozza se è valida, o la ritira dal sito                                                            |
-| `GET /api/documents/:id/revisions` · `POST …/:rev/restore` | Cronologia e ripristino                                                                                        |
-| `GET /api/content/:nome` · `/:slug`                        | API pubblica: solo contenuti pubblicati                                                                        |
+| Metodo e percorso                                                     | Descrizione                                                                                                    |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GET /api/setup` · `POST /api/setup`                                  | Primo amministratore (solo se non ne esiste uno)                                                               |
+| `POST /api/auth/login` · `logout` · `GET /api/auth/me`                | Sessione con cookie sicuro                                                                                     |
+| `GET /api/schema`                                                     | Collezioni e campi, per costruire le form                                                                      |
+| `GET` · `POST /api/collections/:nome`                                 | Elenco con ricerca, creazione con validazione                                                                  |
+| `GET` · `PUT` · `DELETE /api/documents/:id`                           | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin) |
+| `POST /api/documents/:id/publish` · `unpublish`                       | Pubblica la bozza se è valida, o la ritira dal sito                                                            |
+| `GET /api/documents/:id/revisions` · `POST …/:rev/restore`            | Cronologia e ripristino                                                                                        |
+| `GET` · `POST /api/media` · `GET` · `PATCH` · `DELETE /api/media/:id` | Libreria media: elenco e ricerca, caricamento, testo alternativo e utilizzi, eliminazione (admin)              |
+| `GET /media/:file`                                                    | Immagini pubbliche: l’originale, o una variante con `@larghezza.formato`                                       |
+| `GET /api/content/:nome` · `/:slug`                                   | API pubblica: solo contenuti pubblicati                                                                        |
 
 Le bozze non toccano il sito online finché non pubblichi. Le richieste di modifica da altri siti vengono bloccate (CSRF); le password usano scrypt; dei token di sessione viene salvato solo l'hash.
 
@@ -136,8 +143,8 @@ npm run check       # tutto quanto sopra
 
 ## Prossimi passi
 
-1. Media: caricamento, ottimizzazione delle immagini, CDN.
-2. Editor: stili e animazioni per blocco, più tipi di blocco, trascinamento sulla tela, modifica collaborativa.
-3. Utenti e inviti, traduzioni collegate tra loro.
+1. Editor: stili e animazioni per blocco, più tipi di blocco, trascinamento sulla tela, modifica collaborativa.
+2. Utenti e inviti, traduzioni collegate tra loro.
+3. Media su storage esterno (S3, R2) e CDN, documenti oltre alle immagini.
 4. Server MCP e funzioni AI.
 5. Build dei pacchetti per la pubblicazione su npm, e il sito nel modello di `create-materialize`.

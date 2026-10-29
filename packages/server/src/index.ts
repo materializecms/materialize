@@ -6,9 +6,10 @@ import { type Database, openDatabase } from '@materialize/db'
 import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'
+export { createMediaFiles, type MediaFiles } from './media.ts'
 export { hashPassword, verifyPassword } from './password.ts'
 
-/** Serves the public site: every request outside /api and /admin goes here. */
+/** Serves the public site: every request outside /api, /admin and /media goes here. */
 export type SiteHandler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
 
 export interface RunningServer {
@@ -26,7 +27,7 @@ export interface ServerOptions {
   onPublish?: () => void
 }
 
-const OWN = /^\/(api|admin)(\/|\?|$)/
+const OWN = /^\/(api|admin|media)(\/|\?|$)/
 
 export async function startServer(initial: MaterializeConfig, options: ServerOptions = {}): Promise<RunningServer> {
   let config = initial
