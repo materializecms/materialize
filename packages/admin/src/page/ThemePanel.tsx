@@ -1,5 +1,5 @@
 import { fontStack, TEXT_STYLES, type Theme, type ThemeColors } from '@materializecms/core/page'
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun, Trash2 } from 'lucide-react'
 import { NumField, Row, Section, Seg, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
 
@@ -180,6 +180,47 @@ export function ThemePanel({
             Si vedono sul sito pubblicato. Chi ha chiesto meno movimento al proprio dispositivo non li riceve, e su
             telefoni e tablet restano disattivati scorrimento morbido e cursore.
           </p>
+        </Section>
+        <Section title="Stili di testo">
+          {(theme.textStyles ?? []).length === 0 && (
+            <p className="text-[11.5px] leading-relaxed text-fg3">
+              Nessuno stile ancora. Seleziona un testo e, nella sezione Testo, scegli “Crea uno stile da questo testo”.
+            </p>
+          )}
+          {(theme.textStyles ?? []).map((ts) => {
+            const base = TEXT_STYLES[ts.props.style ?? 'body'] ?? TEXT_STYLES.body
+            const family = ts.props.font?.family ?? (base.f === 'd' ? theme.display : theme.body)
+            return (
+              <div key={ts.id} className="group/ts flex items-center gap-2">
+                <span
+                  className="w-8 shrink-0 truncate text-center text-[17px] leading-none"
+                  style={{ fontFamily: fontStack(family), fontStyle: ts.props.italic ? 'italic' : undefined }}
+                >
+                  Aa
+                </span>
+                <input
+                  aria-label="Nome dello stile"
+                  defaultValue={ts.name}
+                  onBlur={(e) => {
+                    const name = e.currentTarget.value.trim()
+                    if (name && name !== ts.name)
+                      set({ textStyles: (theme.textStyles ?? []).map((x) => (x.id === ts.id ? { ...x, name } : x)) })
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[12.5px] outline-none hover:border-line2 focus:border-accent"
+                />
+                <button
+                  type="button"
+                  title="Elimina lo stile: i testi che lo usano tornano al proprio stile"
+                  aria-label={`Elimina lo stile ${ts.name}`}
+                  onClick={() => set({ textStyles: (theme.textStyles ?? []).filter((x) => x.id !== ts.id) })}
+                  className="flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/ts:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            )
+          })}
         </Section>
       </fieldset>
     </div>

@@ -182,7 +182,10 @@ export const api = {
   saveGlobals: (globals: Record<string, PageNode>) =>
     request<{ globals: Record<string, PageNode> }>('PUT', '/globals', { globals }),
   entries: (collection: string, locale: string) =>
-    request<{ items: (BoundEntry & { id: string })[] }>('GET', `/collections/${collection}/entries${q({ locale })}`),
+    request<{ items: (BoundEntry & { id: string })[] }>(
+      'GET',
+      `/collections/${collection}/entries${q({ locale, limit: 100 })}`,
+    ),
   saveTheme: (theme: Theme) => request<{ theme: Theme }>('PUT', '/theme', { theme }),
   overview: (locale: string) => request<Overview>('GET', `/overview${q({ locale })}`),
   list: (collection: string, params: { locale?: string; search?: string; limit?: number; offset?: number }) =>

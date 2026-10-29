@@ -20,9 +20,12 @@ import {
   type Run,
   removeNode,
   resolveNode,
+  type SharedTextStyle,
+  TEXT_STYLE_KEYS,
   type Theme,
   updateNode,
   walk,
+  withTextStyle,
 } from '@materializecms/core/page'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -38,6 +41,7 @@ import {
   Play,
   Plus,
   Rows3,
+  Ruler,
   Smartphone,
   Sparkles,
   Tablet,
@@ -51,6 +55,7 @@ import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
+import { type AlignHow, alignPatches } from './align.ts'
 import { Canvas, type DropTarget, type Mode } from './Canvas.tsx'
 import { loadFont } from './fonts.ts'
 import { Inspector } from './Inspector.tsx'
@@ -66,6 +71,7 @@ const STARTER = ['nav.classic', 'hero.split', 'features.cols', 'cta.banner', 'fo
 
 /** Properties that are content, the same on every device. */
 const CONTENT_KEYS = new Set<string>([
+  'textStyle',
   'stickyHide',
   'stickyGlass',
   'stickyOverlay',
@@ -88,6 +94,34 @@ const CONTENT_KEYS = new Set<string>([
   'bgImage',
   'bgDim',
 ])
+
+/** The element without its own typography, so a shared text style shows through on every device. */
+function clearTypography(n: PageNode): PageNode {
+  const out: PageNode = { ...n }
+  for (const k of TEXT_STYLE_KEYS) delete out[k]
+  const over: PageNode['over'] = {}
+  for (const bp of ['tablet', 'mobile'] as const) {
+    const own = { ...n.over?.[bp] }
+    for (const k of TEXT_STYLE_KEYS) delete own[k]
+    if (Object.keys(own).length) over[bp] = own
+  }
+  out.over = over
+  return out
+}
+
+/** The typography an element sets itself, on desktop and per device. */
+function ownTypography(n: PageNode): Pick<SharedTextStyle, 'props' | 'over'> {
+  const pick = (from: Partial<PageNode> | undefined) =>
+    Object.fromEntries(
+      TEXT_STYLE_KEYS.flatMap((k) => (from?.[k] !== undefined && from?.[k] !== null ? [[k, from[k]]] : [])),
+    )
+  const over: SharedTextStyle['over'] = {}
+  for (const bp of ['tablet', 'mobile'] as const) {
+    const own = pick(n.over?.[bp])
+    if (Object.keys(own).length) over[bp] = own
+  }
+  return { props: pick(n), over }
+}
 
 function newElement(kind: ElementKind): PageNode {
   const id = newId()
@@ -198,12 +232,21 @@ export function PageEditor({
       [boundNames],
     ),
   })
-  const [selected, setSelected] = useState<string | null>(null)
+  // The selection: the last element picked is the one the inspector shows; shift adds more.
+  const [selection, setSelection] = useState<string[]>([])
+  const selected = selection[selection.length - 1] ?? null
+  const setSelected = useCallback((id: string | null) => setSelection(id ? [id] : []), [])
+  const selectionRef = useRef(selection)
+  selectionRef.current = selection
+  const toggleSelected = (id: string) => setSelection((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   const [editing, setEditing] = useState<string | null>(null)
   const [device, setDevice] = useState<Breakpoint>('desktop')
   const [zoom, setZoom] = useState<'fit' | number>('fit')
   const [fitZoom, setFitZoom] = useState(1)
   const [tab, setTab] = usePref<Tab>('mz-page-tab', 'layers')
+  const [rulerPref, setRulerPref] = usePref<'on' | 'off'>('mz-rulers', 'on')
+  const rulers = rulerPref === 'on'
+  const setRulers = (on: boolean) => setRulerPref(on ? 'on' : 'off')
   const [playing, setPlaying] = useState(0)
   const [previewing, setPreviewing] = useState(false)
   const [picking, setPicking] = useState<{ id: string; target: 'src' | 'bgImage' | 'poster' | 'sceneImage' } | null>(
@@ -271,33 +314,54 @@ export function PageEditor({
   )
 
   const info = findNode(nodes, selected)
-  // A selection removed by undo or elsewhere.
+  // Elements removed by undo or elsewhere leave the selection.
   useEffect(() => {
-    if (selected && !info) setSelected(null)
-  }, [selected, info])
+    if (selection.some((id) => !findNode(nodes, id))) setSelection((s) => s.filter((id) => findNode(nodes, id)))
+  }, [selection, nodes])
 
   /** Design changes: on tablet and mobile they go into that device's overrides. */
+  const patchNode = useCallback(
+    (list: PageNode[], id: string, patch: Partial<NodeProps>) =>
+      updateNode(list, id, (n) => {
+        const base: Partial<PageNode> = {}
+        const own: Partial<NodeProps> = {}
+        for (const [k, v] of Object.entries(patch)) {
+          if (device === 'desktop' || CONTENT_KEYS.has(k)) (base as Record<string, unknown>)[k] = v
+          else (own as Record<string, unknown>)[k] = v
+        }
+        let next: PageNode = { ...n, ...base }
+        if (Object.keys(own).length) {
+          next = { ...next, over: { ...n.over, [device]: { ...n.over?.[device as 'tablet'], ...own } } }
+        }
+        return next
+      }),
+    [device],
+  )
   const setProps = useCallback(
-    (id: string, patch: Partial<NodeProps>, group?: string) => {
+    (id: string, patch: Partial<NodeProps>, group?: string) => setNodes(patchNode(nodesRef.current, id, patch), group),
+    [patchNode, setNodes],
+  )
+  /** Several elements in one change (one step of undo). */
+  const setPropsMany = useCallback(
+    (patches: [string, Partial<NodeProps>][], group?: string) => {
+      if (!patches.length) return
       setNodes(
-        updateNode(nodesRef.current, id, (n) => {
-          const base: Partial<PageNode> = {}
-          const own: Partial<NodeProps> = {}
-          for (const [k, v] of Object.entries(patch)) {
-            if (device === 'desktop' || CONTENT_KEYS.has(k)) (base as Record<string, unknown>)[k] = v
-            else (own as Record<string, unknown>)[k] = v
-          }
-          let next: PageNode = { ...n, ...base }
-          if (Object.keys(own).length) {
-            next = { ...next, over: { ...n.over, [device]: { ...n.over?.[device as 'tablet'], ...own } } }
-          }
-          return next
-        }),
+        patches.reduce((list, [id, patch]) => patchNode(list, id, patch), nodesRef.current),
         group,
       )
     },
-    [device, setNodes],
+    [patchNode, setNodes],
   )
+  /** From the inspector: design goes to every selected element, content only to the one shown. */
+  const setSelectionProps = (patch: Partial<NodeProps>, group?: string) => {
+    const ids = selectionRef.current
+    if (!selected) return
+    const design = Object.fromEntries(Object.entries(patch).filter(([k]) => !CONTENT_KEYS.has(k) || k === 'textStyle'))
+    setPropsMany(
+      ids.map((id) => [id, id === selected ? patch : design] as [string, Partial<NodeProps>]),
+      group && ids.length > 1 ? `${group}:multi` : group,
+    )
+  }
 
   const resetProps = (id: string, keys: (keyof NodeProps)[]) => {
     if (device === 'desktop') return
@@ -318,6 +382,72 @@ export function PageEditor({
     setNodes(removeNode(nodesRef.current, id))
     const sibling = f.siblings[f.index + 1] ?? f.siblings[f.index - 1]
     setSelected(sibling?.id ?? f.parent?.id ?? null)
+  }
+  const removeSelection = () => {
+    const ids = selectionRef.current
+    if (ids.length < 2) {
+      if (ids[0]) remove(ids[0])
+      return
+    }
+    const parent = findNode(nodesRef.current, ids[0])?.parent?.id ?? null
+    setNodes(ids.reduce((list, id) => removeNode(list, id), nodesRef.current))
+    setSelected(parent)
+  }
+
+  /** Siblings of the selection under one parent, in page order; null when they are spread around. */
+  const siblingsOfSelection = () => {
+    const found = selectionRef.current.map((id) => findNode(nodesRef.current, id))
+    if (!found.length || found.some((f) => !f)) return null
+    const parent = found[0]?.parent?.id ?? null
+    if (found.some((f) => (f?.parent?.id ?? null) !== parent)) return null
+    return found.sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0)) as NonNullable<(typeof found)[number]>[]
+  }
+
+  /** Wraps the selected siblings in a new container, where the first of them was. */
+  const group = () => {
+    const list = siblingsOfSelection()
+    const first = list?.[0]
+    if (!list || !first) {
+      toast('Per raggruppare, seleziona elementi dello stesso contenitore', 'error')
+      return
+    }
+    if (first.depth === 0) {
+      toast('Le sezioni non si raggruppano: seleziona elementi al loro interno', 'error')
+      return
+    }
+    const parentLayout = first.parent ? (resolveNode(first.parent, device).layout ?? 'col') : 'col'
+    const frame: PageNode = {
+      id: newId(),
+      type: 'frame',
+      name: 'Gruppo',
+      layout: parentLayout === 'row' ? 'row' : 'col',
+      gap: 16,
+      width: 'fill',
+      children: list.map((f) => f.node),
+    }
+    const without = list.reduce((acc, f) => removeNode(acc, f.node.id), nodesRef.current)
+    setNodes(insertNode(without, first.parent?.id ?? null, first.index, frame))
+    setSelected(frame.id)
+  }
+
+  /** Puts a container's elements in its place. */
+  const ungroup = () => {
+    const f = findNode(nodesRef.current, selected)
+    if (f?.node.type !== 'frame' || f.depth === 0 || !f.node.children?.length || f.node.component) return
+    const kids = f.node.children
+    let list = removeNode(nodesRef.current, f.node.id)
+    kids.forEach((k, i) => {
+      list = insertNode(list, f.parent?.id ?? null, f.index + i, k)
+    })
+    setNodes(list)
+    setSelection(kids.map((k) => k.id))
+  }
+
+  /** Lines up the selection: free elements by position, the others through their container. */
+  const align = (how: AlignHow) => {
+    const result = alignPatches(how, selectionRef.current, nodesRef.current, device)
+    if ('error' in result) toast(result.error, 'error')
+    else setPropsMany(result.patches)
   }
 
   const insertAfterSelection = (node: PageNode) => {
@@ -371,6 +501,77 @@ export function PageEditor({
     const copy = f.node.component ? showCopy({ ...refOf(f.node), id: newId() }) : cloneNode(f.node)
     setNodes(insertNode(nodesRef.current, f.parent?.id ?? null, f.index + 1, copy))
     setSelected(copy.id)
+  }
+  const duplicateSelection = () => {
+    const ids = selectionRef.current
+    if (ids.length < 2) {
+      if (ids[0]) duplicate(ids[0])
+      return
+    }
+    let list = nodesRef.current
+    const copies: string[] = []
+    for (const id of ids) {
+      const f = findNode(list, id)
+      if (!f) continue
+      const copy = f.node.component ? showCopy({ ...refOf(f.node), id: newId() }) : cloneNode(f.node)
+      list = insertNode(list, f.parent?.id ?? null, f.index + 1, copy)
+      copies.push(copy.id)
+    }
+    setNodes(list)
+    setSelection(copies)
+  }
+
+  // ---------- shared text styles ----------
+
+  const textStyleList = theme.textStyles ?? []
+  const textStyleActions = {
+    /** Links the selected texts to a style (their own typography gives way), or unlinks them keeping the look. */
+    apply: (styleId: string | null) => {
+      let list = nodesRef.current
+      for (const id of selectionRef.current) {
+        list = updateNode(list, id, (n) => {
+          if (n.type !== 'text' && n.type !== 'button') return n
+          if (styleId) return { ...clearTypography(n), textStyle: styleId }
+          const { textStyle: _, ...rest } = withTextStyle(n, theme)
+          return rest
+        })
+      }
+      setNodes(list)
+    },
+    create: (name: string) => {
+      const n = findNode(nodesRef.current, selected)?.node
+      if (!n) return
+      const style: SharedTextStyle = { id: newId(), name, ...ownTypography(withTextStyle(n, theme)) }
+      if (!style.props.style) style.props.style = n.type === 'button' ? 'button' : 'body'
+      setTheme({ ...theme, textStyles: [...textStyleList, style] })
+      setNodes(updateNode(nodesRef.current, n.id, (x) => ({ ...clearTypography(x), textStyle: style.id })))
+      toast(`Stile “${name}” creato: ora lo puoi usare su ogni testo`)
+    },
+    /** The element's own changes become the style's, for every text that uses it. */
+    update: () => {
+      const n = findNode(nodesRef.current, selected)?.node
+      const style = textStyleList.find((s) => s.id === n?.textStyle)
+      if (!n || !style) return
+      const own = ownTypography(n)
+      const over: SharedTextStyle['over'] = {}
+      for (const bp of ['tablet', 'mobile'] as const) {
+        const merged = { ...style.over?.[bp], ...own.over?.[bp] }
+        if (Object.keys(merged).length) over[bp] = merged
+      }
+      setTheme({
+        ...theme,
+        textStyles: textStyleList.map((s) =>
+          s.id === style.id ? { ...s, props: { ...s.props, ...own.props }, over } : s,
+        ),
+      })
+      setNodes(updateNode(nodesRef.current, n.id, (x) => ({ ...clearTypography(x), textStyle: style.id })))
+    },
+    /** Drops the element's own changes: back to the style. */
+    reset: () => {
+      const n = findNode(nodesRef.current, selected)?.node
+      if (n?.textStyle)
+        setNodes(updateNode(nodesRef.current, n.id, (x) => ({ ...clearTypography(x), textStyle: n.textStyle })))
+    },
   }
 
   const move = (id: string, dir: -1 | 1) => {
@@ -488,6 +689,29 @@ export function PageEditor({
     setSelected(id)
   }
 
+  /** Several elements to one place, in page order, next to each other. */
+  const moveManyTo = (ids: string[], target: DropTarget) => {
+    const list = nodesRef.current
+    if (ids.includes(target.id)) return
+    const order: string[] = []
+    walk(list, (n) => {
+      if (ids.includes(n.id)) order.push(n.id)
+    })
+    const found = order.flatMap((id) => findNode(list, id) ?? [])
+    // Elements inside another moving one go with it.
+    const moving = found.filter((f) => !found.some((o) => o !== f && findNode(o.node.children ?? [], f.node.id)))
+    if (moving.some((f) => f.depth === 0) && !moving.every((f) => f.depth === 0)) return
+    let next = moving.reduce((acc, f) => removeNode(acc, f.node.id), list)
+    const t = findNode(next, target.id)
+    if (!t) return
+    const parentId = target.where === 'inside' ? target.id : (t.parent?.id ?? null)
+    const at = target.where === 'inside' ? (t.node.children?.length ?? 0) : t.index + (target.where === 'after' ? 1 : 0)
+    moving.forEach((f, i) => {
+      next = insertNode(next, parentId, at + i, f.node)
+    })
+    setNodes(next)
+  }
+
   const play = useCallback(() => {
     setPlaying(Date.now())
     setTimeout(() => setPlaying(0), 2600)
@@ -517,10 +741,25 @@ export function PageEditor({
       }
       if (id && (e.key === 'Backspace' || e.key === 'Delete')) {
         e.preventDefault()
-        remove(id)
+        removeSelection()
       } else if (id && mod && e.key.toLowerCase() === 'd') {
         e.preventDefault()
-        duplicate(id)
+        duplicateSelection()
+      } else if (id && mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        if (e.shiftKey) ungroup()
+        else group()
+      } else if (id && mod && e.key.toLowerCase() === 'a') {
+        // Everything next to the selected element, in the same container.
+        e.preventDefault()
+        const f = findNode(nodesRef.current, id)
+        if (f) setSelection([...f.siblings.map((n) => n.id).filter((x) => x !== id), id])
+      } else if (id && e.altKey && mod && /^[wasdhv]$/i.test(e.key)) {
+        e.preventDefault()
+        const how = ({ a: 'left', d: 'right', w: 'top', s: 'bottom', h: 'hcenter', v: 'vcenter' } as const)[
+          e.key.toLowerCase() as 'a'
+        ]
+        if (how) align(how)
       } else if (id && mod && e.key.toLowerCase() === 'c') {
         clipboard.current = findNode(nodesRef.current, id)?.node ?? null
         if (clipboard.current) toast('Copiato')
@@ -542,6 +781,9 @@ export function PageEditor({
           e.preventDefault()
           setEditing(id)
         }
+      } else if (!mod && !e.altKey && e.shiftKey && e.key.toLowerCase() === 'r') {
+        e.preventDefault()
+        setRulers(!rulers)
       } else if (!mod && !e.altKey && mode === 'design') {
         const kind = ({ f: 'frame', t: 'text', i: 'image', b: 'button', v: 'video', c: 'embed', g: 'scene' } as const)[
           e.key.toLowerCase()
@@ -590,6 +832,19 @@ export function PageEditor({
     ]
   }
 
+  /** Fields a bound list can sort and filter by. */
+  const collectionFields = (name: string) => {
+    const def = schema.collections.find((c) => c.name === name)
+    if (!def) return []
+    return [
+      { value: 'title', label: 'Titolo' },
+      ...def.fields
+        .filter((f) => ['text', 'number', 'date', 'select', 'slug', 'boolean', 'array'].includes(f.kind))
+        .filter((f) => f.name !== def.titleField)
+        .map((f) => ({ value: f.name, label: f.label ?? f.name })),
+    ]
+  }
+
   const otherFields = collection.fields.filter((f) => f.name !== pageField.name)
   const selectedNode = info?.node ?? null
 
@@ -623,7 +878,8 @@ export function PageEditor({
           <Layers
             nodes={nodes}
             selected={selected}
-            onSelect={setSelected}
+            selection={selection}
+            onSelect={(id, add) => (add && id ? toggleSelected(id) : setSelected(id))}
             onRename={(id, name) => setProps(id, { name: name || undefined })}
             onToggleHidden={(id) => {
               const n = findNode(nodesRef.current, id)?.node
@@ -722,6 +978,9 @@ export function PageEditor({
             <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
               <Maximize />
             </IconButton>
+            <IconButton label="Righelli · ⇧R" active={rulers} onClick={() => setRulers(!rulers)}>
+              <Ruler />
+            </IconButton>
             <div className="mx-1 h-5 w-px bg-line" />
             <IconButton label="Riproduci le animazioni" onClick={play}>
               <Play />
@@ -780,12 +1039,14 @@ export function PageEditor({
             zoom={zoom}
             mode={mode}
             selected={selected}
+            selection={selection}
             editing={editing}
             playing={playing}
             preview={previewing}
             data={boundData}
-            onSelect={(id) => {
-              setSelected(id)
+            onSelect={(id, add) => {
+              if (add && id) toggleSelected(id)
+              else setSelected(id)
               if (editing && id !== editing) setEditing(null)
             }}
             onEdit={setEditing}
@@ -794,6 +1055,13 @@ export function PageEditor({
             onFitZoom={setFitZoom}
             onResize={(id, patch) => setProps(id, patch)}
             onMove={moveTo}
+            onMoveMany={moveManyTo}
+            onPatch={(patches) => setPropsMany(patches)}
+            onSelectMany={(ids) => {
+              setSelection(ids)
+              if (editing) setEditing(null)
+            }}
+            rulers={rulers}
             onDropNew={(item, target, sectionIndex) => {
               if (item.section) {
                 if (item.section.startsWith('component:')) {
@@ -824,16 +1092,23 @@ export function PageEditor({
           <Inspector
             key={selectedNode.id}
             node={selectedNode}
+            view={withTextStyle(selectedNode, theme)}
+            count={selection.length}
+            onAlign={align}
+            onGroup={group}
+            onUngroup={ungroup}
+            textStyles={{ list: textStyleList, canEdit: user.role === 'admin', ...textStyleActions }}
+            collectionFields={collectionFields}
             depth={info.depth}
             device={device}
-            onProps={(patch, group) => setProps(selectedNode.id, patch, group)}
+            onProps={setSelectionProps}
             onContent={(patch, group) => setProps(selectedNode.id, patch, group)}
             onReset={(keys) => resetProps(selectedNode.id, keys)}
             onPickImage={(target) => setPicking({ id: selectedNode.id, target })}
             onPlay={play}
             onPreview={() => setPreviewing(true)}
-            onDuplicate={() => duplicate(selectedNode.id)}
-            onDelete={() => remove(selectedNode.id)}
+            onDuplicate={duplicateSelection}
+            onDelete={removeSelection}
             onMove={(dir) => move(selectedNode.id, dir)}
             onSelectParent={info.parent ? () => setSelected(info.parent?.id ?? null) : null}
             palette={palette(theme)}

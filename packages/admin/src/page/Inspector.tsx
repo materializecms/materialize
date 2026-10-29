@@ -2,31 +2,46 @@ import {
   ANIMATIONS,
   type Breakpoint,
   type Component,
+  type ListBinding,
   type NodeProps,
   type PageNode,
   plainText,
   resolveNode,
+  type SharedTextStyle,
+  TEXT_STYLE_KEYS,
   TEXT_STYLES,
   type TextStyle,
 } from '@materializecms/core/page'
 import {
   AlignCenter,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalSpaceAround,
   AlignLeft,
   AlignRight,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalSpaceAround,
   ArrowDown,
   ArrowUp,
   Columns3,
   Copy,
   CornerLeftUp,
+  Group,
   ImagePlus,
   LayoutGrid,
   Play,
   Rows3,
   Trash2,
+  Ungroup,
   X,
 } from 'lucide-react'
+import { useState } from 'react'
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
+import type { AlignHow } from './align.ts'
 import { typeLabel } from './Canvas.tsx'
 import { type ComponentActions, ComponentPanel } from './ComponentPanel.tsx'
 import { Chips, ColorField, LenField, NumField, Row, Section, Seg, Select, Toggle } from './controls.tsx'
@@ -50,8 +65,45 @@ const RATIOS = ['1/1', '4/3', '3/2', '16/9', '21/9', '3/4', '4/5', '3/1'].map((r
 }))
 const STYLE_OPTIONS = (Object.keys(TEXT_STYLES) as TextStyle[]).map((k) => ({ value: k, label: TEXT_STYLES[k].label }))
 
+/** Shared text styles and what can be done with them from an element. */
+export interface TextStyleActions {
+  list: SharedTextStyle[]
+  /** Creating and changing styles is for admins (they are part of the site's theme). */
+  canEdit: boolean
+  apply: (id: string | null) => void
+  create: (name: string) => void
+  update: () => void
+  reset: () => void
+}
+
+const ALIGN: { how: AlignHow; label: string; icon: React.ReactNode }[] = [
+  { how: 'left', label: 'Allinea a sinistra · ⌥⌘A', icon: <AlignStartVertical /> },
+  { how: 'hcenter', label: 'Centra in orizzontale · ⌥⌘H', icon: <AlignCenterVertical /> },
+  { how: 'right', label: 'Allinea a destra · ⌥⌘D', icon: <AlignEndVertical /> },
+  { how: 'top', label: 'Allinea in alto · ⌥⌘W', icon: <AlignStartHorizontal /> },
+  { how: 'vcenter', label: 'Centra in verticale · ⌥⌘V', icon: <AlignCenterHorizontal /> },
+  { how: 'bottom', label: 'Allinea in basso · ⌥⌘S', icon: <AlignEndHorizontal /> },
+  { how: 'hdist', label: 'Distribuisci in orizzontale', icon: <AlignHorizontalSpaceAround /> },
+  { how: 'vdist', label: 'Distribuisci in verticale', icon: <AlignVerticalSpaceAround /> },
+]
+
+const FILTER_OPS: { value: NonNullable<ListBinding['filter']>['op']; label: string }[] = [
+  { value: 'eq', label: 'è' },
+  { value: 'neq', label: 'non è' },
+  { value: 'contains', label: 'contiene' },
+  { value: 'gt', label: 'dopo / più di' },
+  { value: 'lt', label: 'prima / meno di' },
+]
+
 export function Inspector({
   node,
+  view,
+  count = 1,
+  onAlign,
+  onGroup,
+  onUngroup,
+  textStyles,
+  collectionFields,
   depth,
   device,
   onProps,
@@ -75,6 +127,16 @@ export function Inspector({
   componentActions,
 }: {
   node: PageNode
+  /** The element as it looks (with its shared text style), for the values shown. */
+  view?: PageNode
+  /** How many elements are selected: design changes go to all of them. */
+  count?: number
+  onAlign: (how: AlignHow) => void
+  onGroup: () => void
+  onUngroup: () => void
+  textStyles: TextStyleActions
+  /** Fields of a collection a bound list can sort and filter by. */
+  collectionFields: (collection: string) => { value: string; label: string }[]
   depth: number
   device: Breakpoint
   /** Design properties: on tablet or mobile they change only that device. */
@@ -104,7 +166,19 @@ export function Inspector({
   components: Record<string, Component>
   componentActions: ComponentActions
 }) {
-  const p = resolveNode(node, device)
+  const p = resolveNode(view ?? node, device)
+  const [naming, setNaming] = useState<string | null>(null)
+  const bind = node.bind
+  const setBind = (patch: Partial<ListBinding>) => bind && onContent({ bind: { ...bind, ...patch } })
+  const linkedStyle = textStyles.list.find((s) => s.id === node.textStyle)
+  // Typography the element changes on top of its style.
+  const styleChanged =
+    !!linkedStyle &&
+    TEXT_STYLE_KEYS.some(
+      (k) =>
+        (node[k] !== undefined && node[k] !== null) ||
+        (['tablet', 'mobile'] as const).some((bp) => node.over?.[bp]?.[k] !== undefined),
+    )
   const onProp = <K extends Key>(key: K, value: NodeProps[K], group?: string) =>
     onProps({ [key]: value } as Partial<NodeProps>, group)
   const isF = node.type === 'frame'
@@ -155,6 +229,16 @@ export function Inspector({
           <ArrowDown />
         </IconButton>
         <div className="flex-1" />
+        {count > 1 && !isSec && (
+          <IconButton label="Raggruppa in un contenitore · ⌘G" onClick={onGroup}>
+            <Group />
+          </IconButton>
+        )}
+        {count === 1 && isF && !isSec && !node.component && !!node.children?.length && (
+          <IconButton label="Separa: gli elementi prendono il posto del contenitore · ⇧⌘G" onClick={onUngroup}>
+            <Ungroup />
+          </IconButton>
+        )}
         <IconButton label="Duplica · ⌘D" onClick={onDuplicate}>
           <Copy />
         </IconButton>
@@ -162,6 +246,25 @@ export function Inspector({
           <Trash2 />
         </IconButton>
       </div>
+
+      {!isSec && (
+        <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5">
+          {ALIGN.map((a, i) => (
+            <span key={a.how} className="contents">
+              {i === 6 && <div className="mx-0.5 h-4 w-px bg-line" />}
+              <IconButton label={a.label} onClick={() => onAlign(a.how)}>
+                {a.icon}
+              </IconButton>
+            </span>
+          ))}
+        </div>
+      )}
+      {count > 1 && (
+        <p className="border-b border-line bg-accent/5 px-3.5 py-2 text-[11.5px] leading-relaxed text-fg2">
+          <strong className="font-semibold text-fg">{count} elementi selezionati.</strong> Le modifiche di stile valgono
+          per tutti; testi e immagini restano di ciascuno. ⇧ clic per aggiungere o togliere.
+        </p>
+      )}
 
       <ComponentPanel node={node} components={components} actions={componentActions} />
 
@@ -229,16 +332,76 @@ export function Inspector({
               options={[{ value: '', label: 'Nessuna' }, ...collections]}
             />
           </Row>
-          {node.bind && (
+          {bind && (
             <>
-              <Row label="Quante voci">
-                <NumField
-                  value={node.bind.limit ?? 6}
-                  min={1}
-                  max={48}
-                  onChange={(v) => onContent({ bind: { collection: node.bind?.collection ?? '', limit: v ?? 6 } })}
+              <Row label={bind.more ? 'Voci per volta' : 'Quante voci'}>
+                <NumField value={bind.limit ?? 6} min={1} max={48} onChange={(v) => setBind({ limit: v ?? 6 })} />
+              </Row>
+              <Row label="Ordina per">
+                <Select
+                  label="Ordina per"
+                  value={bind.sort?.field ?? ''}
+                  onChange={(v) => setBind({ sort: v ? { field: v, dir: bind.sort?.dir ?? 'asc' } : null })}
+                  options={[{ value: '', label: 'Ordine della raccolta' }, ...collectionFields(bind.collection)]}
                 />
               </Row>
+              {bind.sort && (
+                <Row label="Verso">
+                  <Seg
+                    value={bind.sort.dir}
+                    onChange={(dir) => bind.sort && setBind({ sort: { ...bind.sort, dir } })}
+                    options={[
+                      { value: 'asc', label: 'A → Z, 1 → 9' },
+                      { value: 'desc', label: 'Z → A, 9 → 1' },
+                    ]}
+                  />
+                </Row>
+              )}
+              <Row label="Filtra">
+                <Select
+                  label="Campo del filtro"
+                  value={bind.filter?.field ?? ''}
+                  onChange={(v) =>
+                    setBind({
+                      filter: v ? { field: v, op: bind.filter?.op ?? 'eq', value: bind.filter?.value ?? '' } : null,
+                    })
+                  }
+                  options={[{ value: '', label: 'Tutte le voci' }, ...collectionFields(bind.collection)]}
+                />
+              </Row>
+              {bind.filter && (
+                <div className="mb-2 flex gap-1.5">
+                  <Select
+                    label="Condizione"
+                    value={bind.filter.op}
+                    onChange={(op) => bind.filter && setBind({ filter: { ...bind.filter, op } })}
+                    options={FILTER_OPS}
+                  />
+                  <input
+                    aria-label="Valore del filtro"
+                    value={bind.filter.value}
+                    placeholder="valore"
+                    onChange={(e) => bind.filter && setBind({ filter: { ...bind.filter, value: e.target.value } })}
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+                  />
+                </div>
+              )}
+              <Toggle
+                label="Pulsante “Mostra altri” sotto l’elenco"
+                checked={!!bind.more}
+                onChange={(v) => setBind({ more: v || undefined })}
+              />
+              {bind.more && (
+                <Row label="Testo">
+                  <input
+                    aria-label="Testo del pulsante"
+                    value={bind.moreLabel ?? ''}
+                    placeholder="Mostra altri"
+                    onChange={(e) => setBind({ moreLabel: e.target.value || undefined })}
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+                  />
+                </Row>
+              )}
               <p className="text-[11px] leading-relaxed text-fg3">
                 Il primo elemento interno si ripete per ogni voce: selezionane i testi e le immagini per scegliere quale
                 campo mostrano.
@@ -482,6 +645,60 @@ export function Inspector({
 
       {(isT || isB) && (
         <Section title="Testo" {...sect(TYPE)}>
+          <Row label="Stile condiviso" hint="Uno stile del sito: cambiandolo, cambiano tutti i testi che lo usano">
+            <Select
+              label="Stile condiviso"
+              value={node.textStyle && linkedStyle ? node.textStyle : ''}
+              onChange={(v) => textStyles.apply(v || null)}
+              options={[
+                { value: '', label: 'Nessuno' },
+                ...textStyles.list.map((s) => ({ value: s.id, label: s.name })),
+              ]}
+            />
+          </Row>
+          {naming !== null ? (
+            <form
+              className="mb-2 flex gap-1.5"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (naming.trim()) textStyles.create(naming.trim())
+                setNaming(null)
+              }}
+            >
+              <input
+                autoFocus
+                aria-label="Nome del nuovo stile"
+                value={naming}
+                placeholder="es. Titolo di sezione"
+                onChange={(e) => setNaming(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
+                className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12px] outline-none"
+              />
+              <button type="submit" className="h-7 rounded-md bg-accent px-2.5 text-[12px] font-medium text-white">
+                Crea
+              </button>
+            </form>
+          ) : (
+            textStyles.canEdit && (
+              <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px]">
+                {linkedStyle && styleChanged && (
+                  <>
+                    <button type="button" onClick={textStyles.update} className="text-accent hover:underline">
+                      Aggiorna “{linkedStyle.name}” con queste modifiche
+                    </button>
+                    <button type="button" onClick={textStyles.reset} className="text-fg2 hover:underline">
+                      Torna allo stile
+                    </button>
+                  </>
+                )}
+                {!linkedStyle && (
+                  <button type="button" onClick={() => setNaming('')} className="text-accent hover:underline">
+                    Crea uno stile da questo testo
+                  </button>
+                )}
+              </div>
+            )
+          )}
           <Row label="Stile">
             <Select
               label="Stile del testo"

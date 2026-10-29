@@ -155,10 +155,25 @@ export interface MotionOptions {
   site?: boolean
 }
 
+/** "Show more" under bound lists: each click reveals the next entries already on the page. */
+function moreButtons(root: ParentNode): () => void {
+  const onClick = (e: Event) => {
+    const button = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mz-more]')
+    if (!button) return
+    e.preventDefault()
+    const list = root.querySelector<HTMLElement>(`.${CSS.escape(button.dataset.mzMore ?? '')}`)
+    const waiting = [...(list?.querySelectorAll<HTMLElement>(':scope > [data-mz-later]') ?? [])]
+    for (const el of waiting.slice(0, Number(button.dataset.mzStep) || 6)) el.removeAttribute('data-mz-later')
+    if (waiting.length <= (Number(button.dataset.mzStep) || 6)) button.parentElement?.remove()
+  }
+  root.addEventListener('click', onClick)
+  return () => root.removeEventListener('click', onClick)
+}
+
 export function startMotion(root: ParentNode = document, options: MotionOptions = {}): () => void {
   if (typeof window === 'undefined') return () => {}
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const cleanups: (() => void)[] = [stickyMenus(root, options.scroller)]
+  const cleanups: (() => void)[] = [stickyMenus(root, options.scroller), moreButtons(root)]
   const targets = new Map<HTMLElement, Target>()
   const players: Player[] = []
   const scroller = options.scroller

@@ -37,10 +37,14 @@ export function nodeIcon(n: PageNode, depth: number) {
 
 type Drop = { id: string; where: 'before' | 'after' | 'inside' }
 
-/** The page as a tree: select, rename (double click or F2), hide, and drag to reorder or nest. */
+/**
+ * The page as a tree: select (shift or ⌘ to add), rename (double click or F2), hide, and drag
+ * to reorder or nest.
+ */
 export function Layers({
   nodes,
   selected,
+  selection,
   onSelect,
   onRename,
   onToggleHidden,
@@ -49,7 +53,9 @@ export function Layers({
 }: {
   nodes: PageNode[]
   selected: string | null
-  onSelect: (id: string | null) => void
+  /** Every selected element; `selected` is the last one picked. */
+  selection: string[]
+  onSelect: (id: string | null, add?: boolean) => void
   onRename: (id: string, name: string) => void
   onToggleHidden: (id: string) => void
   /** Moves `id` before, after or inside `target`. */
@@ -110,6 +116,7 @@ export function Layers({
       const expanded = open[n.id] ?? false
       const hidden = hiddenOf(n)
       const name = n.name || typeLabel(n)
+      const isSel = selection.includes(n.id)
       rows.push(
         // biome-ignore lint/a11y/noStaticElementInteractions: drop target for dragged layers
         <div
@@ -166,7 +173,7 @@ export function Layers({
                 setDrag(null)
                 setDrop(null)
               }}
-              onClick={() => onSelect(n.id)}
+              onClick={(e) => onSelect(n.id, e.shiftKey || e.metaKey || e.ctrlKey)}
               onDoubleClick={() => setRenaming(n.id)}
               onKeyDown={(e) => {
                 if (e.key === 'F2' || (e.key === 'Enter' && selected === n.id)) {
@@ -176,7 +183,7 @@ export function Layers({
               }}
               className={cx(
                 'flex h-7 w-full items-center gap-1.5 rounded-md pr-14 text-left text-[12.5px] transition-colors',
-                selected === n.id ? 'bg-accent/10 text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+                isSel ? 'bg-accent/10 text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
                 drop?.id === n.id && drop.where === 'inside' && 'ring-2 ring-accent ring-inset',
                 drag === n.id && 'opacity-40',
                 hidden && 'opacity-50',
@@ -199,14 +206,12 @@ export function Layers({
               <span
                 className={cx(
                   'shrink-0 [&_svg]:size-3.5',
-                  selected === n.id ? 'text-accent' : depth === 0 ? 'text-fg2' : 'text-fg3',
+                  isSel ? 'text-accent' : depth === 0 ? 'text-fg2' : 'text-fg3',
                 )}
               >
                 {nodeIcon(n, depth)}
               </span>
-              <span className={cx('truncate', depth === 0 && 'font-medium', selected === n.id && 'font-medium')}>
-                {name}
-              </span>
+              <span className={cx('truncate', depth === 0 && 'font-medium', isSel && 'font-medium')}>{name}</span>
             </button>
           )}
           {renaming !== n.id && (

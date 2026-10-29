@@ -144,7 +144,7 @@ export interface NodeProps {
   /** Section address for links within the page: #anchor. */
   anchor?: string | null
   /** A list fed by a collection: the first child is repeated for each entry. */
-  bind?: { collection: string; limit?: number } | null
+  bind?: ListBinding | null
   /** Inside a bound list: which field of the entry fills this element ("title", "url", or a field name). */
   field?: string | null
   /** A frame whose children scroll endlessly sideways. */
@@ -163,6 +163,8 @@ export interface NodeProps {
   bgImage?: { src: string; alt?: string } | null
   bgDim?: number
   // text and button
+  /** A text style shared by the site (theme.textStyles): its typography, under this element's own. */
+  textStyle?: string | null
   text?: string
   runs?: Run[] | null
   style?: TextStyle
@@ -182,6 +184,40 @@ export interface NodeProps {
   newTab?: boolean
   variant?: 'primary' | 'secondary' | 'ghost'
 }
+
+/** Which entries a bound list shows, in what order, and how many at a time. */
+export interface ListBinding {
+  collection: string
+  /** Entries shown (with "more": shown at first and added by each click). */
+  limit?: number
+  sort?: { field: string; dir: 'asc' | 'desc' } | null
+  filter?: { field: string; op: 'eq' | 'neq' | 'contains' | 'gt' | 'lt'; value: string } | null
+  /** A button under the list shows the next entries. */
+  more?: boolean
+  moreLabel?: string
+}
+
+/** A named text style shared by the site: typography for every device, like a design system's. */
+export interface SharedTextStyle {
+  id: string
+  name: string
+  props: Partial<NodeProps>
+  over?: { tablet?: Partial<NodeProps>; mobile?: Partial<NodeProps> }
+}
+
+/** What a shared text style sets; the rest stays the element's own. */
+export const TEXT_STYLE_KEYS = [
+  'style',
+  'font',
+  'fontSize',
+  'weight',
+  'tracking',
+  'leading',
+  'italic',
+  'upper',
+  'color',
+  'textGradient',
+] as const
 
 /** A WebGL scene: a preset shader with its colors and how it reacts. */
 export interface SceneConfig {
@@ -283,6 +319,8 @@ export interface Theme {
   smoothScroll?: boolean
   cursor?: 'default' | 'dot' | 'ring'
   transition?: 'none' | 'fade' | 'slide'
+  /** Named text styles elements can share. */
+  textStyles?: SharedTextStyle[]
 }
 
 /** What an interaction changes: offsets in px, rotations in degrees, opacity 0–1, blur in px, clip in %. */
@@ -673,6 +711,73 @@ export function entryValue(entry: BoundEntry, field: string): unknown {
     .reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), entry.data)
 }
 
+const asText = (v: unknown) => (v == null ? '' : typeof v === 'object' ? '' : String(v)).toLowerCase()
+
+function compareValues(a: unknown, b: unknown): number {
+  if (a == null || a === '') return b == null || b === '' ? 0 : 1
+  if (b == null || b === '') return -1
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return asText(a).localeCompare(asText(b), undefined, { numeric: true })
+}
+
+function matches(v: unknown, f: NonNullable<ListBinding['filter']>): boolean {
+  const want = f.value.trim().toLowerCase()
+  // A list of values (tags, categories) matches when one of them does.
+  const values = Array.isArray(v) ? v : [v]
+  const one = (x: unknown) => {
+    const t = asText(x)
+    if (f.op === 'contains') return t.includes(want)
+    if (f.op === 'gt' || f.op === 'lt') {
+      const c =
+        typeof x === 'number' && want !== '' && !Number.isNaN(Number(want)) ? x - Number(want) : compareValues(t, want)
+      return f.op === 'gt' ? c > 0 : c < 0
+    }
+    return t === want
+  }
+  return f.op === 'neq' ? !values.some((x) => asText(x) === want) : values.some(one)
+}
+
+/** The entries a bound list shows, filtered and sorted as it asks (before its limit). */
+export function listEntries(entries: BoundEntry[], bind: ListBinding): BoundEntry[] {
+  let out = entries
+  const f = bind.filter
+  if (f?.field) out = out.filter((e) => matches(entryValue(e, f.field), f))
+  const s = bind.sort
+  if (s?.field) {
+    const dir = s.dir === 'desc' ? -1 : 1
+    out = [...out].sort((a, b) => {
+      const va = entryValue(a, s.field)
+      const vb = entryValue(b, s.field)
+      // Empty values go last whichever the direction.
+      if (va == null || va === '' || vb == null || vb === '') return compareValues(va, vb)
+      return compareValues(va, vb) * dir
+    })
+  }
+  return out
+}
+
+/** An element with its shared text style underneath: its own values win, then the style's. */
+export function withTextStyle(n: PageNode, theme: Theme): PageNode {
+  const ts = n.textStyle ? theme.textStyles?.find((s) => s.id === n.textStyle) : undefined
+  if (!ts) return n
+  const own = Object.fromEntries(Object.entries(n).filter(([, v]) => v !== undefined && v !== null)) as PageNode
+  const over: PageNode['over'] = {}
+  for (const bp of ['tablet', 'mobile'] as const) {
+    const merged = { ...ts.over?.[bp], ...n.over?.[bp] }
+    if (Object.keys(merged).length) over[bp] = merged
+  }
+  return { ...(ts.props as PageNode), ...own, over }
+}
+
+/** Every element of the tree with its shared text style applied. */
+export function applyTextStyles(nodes: PageNode[], theme: Theme): PageNode[] {
+  if (!theme.textStyles?.length) return nodes
+  return nodes.map((n) => {
+    const out = withTextStyle(n, theme)
+    return out.children ? { ...out, children: applyTextStyles(out.children, theme) } : out
+  })
+}
+
 /** A reusable component: one or more variants of the same element, shared by every page. */
 export interface Component {
   id: string
@@ -863,6 +968,8 @@ const BASE_CSS = `
 .mz-page [data-hover="zoomimg"] img{transition:transform .7s cubic-bezier(.2,.8,.2,1)}
 .mz-page [data-hover="zoomimg"]:hover img{transform:scale(1.07)}
 .mz-page .mz-scene{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+.mz-page [data-mz-later]{display:none!important}
+.mz-page .mz-more{display:flex;justify-content:center;width:100%;padding-top:32px}
 .mz-page [data-mz-sticky]{transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .3s,backdrop-filter .3s,box-shadow .3s}
 .mz-page [data-mz-sticky].mz-away{transform:translateY(-100%)}
 .mz-page [data-mz-sticky~="glass"].mz-scrolled{background:color-mix(in srgb,var(--mz-sticky-bg) 72%,transparent)!important;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 1px 0 color-mix(in srgb,currentColor 10%,transparent)}
@@ -1186,6 +1293,7 @@ export function renderSections(
   theme: Theme = DEFAULT_THEME,
   options: RenderOptions = {},
 ): { html: string; css: string } {
+  sections = applyTextStyles(sections, theme)
   const C = palette(theme)
   const mode = options.animations ?? 'site'
   const desktop: string[] = []
@@ -1264,29 +1372,50 @@ export function renderSections(
           .join('')
       let kids = renderKids(false)
       // A bound list repeats its first child for every entry of the collection.
-      const entries = p.bind ? (options.data?.[p.bind.collection] ?? []).slice(0, p.bind.limit ?? 12) : null
+      const bind = p.bind
+      const pageSize = bind?.limit ?? 12
+      const all = bind ? listEntries(options.data?.[bind.collection] ?? [], bind) : null
+      // With a "more" button, the next entries are on the page already, waiting to be shown.
+      const entries = all?.slice(0, bind?.more && !options.editor ? 100 : pageSize) ?? null
       const template = n.children?.[0]
+      let more = ''
       if (entries && template) {
         kids = entries
-          .map((entry, i) =>
-            render(bindTo(template, entry), {
+          .map((entry, i) => {
+            const html = render(bindTo(template, entry), {
               depth: c.depth + 1,
               scheme,
               parent: { layout: p.layout ?? 'col', wrap: !!p.wrap },
               inherit,
               idx: i,
               ghost: i > 0 || c.ghost,
-            }),
-          )
+            })
+            return i >= pageSize ? html.replace(/^<(\w+) /, '<$1 data-mz-later ') : html
+          })
           .join('')
+        if (bind?.more && (all?.length ?? 0) > pageSize) {
+          const button: PageNode = {
+            id: `${n.id}-more`,
+            type: 'button',
+            text: bind.moreLabel || 'Mostra altri',
+            variant: 'secondary',
+            href: '#',
+            width: 'hug',
+            padX: 26,
+            padY: 14,
+            radius: 'btn',
+          }
+          const html = render(button, { ...c, depth: c.depth + 1, scheme, inherit, idx: 0, ghost: true })
+          more = `<div class="mz-more">${html.replace(/^<a /, `<a data-mz-more="${cls}" data-mz-step="${pageSize}" `)}</div>`
+        }
       }
       if (p.marquee) {
         // Two copies side by side, moved by half the track: the loop never shows a seam.
-        const gap = p.gap ?? 16
+        const gap = cssLength(p.gap ?? 16)
         const dir = p.marquee.reverse ? 'reverse' : 'normal'
         desktop.push(
-          `.mz-page .${cls}>.mz-track{--mz-gap:${gap}px;display:flex;gap:${gap}px;width:max-content;align-items:center;animation:mzMarquee ${p.marquee.duration}s linear infinite ${dir}}` +
-            `.mz-page .${cls}>.mz-track>div{display:flex;gap:${gap}px;align-items:center;flex:none}` +
+          `.mz-page .${cls}>.mz-track{--mz-gap:${gap};display:flex;gap:${gap};width:max-content;align-items:center;animation:mzMarquee ${p.marquee.duration}s linear infinite ${dir}}` +
+            `.mz-page .${cls}>.mz-track>div{display:flex;gap:${gap};align-items:center;flex:none}` +
             `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none;width:auto}`,
         )
         kids = `<div class="mz-track"><div>${kids}</div><div aria-hidden="true">${renderKids(true)}</div></div>`
@@ -1297,7 +1426,7 @@ export function renderSections(
       // A frame with an address is a link (cards in a bound list).
       if (p.href && !isSec)
         return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}" style="text-decoration:none;color:inherit">${content}</a>`
-      return `<${tag} ${attrs.join(' ')}>${content}</${tag}>`
+      return `<${tag} ${attrs.join(' ')}>${content}</${tag}>${more}`
     }
     if (n.type === 'text') {
       const style = p.style ?? 'body'

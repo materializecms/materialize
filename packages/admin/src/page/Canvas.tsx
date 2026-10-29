@@ -32,6 +32,48 @@ const DEVICE_LABEL: Record<Breakpoint, string> = { desktop: 'Desktop', tablet: '
 
 export type DropTarget = { id: string; where: 'before' | 'after' | 'inside' }
 type Indicator = { x: number; y: number; w: number; h: number; inside: boolean }
+/** A snapping line, in stage pixels: vertical (x) or horizontal (y). */
+type Guide = { axis: 'x' | 'y'; at: number; from: number; to: number }
+/** A measured distance between two boxes, in stage pixels, with its value in page pixels. */
+type Gap = { x1: number; y1: number; x2: number; y2: number; label: number }
+
+/** How close, in page pixels, an edge or center has to come to snap. */
+const SNAP = 6
+
+/**
+ * Distances from the selected box to another: the gaps between them on each axis, or, when one is
+ * inside the other, from each side of the inner one to the outer one.
+ */
+function gapsBetween(a: Box, b: Box, scale: number): Gap[] {
+  const out: Gap[] = []
+  const v = (n: number) => Math.round(n / scale)
+  const inside = (o: Box, i: Box) =>
+    i.x >= o.x - 0.5 && i.y >= o.y - 0.5 && i.x + i.w <= o.x + o.w + 0.5 && i.y + i.h <= o.y + o.h + 0.5
+  if (inside(b, a) || inside(a, b)) {
+    const [o, i] = inside(b, a) ? [b, a] : [a, b]
+    const cy = i.y + i.h / 2
+    const cx = i.x + i.w / 2
+    out.push(
+      { x1: o.x, y1: cy, x2: i.x, y2: cy, label: v(i.x - o.x) },
+      { x1: i.x + i.w, y1: cy, x2: o.x + o.w, y2: cy, label: v(o.x + o.w - i.x - i.w) },
+      { x1: cx, y1: o.y, x2: cx, y2: i.y, label: v(i.y - o.y) },
+      { x1: cx, y1: i.y + i.h, x2: cx, y2: o.y + o.h, label: v(o.y + o.h - i.y - i.h) },
+    )
+    return out.filter((g) => g.label > 0)
+  }
+  // Side by side: the horizontal gap, at the height they share (or between their centers).
+  const top = Math.max(a.y, b.y)
+  const bottom = Math.min(a.y + a.h, b.y + b.h)
+  const midY = top < bottom ? (top + bottom) / 2 : a.y + a.h / 2
+  if (a.x + a.w <= b.x) out.push({ x1: a.x + a.w, y1: midY, x2: b.x, y2: midY, label: v(b.x - a.x - a.w) })
+  else if (b.x + b.w <= a.x) out.push({ x1: b.x + b.w, y1: midY, x2: a.x, y2: midY, label: v(a.x - b.x - b.w) })
+  const left = Math.max(a.x, b.x)
+  const right = Math.min(a.x + a.w, b.x + b.w)
+  const midX = left < right ? (left + right) / 2 : a.x + a.w / 2
+  if (a.y + a.h <= b.y) out.push({ x1: midX, y1: a.y + a.h, x2: midX, y2: b.y, label: v(b.y - a.y - a.h) })
+  else if (b.y + b.h <= a.y) out.push({ x1: midX, y1: b.y + b.h, x2: midX, y2: a.y, label: v(a.y - b.y - b.h) })
+  return out
+}
 type Handle = 'left' | 'right' | 'bottom' | 'corner' | 'section'
 
 /** Section heights the renderer knows (desktop padding), from smallest to largest. */
@@ -58,6 +100,7 @@ export function Canvas({
   zoom,
   mode,
   selected,
+  selection = [],
   editing,
   playing,
   onSelect,
@@ -67,6 +110,10 @@ export function Canvas({
   onFitZoom,
   onResize,
   onMove,
+  onMoveMany,
+  onPatch,
+  onSelectMany,
+  rulers = false,
   onDropNew,
   preview = false,
   data,
@@ -77,9 +124,11 @@ export function Canvas({
   zoom: 'fit' | number
   mode: Mode
   selected: string | null
+  /** Every selected element (shift adds); `selected` is the last one picked. */
+  selection?: string[]
   editing: string | null
   playing: number
-  onSelect: (id: string | null) => void
+  onSelect: (id: string | null, add?: boolean) => void
   onEdit: (id: string | null) => void
   onCommitText: (id: string, value: { runs?: Run[]; text?: string }) => void
   onPickImage: (id: string) => void
@@ -88,6 +137,14 @@ export function Canvas({
   onResize: (id: string, patch: Partial<NodeProps>) => void
   /** An element or section dragged to a new place. */
   onMove: (id: string, target: DropTarget) => void
+  /** Several selected elements dragged together to a new place. */
+  onMoveMany: (ids: string[], target: DropTarget) => void
+  /** Changes to several elements in one step (free elements moved together). */
+  onPatch: (patches: [string, Partial<NodeProps>][]) => void
+  /** The elements inside a selection box. */
+  onSelectMany: (ids: string[]) => void
+  /** Rulers along the top and left edges, in page pixels. */
+  rulers?: boolean
   /** A section or element dragged in from the library. */
   onDropNew: (item: { section?: string; element?: string }, target: DropTarget | null, sectionIndex: number) => void
   /** Interactive preview: the page behaves as on the site, nothing is selectable. */
@@ -99,7 +156,27 @@ export function Canvas({
   const stage = useRef<HTMLDivElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<string | null>(null)
-  const [boxes, setBoxes] = useState<{ sel: Box | null; hover: Box | null }>({ sel: null, hover: null })
+  const [boxes, setBoxes] = useState<{ sel: Box | null; hover: Box | null; others: Box[] }>({
+    sel: null,
+    hover: null,
+    others: [],
+  })
+  const [guides, setGuides] = useState<Guide[]>([])
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  // Holding ⌥ shows the distances from the selection to the element under the pointer.
+  const [measuring, setMeasuring] = useState(false)
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => setMeasuring(e.altKey)
+    const off = () => setMeasuring(false)
+    window.addEventListener('keydown', on)
+    window.addEventListener('keyup', on)
+    window.addEventListener('blur', off)
+    return () => {
+      window.removeEventListener('keydown', on)
+      window.removeEventListener('keyup', on)
+      window.removeEventListener('blur', off)
+    }
+  }, [])
   const [height, setHeight] = useState(800)
   const [available, setAvailable] = useState(1000)
   const width = DEVICE_WIDTH[device]
@@ -145,16 +222,20 @@ export function Canvas({
       const r = el.getBoundingClientRect()
       return { id, x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }
     }
-    setBoxes({ sel: boxOf(selected), hover: hover !== selected ? boxOf(hover) : null })
+    setBoxes({
+      sel: boxOf(selected),
+      hover: hover !== selected ? boxOf(hover) : null,
+      others: selection.flatMap((id) => (id === selected ? [] : (boxOf(id) ?? []))),
+    })
     setHeight(page.scrollHeight)
-  }, [selected, hover])
+  }, [selected, hover, selection])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure whenever the page or its scale changes
   useLayoutEffect(() => {
     measure()
     const t = setTimeout(measure, 120)
     return () => clearTimeout(t)
-  }, [measure, rendered.html, scale, device])
+  }, [measure, rendered.html, rendered.css, scale, device])
 
   useEffect(() => {
     const page = root.current
@@ -239,19 +320,19 @@ export function Canvas({
    * Where a drop at (x, y) would land: sections go between sections; elements go next to the
    * element under the pointer, or into the frame under it, never at the top level.
    */
-  const targetAt = (x: number, y: number, section: boolean, exclude?: string | null) => {
+  const targetAt = (x: number, y: number, section: boolean, exclude: string[] = []) => {
     const page = root.current
     const host = stage.current
     if (!page || !host) return null
     const base = host.getBoundingClientRect()
     const rel = (r: DOMRect) => ({ x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height })
-    const ex = exclude ? elOf(exclude) : null
+    const ex = exclude.flatMap((id) => elOf(id) ?? [])
     let el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-mz-id]') ?? null
     if (el && !page.contains(el)) el = null
-    while (el && ex?.contains(el)) el = el.parentElement?.closest<HTMLElement>('[data-mz-id]') ?? null
+    while (el && ex.some((x) => x.contains(el))) el = el.parentElement?.closest<HTMLElement>('[data-mz-id]') ?? null
 
     if (section) {
-      const sections = [...page.querySelectorAll<HTMLElement>('.mz-page > [data-mz-id]')].filter((s) => s !== ex)
+      const sections = [...page.querySelectorAll<HTMLElement>('.mz-page > [data-mz-id]')].filter((s) => !ex.includes(s))
       if (!sections.length) return null
       let ref = sections[sections.length - 1] as HTMLElement
       for (const s of sections) {
@@ -276,7 +357,7 @@ export function Canvas({
     let container: PageNode | null
     let candidates: PageNode[]
     if (info.node.type === 'frame') {
-      const kids = (info.node.children ?? []).filter((c) => c.id !== exclude)
+      const kids = (info.node.children ?? []).filter((c) => !exclude.includes(c.id))
       if (!kids.length) {
         const b = rel(el.getBoundingClientRect())
         return { target: { id: info.node.id, where: 'inside' as const }, box: { ...b, inside: true } }
@@ -315,49 +396,175 @@ export function Canvas({
     else if (y > r.bottom - 48) el.scrollTop += 14
   }
 
-  // Moving elements: press on an element and drag; a short press stays a click.
+  /**
+   * A selection box: everything entirely inside it is selected (the outermost elements, not their
+   * insides). It starts on the empty canvas, on a section's background, or anywhere with ⇧ (which
+   * adds to the selection).
+   */
+  const startMarquee = (e: React.PointerEvent, additive: boolean) => {
+    const host = stage.current
+    const page = root.current
+    if (!host || !page) return
+    const b0 = host.getBoundingClientRect()
+    const from = { x: e.clientX - b0.left, y: e.clientY - b0.top }
+    const before = additive ? selection : []
+    let active = false
+    const move = (ev: PointerEvent) => {
+      if (!active) {
+        if (Math.hypot(ev.clientX - e.clientX, ev.clientY - e.clientY) < 5) return
+        active = true
+      }
+      autoScroll(ev.clientY)
+      const b = host.getBoundingClientRect()
+      const to = { x: ev.clientX - b.left, y: ev.clientY - b.top }
+      const box = {
+        x: Math.min(from.x, to.x),
+        y: Math.min(from.y, to.y),
+        w: Math.abs(to.x - from.x),
+        h: Math.abs(to.y - from.y),
+      }
+      setMarquee(box)
+      const inside = [...page.querySelectorAll<HTMLElement>('[data-mz-id]')].filter((el) => {
+        if (el.offsetParent === null) return false
+        const r = el.getBoundingClientRect()
+        const x = r.left - b.left
+        const y = r.top - b.top
+        return r.width > 0 && x >= box.x && y >= box.y && x + r.width <= box.x + box.w && y + r.height <= box.y + box.h
+      })
+      const outer = inside.filter((el) => !inside.some((o) => o !== el && o.contains(el)))
+      const ids = outer.flatMap((el) => (el.dataset.mzId && findNode(nodes, el.dataset.mzId) ? [el.dataset.mzId] : []))
+      onSelectMany([...before.filter((id) => !ids.includes(id)), ...ids])
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      setMarquee(null)
+      if (active) suppressClick.current = true
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  }
+
+  // Moving elements: press on an element (or on any of the selected ones) and drag; a short press
+  // stays a click.
   const onPointerDown = (e: React.PointerEvent) => {
-    if (preview || mode !== 'design' || editing || e.button !== 0) return
+    if (preview || mode !== 'design' || editing || e.button !== 0 || e.metaKey || e.ctrlKey) return
     const under = idAt(e.target)
     if (!under) return
-    const sel = selected ? elOf(selected) : null
-    const id = sel?.contains(e.target as Node) && selected ? selected : under
-    const info = findNode(nodes, id)
-    if (!info) return
-    const section = info.depth === 0
+    const underInfo = findNode(nodes, under)
+    // ⇧ or a section's own background (when it is not selected): a selection box.
+    if (e.shiftKey || (underInfo?.depth === 0 && !selection.includes(under))) {
+      startMarquee(e, e.shiftKey)
+      return
+    }
+    // The selected element the press is in (the innermost), else the element under the pointer.
+    const inSel = selection
+      .filter((sid) => elOf(sid)?.contains(e.target as Node))
+      .sort((a, b) => (elOf(a)?.contains(elOf(b)) ? 1 : -1))[0]
+    const id = inSel ?? under
+    // Dragging one of several selected elements moves all of them (not those inside another).
+    const group =
+      inSel && selection.length > 1
+        ? selection.filter((sid) => !selection.some((o) => o !== sid && elOf(o)?.contains(elOf(sid) as Node)))
+        : [id]
+    const infos = group.flatMap((gid) => findNode(nodes, gid) ?? [])
+    if (!infos.length) return
+    const section = infos.every((f) => f.depth === 0)
+    if (!section && infos.some((f) => f.depth === 0)) return
     const start = { x: e.clientX, y: e.clientY }
     // Freely placed elements move where they are dropped instead of changing order.
-    const placed = resolveNode(info.node, device)
-    if (placed.pos === 'absolute' && !section) {
-      const el = elOf(id)
-      if (!el) return
-      const left0 = el.offsetLeft
-      const top0 = el.offsetTop
+    const els = group.map((gid) => elOf(gid))
+    const host = els[0]?.offsetParent as HTMLElement | null
+    const free =
+      !section &&
+      infos.every((f) => resolveNode(f.node, device).pos === 'absolute') &&
+      els.every((el) => el && el.offsetParent === host)
+    if (free && host) {
+      const items = (els as HTMLElement[]).map((el, i) => ({
+        id: group[i] as string,
+        el,
+        left0: el.offsetLeft,
+        top0: el.offsetTop,
+      }))
+      // The box around them all moves and snaps as one.
+      const ux = Math.min(...items.map((it) => it.left0))
+      const uy = Math.min(...items.map((it) => it.top0))
+      const w = Math.max(...items.map((it) => it.left0 + it.el.offsetWidth)) - ux
+      const h = Math.max(...items.map((it) => it.top0 + it.el.offsetHeight)) - uy
+      // What it can snap to, in the container's pixels: its edges and center, and the edges and
+      // centers of the other elements in it.
+      const hostW = host.clientWidth
+      const hostH = host.clientHeight
+      const xs = [0, hostW / 2, hostW]
+      const ys = [0, hostH / 2, hostH]
+      for (const sib of [...host.children]) {
+        if (!(sib instanceof HTMLElement) || items.some((it) => it.el === sib)) continue
+        if (!sib.dataset.mzId || sib.offsetParent !== host) continue
+        xs.push(sib.offsetLeft, sib.offsetLeft + sib.offsetWidth / 2, sib.offsetLeft + sib.offsetWidth)
+        ys.push(sib.offsetTop, sib.offsetTop + sib.offsetHeight / 2, sib.offsetTop + sib.offsetHeight)
+      }
+      /** The nearest line to any of the given points: how far to move, and where the line is. */
+      const snap = (points: number[], lines: number[]) => {
+        let best: { d: number; at: number } | null = null
+        for (const pt of points)
+          for (const line of lines) {
+            const d = line - pt
+            if (Math.abs(d) <= SNAP / Math.min(1, scale) && (!best || Math.abs(d) < Math.abs(best.d)))
+              best = { d, at: line }
+          }
+        return best
+      }
       let moved = false
-      let left = left0
-      let top = top0
+      let dx = 0
+      let dy = 0
       const move = (ev: PointerEvent) => {
-        const dx = (ev.clientX - start.x) / scale
-        const dy = (ev.clientY - start.y) / scale
+        dx = (ev.clientX - start.x) / scale
+        dy = (ev.clientY - start.y) / scale
         if (!moved && Math.hypot(dx, dy) < 4) return
         moved = true
-        left = Math.round(left0 + dx)
-        top = Math.round(top0 + dy)
-        el.style.left = `${left}px`
-        el.style.top = `${top}px`
-        el.style.right = el.style.bottom = 'auto'
-        setBadge(`${left} , ${top}`)
+        const found: Guide[] = []
+        // ⌘ or Ctrl: no snapping, for fine placement.
+        if (!ev.metaKey && !ev.ctrlKey) {
+          const left = ux + dx
+          const top = uy + dy
+          const sx = snap([left, left + w / 2, left + w], xs)
+          const sy = snap([top, top + h / 2, top + h], ys)
+          const base = stage.current?.getBoundingClientRect()
+          const hr = host.getBoundingClientRect()
+          const ox = base ? hr.left - base.left + host.clientLeft * scale : 0
+          const oy = base ? hr.top - base.top + host.clientTop * scale : 0
+          if (sx) {
+            dx += sx.d
+            found.push({ axis: 'x', at: ox + sx.at * scale, from: oy, to: oy + hostH * scale })
+          }
+          if (sy) {
+            dy += sy.d
+            found.push({ axis: 'y', at: oy + sy.at * scale, from: ox, to: ox + hostW * scale })
+          }
+        }
+        dx = Math.round(dx)
+        dy = Math.round(dy)
+        setGuides(found)
+        for (const it of items) {
+          it.el.style.left = `${it.left0 + dx}px`
+          it.el.style.top = `${it.top0 + dy}px`
+          it.el.style.right = it.el.style.bottom = 'auto'
+        }
+        setBadge(`${ux + dx} , ${uy + dy}`)
         measure()
       }
       const up = () => {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
+        setGuides([])
         setBadge(null)
         if (!moved) return
         suppressClick.current = true
-        el.removeAttribute('style')
-        onSelect(id)
-        onResize(id, { left, top, right: null, bottom: null })
+        for (const it of items) it.el.removeAttribute('style')
+        if (items.length === 1) onSelect(id)
+        onPatch(items.map((it) => [it.id, { left: it.left0 + dx, top: it.top0 + dy, right: null, bottom: null }]))
       }
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
@@ -370,10 +577,10 @@ export function Canvas({
         if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5) return
         active = true
         setDragging(id)
-        onSelect(id)
+        if (group.length === 1) onSelect(id)
       }
       autoScroll(ev.clientY)
-      const t = targetAt(ev.clientX, ev.clientY, section, id)
+      const t = targetAt(ev.clientX, ev.clientY, section, group)
       last = t
       setIndicator(t?.box ?? null)
     }
@@ -386,7 +593,9 @@ export function Canvas({
       if (ev?.type === 'pointercancel') last = null
       setDragging(null)
       setIndicator(null)
-      if (last) onMove(id, last.target)
+      if (!last) return
+      if (group.length > 1) onMoveMany(group, last.target)
+      else onMove(id, last.target)
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -537,6 +746,10 @@ export function Canvas({
       onSelect(null)
       return
     }
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      onSelect(id, true)
+      return
+    }
     onSelect(id)
     if (mode === 'content') {
       const node = findNode(nodes, id)?.node
@@ -554,126 +767,317 @@ export function Canvas({
   }
 
   const selectedNode = findNode(nodes, selected)?.node
-  const chip = boxes.sel && selectedNode ? selectedNode.name || typeLabel(selectedNode) : null
+  const chip =
+    boxes.sel && selectedNode
+      ? selection.length > 1
+        ? `${selection.length} elementi`
+        : selectedNode.name || typeLabel(selectedNode)
+      : null
+
+  /** The empty canvas around the page: a click clears the selection, a drag draws a selection box. */
+  const isBackground = (e: React.SyntheticEvent) =>
+    e.target === e.currentTarget || (e.target as HTMLElement).dataset.mzBg !== undefined
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the empty canvas clears the selection
-    <div
-      ref={scroller}
-      className="relative min-h-0 flex-1 overflow-auto bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px]"
-      onClick={(e) => e.target === e.currentTarget && onSelect(null)}
-      onKeyDown={undefined}
-      role="presentation"
-    >
-      <div className="flex min-h-full flex-col items-center px-12 pt-8 pb-24">
-        <div className="mb-2 flex w-full items-center gap-2 text-[11.5px] text-fg3" style={{ width: width * scale }}>
-          <span className="font-medium text-fg2">{DEVICE_LABEL[device]}</span>
-          <span className="font-mono">{width} px</span>
-          <span className="ml-auto font-mono">{Math.round(scale * 100)}%</span>
-        </div>
-        <div ref={stage} className="relative" style={{ width: width * scale, height: height * scale }}>
-          <div
-            className="absolute top-0 left-0 overflow-hidden shadow-[0_0_0_1px_rgb(10_10_11/0.06),0_12px_32px_rgb(10_10_11/0.08)]"
-            style={{ width, transform: `scale(${scale})`, transformOrigin: '0 0' }}
-          >
-            <style>{rendered.css}</style>
-            <style>{`[data-mz-id]{cursor:${mode === 'design' ? 'default' : 'text'}}[data-mz-type=image],[data-mz-type=frame]{cursor:${mode === 'design' ? 'default' : 'pointer'}}[contenteditable=true],[contenteditable=plaintext-only]{outline:none;cursor:text;user-select:text}`}</style>
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard selection happens in the layers */}
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: the page is a canvas to point at */}
-            <div
-              ref={root}
-              className={cx(mode === 'design' && 'select-none')}
-              onClick={onClick}
-              onDoubleClick={onDoubleClick}
-              onPointerMove={(e) => {
-                if (preview) return
-                const id = idAt(e.target)
-                if (id !== hover) setHover(id)
-              }}
-              onPointerLeave={() => setHover(null)}
-              onPointerDown={onPointerDown}
-              onDragStart={(e) => e.preventDefault()}
-              onDragOver={onDragOver}
-              onDragLeave={(e) => e.currentTarget === e.target && setIndicator(null)}
-              onDrop={onDrop}
-            />
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {rulers && !preview && (
+        <Rulers scroller={scroller} stage={stage} scale={scale} marks={[boxes.sel, ...boxes.others]} />
+      )}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: clicking the empty canvas clears the selection */}
+      <div
+        ref={scroller}
+        className="relative min-h-0 flex-1 overflow-auto bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px]"
+        onClick={(e) => {
+          if (suppressClick.current) {
+            suppressClick.current = false
+            return
+          }
+          if (isBackground(e)) onSelect(null)
+        }}
+        onPointerDown={(e) => {
+          if (!preview && mode === 'design' && e.button === 0 && isBackground(e)) startMarquee(e, e.shiftKey)
+        }}
+        onKeyDown={undefined}
+        role="presentation"
+      >
+        <div
+          data-mz-bg
+          className={cx('flex min-h-full flex-col items-center px-12 pb-24', rulers && !preview ? 'pt-10' : 'pt-8')}
+        >
+          <div className="mb-2 flex w-full items-center gap-2 text-[11.5px] text-fg3" style={{ width: width * scale }}>
+            <span className="font-medium text-fg2">{DEVICE_LABEL[device]}</span>
+            <span className="font-mono">{width} px</span>
+            <span className="ml-auto font-mono">{Math.round(scale * 100)}%</span>
           </div>
-
-          {/* Selection and hover, drawn above the page in screen pixels. */}
-          <div className={cx('pointer-events-none absolute inset-0', preview && 'hidden')}>
-            {boxes.hover && (
+          <div ref={stage} className="relative" style={{ width: width * scale, height: height * scale }}>
+            <div
+              className="absolute top-0 left-0 overflow-hidden shadow-[0_0_0_1px_rgb(10_10_11/0.06),0_12px_32px_rgb(10_10_11/0.08)]"
+              style={{ width, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+            >
+              <style>{rendered.css}</style>
+              <style>{`[data-mz-id]{cursor:${mode === 'design' ? 'default' : 'text'}}[data-mz-type=image],[data-mz-type=frame]{cursor:${mode === 'design' ? 'default' : 'pointer'}}[contenteditable=true],[contenteditable=plaintext-only]{outline:none;cursor:text;user-select:text}`}</style>
+              {/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard selection happens in the layers */}
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: the page is a canvas to point at */}
               <div
-                className="absolute rounded-[2px] border border-accent/70"
-                style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
+                ref={root}
+                data-mz-canvas
+                className={cx(mode === 'design' && 'select-none')}
+                onClick={onClick}
+                onDoubleClick={onDoubleClick}
+                onPointerMove={(e) => {
+                  if (preview) return
+                  const id = idAt(e.target)
+                  if (id !== hover) setHover(id)
+                }}
+                onPointerLeave={() => setHover(null)}
+                onPointerDown={onPointerDown}
+                onDragStart={(e) => e.preventDefault()}
+                onDragOver={onDragOver}
+                onDragLeave={(e) => e.currentTarget === e.target && setIndicator(null)}
+                onDrop={onDrop}
+              />
+            </div>
+
+            {/* Selection and hover, drawn above the page in screen pixels. */}
+            <div className={cx('pointer-events-none absolute inset-0', preview && 'hidden')}>
+              {boxes.hover && (
+                <div
+                  className="absolute rounded-[2px] border border-accent/70"
+                  style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
+                />
+              )}
+              {boxes.others.map((b) => (
+                <div
+                  key={b.id}
+                  className="absolute rounded-[2px] border-2 border-accent"
+                  style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2 }}
+                />
+              ))}
+              {guides.map((g) => (
+                <div
+                  key={`${g.axis}${g.at}`}
+                  className="absolute bg-[#f43f5e]"
+                  style={
+                    g.axis === 'x'
+                      ? { left: g.at - 0.5, top: g.from, width: 1, height: g.to - g.from }
+                      : { top: g.at - 0.5, left: g.from, height: 1, width: g.to - g.from }
+                  }
+                />
+              ))}
+              {measuring &&
+                boxes.sel &&
+                boxes.hover &&
+                gapsBetween(boxes.sel, boxes.hover, scale).map((g) => (
+                  <div key={`${g.x1},${g.y1},${g.x2},${g.y2}`}>
+                    <div
+                      className="absolute bg-[#f43f5e]"
+                      style={{
+                        left: Math.min(g.x1, g.x2),
+                        top: Math.min(g.y1, g.y2),
+                        width: Math.max(1, Math.abs(g.x2 - g.x1)),
+                        height: Math.max(1, Math.abs(g.y2 - g.y1)),
+                      }}
+                    />
+                    <span
+                      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[10.5px] text-white"
+                      style={{ left: (g.x1 + g.x2) / 2, top: (g.y1 + g.y2) / 2 }}
+                    >
+                      {g.label}
+                    </span>
+                  </div>
+                ))}
+              {boxes.sel && (
+                <>
+                  <div
+                    className={cx(
+                      'absolute rounded-[2px] border-2',
+                      editing === boxes.sel.id ? 'border-accent/60' : 'border-accent',
+                    )}
+                    style={{
+                      left: boxes.sel.x - 1,
+                      top: boxes.sel.y - 1,
+                      width: boxes.sel.w + 2,
+                      height: boxes.sel.h + 2,
+                    }}
+                  />
+                  {chip && !editing && !measuring && (
+                    <div
+                      className="absolute rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
+                      style={{ left: boxes.sel.x - 1, top: Math.max(0, boxes.sel.y - 20) }}
+                    >
+                      {chip}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {indicator && (
+              <div
+                className={cx(
+                  'pointer-events-none absolute rounded-full',
+                  indicator.inside
+                    ? 'rounded-[3px] border-2 border-dashed border-accent bg-accent/8'
+                    : 'bg-accent shadow-[0_0_0_2px_white]',
+                )}
+                style={{ left: indicator.x, top: indicator.y, width: indicator.w, height: indicator.h }}
               />
             )}
-            {boxes.sel && (
-              <>
-                <div
-                  className={cx(
-                    'absolute rounded-[2px] border-2',
-                    editing === boxes.sel.id ? 'border-accent/60' : 'border-accent',
-                  )}
-                  style={{
-                    left: boxes.sel.x - 1,
-                    top: boxes.sel.y - 1,
-                    width: boxes.sel.w + 2,
-                    height: boxes.sel.h + 2,
-                  }}
+            {mode === 'design' &&
+              !preview &&
+              boxes.sel &&
+              !editing &&
+              !dragging &&
+              selectedNode &&
+              selection.length < 2 && (
+                <Handles
+                  box={boxes.sel}
+                  node={selectedNode}
+                  section={findNode(nodes, selected)?.depth === 0}
+                  onStart={startResize}
                 />
-                {chip && !editing && (
-                  <div
-                    className="absolute rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
-                    style={{ left: boxes.sel.x - 1, top: Math.max(0, boxes.sel.y - 20) }}
-                  >
-                    {chip}
-                  </div>
-                )}
-              </>
+              )}
+            {badge && boxes.sel && (
+              <div
+                className="pointer-events-none absolute -translate-x-1/2 rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
+                style={{ left: boxes.sel.x + boxes.sel.w / 2, top: boxes.sel.y + boxes.sel.h + 8 }}
+              >
+                {badge}
+              </div>
+            )}
+            {editing && boxes.sel && selectedNode?.type === 'text' && <FormatBar x={boxes.sel.x} y={boxes.sel.y} />}
+            {mode === 'content' && boxes.hover && findNode(nodes, boxes.hover.id)?.node.type === 'image' && (
+              <div
+                className="pointer-events-none absolute flex items-center justify-center"
+                style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
+              >
+                <span className="flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[12px] font-medium text-white">
+                  <ImagePlus className="size-3.5" /> Cambia immagine
+                </span>
+              </div>
+            )}
+            {marquee && (
+              <div
+                className="pointer-events-none absolute rounded-[2px] border border-accent bg-accent/10"
+                style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+              />
             )}
           </div>
-
-          {indicator && (
-            <div
-              className={cx(
-                'pointer-events-none absolute rounded-full',
-                indicator.inside
-                  ? 'rounded-[3px] border-2 border-dashed border-accent bg-accent/8'
-                  : 'bg-accent shadow-[0_0_0_2px_white]',
-              )}
-              style={{ left: indicator.x, top: indicator.y, width: indicator.w, height: indicator.h }}
-            />
-          )}
-          {mode === 'design' && !preview && boxes.sel && !editing && !dragging && selectedNode && (
-            <Handles
-              box={boxes.sel}
-              node={selectedNode}
-              section={findNode(nodes, selected)?.depth === 0}
-              onStart={startResize}
-            />
-          )}
-          {badge && boxes.sel && (
-            <div
-              className="pointer-events-none absolute -translate-x-1/2 rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
-              style={{ left: boxes.sel.x + boxes.sel.w / 2, top: boxes.sel.y + boxes.sel.h + 8 }}
-            >
-              {badge}
-            </div>
-          )}
-          {editing && boxes.sel && selectedNode?.type === 'text' && <FormatBar x={boxes.sel.x} y={boxes.sel.y} />}
-          {mode === 'content' && boxes.hover && findNode(nodes, boxes.hover.id)?.node.type === 'image' && (
-            <div
-              className="pointer-events-none absolute flex items-center justify-center"
-              style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
-            >
-              <span className="flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[12px] font-medium text-white">
-                <ImagePlus className="size-3.5" /> Cambia immagine
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>
+  )
+}
+
+/** Steps between labelled ticks, in page pixels: the first that leaves room for a label. */
+const RULER_STEPS = [5, 10, 25, 50, 100, 250, 500, 1000]
+
+/**
+ * Rulers in page pixels along the top and the left of the canvas, following scroll and zoom; the
+ * selection shows as a band on both.
+ */
+function Rulers({
+  scroller,
+  stage,
+  scale,
+  marks,
+}: {
+  scroller: React.RefObject<HTMLDivElement | null>
+  stage: React.RefObject<HTMLDivElement | null>
+  scale: number
+  marks: (Box | null)[]
+}) {
+  const top = useRef<HTMLCanvasElement>(null)
+  const left = useRef<HTMLCanvasElement>(null)
+
+  const draw = useCallback(() => {
+    const host = stage.current
+    if (!host) return
+    const s = host.getBoundingClientRect()
+    const step = RULER_STEPS.find((st) => st * scale >= 56) ?? 1000
+    const minor = step / 5
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3d5afe'
+    for (const [canvas, horizontal] of [
+      [top.current, true],
+      [left.current, false],
+    ] as const) {
+      if (!canvas) continue
+      const r = canvas.getBoundingClientRect()
+      const dpr = devicePixelRatio || 1
+      const length = horizontal ? r.width : r.height
+      canvas.width = Math.round(r.width * dpr)
+      canvas.height = Math.round(r.height * dpr)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) continue
+      ctx.scale(dpr, dpr)
+      ctx.clearRect(0, 0, r.width, r.height)
+      // Where page pixel 0 falls on this ruler.
+      const origin = horizontal ? s.left - r.left : s.top - r.top
+      ctx.fillStyle = `color-mix(in srgb, ${accent} 22%, transparent)`
+      for (const m of marks) {
+        if (!m) continue
+        if (horizontal) ctx.fillRect(origin + m.x, 0, m.w, 20)
+        else ctx.fillRect(0, origin + m.y, 20, m.h)
+      }
+      const color = getComputedStyle(canvas).color
+      ctx.strokeStyle = color
+      ctx.fillStyle = color
+      ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace'
+      ctx.lineWidth = 1
+      const first = Math.floor(-origin / scale / minor) * minor
+      const last = (length - origin) / scale
+      ctx.beginPath()
+      for (let v = first; v <= last; v += minor) {
+        const at = Math.round(origin + v * scale) + 0.5
+        const major = Math.abs(v % step) < 0.001
+        const tick = major ? 20 : 5
+        if (horizontal) {
+          ctx.moveTo(at, 20 - tick)
+          ctx.lineTo(at, 20)
+        } else {
+          ctx.moveTo(20 - tick, at)
+          ctx.lineTo(20, at)
+        }
+        if (major) {
+          if (horizontal) ctx.fillText(String(Math.round(v)), at + 3, 9)
+          else {
+            ctx.save()
+            ctx.translate(9, at - 3)
+            ctx.rotate(-Math.PI / 2)
+            ctx.fillText(String(Math.round(v)), 0, 0)
+            ctx.restore()
+          }
+        }
+      }
+      ctx.stroke()
+    }
+  }, [stage, scale, marks])
+
+  useEffect(() => {
+    draw()
+    const el = scroller.current
+    el?.addEventListener('scroll', draw, { passive: true })
+    const ro = new ResizeObserver(draw)
+    if (el) ro.observe(el)
+    if (stage.current) ro.observe(stage.current)
+    return () => {
+      el?.removeEventListener('scroll', draw)
+      ro.disconnect()
+    }
+  }, [draw, scroller, stage])
+
+  return (
+    <>
+      <canvas
+        ref={top}
+        className="pointer-events-none absolute top-0 left-5 z-10 h-5 w-[calc(100%-20px)] border-b border-line bg-panel text-fg3"
+      />
+      <canvas
+        ref={left}
+        className="pointer-events-none absolute top-5 left-0 z-10 h-[calc(100%-20px)] w-5 border-r border-line bg-panel text-fg3"
+      />
+      <div className="pointer-events-none absolute top-0 left-0 z-10 size-5 border-r border-b border-line bg-panel" />
+    </>
   )
 }
 

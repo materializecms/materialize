@@ -81,7 +81,16 @@ Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, 
 - **linee temporali**: ogni interazione può avere più fotogrammi chiave, ciascuno con la sua curva, da provare sulla tela con il cursore della linea temporale;
 - **scene WebGL**: 21 shader (sfondi, movimento, effetti su immagine) più uno scritto a mano in GLSL, forme 3D e modelli glTF (.glb caricati nella libreria media) con materiali cromo, vetro, iridescente, argilla o fil di ferro; three.js si scarica solo nelle pagine che hanno una scena 3D;
 - **componenti**: un elemento diventa riutilizzabile, con più varianti; il design vale per tutte le copie, testi, immagini e link restano di ogni copia;
-- **dati**: un contenitore può ripetersi per ogni voce di una raccolta (per esempio i progetti), e le sezioni globali, come menu e piè di pagina, valgono per tutte le pagine.
+- **dati**: un contenitore può ripetersi per ogni voce di una raccolta (per esempio i progetti), ordinata e filtrata per campo, con un pulsante “Mostra altri”; le sezioni globali, come menu e piè di pagina, valgono per tutte le pagine;
+- **stili di testo condivisi**: uno stile con nome (carattere, dimensioni per dispositivo, colore) si crea da un testo e si applica agli altri; cambiandolo, cambiano tutti.
+
+Sulla tela:
+
+- ⇧ clic (sulla tela o nei livelli) seleziona più elementi, e così un riquadro trascinato dalla tela vuota o dallo sfondo di una sezione (con ⇧, ovunque): le modifiche di stile valgono per tutti; ⌘A seleziona gli elementi vicini; trascinandone uno si spostano tutti insieme;
+- righelli in pixel della pagina lungo i bordi della tela, con la selezione evidenziata (⇧R per mostrarli o nasconderli);
+- ⌘G raggruppa la selezione in un contenitore, ⇧⌘G lo separa; ⌘D duplica, ⌫ elimina;
+- allinea e distribuisci (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): gli elementi liberi si spostano, quelli in colonna o in riga si allineano tramite il loro contenitore;
+- trascinando un elemento libero compaiono le guide magnetiche verso i bordi e i centri del contenitore e degli elementi vicini (⌘ per spostarlo senza agganci); tenendo premuto ⌥ si vedono le distanze dall’elemento sotto il puntatore.
 
 Per tutto il sito si scelgono anche scorrimento morbido, cursore personalizzato e transizioni tra le pagine. Chi ha chiesto meno movimento al proprio dispositivo vede il sito fermo. Il codice personalizzato lo inserisce solo un amministratore.
 

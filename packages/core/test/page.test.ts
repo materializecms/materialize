@@ -9,11 +9,13 @@ import {
   expandComponents,
   expandGlobals,
   findNode,
+  listEntries,
   makeComponent,
   type PageNode,
   renderPage,
   renderSections,
   updateNode,
+  withTextStyle,
 } from '../src/page.ts'
 
 const all = LIBRARY.flatMap((c) => c.variants.map((v) => v.key))
@@ -177,5 +179,61 @@ describe('lengths', () => {
     expect(cssLength('12vw')).toBe('12cqw')
     expect(cssLength('100vh')).toBe('100svh')
     expect(cssLength('10px;color:red', 'auto')).toBe('auto')
+  })
+})
+
+describe('bound lists', () => {
+  const entries = [
+    { title: 'Casa sul lago', url: '/a', data: { year: 2022, city: 'Como', tags: ['casa'] } },
+    { title: 'Loft Navigli', url: '/b', data: { year: 2024, city: 'Milano', tags: ['interni'] } },
+    { title: 'Villa nel bosco', url: '/c', data: { year: 2023, city: 'Trento', tags: ['casa', 'restauro'] } },
+  ]
+  it('filters and sorts entries', () => {
+    const byYear = listEntries(entries, { collection: 'p', sort: { field: 'year', dir: 'desc' } })
+    expect(byYear.map((e) => e.data.year)).toEqual([2024, 2023, 2022])
+    const houses = listEntries(entries, { collection: 'p', filter: { field: 'tags', op: 'eq', value: 'Casa' } })
+    expect(houses.map((e) => e.url)).toEqual(['/a', '/c'])
+    const notMilan = listEntries(entries, { collection: 'p', filter: { field: 'city', op: 'neq', value: 'milano' } })
+    expect(notMilan).toHaveLength(2)
+    const recent = listEntries(entries, { collection: 'p', filter: { field: 'year', op: 'gt', value: '2022' } })
+    expect(recent).toHaveLength(2)
+  })
+
+  it('renders the rest behind a "show more" button', () => {
+    const list: PageNode = {
+      id: 'list',
+      type: 'frame',
+      bind: { collection: 'p', limit: 2, more: true, moreLabel: 'Altri progetti' },
+      children: [{ id: 'card', type: 'text', field: 'title', text: '' }],
+    }
+    const { html } = renderSections([{ id: 's', type: 'frame', children: [list] }], DEFAULT_THEME, {
+      data: { p: entries },
+    })
+    expect(html.match(/data-mz-later/g)).toHaveLength(1)
+    expect(html).toContain('data-mz-more="n-list"')
+    expect(html).toContain('Altri progetti')
+  })
+})
+
+describe('text styles', () => {
+  it('puts the shared style under the element’s own values', () => {
+    const theme = {
+      ...DEFAULT_THEME,
+      textStyles: [
+        {
+          id: 'ts',
+          name: 'Titolo',
+          props: { style: 'h1' as const, fontSize: '4rem', italic: true },
+          over: { mobile: { fontSize: 32 } },
+        },
+      ],
+    }
+    const n: PageNode = { id: 't', type: 'text', text: 'Ciao', textStyle: 'ts', italic: false, fontSize: null }
+    const out = withTextStyle(n, theme)
+    expect(out.style).toBe('h1')
+    expect(out.fontSize).toBe('4rem')
+    expect(out.italic).toBe(false)
+    expect(out.over?.mobile?.fontSize).toBe(32)
+    expect(renderSections([{ id: 's', type: 'frame', children: [n] }], theme).css).toContain('font-size:4rem')
   })
 })
