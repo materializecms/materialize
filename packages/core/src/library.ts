@@ -1176,6 +1176,8 @@ const MORE: [string, string, string, string][] = [
   ['banner', 'inverse', 'Scuro', 'avviso'],
   ['logos', 'inverse', 'Su fondo scuro', 'clienti partner'],
   ['logos', 'quote', 'Con citazione', 'clienti recensione'],
+  ['logos', 'marquee', 'Nastro di parole', 'nastro scorrevole marquee scorre infinito parole servizi'],
+  ['logos', 'marquee-logos', 'Nastro di loghi', 'nastro scorrevole marquee scorre infinito clienti partner'],
   ['about', 'values', 'Valori', 'principi studio'],
   ['about', 'mission', 'Manifesto', 'missione frase'],
   ['about', 'stats', 'Con numeri', 'studio storia statistiche'],
@@ -1431,6 +1433,33 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
         F(
           'Loghi',
           { layout: 'row', wrap: true, gap: 40, justify: 'center', align: 'center' },
+          [1, 2, 3, 4, 5, 6].map(() => logoTile({ tone: 2 })),
+        ),
+      ])
+    case 'logos.marquee': {
+      // Big words that scroll without end; the stars are separate texts, easy to change or remove.
+      const word = (t: string, italic = false) =>
+        T('word', 'Parola', t, 'display', { width: 'hug', fontSize: '8vw', leading: 1, italic })
+      const star = () => T('star', 'Separatore', '✦', 'h2', { width: 'hug', color: 'accent', fontSize: '3vw' })
+      return S('Nastro', { size: 's', gap: 0, topline: true, divider: true, overflow: 'hidden' }, [
+        F('Nastro', { layout: 'row', gap: '4vw', align: 'center', marquee: { duration: 40 } }, [
+          word('Architettura'),
+          star(),
+          word('Interni', true),
+          star(),
+          word('Restauro'),
+          star(),
+          word('Paesaggio', true),
+          star(),
+        ]),
+      ])
+    }
+    case 'logos.marquee-logos':
+      return S('Nastro', { size: 's', gap: 24, align: 'center', overflow: 'hidden' }, [
+        T('label', 'Etichetta', 'Hanno lavorato con noi', 'eyebrow', { color: 'muted', talign: 'center' }),
+        F(
+          'Nastro',
+          { layout: 'row', gap: 64, align: 'center', marquee: { duration: 30 } },
           [1, 2, 3, 4, 5, 6].map(() => logoTile({ tone: 2 })),
         ),
       ])

@@ -167,6 +167,7 @@ export function Inspector({
   componentActions: ComponentActions
 }) {
   const p = resolveNode(view ?? node, device)
+  const hasEntrance = !!node.interactions?.some((i) => i.trigger === 'load' || i.trigger === 'view')
   const [naming, setNaming] = useState<string | null>(null)
   const bind = node.bind
   const setBind = (patch: Partial<ListBinding>) => bind && onContent({ bind: { ...bind, ...patch } })
@@ -190,7 +191,23 @@ export function Inspector({
   const sect = (keys: Key[]) => ({ overridden: over(keys), onReset: () => onReset(keys) })
   const design = { node, p, isSec, parentLayout, palette, onProp, onProps, sect }
 
-  const LAYOUT: Key[] = ['layout', 'cols', 'gap', 'align', 'justify', 'wrap', 'size']
+  const LAYOUT: Key[] = ['layout', 'cols', 'gap', 'align', 'justify', 'wrap', 'size', 'minH']
+  // On a section it sits with the layout, where it is looked for; elsewhere with the behaviour.
+  const minHeight = (
+    <Row label="Altezza min." hint="In percentuale dell’altezza dello schermo">
+      <Seg
+        value={p.minH ?? 0}
+        onChange={(v) => onProp('minH', v || null)}
+        options={[
+          { value: 0, label: 'Auto' },
+          { value: 50, label: '50%' },
+          { value: 80, label: '80%' },
+          { value: 100, label: '100%' },
+          { value: 200, label: '200%' },
+        ]}
+      />
+    </Row>
+  )
   const SIZE: Key[] = ['width', 'fixedW', 'maxW', 'padX', 'padY', 'ratio']
   const TYPE: Key[] = ['style', 'color', 'talign', 'weight', 'fontSize']
   const LOOK: Key[] = ['scheme', 'bg', 'radius', 'border', 'divider', 'topline', 'shadow', 'hover', 'variant', 'fit']
@@ -590,6 +607,21 @@ export function Inspector({
               <Toggle label="Vai a capo se non c’è spazio" checked={!!p.wrap} onChange={(v) => onProp('wrap', v)} />
             </>
           )}
+          {(p.layout ?? 'col') === 'col' && (
+            <Row label="In verticale" hint="Dove stanno gli elementi quando il contenitore è più alto di loro">
+              <Seg
+                value={p.justify ?? 'start'}
+                onChange={(v) => onProp('justify', v)}
+                options={[
+                  { value: 'start', label: 'Alto' },
+                  { value: 'center', label: 'Centro' },
+                  { value: 'end', label: 'Basso' },
+                  { value: 'between', label: 'Tra' },
+                ]}
+              />
+            </Row>
+          )}
+          {isSec && minHeight}
         </Section>
       )}
 
@@ -762,7 +794,13 @@ export function Inspector({
             <Select
               label="Schema di colori"
               value={p.scheme ?? 'default'}
-              onChange={(v) => onProp('scheme', v === 'default' ? null : v)}
+              onChange={(v) =>
+                // A scheme brings its own background: a theme color set before would cancel it out.
+                onProps({
+                  scheme: v === 'default' ? null : (v as NodeProps['scheme']),
+                  ...(v !== 'default' && typeof p.bg === 'string' && palette[p.bg] ? { bg: null } : {}),
+                })
+              }
               options={[
                 { value: 'default', label: isSec ? 'Pagina' : 'Come il contenitore' },
                 { value: 'surface', label: 'Superficie' },
@@ -893,7 +931,7 @@ export function Inspector({
       </Section>
 
       <Section
-        title="Animazione"
+        title="Entrata rapida"
         {...sect(MOTION)}
         action={
           <IconButton label="Riproduci le animazioni" onClick={onPlay} className="size-6">
@@ -901,6 +939,23 @@ export function Inspector({
           </IconButton>
         }
       >
+        <p className="text-[11px] leading-relaxed text-fg3">
+          Un effetto pronto quando l’elemento compare. Per linee temporali, scroll e mouse usa Interazioni, qui sotto.
+        </p>
+        {hasEntrance && p.anim && p.anim !== 'none' && (
+          <div className="flex items-center gap-2 rounded-lg bg-warn/10 px-2.5 py-2 text-[11.5px] text-fg2">
+            <span className="min-w-0 flex-1">
+              Si somma a un’interazione di entrata: i due effetti si sovrappongono.
+            </span>
+            <button
+              type="button"
+              onClick={() => onProp('anim', 'none')}
+              className="shrink-0 font-medium text-accent underline"
+            >
+              Tieni l’interazione
+            </button>
+          </div>
+        )}
         <Chips
           value={p.anim ?? 'none'}
           options={ANIMATIONS}
@@ -964,29 +1019,22 @@ export function Inspector({
         )}
       </Section>
 
-      <PositionSection {...design} />
-      <EffectsSection {...design} />
-
       <InteractionsSection
         node={node}
-        onChange={(interactions, group) => onContent({ interactions }, group)}
+        onChange={(interactions, group) => {
+          // A new entrance interaction takes over from the quick entrance, instead of stacking on it.
+          const entrance = interactions?.some((i) => i.trigger === 'load' || i.trigger === 'view')
+          const clear = entrance && !hasEntrance && p.anim && p.anim !== 'none'
+          onContent(clear ? { interactions, anim: 'none' } : { interactions }, group)
+        }}
         onPreview={onPreview}
       />
 
+      <PositionSection {...design} />
+      <EffectsSection {...design} />
+
       <Section title="Comportamento" {...sect(['sticky', 'stickyTop', 'minH'])}>
-        <Row label="Altezza min." hint="In percentuale dell’altezza dello schermo">
-          <Seg
-            value={p.minH ?? 0}
-            onChange={(v) => onProp('minH', v || null)}
-            options={[
-              { value: 0, label: 'Auto' },
-              { value: 50, label: '50%' },
-              { value: 80, label: '80%' },
-              { value: 100, label: '100%' },
-              { value: 200, label: '200%' },
-            ]}
-          />
-        </Row>
+        {!isSec && minHeight}
         {isSec && (
           <>
             <Toggle

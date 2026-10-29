@@ -1,6 +1,6 @@
 import { buildSection, LIBRARY } from '@materializecms/core/library'
 import { type Component, type PageNode, pageRootStyle, renderSections, type Theme } from '@materializecms/core/page'
-import { Code, Image as ImageIcon, MousePointerClick, Rows3, Search, Sparkles, Type, Video } from 'lucide-react'
+import { Code, Image as ImageIcon, MousePointerClick, Rows3, Search, Sparkles, Trash2, Type, Video } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Kbd } from '../components/ui.tsx'
 import { DRAG_ELEMENT, DRAG_SECTION } from './Canvas.tsx'
@@ -29,6 +29,7 @@ export function Library({
   onAddGlobal,
   components,
   onAddComponent,
+  onRemoveComponent,
 }: {
   theme: Theme
   brand: string
@@ -36,16 +37,26 @@ export function Library({
   onAddGlobal: (id: string) => void
   components: Record<string, Component>
   onAddComponent: (id: string) => void
+  /** Takes a component out of the library; copies already on pages stay as they are. */
+  onRemoveComponent: (id: string) => void
   onAddElement: (kind: ElementKind) => void
   onAddSection: (key: string) => void
 }) {
   const [cat, setCat] = useState('all')
   const [query, setQuery] = useState('')
-  const q = query.trim().toLowerCase()
-  const groups = LIBRARY.filter((c) => cat === 'all' || c.key === cat)
+  // Without accents and across every category: "pie" finds "Piè", a search ignores the chosen chip.
+  const fold = (t: string) =>
+    t
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+  const q = fold(query.trim())
+  const groups = LIBRARY.filter((c) => q || cat === 'all' || c.key === cat)
     .map((c) => ({
       ...c,
-      variants: c.variants.filter((v) => !q || `${c.label} ${v.label} ${v.keywords}`.toLowerCase().includes(q)),
+      variants: c.variants.filter(
+        (v) => !q || q.split(/\s+/).every((w) => fold(`${c.label} ${v.label} ${v.keywords}`).includes(w)),
+      ),
     }))
     .filter((c) => c.variants.length)
 
@@ -73,11 +84,12 @@ export function Library({
     () =>
       Object.values(components).flatMap((c) => {
         const node = c.variants[0]?.node
-        if (!node) return []
+        if (!node || c.archived) return []
         const out = renderSections([node], theme, { animations: 'none', base: false })
         return [
           {
             id: c.id,
+            name: c.name,
             label: `${c.name} · ${c.variants.length === 1 ? '1 variante' : `${c.variants.length} varianti`}`,
             ...out,
           },
@@ -153,14 +165,27 @@ export function Library({
             </h3>
             <div className="space-y-2.5">
               {componentPreviews.map((g) => (
-                <Tile
-                  key={g.id}
-                  id={`component:${g.id}`}
-                  label={g.label}
-                  html={g.html}
-                  root={pageRootStyle(theme)}
-                  onAdd={() => onAddComponent(g.id)}
-                />
+                <div key={g.id} className="group/c relative">
+                  <Tile
+                    id={`component:${g.id}`}
+                    label={g.label}
+                    html={g.html}
+                    root={pageRootStyle(theme)}
+                    onAdd={() => onAddComponent(g.id)}
+                  />
+                  <button
+                    type="button"
+                    title="Togli dalla libreria"
+                    aria-label={`Togli “${g.name}” dalla libreria`}
+                    onClick={() => {
+                      if (confirm(`Togliere “${g.name}” dalla libreria? Le copie già nelle pagine restano com’erano.`))
+                        onRemoveComponent(g.id)
+                    }}
+                    className="absolute right-1.5 bottom-1 flex size-6 items-center justify-center rounded-md text-fg3 opacity-0 group-hover/c:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100 [&_svg]:size-3.5"
+                  >
+                    <Trash2 />
+                  </button>
+                </div>
               ))}
             </div>
           </section>

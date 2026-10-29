@@ -114,6 +114,7 @@ export function Canvas({
   onPatch,
   onSelectMany,
   rulers = false,
+  typeAhead,
   onDropNew,
   preview = false,
   data,
@@ -145,6 +146,8 @@ export function Canvas({
   onSelectMany: (ids: string[]) => void
   /** Rulers along the top and left edges, in page pixels. */
   rulers?: boolean
+  /** Characters typed on a selected text before editing began, inserted once it starts. */
+  typeAhead?: React.RefObject<string>
   /** A section or element dragged in from the library. */
   onDropNew: (item: { section?: string; element?: string }, target: DropTarget | null, sectionIndex: number) => void
   /** Interactive preview: the page behaves as on the site, nothing is selectable. */
@@ -271,10 +274,16 @@ export function Canvas({
     el.focus()
     const range = document.createRange()
     range.selectNodeContents(el)
-    if (mode === 'content') range.collapse(false)
+    // Typing on a selected text starts editing it: the letters go at the end, nothing is replaced.
+    const seed = typeAhead?.current ?? ''
+    if (mode === 'content' || seed) range.collapse(false)
     const sel = getSelection()
     sel?.removeAllRanges()
     sel?.addRange(range)
+    if (seed && typeAhead) {
+      typeAhead.current = ''
+      document.execCommand('insertText', false, seed)
+    }
 
     const commit = () => {
       el.contentEditable = 'false'
@@ -767,6 +776,7 @@ export function Canvas({
   }
 
   const selectedNode = findNode(nodes, selected)?.node
+  const hoverNode = boxes.hover ? findNode(nodes, boxes.hover.id)?.node : null
   const chip =
     boxes.sel && selectedNode
       ? selection.length > 1
@@ -845,6 +855,15 @@ export function Canvas({
                   className="absolute rounded-[2px] border border-accent/70"
                   style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
                 />
+              )}
+              {/* What a click would select, named before clicking (small texts sit close together). */}
+              {boxes.hover && hoverNode && !dragging && !measuring && mode === 'design' && (
+                <div
+                  className="absolute rounded-[3px] bg-accent/85 px-1 font-mono text-[10px] whitespace-nowrap text-white"
+                  style={{ left: boxes.hover.x, top: boxes.hover.y + boxes.hover.h + 2 }}
+                >
+                  {hoverNode.name || typeLabel(hoverNode)}
+                </div>
               )}
               {boxes.others.map((b) => (
                 <div

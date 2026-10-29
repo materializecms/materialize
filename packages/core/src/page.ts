@@ -784,6 +784,8 @@ export interface Component {
   name: string
   /** Made from a whole section: copies go between sections. */
   section?: boolean
+  /** Taken out of the library: no new copies, the existing ones keep working. */
+  archived?: boolean
   variants: { id: string; name: string; node: PageNode }[]
 }
 

@@ -311,6 +311,12 @@ export function ColorField({
         />
       </label>
       {custom && <span className="font-mono text-[10.5px] text-fg3 uppercase">{value}</span>}
+      {/* The chosen theme color by name: the swatches alone do not say it. */}
+      {!custom && (
+        <span className="w-full text-[10.5px] text-fg3">
+          {value ? (TOKENS.find((t) => t.value === value)?.label ?? value) : (none ?? '')}
+        </span>
+      )}
     </div>
   )
 }

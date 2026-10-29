@@ -59,7 +59,7 @@ describe('renderSections', () => {
   it('animates on scroll only where supported, and never for reduced motion', () => {
     expect(css).toContain('@supports (animation-timeline:view())')
     expect(css).toMatch(/@media \(prefers-reduced-motion:no-preference\)\{[^@]*animation:mz/)
-    expect(renderSections(sections, DEFAULT_THEME, { animations: 'none' }).css).not.toMatch(/animation:mz/)
+    expect(renderSections(sections, DEFAULT_THEME, { animations: 'none' }).css).not.toMatch(/animation:mz(?!Marquee)/)
   })
 
   it('escapes text and refuses script links', () => {

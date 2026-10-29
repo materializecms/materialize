@@ -253,6 +253,7 @@ export function PageEditor({
     null,
   )
   const clipboard = useRef<PageNode | null>(null)
+  const typeAhead = useRef('')
 
   const themeQuery = useQuery({ queryKey: ['theme'], queryFn: api.theme, staleTime: Infinity })
   const theme = themeQuery.data?.theme ?? DEFAULT_THEME
@@ -787,15 +788,41 @@ export function PageEditor({
       } else if (id && e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault()
         move(id, e.key === 'ArrowUp' ? -1 : 1)
+      } else if (id && e.key === 'Tab' && !mod && !e.altKey) {
+        // Next or previous element in the same container, as in Figma.
+        e.preventDefault()
+        const f = findNode(nodesRef.current, id)
+        if (f?.siblings.length) {
+          const n = f.siblings.length
+          const next = f.siblings[(f.index + (e.shiftKey ? n - 1 : 1)) % n]
+          if (next) setSelected(next.id)
+        }
       } else if (id && e.key === 'Enter') {
         const n = findNode(nodesRef.current, id)?.node
         if (n?.type === 'text' || n?.type === 'button') {
           e.preventDefault()
           setEditing(id)
+        } else if (n?.children?.[0]) {
+          // Into a container: its first element.
+          e.preventDefault()
+          setSelected(n.children[0].id)
         }
       } else if (!mod && !e.altKey && e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault()
         setRulers(!rulers)
+      } else if (
+        id &&
+        !mod &&
+        !e.altKey &&
+        e.key.length === 1 &&
+        /\S/.test(e.key) &&
+        selectionRef.current.length === 1 &&
+        ['text', 'button'].includes(findNode(nodesRef.current, id)?.node.type ?? '')
+      ) {
+        // A selected text takes what is typed, instead of the letters adding elements by accident.
+        e.preventDefault()
+        typeAhead.current += e.key
+        setEditing(id)
       } else if (!mod && !e.altKey && mode === 'design') {
         const kind = ({ f: 'frame', t: 'text', i: 'image', b: 'button', v: 'video', c: 'embed', g: 'scene' } as const)[
           e.key.toLowerCase()
@@ -910,6 +937,10 @@ export function PageEditor({
             globals={globals}
             components={components}
             onAddComponent={componentActions.insert}
+            onRemoveComponent={(cid) => {
+              const def = componentsRef.current[cid]
+              if (def) storeComponents({ ...componentsRef.current, [cid]: { ...def, archived: true } })
+            }}
             onAddGlobal={(gid) => {
               const f = findNode(nodesRef.current, selected)
               const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
@@ -1075,6 +1106,7 @@ export function PageEditor({
               if (editing) setEditing(null)
             }}
             rulers={rulers}
+            typeAhead={typeAhead}
             onDropNew={(item, target, sectionIndex) => {
               if (item.section) {
                 if (item.section.startsWith('component:')) {
