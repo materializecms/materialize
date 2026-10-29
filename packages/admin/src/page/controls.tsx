@@ -235,3 +235,144 @@ export function Chips<T extends string>({
     </div>
   )
 }
+
+const TOKENS: { value: string; label: string }[] = [
+  { value: 'text', label: 'Testo' },
+  { value: 'muted', label: 'Tenue' },
+  { value: 'accent', label: 'Accento' },
+  { value: 'bg', label: 'Sfondo' },
+  { value: 'surface', label: 'Superficie' },
+  { value: 'inverse', label: 'Inverso' },
+  { value: 'onAccent', label: 'Su accento' },
+  { value: 'onInverse', label: 'Su inverso' },
+]
+
+/** A theme color (follows the theme) or any color picked freely. */
+export function ColorField({
+  value,
+  onChange,
+  palette,
+  none,
+}: {
+  value: string | null | undefined
+  onChange: (value: string | null) => void
+  palette: Record<string, string>
+  /** Label of the empty choice, when there is one. */
+  none?: string
+}) {
+  const custom = !!value && !palette[value]
+  const shown = value ? (palette[value] ?? value) : 'transparent'
+  return (
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+      {none && (
+        <button
+          type="button"
+          title={none}
+          aria-label={none}
+          aria-pressed={!value}
+          onClick={() => onChange(null)}
+          className={cx(
+            'relative size-6 overflow-hidden rounded-md border border-line2 bg-panel after:absolute after:top-1/2 after:left-[-2px] after:h-px after:w-[30px] after:-rotate-45 after:bg-danger',
+            !value && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
+          )}
+        />
+      )}
+      {TOKENS.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          title={t.label}
+          aria-label={t.label}
+          aria-pressed={value === t.value}
+          onClick={() => onChange(t.value)}
+          style={{ background: palette[t.value] }}
+          className={cx(
+            'size-6 rounded-md border border-black/15',
+            value === t.value && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
+          )}
+        />
+      ))}
+      <label
+        title="Colore libero"
+        className={cx(
+          'relative size-6 cursor-pointer overflow-hidden rounded-md border border-black/15 bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]',
+          custom && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
+        )}
+      >
+        <input
+          type="color"
+          aria-label="Colore libero"
+          value={/^#[0-9a-f]{6}$/i.test(shown) ? shown : '#000000'}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 cursor-pointer opacity-0"
+        />
+      </label>
+      {custom && <span className="font-mono text-[10.5px] text-fg3 uppercase">{value}</span>}
+    </div>
+  )
+}
+
+const LEN_UNITS = ['px', '%', 'em', 'rem', 'vw', 'vh', 'ch'] as const
+
+/**
+ * A length with its unit: pixels by default, or %, em, rem, vw, vh, ch. Pixels are stored as plain
+ * numbers, other units as "50%". Arrow keys and dragging the label change the number.
+ */
+export function LenField({
+  value,
+  onChange,
+  min = 0,
+  max = 4000,
+  label,
+  placeholder,
+}: {
+  value: number | string | null | undefined
+  onChange: (value: number | string | null) => void
+  min?: number
+  max?: number
+  label?: string
+  placeholder?: string
+}) {
+  const parsed =
+    typeof value === 'number'
+      ? { n: value, unit: 'px' }
+      : typeof value === 'string' && /^(-?\d*\.?\d+)(px|%|em|rem|vw|vh|svh|ch)$/.test(value)
+        ? {
+            n: Number(value.replace(/[a-z%]+$/, '')),
+            unit: (value.match(/[a-z%]+$/)?.[0] ?? 'px').replace('svh', 'vh'),
+          }
+        : { n: null, unit: 'px' }
+  const [unit, setUnit] = useState(parsed.unit)
+  useEffect(() => setUnit(parsed.unit), [parsed.unit])
+  const fine = unit === 'em' || unit === 'rem'
+  const emit = (n: number | null, u = unit) => onChange(n === null ? null : u === 'px' ? n : `${n}${u}`)
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1">
+      <NumField
+        value={parsed.n}
+        onChange={(n) => emit(n)}
+        unit=""
+        min={unit === 'px' ? min : Math.min(min, 0) && -100}
+        max={unit === 'px' ? max : unit === '%' || unit.startsWith('v') ? 1000 : 100}
+        step={fine ? 0.05 : 1}
+        label={label}
+        placeholder={placeholder}
+      />
+      <select
+        aria-label="Unità di misura"
+        value={unit}
+        onChange={(e) => {
+          setUnit(e.target.value)
+          if (parsed.n !== null) emit(parsed.n, e.target.value)
+        }}
+        className="h-7 w-12 shrink-0 rounded-md border border-line2 bg-input px-0.5 font-mono text-[11px] text-fg2 outline-none focus:border-accent"
+      >
+        {LEN_UNITS.map((u) => (
+          <option key={u} value={u}>
+            {u}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}

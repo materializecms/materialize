@@ -72,6 +72,19 @@ Nei template le relazioni arrivano già risolte: un campo `relation` contiene i 
 
 In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si vede subito. In produzione (`materialize start`) il sito è fatto di file statici e si rigenera da solo dopo ogni pubblicazione, di solito in meno di un secondo: la nuova versione sostituisce la precedente solo quando è completa.
 
+## L’editor delle pagine
+
+Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, immagini, pulsanti, video, codice, scene WebGL), partendo da una libreria di oltre 100 sezioni. Ogni elemento ha:
+
+- **design libero**: disposizione in riga, colonna o griglia, posizione libera e livelli, colori e sfumature, tipografia per elemento, bordi, ombre, fusione, filtri ed effetto vetro, con modifiche separate per tablet e mobile;
+- **interazioni**: all’apertura, all’ingresso nello schermo, con lo scroll, al passaggio o al movimento del mouse, al clic; testi che entrano per parole o lettere, contatori, parallasse, elementi fissi durante lo scroll, nastri scorrevoli;
+- **linee temporali**: ogni interazione può avere più fotogrammi chiave, ciascuno con la sua curva, da provare sulla tela con il cursore della linea temporale;
+- **scene WebGL**: 21 shader (sfondi, movimento, effetti su immagine) più uno scritto a mano in GLSL, forme 3D e modelli glTF (.glb caricati nella libreria media) con materiali cromo, vetro, iridescente, argilla o fil di ferro; three.js si scarica solo nelle pagine che hanno una scena 3D;
+- **componenti**: un elemento diventa riutilizzabile, con più varianti; il design vale per tutte le copie, testi, immagini e link restano di ogni copia;
+- **dati**: un contenitore può ripetersi per ogni voce di una raccolta (per esempio i progetti), e le sezioni globali, come menu e piè di pagina, valgono per tutte le pagine.
+
+Per tutto il sito si scelgono anche scorrimento morbido, cursore personalizzato e transizioni tra le pagine. Chi ha chiesto meno movimento al proprio dispositivo vede il sito fermo. Il codice personalizzato lo inserisce solo un amministratore.
+
 ## Caratteri
 
 Nella scheda **Stili** dell’editor si può scegliere qualsiasi Google Font (circa 2000). I file non vengono caricati da Google: Materialize li scarica una volta da Fontsource, li conserva in `.materialize/fonts` e li serve dal sito stesso su `/fonts/…`, così i visitatori non contattano terze parti. Con `materialize build` i caratteri usati finiscono in `dist/` insieme alle pagine.

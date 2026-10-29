@@ -17,14 +17,18 @@ export const WIDTHS = [320, 640, 960, 1280, 1600, 1920, 2560]
 export const OUTPUTS = { avif: 'image/avif', webp: 'image/webp', jpg: 'image/jpeg', png: 'image/png' } as const
 export type Output = keyof typeof OUTPUTS
 
-const KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(jpg|png|webp|gif|avif)$/
+const KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*\.(jpg|png|webp|gif|avif|glb)$/
 const TYPES: Record<string, string> = {
   jpg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
   gif: 'image/gif',
   avif: 'image/avif',
+  glb: 'model/gltf-binary',
 }
+
+/** A binary glTF 2 file: "glTF", version 2, then its declared length. */
+const isGlb = (b: Buffer) => b.length > 20 && b.toString('latin1', 0, 4) === 'glTF' && b.readUInt32LE(4) === 2
 
 export class MediaError extends Error {}
 
@@ -42,11 +46,19 @@ export function createMediaFiles(dir: string) {
      * (camera details, GPS position), so publishing a picture never publishes where it was taken.
      */
     async save(name: string, input: Buffer) {
+      // 3D models for WebGL scenes, kept as they are.
+      if (isGlb(input)) {
+        const base = slugify(name.replace(/\.[^.]+$/, ''), 48) || 'modello'
+        const key = `${base}-${randomBytes(4).toString('hex')}.glb`
+        await mkdir(root, { recursive: true })
+        await writeFile(join(root, key), input)
+        return { key, mime: TYPES.glb as string, size: input.length, width: null, height: null }
+      }
       let meta: Metadata
       try {
         meta = await sharp(input, { animated: true }).metadata()
       } catch {
-        throw new MediaError('Il file non è un’immagine leggibile')
+        throw new MediaError('Il file non è un’immagine leggibile né un modello 3D (.glb)')
       }
       const format = meta.format as SourceFormat
       if (!(format in FORMATS)) throw new MediaError('Formato non supportato: usa JPG, PNG, WebP, AVIF o GIF')
@@ -81,7 +93,7 @@ export function createMediaFiles(dir: string) {
       if (!isMediaKey(key)) return null
       const original = join(root, key)
       if (!(await stat(original).catch(() => null))?.isFile()) return null
-      if (!variant || key.endsWith('.gif')) {
+      if (!variant || key.endsWith('.gif') || key.endsWith('.glb')) {
         return { path: original, type: TYPES[key.split('.').pop() as string] as string }
       }
       const width = WIDTHS.find((w) => w >= variant.width) ?? (WIDTHS[WIDTHS.length - 1] as number)

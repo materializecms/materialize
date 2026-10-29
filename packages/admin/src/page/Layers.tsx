@@ -1,26 +1,35 @@
 import { findNode, type PageNode } from '@materializecms/core/page'
 import {
   ChevronRight,
+  Code,
   Columns3,
+  Component as ComponentIcon,
   Eye,
   EyeOff,
   FileText,
+  Globe,
   Image as ImageIcon,
   LayoutGrid,
   LayoutTemplate,
   MousePointerClick,
   Rows3,
+  Sparkles,
   Type,
+  Video,
 } from 'lucide-react'
 import { type DragEvent, useEffect, useState } from 'react'
 import { cx } from '../components/ui.tsx'
 import { typeLabel } from './Canvas.tsx'
 
 export function nodeIcon(n: PageNode, depth: number) {
+  if (n.component) return <ComponentIcon className="text-[#8b5cf6]" />
   if (n.type === 'text') return <Type />
   if (n.type === 'image') return <ImageIcon />
   if (n.type === 'button') return <MousePointerClick />
-  if (depth === 0) return <LayoutTemplate />
+  if (n.type === 'video') return <Video />
+  if (n.type === 'embed') return <Code />
+  if (n.type === 'scene') return <Sparkles />
+  if (depth === 0) return n.global ? <Globe /> : <LayoutTemplate />
   if (n.layout === 'row') return <Columns3 />
   if (n.layout === 'grid') return <LayoutGrid />
   return <Rows3 />

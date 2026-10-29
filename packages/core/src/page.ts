@@ -41,28 +41,117 @@ export interface Run {
   href?: string
 }
 
+/** A length: a number of pixels, or a CSS length with its unit ("50%", "2rem", "10vw"…). */
+export type Length = number | string
+
+export const UNITS = ['px', '%', 'em', 'rem', 'vw', 'vh', 'ch'] as const
+const LENGTH = /^(-?\d*\.?\d+)(px|%|em|rem|vw|vh|svh|ch)$/
+
+/** A Length as CSS; anything that is not a plain number with a known unit is ignored. */
+export function cssLength(v: Length | null | undefined, fallback = '0px'): string {
+  if (v === null || v === undefined || v === '') return fallback
+  if (typeof v === 'number') return Number.isFinite(v) ? `${v}px` : fallback
+  const m = LENGTH.exec(v.trim())
+  if (!m) return fallback
+  // Screen heights follow the visible area on phones; widths follow the page, which on the site is
+  // the screen and in the editor is the device being shown.
+  return m[2] === 'vh' ? `${m[1]}svh` : m[2] === 'vw' ? `${m[1]}cqw` : `${m[1]}${m[2]}`
+}
+
+/** The number and the unit of a Length, for editing. */
+export function splitLength(v: Length | null | undefined): { n: number | null; unit: string } {
+  if (v === null || v === undefined || v === '') return { n: null, unit: 'px' }
+  if (typeof v === 'number') return { n: v, unit: 'px' }
+  const m = LENGTH.exec(v.trim())
+  return m ? { n: Number(m[1]), unit: m[2] === 'svh' ? 'vh' : (m[2] as string) } : { n: null, unit: 'px' }
+}
+
 export interface NodeProps {
   name?: string
   hidden?: boolean
   width?: 'fill' | 'hug' | 'fixed'
-  fixedW?: number
-  maxW?: number | null
-  padX?: number
-  padY?: number
-  radius?: number | 'btn' | 'card'
+  fixedW?: Length
+  maxW?: Length | null
+  padX?: Length
+  padY?: Length
+  radius?: Length | 'btn' | 'card'
   border?: boolean
   divider?: boolean
   topline?: boolean
   shadow?: 'none' | 'sm' | 'lg'
-  bg?: ColorToken | null
+  /** A theme color, or any CSS color. */
+  bg?: ColorToken | string | null
   anim?: Animation
   animDur?: 's' | 'm' | 'l'
   animDelay?: 0 | 1 | 2 | 3
   animTrig?: 'load' | 'scroll'
   hover?: 'none' | 'lift' | 'grow' | 'dim' | 'zoomimg'
+  /** Interactions played by the motion runtime (scroll, hover, click, pointer…). */
+  interactions?: Interaction[] | null
+  /** Stays in place while its container scrolls past (position: sticky); on a section, a fixed menu. */
+  sticky?: boolean
+  /** Fixed section: hides while scrolling down, comes back when scrolling up. */
+  stickyHide?: boolean
+  /** Fixed section: frosted glass once the page has scrolled. */
+  stickyGlass?: boolean
+  /** Fixed section: lies over the section below instead of pushing it down. */
+  stickyOverlay?: boolean
+  stickyTop?: Length
+  /** Minimum height, in percent of the screen height. */
+  minH?: number | null
+  /** Background gradient (colors are theme tokens or CSS colors). */
+  gradient?: Gradient | null
+  /** Text filled with a gradient. */
+  textGradient?: Gradient | null
+  /** A font for this element only (otherwise the theme's). */
+  font?: { family: string; category?: string } | null
+  /** Letter spacing in em, line height as a multiple of the size. */
+  tracking?: number | null
+  leading?: number | null
+  italic?: boolean
+  upper?: boolean
+  /** Free placement inside the container, in px from its edges. */
+  pos?: 'flow' | 'absolute'
+  top?: Length | null
+  left?: Length | null
+  right?: Length | null
+  bottom?: Length | null
+  z?: number | null
+  /** Rotation in degrees and opacity 0–1, at rest. */
+  rot?: number | null
+  opa?: number | null
+  blend?: 'normal' | 'multiply' | 'screen' | 'overlay' | 'difference' | 'exclusion' | 'soft-light' | null
+  blurFx?: number | null
+  gray?: number | null
+  /** Frosted glass: blur of what is behind, in px. */
+  glass?: number | null
+  /** Height: px, or percent of the screen height. */
+  h?: Length | null
+  hUnit?: 'px' | 'vh'
+  /** Columns and rows taken in a grid. */
+  span?: number | null
+  rowSpan?: number | null
+  borderW?: Length | null
+  borderColor?: ColorToken | string | null
+  overflow?: 'visible' | 'hidden' | null
+  // video
+  poster?: string | null
+  controls?: boolean
+  // embed
+  html?: string
+  /** A WebGL scene: the element itself (type "scene") or a frame's background. */
+  scene?: SceneConfig | null
+  /** Section address for links within the page: #anchor. */
+  anchor?: string | null
+  /** A list fed by a collection: the first child is repeated for each entry. */
+  bind?: { collection: string; limit?: number } | null
+  /** Inside a bound list: which field of the entry fills this element ("title", "url", or a field name). */
+  field?: string | null
+  /** A frame whose children scroll endlessly sideways. */
+  marquee?: { duration: number; reverse?: boolean } | null
   // frame
   layout?: 'col' | 'row' | 'grid'
-  gap?: number
+  gap?: Length
   align?: 'start' | 'center' | 'end' | 'stretch'
   justify?: 'start' | 'center' | 'end' | 'between'
   wrap?: boolean
@@ -77,9 +166,9 @@ export interface NodeProps {
   text?: string
   runs?: Run[] | null
   style?: TextStyle
-  color?: ColorToken
+  color?: ColorToken | string
   talign?: 'left' | 'center' | 'right'
-  fontSize?: number | null
+  fontSize?: Length | null
   weight?: number | null
   // image
   src?: string | null
@@ -94,9 +183,73 @@ export interface NodeProps {
   variant?: 'primary' | 'secondary' | 'ghost'
 }
 
+/** A WebGL scene: a preset shader with its colors and how it reacts. */
+export interface SceneConfig {
+  preset:
+    | 'mesh'
+    | 'waves'
+    | 'aurora'
+    | 'marble'
+    | 'particles'
+    | 'liquid'
+    | 'grain'
+    | 'plasma'
+    | 'tunnel'
+    | 'ripples'
+    | 'lines'
+    | 'dots'
+    | 'smoke'
+    | 'stars'
+    | 'cells'
+    | 'silk'
+    | 'prism'
+    | 'distort'
+    | 'halftone'
+    | 'glitch'
+    | 'pixel'
+    | 'model'
+    | 'shapes'
+    | 'custom'
+  /** Three colors: theme tokens or CSS colors. */
+  colors?: [string, string, string]
+  speed?: number
+  intensity?: number
+  /** How much the pointer and the scroll move it (0–2). */
+  mouse?: number
+  scroll?: number
+  /** distort: the picture to bend. */
+  image?: string | null
+  /** custom: the body of a GLSL fragment shader (void main(){…}). */
+  code?: string
+  /** model: a .glb file; shapes: which generated shape. */
+  model?: string | null
+  shape?: 'blob' | 'knot' | 'torus' | 'cube' | 'spheres' | 'rings'
+  /** 3D surfaces; "original" keeps the model's own. */
+  material?: 'chrome' | 'glass' | 'clay' | 'iridescent' | 'wire' | 'original'
+  /** 3D: turning speed and camera distance. */
+  rotate?: number
+  zoom?: number
+  /** 3D: no background, the section shows through. */
+  transparent?: boolean
+}
+
+export interface Gradient {
+  from: string
+  to: string
+  angle: number
+}
+
 export interface PageNode extends NodeProps {
   id: string
-  type: 'frame' | 'text' | 'image' | 'button'
+  /** A copy of a reusable component: its design comes from the component, its content can be its own. */
+  component?: string
+  /** Which variant of the component this copy shows. */
+  componentVariant?: string
+  /** Content this copy changes, by the id of the element inside the component. */
+  overrides?: Record<string, Partial<NodeProps>> | null
+  /** A section shared by every page that uses it (menu, footer): the content lives in the site's globals. */
+  global?: string
+  type: 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene'
   /** Library origin of a section ("hero.split"), shown in the layers. */
   section?: string
   children?: PageNode[]
@@ -126,6 +279,65 @@ export interface Theme {
   scale: number
   btnRadius: number
   cardRadius: number
+  /** Site-wide experience: inertial scrolling, custom cursor, transitions between pages. */
+  smoothScroll?: boolean
+  cursor?: 'default' | 'dot' | 'ring'
+  transition?: 'none' | 'fade' | 'slide'
+}
+
+/** What an interaction changes: offsets in px, rotations in degrees, opacity 0–1, blur in px, clip in %. */
+export interface MotionProps {
+  x?: number
+  y?: number
+  scale?: number
+  rotate?: number
+  rx?: number
+  ry?: number
+  opacity?: number
+  blur?: number
+  clip?: number
+}
+
+export type Ease = 'linear' | 'out' | 'inOut' | 'expo' | 'back' | 'spring'
+
+export interface Keyframe {
+  id: string
+  /** Where on the timeline, 0–1. */
+  at: number
+  props: MotionProps
+  /** The curve that leads to this keyframe from the previous one. */
+  ease?: Ease
+}
+
+export interface Interaction {
+  id: string
+  /**
+   * load: when the page opens · view: when it enters the screen · scroll: follows the scroll ·
+   * hover: while the pointer is over it · click: toggles on click · mouse: follows the pointer.
+   */
+  trigger: 'load' | 'view' | 'scroll' | 'hover' | 'click' | 'mouse'
+  from?: MotionProps
+  to?: MotionProps
+  /**
+   * A timeline: states at points of the progress (0–1), each reached with its own curve.
+   * When there are two or more, they replace from/to.
+   */
+  keys?: Keyframe[] | null
+  /** Seconds. */
+  duration?: number
+  delay?: number
+  ease?: Ease
+  /** view: play only the first time. */
+  once?: boolean
+  /** scroll: the part of the element's way through the screen that drives the animation (0–1). */
+  range?: [number, number]
+  /** Text only: animate each word or letter, one after the other. */
+  split?: 'none' | 'words' | 'chars'
+  stagger?: number
+  /** Counts up to the number in the text. */
+  count?: boolean
+  /** Where the clip reveals from. */
+  clipSide?: 'bottom' | 'top' | 'left' | 'right'
 }
 
 export const DEFAULT_THEME: Theme = {
@@ -186,6 +398,15 @@ export const fontId = (family: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
+
+/** Every font a page uses: the theme's and those chosen for single elements. */
+export function pageFontLinks(theme: Theme, nodes: PageNode[] = []): string[] {
+  const families = new Set([theme.display, theme.body])
+  walk(nodes, (n) => {
+    if (n.font?.family) families.add(n.font.family)
+  })
+  return [...families].filter((f) => !FONTS[f]).map((f) => `/fonts/${fontId(f)}.css`)
+}
 
 /**
  * Stylesheets for the theme's fonts that are not bundled with the site, served by Materialize
@@ -406,10 +627,17 @@ const SCHEME_MAPS: Record<string, Record<string, string>> = {
   },
 }
 
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\)|transparent)$/i
+
 function color(C: Palette, token: string, scheme: string): string {
   const k = SCHEME_MAPS[scheme]?.[token] ?? token
-  return C[k] ?? token
+  if (C[k]) return C[k] as string
+  // A color picked freely; anything else could break out of the stylesheet.
+  return SAFE_COLOR.test(token.trim()) ? token.trim() : 'inherit'
 }
+
+const gradientCss = (g: Gradient, col: (t: string) => string) =>
+  `linear-gradient(${Math.round(Number(g.angle) || 0)}deg, ${col(g.from)}, ${col(g.to)})`
 
 // ---------- rendering ----------
 
@@ -425,6 +653,181 @@ export interface RenderOptions {
   srcset?: (src: string) => string | undefined
   /** Leave out the shared base styles (when several renders share one stylesheet). */
   base?: boolean
+  /** Entries of the collections that bound lists show, by collection name. */
+  data?: Record<string, BoundEntry[]>
+}
+
+/** What a bound list needs from an entry. */
+export interface BoundEntry {
+  title: string
+  url: string | null
+  data: Record<string, unknown>
+}
+
+/** A value of an entry for a bound element: "title" and "url" first, then the entry's own fields. */
+export function entryValue(entry: BoundEntry, field: string): unknown {
+  if (field === 'title') return entry.title
+  if (field === 'url') return entry.url
+  return field
+    .split('.')
+    .reduce<unknown>((v, k) => (v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), entry.data)
+}
+
+/** A reusable component: one or more variants of the same element, shared by every page. */
+export interface Component {
+  id: string
+  name: string
+  /** Made from a whole section: copies go between sections. */
+  section?: boolean
+  variants: { id: string; name: string; node: PageNode }[]
+}
+
+/** What a copy of a component keeps for itself: its content and where it sits. */
+export const OVERRIDE_KEYS = ['text', 'runs', 'src', 'alt', 'href', 'newTab', 'poster', 'focal'] as const
+const PLACEMENT_KEYS = [
+  'pos',
+  'top',
+  'left',
+  'right',
+  'bottom',
+  'z',
+  'width',
+  'fixedW',
+  'span',
+  'rowSpan',
+  'hidden',
+  'name',
+] as const
+const SEP = '~'
+
+function mapTree(n: PageNode, fn: (n: PageNode) => PageNode): PageNode {
+  const out = fn(n)
+  return out.children ? { ...out, children: out.children.map((c) => mapTree(c, fn)) } : out
+}
+
+/** Puts each component's content in place of its copies (ids become "copy~element", unique on the page). */
+export function expandComponents(nodes: PageNode[], components: Record<string, Component>, depth = 0): PageNode[] {
+  if (depth > 4) return nodes
+  return nodes.map((n) => {
+    let node = n
+    const def = n.component ? components[n.component] : undefined
+    if (def) {
+      const variant = def.variants.find((v) => v.id === n.componentVariant) ?? def.variants[0]
+      if (variant) {
+        const prefix = `${n.id}${SEP}`
+        const tree = mapTree(structuredClone(variant.node), (c) => {
+          const own = n.overrides?.[c.id]
+          return { ...c, ...own, id: c.id === variant.node.id ? n.id : prefix + c.id }
+        })
+        const placement: Partial<PageNode> = {}
+        for (const k of PLACEMENT_KEYS)
+          if (n[k] !== undefined) (placement as unknown as Record<string, unknown>)[k] = n[k]
+        node = {
+          ...tree,
+          ...placement,
+          component: n.component,
+          componentVariant: variant.id,
+          overrides: n.overrides ?? null,
+        }
+      }
+    }
+    return node.children ? { ...node, children: expandComponents(node.children, components, depth + 1) } : node
+  })
+}
+
+/**
+ * The other way round: copies become references again. Content changed in a copy is kept as its
+ * overrides; design and structure changes go to the component, for every copy.
+ */
+export function collapseComponents(
+  nodes: PageNode[],
+  components: Record<string, Component>,
+): { nodes: PageNode[]; components: Record<string, Component> } {
+  const next: Record<string, Component> = { ...components }
+  const visit = (list: PageNode[]): PageNode[] =>
+    list.map((raw) => {
+      const n = raw.children ? { ...raw, children: visit(raw.children) } : raw
+      // Each copy is compared with the component as it was: only copies that changed update it.
+      const def = n.component ? components[n.component] : undefined
+      if (!def) return n
+      const variant = def.variants.find((v) => v.id === n.componentVariant) ?? def.variants[0]
+      if (!variant) return n
+      const prefix = `${n.id}${SEP}`
+      const original = new Map<string, PageNode>()
+      walk([variant.node], (c) => original.set(c.id, c))
+      const overrides: Record<string, Partial<NodeProps>> = {}
+      const tree = mapTree(n, (c) => {
+        const id = c.id === n.id ? variant.node.id : c.id.startsWith(prefix) ? c.id.slice(prefix.length) : c.id
+        const before = original.get(id)
+        const out: PageNode = { ...c, id }
+        if (before) {
+          const own: Partial<NodeProps> = {}
+          for (const k of OVERRIDE_KEYS) {
+            if (JSON.stringify(c[k] ?? null) !== JSON.stringify(before[k] ?? null)) {
+              ;(own as unknown as Record<string, unknown>)[k] = c[k] ?? null
+              ;(out as unknown as Record<string, unknown>)[k] = before[k]
+            }
+          }
+          if (Object.keys(own).length) overrides[id] = own
+        }
+        return out
+      })
+      const root: PageNode = { ...tree }
+      delete root.component
+      delete root.componentVariant
+      delete root.overrides
+      for (const k of PLACEMENT_KEYS) (root as unknown as Record<string, unknown>)[k] = variant.node[k]
+      for (const k of PLACEMENT_KEYS) if (root[k] === undefined) delete root[k]
+      if (JSON.stringify(root) !== JSON.stringify(variant.node)) {
+        const latest = next[def.id] ?? def
+        next[def.id] = {
+          ...latest,
+          variants: latest.variants.map((v) => (v.id === variant.id ? { ...v, node: root } : v)),
+        }
+      }
+      const ref: PageNode = { id: n.id, type: 'frame', component: def.id, componentVariant: variant.id }
+      if (Object.keys(overrides).length) ref.overrides = overrides
+      for (const k of PLACEMENT_KEYS) if (n[k] !== undefined) (ref as unknown as Record<string, unknown>)[k] = n[k]
+      return ref
+    })
+  return { nodes: visit(nodes), components: next }
+}
+
+/** Turns an element into a component; the page keeps a copy of it. */
+export function makeComponent(node: PageNode, name: string): { component: Component; ref: PageNode } {
+  const id = newId()
+  const variant = { id: newId(), name: 'Predefinita', node: { ...structuredClone(node), id: newId() } }
+  for (const k of PLACEMENT_KEYS) if (k !== 'name') delete variant.node[k]
+  const ref: PageNode = { id: node.id, type: 'frame', component: id, componentVariant: variant.id, name }
+  for (const k of PLACEMENT_KEYS)
+    if (k !== 'name' && node[k] !== undefined) (ref as unknown as Record<string, unknown>)[k] = node[k]
+  return { component: { id, name, variants: [variant] }, ref }
+}
+
+/** A standalone copy of a component's content, with fresh ids. */
+export function detachComponent(n: PageNode): PageNode {
+  const { component: _c, componentVariant: _v, overrides: _o, ...rest } = n
+  return cloneNode(rest as PageNode)
+}
+
+/** Puts the shared content of global sections in place of their references. */
+export function expandGlobals(nodes: PageNode[], globals: Record<string, PageNode>): PageNode[] {
+  return nodes.map((n) => {
+    const g = n.global ? globals[n.global] : undefined
+    return g ? { ...g, id: n.id, global: n.global } : n
+  })
+}
+
+/** The other way round: references for the page, and the content of each global section. */
+export function collapseGlobals(nodes: PageNode[]): { nodes: PageNode[]; globals: Record<string, PageNode> } {
+  const globals: Record<string, PageNode> = {}
+  const out = nodes.map((n) => {
+    if (!n.global) return n
+    const { id: _, ...content } = n
+    globals[n.global] = { ...content, id: n.global }
+    return { id: n.id, type: 'frame' as const, global: n.global, name: n.name }
+  })
+  return { nodes: out, globals }
 }
 
 type Style = Record<string, string>
@@ -448,7 +851,7 @@ const BASE_CSS = `
 .mz-page *,.mz-page *::before,.mz-page *::after{box-sizing:border-box;margin:0}
 .mz-page img{display:block;max-width:100%}
 .mz-page a{color:inherit}
-.mz-page .mz-n a{text-decoration:underline;text-underline-offset:.18em}
+.mz-page .mz-n a:not(.mz-n){text-decoration:underline;text-underline-offset:.18em}
 .mz-page .mz-ph{display:flex;align-items:center;justify-content:center}
 .mz-page .mz-ph svg{width:28px;height:28px;opacity:.45}
 .mz-page .mz-bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
@@ -459,6 +862,13 @@ const BASE_CSS = `
 .mz-page [data-hover="dim"]:hover{opacity:.72}
 .mz-page [data-hover="zoomimg"] img{transition:transform .7s cubic-bezier(.2,.8,.2,1)}
 .mz-page [data-hover="zoomimg"]:hover img{transform:scale(1.07)}
+.mz-page .mz-scene{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+.mz-page [data-mz-sticky]{transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .3s,backdrop-filter .3s,box-shadow .3s}
+.mz-page [data-mz-sticky].mz-away{transform:translateY(-100%)}
+.mz-page [data-mz-sticky~="glass"].mz-scrolled{background:color-mix(in srgb,var(--mz-sticky-bg) 72%,transparent)!important;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 1px 0 color-mix(in srgb,currentColor 10%,transparent)}
+@keyframes mzMarquee{to{transform:translateX(calc(-50% - var(--mz-gap, 0px) / 2))}}
+@media (prefers-reduced-motion:reduce){.mz-page .mz-track{animation:none!important}}
+.mz-page [data-mz-split] > span{display:inline-block;white-space:pre;background-image:inherit;-webkit-background-clip:inherit;background-clip:inherit}
 @keyframes mzFade{from{opacity:0}to{opacity:1}}
 @keyframes mzUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
 @keyframes mzDown{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:none}}
@@ -527,6 +937,8 @@ interface Ctx {
   parent: { layout: string; wrap: boolean } | null
   inherit: { anim: Animation; dur?: string; delay?: number; trig?: string } | null
   idx: number
+  /** A repeated copy (marquee): not editable, hidden from assistive technology. */
+  ghost?: boolean
 }
 
 /** The CSS of one node at one breakpoint. */
@@ -542,6 +954,8 @@ function nodeStyle(
   const isT = n.type === 'text'
   const isI = n.type === 'image'
   const isB = n.type === 'button'
+  const isV = n.type === 'video'
+  const isE = n.type === 'embed'
   const isSec = c.depth === 0
   const own = isF && p.bgImage?.src ? 'photo' : isF && p.scheme && p.scheme !== 'default' ? p.scheme : null
   const scheme = own ?? (isSec ? 'default' : c.scheme)
@@ -554,12 +968,12 @@ function nodeStyle(
   if (isSec) s.width = '100%'
   else if (pl === 'row') {
     s.flex = p.width === 'fill' || p.width === undefined ? (c.parent?.wrap ? '1 1 240px' : '1 1 0px') : '0 0 auto'
-    s.width = p.width === 'fixed' ? `${p.fixedW ?? 240}px` : 'auto'
+    s.width = p.width === 'fixed' ? cssLength(p.fixedW, '240px') : 'auto'
     s.minWidth = '0'
   } else if (pl === 'grid')
-    s.width = p.width === 'fixed' ? `${p.fixedW ?? 240}px` : p.width === 'hug' ? 'fit-content' : 'auto'
-  else s.width = p.width === 'fixed' ? `${p.fixedW ?? 240}px` : p.width === 'hug' ? 'fit-content' : '100%'
-  s.maxWidth = p.maxW ? `${p.maxW}px` : p.width === 'fixed' ? '100%' : 'none'
+    s.width = p.width === 'fixed' ? cssLength(p.fixedW, '240px') : p.width === 'hug' ? 'fit-content' : 'auto'
+  else s.width = p.width === 'fixed' ? cssLength(p.fixedW, '240px') : p.width === 'hug' ? 'fit-content' : '100%'
+  s.maxWidth = p.maxW ? cssLength(p.maxW, 'none') : p.width === 'fixed' ? '100%' : 'none'
   if (pl === 'col' && !isSec && p.width === 'hug') s.alignSelf = 'auto'
 
   // padding
@@ -569,8 +983,8 @@ function nodeStyle(
     const py = bp === 'desktop' ? sz[0] : bp === 'mobile' ? sz[1] : Math.round(((sz[0] ?? 0) + (sz[1] ?? 0)) / 2)
     const gx = bp === 'desktop' ? 'max(56px, calc((100% - 1168px) / 2))' : bp === 'tablet' ? '40px' : '20px'
     s.padding = `${py}px ${gx}`
-  } else if (isB) s.padding = `${p.padY ?? 14}px ${p.padX ?? 24}px`
-  else s.padding = `${p.padY ?? 0}px ${p.padX ?? 0}px`
+  } else if (isB) s.padding = `${cssLength(p.padY ?? 14)} ${cssLength(p.padX ?? 24)}`
+  else s.padding = `${cssLength(p.padY)} ${cssLength(p.padX)}`
 
   // colors
   let bg = 'transparent'
@@ -580,9 +994,10 @@ function nodeStyle(
     bg = col('bg')
     fg = col('text')
   }
-  if ((isF || isT) && p.bg) bg = col(p.bg)
+  if ((isF || isT || isE) && p.bg) bg = col(p.bg)
+  if (isF && p.gradient) bg = gradientCss(p.gradient, col)
   if (isT) fg = col(p.color ?? 'text')
-  if (isI) bg = C[`tone${p.tone ?? 1}`] ?? C.tone1 ?? '#e6e1d7'
+  if (isI || isV) bg = C[`tone${p.tone ?? 1}`] ?? C.tone1 ?? '#e6e1d7'
   if (isB) {
     if (p.variant === 'primary') {
       bg = col('accent')
@@ -596,6 +1011,7 @@ function nodeStyle(
     }
   }
   if (p.border) border = `1px solid ${col('border')}`
+  if (p.borderW) border = `${cssLength(p.borderW)} solid ${col(p.borderColor ?? 'border')}`
   s.background = bg
   s.color = isI ? col('muted') : fg
   s.border = border
@@ -606,8 +1022,12 @@ function nodeStyle(
   if (p.shadow === 'lg') sh.push('0 2px 6px rgba(0,0,0,.06), 0 24px 56px rgba(0,0,0,.16)')
   s.boxShadow = sh.length ? sh.join(', ') : 'none'
   const rad = (r: PageNode['radius']) =>
-    r === 'btn' ? theme.btnRadius : r === 'card' ? theme.cardRadius : Number(r) || 0
-  s.borderRadius = isSec ? '0' : `${rad(p.radius ?? (isI ? 'card' : isB ? 'btn' : 0))}px`
+    r === 'btn'
+      ? `${theme.btnRadius}px`
+      : r === 'card'
+        ? `${theme.cardRadius}px`
+        : cssLength(typeof r === 'string' && /^\d+$/.test(r) ? Number(r) : r)
+  s.borderRadius = isSec ? '0' : rad(p.radius ?? (isI || isV ? 'card' : isB ? 'btn' : 0))
 
   // layout
   if (p.hidden) s.display = 'none'
@@ -622,17 +1042,23 @@ function nodeStyle(
     let gap = p.gap ?? 16
     const gapOver =
       bp !== 'desktop' && (n.over?.tablet?.gap !== undefined || (bp === 'mobile' && n.over?.mobile?.gap !== undefined))
-    if (!gapOver && gap >= 32)
+    // Big pixel gaps shrink on smaller screens; relative units already scale.
+    if (!gapOver && typeof gap === 'number' && gap >= 32)
       gap = bp === 'mobile' ? Math.round(gap * 0.62) : bp === 'tablet' ? Math.round(gap * 0.8) : gap
-    s.gap = `${gap}px`
+    s.gap = cssLength(gap)
     const al = { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }
     const jm = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between' }
     s.alignItems = al[p.align ?? 'start'] ?? 'flex-start'
     s.justifyContent = jm[p.justify ?? 'start'] ?? 'flex-start'
-    if (p.bgImage?.src) s.overflow = 'hidden'
-  } else if (isI) {
+    if (p.bgImage?.src || p.marquee || p.scene) s.overflow = 'hidden'
+  } else if (n.type === 'scene') {
     s.display = 'block'
-    s.aspectRatio = (p.ratio ?? '4/3').replace('/', ' / ')
+    s.position = 'relative'
+    s.overflow = 'hidden'
+    s.aspectRatio = p.h ? 'auto' : (p.ratio ?? '16/9').replace('/', ' / ')
+  } else if (isI || isV) {
+    s.display = 'block'
+    s.aspectRatio = p.h ? 'auto' : (p.ratio ?? (isV ? '16/9' : '4/3')).replace('/', ' / ')
     s.objectFit = p.fit ?? 'cover'
     s.objectPosition = p.focal ? `${p.focal.x}% ${p.focal.y}%` : '50% 50%'
     s.overflow = 'hidden'
@@ -646,15 +1072,70 @@ function nodeStyle(
     s.transition = 'filter .2s, transform .2s'
   } else s.display = 'block'
 
+  if (p.sticky && isSec) {
+    s.position = 'sticky'
+    s.top = '0'
+    s.zIndex = '50'
+    s['--mz-sticky-bg'] = color(C, 'bg', scheme)
+    // Over the next section: transparent until the page scrolls.
+    if (p.stickyOverlay && !p.scheme) s.background = 'transparent'
+  }
+  if (p.sticky && !isSec) {
+    s.position = 'sticky'
+    s.top = cssLength(p.stickyTop ?? 24)
+    s.alignSelf = 'flex-start'
+    s.zIndex = '2'
+  }
+  if (p.minH) s.minHeight = `${p.minH}svh`
+  if (p.h) s.height = typeof p.h === 'number' && p.hUnit === 'vh' ? `${p.h}svh` : cssLength(p.h)
+  if (pl === 'grid' && !isSec) {
+    if (p.span && p.span > 1) s.gridColumn = `span ${p.span}`
+    if (p.rowSpan && p.rowSpan > 1) s.gridRow = `span ${p.rowSpan}`
+  }
+  if (p.overflow) s.overflow = p.overflow
+  if (p.pos === 'absolute' && !isSec) {
+    s.position = 'absolute'
+    for (const side of ['top', 'left', 'right', 'bottom'] as const) {
+      const v = p[side]
+      if (v !== null && v !== undefined) s[side] = cssLength(v)
+    }
+    // Pinned to both sides: it stretches between them.
+    if (p.left != null && p.right != null) s.width = 'auto'
+    s.flex = 'none'
+    s.margin = '0'
+  }
+  if (p.z != null) s.zIndex = String(p.z)
+  if (p.rot) s.rotate = `${p.rot}deg`
+  if (p.opa != null && p.opa < 1) s.opacity = String(p.opa)
+  if (p.blend && p.blend !== 'normal') s.mixBlendMode = p.blend
+  const fx = [p.blurFx ? `blur(${p.blurFx}px)` : '', p.gray ? `grayscale(${p.gray}%)` : ''].filter(Boolean)
+  if (fx.length) s.filter = fx.join(' ')
+  if (p.glass) {
+    s.backdropFilter = `blur(${p.glass}px)`
+    s.WebkitBackdropFilter = `blur(${p.glass}px)`
+  }
+  if (isE) {
+    s.display = p.hidden ? 'none' : 'block'
+    if (!p.h) s.minHeight = '40px'
+  }
+
   // type
   if (isT || isB) {
     const st = textStyle(theme, p.style ?? (isB ? 'button' : 'body'), bp)
     s.fontFamily = st.family
-    s.fontSize = `${p.fontSize ?? st.size}px`
+    s.fontSize = p.fontSize != null ? cssLength(p.fontSize, `${st.size}px`) : `${st.size}px`
     s.fontWeight = String(p.weight ?? st.w)
-    s.lineHeight = String(st.lh)
-    s.letterSpacing = st.ls
-    s.textTransform = st.tt
+    s.lineHeight = String(p.leading ?? st.lh)
+    s.letterSpacing = p.tracking != null ? `${p.tracking}em` : st.ls
+    s.textTransform = p.upper ? 'uppercase' : st.tt
+    if (p.font?.family) s.fontFamily = fontStack(p.font.family, p.font.category)
+    if (p.italic) s.fontStyle = 'italic'
+    if (p.textGradient && isT) {
+      s.backgroundImage = gradientCss(p.textGradient, col)
+      s.WebkitBackgroundClip = 'text'
+      s.backgroundClip = 'text'
+      s.WebkitTextFillColor = 'transparent'
+    }
     s.textAlign = isT ? (p.talign ?? 'left') : 'center'
     if (isT) {
       s.whiteSpace = 'pre-wrap'
@@ -737,7 +1218,13 @@ export function renderSections(
 
     const p = n
     const attrs = [`class="mz-n ${cls}"`]
-    if (options.editor) attrs.push(`data-mz-id="${esc(n.id)}"`, `data-mz-type="${n.type}"`)
+    if (options.editor && !c.ghost) attrs.push(`data-mz-id="${esc(n.id)}"`, `data-mz-type="${n.type}"`)
+    if (c.depth === 0 && p.sticky)
+      attrs.push(
+        `data-mz-sticky="${[p.stickyHide && 'hide', p.stickyGlass && 'glass', p.stickyOverlay && 'overlay'].filter(Boolean).join(' ')}"`,
+      )
+    if (c.depth === 0 && p.anchor && /^[a-z][a-z0-9-]*$/.test(p.anchor)) attrs.push(`id="${p.anchor}"`)
+    if (p.interactions?.length) attrs.push(`data-mz-motion="${esc(JSON.stringify(p.interactions))}"`)
     if (p.hover && p.hover !== 'none') attrs.push(`data-hover="${p.hover}"`)
 
     if (n.type === 'frame') {
@@ -754,23 +1241,62 @@ export function renderSections(
         p.stagger && p.anim && p.anim !== 'none'
           ? { anim: p.anim, dur: p.animDur, delay: p.animDelay, trig: p.animTrig }
           : null
-      const bgImg = p.bgImage?.src
-        ? `<img class="mz-bgimg" src="${esc(p.bgImage.src)}" alt=""${srcsetAttr(p.bgImage.src, options)} sizes="100vw"><div class="mz-bgdim" style="background:rgba(0,0,0,${p.bgDim ?? 0.45})"></div>`
-        : ''
-      const kids = (n.children ?? [])
-        .map((ch, i) =>
-          render(ch, {
-            depth: c.depth + 1,
-            scheme,
-            parent: { layout: p.layout ?? 'col', wrap: !!p.wrap },
-            inherit,
-            idx: i,
-          }),
+      const scene = p.scene ? sceneCanvas(p.scene, (t) => color(C, t, d.scheme)) : ''
+      if (p.scene)
+        desktop.push(`.mz-page .${cls}{background-image:${sceneFallback(p.scene, (t) => color(C, t, d.scheme))}}`)
+      const bgImg =
+        scene ||
+        (p.bgImage?.src
+          ? `<img class="mz-bgimg" src="${esc(p.bgImage.src)}" alt=""${srcsetAttr(p.bgImage.src, options)} sizes="100vw"><div class="mz-bgdim" style="background:rgba(0,0,0,${p.bgDim ?? 0.45})"></div>`
+          : '')
+      const renderKids = (ghost: boolean) =>
+        (n.children ?? [])
+          .map((ch, i) =>
+            render(ch, {
+              depth: c.depth + 1,
+              scheme,
+              parent: { layout: p.layout ?? 'col', wrap: !!p.wrap },
+              inherit,
+              idx: i,
+              ghost: ghost || c.ghost,
+            }),
+          )
+          .join('')
+      let kids = renderKids(false)
+      // A bound list repeats its first child for every entry of the collection.
+      const entries = p.bind ? (options.data?.[p.bind.collection] ?? []).slice(0, p.bind.limit ?? 12) : null
+      const template = n.children?.[0]
+      if (entries && template) {
+        kids = entries
+          .map((entry, i) =>
+            render(bindTo(template, entry), {
+              depth: c.depth + 1,
+              scheme,
+              parent: { layout: p.layout ?? 'col', wrap: !!p.wrap },
+              inherit,
+              idx: i,
+              ghost: i > 0 || c.ghost,
+            }),
+          )
+          .join('')
+      }
+      if (p.marquee) {
+        // Two copies side by side, moved by half the track: the loop never shows a seam.
+        const gap = p.gap ?? 16
+        const dir = p.marquee.reverse ? 'reverse' : 'normal'
+        desktop.push(
+          `.mz-page .${cls}>.mz-track{--mz-gap:${gap}px;display:flex;gap:${gap}px;width:max-content;align-items:center;animation:mzMarquee ${p.marquee.duration}s linear infinite ${dir}}` +
+            `.mz-page .${cls}>.mz-track>div{display:flex;gap:${gap}px;align-items:center;flex:none}` +
+            `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none;width:auto}`,
         )
-        .join('')
+        kids = `<div class="mz-track"><div>${kids}</div><div aria-hidden="true">${renderKids(true)}</div></div>`
+      }
       const content = bgImg ? `${bgImg}<div style="display:contents">${kids}</div>` : kids
-      // Children above the background photo.
-      if (bgImg) desktop.push(`.mz-page .${cls}>.mz-n,.mz-page .${cls}>div>.mz-n{position:relative;z-index:1}`)
+      // Children above the background photo; :where keeps a child's own position (absolute) and layer.
+      if (bgImg) desktop.push(`:where(.mz-page .${cls}>.mz-n,.mz-page .${cls}>div>.mz-n){position:relative;z-index:1}`)
+      // A frame with an address is a link (cards in a bound list).
+      if (p.href && !isSec)
+        return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}" style="text-decoration:none;color:inherit">${content}</a>`
       return `<${tag} ${attrs.join(' ')}>${content}</${tag}>`
     }
     if (n.type === 'text') {
@@ -786,11 +1312,33 @@ export function renderSections(
       const target = p.newTab ? ' target="_blank" rel="noopener"' : ''
       return `<a ${attrs.join(' ')} href="${esc(safeHref(p.href))}"${target}>${esc(p.text ?? '')}</a>`
     }
+    if (n.type === 'scene') {
+      const cfg = p.scene ?? { preset: 'mesh' as const }
+      const col = (t: string) => color(C, t, d.scheme)
+      // A transparent 3D scene floats on the section: nothing behind it, even before WebGL starts.
+      if (!cfg.transparent) desktop.push(`.mz-page .${cls}{background-image:${sceneFallback(cfg, col)}}`)
+      return `<div ${attrs.join(' ')} role="img" aria-label="${esc(p.alt || p.name || 'Animazione')}">${sceneCanvas(cfg, col)}</div>`
+    }
+    if (n.type === 'video') {
+      if (!p.src) {
+        return `<div ${attrs.join(' ').replace('class="mz-n ', 'class="mz-n mz-ph ')} role="img" aria-label="${esc(p.alt || p.name || 'Video')}">${PLACEHOLDER_ICON}</div>`
+      }
+      const poster = p.poster ? ` poster="${esc(p.poster)}"` : ''
+      const play = p.controls ? ' controls' : ' autoplay muted loop playsinline'
+      return `<video ${attrs.join(' ')} src="${esc(safeHref(p.src))}"${poster}${play} preload="metadata" aria-label="${esc(p.alt || p.name || 'Video')}"></video>`
+    }
+    if (n.type === 'embed') {
+      // The editor shows custom code in a sandbox; the site runs it as written.
+      const code = p.html ?? ''
+      if (options.editor)
+        return `<div ${attrs.join(' ')}><iframe sandbox="allow-scripts" title="${esc(p.name || 'Codice personalizzato')}" srcdoc="${esc(code)}" style="border:0;width:100%;height:100%;min-height:inherit;display:block;pointer-events:none"></iframe></div>`
+      return `<div ${attrs.join(' ')}>${code}</div>`
+    }
     // image
     if (!p.src) {
       return `<div ${attrs.join(' ').replace('class="mz-n ', 'class="mz-n mz-ph ')} role="img" aria-label="${esc(p.alt || p.name || 'Immagine')}">${PLACEHOLDER_ICON}</div>`
     }
-    return `<img ${attrs.join(' ')} src="${esc(p.src)}" alt="${esc(p.alt ?? '')}"${srcsetAttr(p.src, options)} loading="lazy" decoding="async">`
+    return `<img ${attrs.join(' ')} src="${esc(p.src)}" alt="${esc(p.alt ?? '')}"${srcsetAttr(p.src, options)}${p.interactions?.length ? '' : ' loading="lazy"'} decoding="async">`
   }
 
   const html = sections
@@ -807,6 +1355,45 @@ export function renderSections(
     scroll.length ? reduced([`@supports (animation-timeline:view()){${scroll.join('')}}`]) : '',
   ].join('\n')
   return { html, css }
+}
+
+/** A copy of a list's template filled with one entry; ids stay, so every copy shares the template's styles. */
+function bindTo(n: PageNode, entry: BoundEntry): PageNode {
+  const out: PageNode = { ...n }
+  if (n.field) {
+    const v = entryValue(entry, n.field)
+    if (n.type === 'text' || (n.type === 'button' && n.field !== 'url')) {
+      out.text = v == null ? '' : typeof v === 'object' ? '' : String(v)
+      out.runs = null
+    } else if (n.type === 'image') {
+      const m = v as { src?: string; alt?: string; focal?: { x: number; y: number } } | null
+      out.src = typeof v === 'string' ? v : (m?.src ?? null)
+      out.alt = m?.alt ?? entry.title
+      if (m?.focal) out.focal = m.focal
+    } else if ((n.type === 'button' || n.type === 'frame') && n.field === 'url') out.href = entry.url ?? '#'
+  }
+  if (n.type === 'button' && n.field !== 'url' && entry.url && !n.href?.startsWith('http')) out.href = entry.url
+  if (n.children) out.children = n.children.map((ch) => bindTo(ch, entry))
+  return out
+}
+
+const SCENE_COLORS: [string, string, string] = ['inverse', 'accent', 'surface']
+
+function sceneColors(cfg: SceneConfig, col: (t: string) => string): [string, string, string] {
+  const [a, b, c] = cfg.colors ?? SCENE_COLORS
+  return [col(a), col(b), col(c)]
+}
+
+/** The canvas the scene runtime starts; the colors are resolved here, so themes apply. */
+function sceneCanvas(cfg: SceneConfig, col: (t: string) => string): string {
+  const data = { ...cfg, colors: sceneColors(cfg, col) }
+  return `<canvas class="mz-scene" aria-hidden="true" data-mz-scene="${esc(JSON.stringify(data))}"></canvas>`
+}
+
+/** What shows before WebGL starts, or without it. */
+function sceneFallback(cfg: SceneConfig, col: (t: string) => string): string {
+  const [a, b, c] = sceneColors(cfg, col)
+  return `radial-gradient(120% 90% at 20% 10%, ${b}, transparent 60%), radial-gradient(100% 80% at 90% 90%, ${c}, transparent 55%), linear-gradient(${a}, ${a})`
 }
 
 function srcsetAttr(src: string, options: RenderOptions): string {
@@ -842,7 +1429,29 @@ export function pageRootStyle(theme: Theme = DEFAULT_THEME): string {
 /** A complete page fragment: root element, HTML and CSS. */
 export function renderPage(sections: PageNode[], theme: Theme = DEFAULT_THEME, options: RenderOptions = {}) {
   const { html, css } = renderSections(sections, theme, options)
-  return { html: `<div class="mz-page" style="${pageRootStyle(theme)}">${html}</div>`, css }
+  const data = [
+    theme.smoothScroll ? ' data-mz-smooth' : '',
+    theme.cursor && theme.cursor !== 'default' ? ` data-mz-cursor="${theme.cursor}"` : '',
+  ].join('')
+  return {
+    html: `<div class="mz-page" style="${pageRootStyle(theme)}"${data}>${html}</div>`,
+    css: options.editor ? css : css + transitionCss(theme),
+  }
+}
+
+/** Animated transitions between the site's pages (cross-document view transitions). */
+export function transitionCss(theme: Theme): string {
+  if (!theme.transition || theme.transition === 'none') return ''
+  const out = theme.transition === 'slide' ? 'mzVtOut .45s cubic-bezier(.7,0,.3,1) both' : 'mzVtFade .35s ease both'
+  const inn =
+    theme.transition === 'slide' ? 'mzVtIn .6s cubic-bezier(.2,.8,.2,1) both' : 'mzVtFade .45s ease reverse both'
+  return `
+@view-transition{navigation:auto}
+@keyframes mzVtFade{to{opacity:0}}
+@keyframes mzVtOut{to{opacity:0;transform:translateY(-40px)}}
+@keyframes mzVtIn{from{opacity:0;transform:translateY(60px)}}
+@media (prefers-reduced-motion:no-preference){::view-transition-old(root){animation:${out}}::view-transition-new(root){animation:${inn}}}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}`
 }
 
 /** Fills theme fields missing from stored data (older versions, partial edits). */

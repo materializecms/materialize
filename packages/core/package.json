@@ -9,9 +9,15 @@
     "./slug": "./src/slug.ts",
     "./style": "./src/style.ts",
     "./page": "./src/page.ts",
-    "./library": "./src/library.ts"
+    "./library": "./src/library.ts",
+    "./motion": "./src/motion.ts",
+    "./scene": "./src/scene.ts"
   },
   "dependencies": {
+    "three": "0.186.1",
     "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0"
   }
 }

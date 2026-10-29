@@ -1,5 +1,5 @@
 import type { Collection, Field, Fields, MaterializeConfig } from '@materializecms/core'
-import { normalizeTheme, type Theme } from '@materializecms/core/page'
+import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
 import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
 
@@ -94,6 +94,18 @@ async function published(collection: string, locale?: string): Promise<Entry[]> 
   return Promise.all(
     docs.map(async (doc) => toEntry(cfg, doc, await resolveFields(def.fields, doc.publishedData ?? {}, 'published'))),
   )
+}
+
+/** Sections shared by several pages, by id. */
+export async function getGlobals(): Promise<Record<string, PageNode>> {
+  const { settings } = await getRuntime()
+  return ((settings ? await settings.get('globals') : null) as Record<string, PageNode> | null) ?? {}
+}
+
+/** Reusable components, by id. */
+export async function getComponents(): Promise<Record<string, Component>> {
+  const { settings } = await getRuntime()
+  return ((settings ? await settings.get('components') : null) as Record<string, Component> | null) ?? {}
 }
 
 /** The design theme chosen in the panel, used by pages built on the canvas. */

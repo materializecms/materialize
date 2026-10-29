@@ -60,7 +60,7 @@ export function MediaPicker({
           </span>
           <Button onClick={onClose}>Annulla</Button>
           <Button variant="primary" disabled={!selected} onClick={() => pick(selected)}>
-            Usa questa immagine
+            Usa questo file
           </Button>
         </>
       }

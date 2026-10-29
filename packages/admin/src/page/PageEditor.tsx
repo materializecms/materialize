@@ -1,21 +1,33 @@
 import { buildSection } from '@materializecms/core/library'
 import {
+  type BoundEntry,
   type Breakpoint,
+  type Component,
   cloneNode,
+  collapseComponents,
+  collapseGlobals,
   DEFAULT_THEME,
+  detachComponent,
+  expandComponents,
+  expandGlobals,
   findNode,
   insertNode,
+  makeComponent,
   type NodeProps,
   newId,
   type PageNode,
+  palette,
   type Run,
   removeNode,
   resolveNode,
   type Theme,
   updateNode,
+  walk,
 } from '@materializecms/core/page'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Code,
+  Eye,
   Image as ImageIcon,
   Layers as LayersIcon,
   Maximize,
@@ -27,8 +39,10 @@ import {
   Plus,
   Rows3,
   Smartphone,
+  Sparkles,
   Tablet,
   Type,
+  Video,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
@@ -52,6 +66,17 @@ const STARTER = ['nav.classic', 'hero.split', 'features.cols', 'cta.banner', 'fo
 
 /** Properties that are content, the same on every device. */
 const CONTENT_KEYS = new Set<string>([
+  'stickyHide',
+  'stickyGlass',
+  'stickyOverlay',
+  'anchor',
+  'scene',
+  'bind',
+  'field',
+  'global',
+  'html',
+  'poster',
+  'controls',
   'text',
   'runs',
   'src',
@@ -78,6 +103,26 @@ function newElement(kind: ElementKind): PageNode {
       ratio: '4/3',
       tone: 1,
       radius: 'card',
+      width: 'fill',
+    }
+  if (kind === 'scene')
+    return {
+      id,
+      type: 'scene',
+      name: 'Scena WebGL',
+      scene: { preset: 'mesh' },
+      ratio: '16/9',
+      radius: 'card',
+      width: 'fill',
+    }
+  if (kind === 'video')
+    return { id, type: 'video', name: 'Video', src: null, ratio: '16/9', tone: 2, radius: 'card', width: 'fill' }
+  if (kind === 'embed')
+    return {
+      id,
+      type: 'embed',
+      name: 'Codice',
+      html: '<div style="padding:24px;text-align:center">Codice personalizzato</div>',
       width: 'fill',
     }
   if (kind === 'button')
@@ -113,12 +158,46 @@ export function PageEditor({
   onChange: (next: Data, group?: string) => void
   mode: Mode
 }) {
-  const { user, schema } = useSession()
+  const { user, schema, locale } = useSession()
   const queryClient = useQueryClient()
+  const globalsQuery = useQuery({ queryKey: ['globals'], queryFn: api.globals, staleTime: Infinity })
+  const globals = globalsQuery.data?.globals ?? {}
+  const componentsQuery = useQuery({ queryKey: ['components'], queryFn: api.components, staleTime: Infinity })
+  const components = componentsQuery.data?.components ?? {}
+  // Global sections are stored once for the site: the page keeps references, the canvas shows their content.
   const nodes = useMemo(
-    () => (Array.isArray(data[pageField.name]) ? (data[pageField.name] as PageNode[]) : []),
-    [data, pageField.name],
+    () =>
+      expandComponents(
+        expandGlobals(Array.isArray(data[pageField.name]) ? (data[pageField.name] as PageNode[]) : [], globals),
+        components,
+      ),
+    [data, pageField.name, globals, components],
   )
+  // Entries for the lists bound to a collection.
+  const boundNames = useMemo(() => {
+    const out = new Set<string>()
+    walk(nodes, (n) => {
+      if (n.bind?.collection) out.add(n.bind.collection)
+    })
+    return [...out]
+  }, [nodes])
+  const boundData = useQueries({
+    queries: boundNames.map((name) => ({
+      queryKey: ['entries', name, locale],
+      queryFn: () => api.entries(name, locale),
+      staleTime: 30_000,
+    })),
+    combine: useCallback(
+      (results: { data?: { items: BoundEntry[] } }[]) => {
+        const out: Record<string, BoundEntry[]> = {}
+        boundNames.forEach((name, i) => {
+          out[name] = results[i]?.data?.items ?? []
+        })
+        return out
+      },
+      [boundNames],
+    ),
+  })
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [device, setDevice] = useState<Breakpoint>('desktop')
@@ -126,7 +205,10 @@ export function PageEditor({
   const [fitZoom, setFitZoom] = useState(1)
   const [tab, setTab] = usePref<Tab>('mz-page-tab', 'layers')
   const [playing, setPlaying] = useState(0)
-  const [picking, setPicking] = useState<{ id: string; target: 'src' | 'bgImage' } | null>(null)
+  const [previewing, setPreviewing] = useState(false)
+  const [picking, setPicking] = useState<{ id: string; target: 'src' | 'bgImage' | 'poster' | 'sceneImage' } | null>(
+    null,
+  )
   const clipboard = useRef<PageNode | null>(null)
 
   const themeQuery = useQuery({ queryKey: ['theme'], queryFn: api.theme, staleTime: Infinity })
@@ -140,19 +222,52 @@ export function PageEditor({
     }, 500)
   }
 
-  // The theme's fonts, for the canvas and the library previews.
+  // The theme's fonts, for the canvas and the library previews; fonts chosen for single elements too.
   useEffect(() => {
     loadFont(theme.display)
     loadFont(theme.body)
   }, [theme.display, theme.body])
 
+  useEffect(() => {
+    walk(nodes, (n) => {
+      if (n.font?.family) loadFont(n.font.family)
+    })
+  }, [nodes])
+
   const nodesRef = useRef(nodes)
   nodesRef.current = nodes
   const dataRef = useRef(data)
   dataRef.current = data
+  const globalsRef = useRef(globals)
+  globalsRef.current = globals
+  const componentsRef = useRef(components)
+  componentsRef.current = components
+  const componentsTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const globalsTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const setNodes = useCallback(
-    (next: PageNode[], group?: string) => onChange({ ...dataRef.current, [pageField.name]: next }, group),
-    [onChange, pageField.name],
+    (next: PageNode[], group?: string) => {
+      // Copies of components go back to references; what changed in their design goes to the component.
+      const withRefs = collapseComponents(next, componentsRef.current)
+      if (JSON.stringify(withRefs.components) !== JSON.stringify(componentsRef.current)) {
+        queryClient.setQueryData(['components'], { components: withRefs.components })
+        componentsRef.current = withRefs.components
+        clearTimeout(componentsTimer.current)
+        componentsTimer.current = setTimeout(() => {
+          api.saveComponents(withRefs.components).catch((e: Error) => toast(e.message, 'error'))
+        }, 600)
+      }
+      const collapsed = collapseGlobals(withRefs.nodes)
+      const merged = { ...globalsRef.current, ...collapsed.globals }
+      if (JSON.stringify(merged) !== JSON.stringify(globalsRef.current)) {
+        queryClient.setQueryData(['globals'], { globals: merged })
+        clearTimeout(globalsTimer.current)
+        globalsTimer.current = setTimeout(() => {
+          api.saveGlobals(merged).catch((e: Error) => toast(e.message, 'error'))
+        }, 600)
+      }
+      onChange({ ...dataRef.current, [pageField.name]: collapsed.nodes }, group)
+    },
+    [onChange, pageField.name, queryClient],
   )
 
   const info = findNode(nodes, selected)
@@ -252,7 +367,8 @@ export function PageEditor({
   const duplicate = (id: string) => {
     const f = findNode(nodesRef.current, id)
     if (!f) return
-    const copy = cloneNode(f.node)
+    // A copy of a component stays a copy: same component, variant and content.
+    const copy = f.node.component ? showCopy({ ...refOf(f.node), id: newId() }) : cloneNode(f.node)
     setNodes(insertNode(nodesRef.current, f.parent?.id ?? null, f.index + 1, copy))
     setSelected(copy.id)
   }
@@ -264,6 +380,81 @@ export function PageEditor({
     if (to < 0 || to >= f.siblings.length) return
     const without = removeNode(nodesRef.current, id)
     setNodes(insertNode(without, f.parent?.id ?? null, to, f.node))
+  }
+
+  // ---------- components ----------
+
+  const storeComponents = (next: Record<string, Component>) => {
+    componentsRef.current = next
+    queryClient.setQueryData(['components'], { components: next })
+    clearTimeout(componentsTimer.current)
+    componentsTimer.current = setTimeout(() => {
+      api.saveComponents(next).catch((e: Error) => toast(e.message, 'error'))
+    }, 300)
+  }
+  /** A copy as stored: reference, variant and own content. */
+  const refOf = (n: PageNode) => collapseComponents([n], componentsRef.current).nodes[0] as PageNode
+  const showCopy = (ref: PageNode) => expandComponents([ref], componentsRef.current)[0] as PageNode
+  const replaceNode = (id: string, node: PageNode) => setNodes(updateNode(nodesRef.current, id, () => node))
+
+  const componentActions = {
+    make: (id: string) => {
+      const f = findNode(nodesRef.current, id)
+      if (!f) return
+      const { component, ref } = makeComponent(f.node, f.node.name || 'Componente')
+      storeComponents({ ...componentsRef.current, [component.id]: { ...component, section: f.depth === 0 } })
+      replaceNode(id, showCopy(ref))
+      toast('Componente creato: lo trovi nella libreria')
+    },
+    setVariant: (id: string, variantId: string) => {
+      const n = findNode(nodesRef.current, id)?.node
+      if (n) replaceNode(id, showCopy({ ...refOf(n), componentVariant: variantId }))
+    },
+    addVariant: (id: string, name: string) => {
+      const n = findNode(nodesRef.current, id)?.node
+      const def = n?.component ? componentsRef.current[n.component] : undefined
+      if (!n || !def) return
+      const current = def.variants.find((v) => v.id === n.componentVariant) ?? def.variants[0]
+      if (!current) return
+      const variant = { id: newId(), name, node: structuredClone(current.node) }
+      storeComponents({ ...componentsRef.current, [def.id]: { ...def, variants: [...def.variants, variant] } })
+      replaceNode(id, showCopy({ ...refOf(n), componentVariant: variant.id }))
+    },
+    renameVariant: (cid: string, vid: string, name: string) => {
+      const def = componentsRef.current[cid]
+      if (def)
+        storeComponents({
+          ...componentsRef.current,
+          [cid]: { ...def, variants: def.variants.map((v) => (v.id === vid ? { ...v, name } : v)) },
+        })
+    },
+    rename: (cid: string, name: string) => {
+      const def = componentsRef.current[cid]
+      if (def) storeComponents({ ...componentsRef.current, [cid]: { ...def, name } })
+    },
+    detach: (id: string) => {
+      const n = findNode(nodesRef.current, id)?.node
+      if (n) {
+        const copy = detachComponent(n)
+        replaceNode(id, copy)
+        setSelected(copy.id)
+      }
+    },
+    reset: (id: string) => {
+      const n = findNode(nodesRef.current, id)?.node
+      if (n) replaceNode(id, showCopy({ ...refOf(n), overrides: null }))
+    },
+    insert: (cid: string) => {
+      const def = componentsRef.current[cid]
+      if (!def?.variants[0]) return
+      const copy = showCopy({ id: newId(), type: 'frame', component: cid, componentVariant: def.variants[0].id })
+      if (def.section) {
+        const f = findNode(nodesRef.current, selected)
+        const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
+        setNodes(insertNode(nodesRef.current, null, index, copy))
+        setSelected(copy.id)
+      } else insertAfterSelection(copy)
+    },
   }
 
   /** Puts a new node where it was dropped: before or after another, or inside a frame. */
@@ -307,13 +498,18 @@ export function PageEditor({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (
-        t.closest(
+        t.closest?.(
           'input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"], [role="dialog"]',
         )
       )
         return
       const mod = e.metaKey || e.ctrlKey
       const id = selected
+      if (e.key === 'Escape' && previewing) {
+        setPreviewing(false)
+        return
+      }
+      if (previewing) return
       if (e.key === 'Escape') {
         if (editing) return
         setSelected(findNode(nodesRef.current, id)?.parent?.id ?? null)
@@ -347,7 +543,9 @@ export function PageEditor({
           setEditing(id)
         }
       } else if (!mod && !e.altKey && mode === 'design') {
-        const kind = ({ f: 'frame', t: 'text', i: 'image', b: 'button' } as const)[e.key.toLowerCase()]
+        const kind = ({ f: 'frame', t: 'text', i: 'image', b: 'button', v: 'video', c: 'embed', g: 'scene' } as const)[
+          e.key.toLowerCase()
+        ]
         if (kind) {
           e.preventDefault()
           insertAfterSelection(newElement(kind))
@@ -363,6 +561,33 @@ export function PageEditor({
       const { text, runs } = simplify(value.runs)
       setProps(id, { text, runs })
     } else if (value.text !== undefined) setProps(id, { text: value.text })
+  }
+
+  /** The fields an element inside a bound list can show, or null outside lists. */
+  const boundFieldsFor = (id: string) => {
+    let name: string | null = null
+    const climb = (list: PageNode[], trail: PageNode[]): boolean => {
+      for (const n of list) {
+        if (n.id === id) {
+          const owner = [...trail].reverse().find((a) => a.bind?.collection)
+          name = owner?.bind?.collection ?? null
+          return true
+        }
+        if (n.children && climb(n.children, [...trail, n])) return true
+      }
+      return false
+    }
+    climb(nodesRef.current, [])
+    const def = schema.collections.find((c) => c.name === name)
+    if (!def) return null
+    return [
+      { value: 'title', label: 'Titolo' },
+      { value: 'url', label: 'Indirizzo della pagina' },
+      ...def.fields
+        .filter((f) => ['text', 'number', 'date', 'select', 'slug', 'media', 'color'].includes(f.kind))
+        .filter((f) => f.name !== def.titleField)
+        .map((f) => ({ value: f.name, label: f.label ?? f.name })),
+    ]
   }
 
   const otherFields = collection.fields.filter((f) => f.name !== pageField.name)
@@ -414,6 +639,16 @@ export function PageEditor({
             brand={schema.site.name}
             onAddElement={(kind) => insertAfterSelection(newElement(kind))}
             onAddSection={addSection}
+            globals={globals}
+            components={components}
+            onAddComponent={componentActions.insert}
+            onAddGlobal={(gid) => {
+              const f = findNode(nodesRef.current, selected)
+              const index = f ? nodesRef.current.indexOf(f.root) + 1 : nodesRef.current.length
+              const ref: PageNode = { ...(globals[gid] as PageNode), id: newId(), global: gid }
+              setNodes(insertNode(nodesRef.current, null, index, ref))
+              setSelected(ref.id)
+            }}
           />
         )}
         {tab === 'styles' && <ThemePanel theme={theme} onChange={setTheme} canEdit={user.role === 'admin'} />}
@@ -430,6 +665,9 @@ export function PageEditor({
                   ['text', 'Testo · T', <Type key="t" />],
                   ['image', 'Immagine · I', <ImageIcon key="i" />],
                   ['button', 'Pulsante · B', <MousePointerClick key="b" />],
+                  ['video', 'Video · V', <Video key="v" />],
+                  ['embed', 'Codice · C', <Code key="c" />],
+                  ['scene', 'Scena WebGL · G', <Sparkles key="g" />],
                 ] as const
               ).map(([kind, label, icon]) => (
                 <IconButton
@@ -488,6 +726,18 @@ export function PageEditor({
             <IconButton label="Riproduci le animazioni" onClick={play}>
               <Play />
             </IconButton>
+            <button
+              type="button"
+              onClick={() => setPreviewing(!previewing)}
+              title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
+              className={cx(
+                'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
+              )}
+            >
+              <Eye />
+              {previewing ? 'Esci dall’anteprima' : 'Anteprima'}
+            </button>
           </div>
         </div>
         {nodes.length === 0 ? (
@@ -532,6 +782,8 @@ export function PageEditor({
             selected={selected}
             editing={editing}
             playing={playing}
+            preview={previewing}
+            data={boundData}
             onSelect={(id) => {
               setSelected(id)
               if (editing && id !== editing) setEditing(null)
@@ -544,7 +796,15 @@ export function PageEditor({
             onMove={moveTo}
             onDropNew={(item, target, sectionIndex) => {
               if (item.section) {
-                const section = buildSection(item.section, schema.site.name)
+                if (item.section.startsWith('component:')) {
+                  componentActions.insert(item.section.slice(10))
+                  return
+                }
+                const gid = item.section.startsWith('global:') ? item.section.slice(7) : null
+                const section: PageNode =
+                  gid && globals[gid]
+                    ? { ...(globals[gid] as PageNode), id: newId(), global: gid }
+                    : buildSection(item.section, schema.site.name)
                 setNodes(insertNode(nodesRef.current, null, sectionIndex, section))
                 setSelected(section.id)
                 setTimeout(play, 60)
@@ -571,10 +831,27 @@ export function PageEditor({
             onReset={(keys) => resetProps(selectedNode.id, keys)}
             onPickImage={(target) => setPicking({ id: selectedNode.id, target })}
             onPlay={play}
+            onPreview={() => setPreviewing(true)}
             onDuplicate={() => duplicate(selectedNode.id)}
             onDelete={() => remove(selectedNode.id)}
             onMove={(dir) => move(selectedNode.id, dir)}
             onSelectParent={info.parent ? () => setSelected(info.parent?.id ?? null) : null}
+            palette={palette(theme)}
+            parentLayout={info.parent ? (resolveNode(info.parent, device).layout ?? 'col') : null}
+            canCode={user.role === 'admin'}
+            components={components}
+            componentActions={componentActions}
+            onMakeGlobal={() => setProps(selectedNode.id, { global: newId() } as Partial<NodeProps>)}
+            onUnlinkGlobal={() =>
+              setNodes(
+                updateNode(nodesRef.current, selectedNode.id, (n) => {
+                  const { global: _, ...rest } = n
+                  return rest
+                }),
+              )
+            }
+            collections={schema.collections.filter((c) => !c.singleton).map((c) => ({ value: c.name, label: c.label }))}
+            boundFields={boundFieldsFor(selectedNode.id)}
           />
         ) : (
           <div>
@@ -598,7 +875,14 @@ export function PageEditor({
         onPick={(asset) => {
           if (!picking) return
           if (picking.target === 'bgImage') setProps(picking.id, { bgImage: { src: asset.url, alt: asset.alt } })
-          else {
+          else if (picking.target === 'poster') setProps(picking.id, { poster: asset.url })
+          else if (picking.target === 'sceneImage') {
+            const current = findNode(nodesRef.current, picking.id)?.node
+            const scene = current?.scene ?? { preset: 'distort' as const }
+            if (asset.url.endsWith('.glb'))
+              setProps(picking.id, { scene: { ...scene, preset: 'model', model: asset.url } })
+            else setProps(picking.id, { scene: { ...scene, image: asset.url } })
+          } else {
             const current = findNode(nodesRef.current, picking.id)?.node
             setProps(picking.id, { src: asset.url, alt: current?.alt || asset.alt })
           }

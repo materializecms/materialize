@@ -1,4 +1,6 @@
+import { layoutSticky, startMotion } from '@materializecms/core/motion'
 import {
+  type BoundEntry,
   type Breakpoint,
   DEVICE_WIDTH,
   findNode,
@@ -7,8 +9,10 @@ import {
   type PageNode,
   type Run,
   renderPage,
+  resolveNode,
   type Theme,
 } from '@materializecms/core/page'
+import { startScenes } from '@materializecms/core/scene'
 import { Bold, ImagePlus, Italic, Link2, Link2Off } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cx } from '../components/ui.tsx'
@@ -64,6 +68,8 @@ export function Canvas({
   onResize,
   onMove,
   onDropNew,
+  preview = false,
+  data,
 }: {
   nodes: PageNode[]
   theme: Theme
@@ -84,6 +90,10 @@ export function Canvas({
   onMove: (id: string, target: DropTarget) => void
   /** A section or element dragged in from the library. */
   onDropNew: (item: { section?: string; element?: string }, target: DropTarget | null, sectionIndex: number) => void
+  /** Interactive preview: the page behaves as on the site, nothing is selectable. */
+  preview?: boolean
+  /** Entries for lists bound to a collection. */
+  data?: Record<string, BoundEntry[]>
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -108,16 +118,19 @@ export function Canvas({
     () =>
       renderPage(nodes, theme, {
         editor: true,
-        animations: playing ? 'replay' : 'none',
+        animations: preview ? 'site' : playing ? 'replay' : 'none',
         srcset: librarySrcset,
+        data,
       }),
-    [nodes, theme, playing],
+    [nodes, theme, playing, preview, data],
   )
 
   // The page is plain HTML from the renderer; while a text is being edited in place, it is left alone.
   useLayoutEffect(() => {
     if (!root.current || editingRef.current) return
     root.current.innerHTML = rendered.html
+    // A fixed menu over the next section needs its height, known only once on the page.
+    requestAnimationFrame(() => root.current && layoutSticky(root.current))
   }, [rendered.html])
 
   const measure = useCallback(() => {
@@ -304,7 +317,7 @@ export function Canvas({
 
   // Moving elements: press on an element and drag; a short press stays a click.
   const onPointerDown = (e: React.PointerEvent) => {
-    if (mode !== 'design' || editing || e.button !== 0) return
+    if (preview || mode !== 'design' || editing || e.button !== 0) return
     const under = idAt(e.target)
     if (!under) return
     const sel = selected ? elOf(selected) : null
@@ -313,6 +326,43 @@ export function Canvas({
     if (!info) return
     const section = info.depth === 0
     const start = { x: e.clientX, y: e.clientY }
+    // Freely placed elements move where they are dropped instead of changing order.
+    const placed = resolveNode(info.node, device)
+    if (placed.pos === 'absolute' && !section) {
+      const el = elOf(id)
+      if (!el) return
+      const left0 = el.offsetLeft
+      const top0 = el.offsetTop
+      let moved = false
+      let left = left0
+      let top = top0
+      const move = (ev: PointerEvent) => {
+        const dx = (ev.clientX - start.x) / scale
+        const dy = (ev.clientY - start.y) / scale
+        if (!moved && Math.hypot(dx, dy) < 4) return
+        moved = true
+        left = Math.round(left0 + dx)
+        top = Math.round(top0 + dy)
+        el.style.left = `${left}px`
+        el.style.top = `${top}px`
+        el.style.right = el.style.bottom = 'auto'
+        setBadge(`${left} , ${top}`)
+        measure()
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+        setBadge(null)
+        if (!moved) return
+        suppressClick.current = true
+        el.removeAttribute('style')
+        onSelect(id)
+        onResize(id, { left, top, right: null, bottom: null })
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+      return
+    }
     let active = false
     let last: { target: DropTarget } | null = null
     const move = (ev: PointerEvent) => {
@@ -441,7 +491,40 @@ export function Canvas({
     )
   }
 
+  // The timeline's playhead shows a moment of an animation on the element, without saving anything.
+  useEffect(() => {
+    const onScrub = (e: Event) => {
+      const { id, style } = (e as CustomEvent<{ id: string; style: Record<string, string> | null }>).detail
+      const el = root.current?.querySelector<HTMLElement>(`[data-mz-id="${CSS.escape(id)}"]`)
+      if (!el) return
+      for (const k of ['transform', 'opacity', 'filter', 'clipPath'] as const)
+        el.style[k] = style ? (style[k] ?? '') : ''
+      measure()
+    }
+    window.addEventListener('mz-scrub', onScrub)
+    return () => window.removeEventListener('mz-scrub', onScrub)
+  }, [measure])
+
+  // WebGL scenes run on the canvas while editing too, so their look can be tuned live.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart after every render of the page
+  useEffect(() => {
+    if (!root.current || !scroller.current) return
+    return startScenes(root.current, { scroller: scroller.current })
+  }, [rendered.html])
+
+  // In the preview, the motion runtime plays scroll, mouse and click interactions on the canvas itself.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart after every render of the page
+  useEffect(() => {
+    if (!preview || !root.current || !scroller.current) return
+    const stop = startMotion(root.current, { scroller: scroller.current })
+    return stop
+  }, [preview, rendered.html])
+
   const onClick = (e: React.MouseEvent) => {
+    if (preview) {
+      if ((e.target as HTMLElement).closest('a')) e.preventDefault()
+      return
+    }
     if (suppressClick.current) {
       suppressClick.current = false
       return
@@ -503,6 +586,7 @@ export function Canvas({
               onClick={onClick}
               onDoubleClick={onDoubleClick}
               onPointerMove={(e) => {
+                if (preview) return
                 const id = idAt(e.target)
                 if (id !== hover) setHover(id)
               }}
@@ -516,7 +600,7 @@ export function Canvas({
           </div>
 
           {/* Selection and hover, drawn above the page in screen pixels. */}
-          <div className="pointer-events-none absolute inset-0">
+          <div className={cx('pointer-events-none absolute inset-0', preview && 'hidden')}>
             {boxes.hover && (
               <div
                 className="absolute rounded-[2px] border border-accent/70"
@@ -560,7 +644,7 @@ export function Canvas({
               style={{ left: indicator.x, top: indicator.y, width: indicator.w, height: indicator.h }}
             />
           )}
-          {mode === 'design' && boxes.sel && !editing && !dragging && selectedNode && (
+          {mode === 'design' && !preview && boxes.sel && !editing && !dragging && selectedNode && (
             <Handles
               box={boxes.sel}
               node={selectedNode}
@@ -668,6 +752,9 @@ export function typeLabel(n: PageNode): string {
   if (n.type === 'frame') return 'Contenitore'
   if (n.type === 'text') return 'Testo'
   if (n.type === 'image') return 'Immagine'
+  if (n.type === 'video') return 'Video'
+  if (n.type === 'embed') return 'Codice'
+  if (n.type === 'scene') return 'Scena WebGL'
   return 'Pulsante'
 }
 

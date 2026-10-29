@@ -1,6 +1,7 @@
 import {
   ANIMATIONS,
   type Breakpoint,
+  type Component,
   type NodeProps,
   type PageNode,
   plainText,
@@ -27,26 +28,22 @@ import {
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
 import { typeLabel } from './Canvas.tsx'
-import { Chips, NumField, Row, Section, Seg, Select, Toggle } from './controls.tsx'
+import { type ComponentActions, ComponentPanel } from './ComponentPanel.tsx'
+import { Chips, ColorField, LenField, NumField, Row, Section, Seg, Select, Toggle } from './controls.tsx'
+import {
+  EffectsSection,
+  FillFields,
+  MediaContent,
+  PositionSection,
+  SceneSection,
+  SizeExtra,
+  TypographyExtra,
+} from './DesignFields.tsx'
+import { InteractionsSection } from './Interactions.tsx'
 import { nodeIcon } from './Layers.tsx'
 
 type Key = keyof NodeProps
 
-const COLOR_OPTIONS = [
-  { value: 'text', label: 'Testo' },
-  { value: 'muted', label: 'Tenue' },
-  { value: 'accent', label: 'Accento' },
-  { value: 'onAccent', label: 'Su accento' },
-  { value: 'inverse', label: 'Inverso' },
-  { value: 'onInverse', label: 'Su inverso' },
-]
-const BG_OPTIONS = [
-  { value: '', label: 'Nessuno' },
-  { value: 'surface', label: 'Superficie' },
-  { value: 'bg', label: 'Sfondo' },
-  { value: 'accent', label: 'Accento' },
-  { value: 'inverse', label: 'Inverso' },
-]
 const RATIOS = ['1/1', '4/3', '3/2', '16/9', '21/9', '3/4', '4/5', '3/1'].map((r) => ({
   value: r,
   label: r.replace('/', ':'),
@@ -62,10 +59,20 @@ export function Inspector({
   onReset,
   onPickImage,
   onPlay,
+  onPreview,
   onDuplicate,
   onDelete,
   onMove,
   onSelectParent,
+  palette,
+  parentLayout,
+  canCode,
+  onMakeGlobal,
+  onUnlinkGlobal,
+  collections,
+  boundFields,
+  components,
+  componentActions,
 }: {
   node: PageNode
   depth: number
@@ -75,12 +82,27 @@ export function Inspector({
   /** Content and names: the same on every device. */
   onContent: (patch: Partial<PageNode>, group?: string) => void
   onReset: (keys: Key[]) => void
-  onPickImage: (target: 'src' | 'bgImage') => void
+  onPickImage: (target: 'src' | 'bgImage' | 'poster' | 'sceneImage') => void
   onPlay: () => void
+  /** Opens the interactive preview, where scroll and mouse interactions play. */
+  onPreview: () => void
   onDuplicate: () => void
   onDelete: () => void
   onMove: (dir: -1 | 1) => void
   onSelectParent: (() => void) | null
+  /** The theme's colors, for the swatches. */
+  palette: Record<string, string>
+  parentLayout: string | null
+  /** Custom code is for admins only. */
+  canCode: boolean
+  onMakeGlobal: () => void
+  onUnlinkGlobal: () => void
+  /** Collections a list can be bound to. */
+  collections: { value: string; label: string }[]
+  /** Inside a bound list: the fields this element can show. */
+  boundFields: { value: string; label: string }[] | null
+  components: Record<string, Component>
+  componentActions: ComponentActions
 }) {
   const p = resolveNode(node, device)
   const onProp = <K extends Key>(key: K, value: NodeProps[K], group?: string) =>
@@ -92,6 +114,7 @@ export function Inspector({
   const isSec = depth === 0
   const over = (keys: Key[]) => device !== 'desktop' && keys.some((k) => node.over?.[device]?.[k] !== undefined)
   const sect = (keys: Key[]) => ({ overridden: over(keys), onReset: () => onReset(keys) })
+  const design = { node, p, isSec, parentLayout, palette, onProp, onProps, sect }
 
   const LAYOUT: Key[] = ['layout', 'cols', 'gap', 'align', 'justify', 'wrap', 'size']
   const SIZE: Key[] = ['width', 'fixedW', 'maxW', 'padX', 'padY', 'ratio']
@@ -140,6 +163,91 @@ export function Inspector({
         </IconButton>
       </div>
 
+      <ComponentPanel node={node} components={components} actions={componentActions} />
+
+      {isSec && (
+        <div className="border-b border-line px-3.5 py-2.5">
+          <Row label="Ancora" hint="Per i link a questa sezione: #ancora">
+            <input
+              aria-label="Ancora della sezione"
+              value={node.anchor ?? ''}
+              placeholder="es. progetti"
+              onChange={(e) =>
+                onContent(
+                  { anchor: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') || null },
+                  `anchor:${node.id}`,
+                )
+              }
+              className="mb-2 h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+            />
+          </Row>
+          {node.global ? (
+            <div className="flex items-center gap-2 rounded-lg bg-accent/10 px-2.5 py-2 text-[11.5px] text-accent">
+              <span className="min-w-0 flex-1">
+                Sezione globale: le modifiche valgono su tutte le pagine che la usano.
+              </span>
+              <button type="button" onClick={onUnlinkGlobal} className="shrink-0 font-medium underline">
+                Scollega
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onMakeGlobal}
+              className="h-7 w-full rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg"
+            >
+              Rendi globale (es. menu e piè di pagina)
+            </button>
+          )}
+        </div>
+      )}
+
+      {boundFields && (
+        <Section title="Dato collegato">
+          <Row label="Mostra">
+            <Select
+              label="Campo della raccolta"
+              value={node.field ?? ''}
+              onChange={(v) => onContent({ field: v || null })}
+              options={[{ value: '', label: 'Contenuto fisso' }, ...boundFields]}
+            />
+          </Row>
+          <p className="text-[11px] leading-relaxed text-fg3">
+            Ogni copia dell’elenco mostra il valore della sua voce. Su un contenitore, “Indirizzo” lo rende un link alla
+            pagina.
+          </p>
+        </Section>
+      )}
+
+      {isF && !isSec && (
+        <Section title="Elenco dinamico">
+          <Row label="Raccolta">
+            <Select
+              label="Raccolta collegata"
+              value={node.bind?.collection ?? ''}
+              onChange={(v) => onContent({ bind: v ? { collection: v, limit: node.bind?.limit ?? 6 } : null })}
+              options={[{ value: '', label: 'Nessuna' }, ...collections]}
+            />
+          </Row>
+          {node.bind && (
+            <>
+              <Row label="Quante voci">
+                <NumField
+                  value={node.bind.limit ?? 6}
+                  min={1}
+                  max={48}
+                  onChange={(v) => onContent({ bind: { collection: node.bind?.collection ?? '', limit: v ?? 6 } })}
+                />
+              </Row>
+              <p className="text-[11px] leading-relaxed text-fg3">
+                Il primo elemento interno si ripete per ogni voce: selezionane i testi e le immagini per scegliere quale
+                campo mostrano.
+              </p>
+            </>
+          )}
+        </Section>
+      )}
+
       {(isT || isB) && (
         <Section title="Contenuto">
           <Textarea
@@ -175,6 +283,10 @@ export function Inspector({
           )}
         </Section>
       )}
+
+      <SceneSection node={node} palette={palette} onContent={onContent} onPickImage={() => onPickImage('sceneImage')} />
+
+      <MediaContent node={node} onContent={onContent} onPickPoster={() => onPickImage('poster')} canCode={canCode} />
 
       {isI && (
         <Section title="Immagine">
@@ -279,7 +391,7 @@ export function Inspector({
             </Row>
           )}
           <Row label="Spazio interno" hint="Spazio tra gli elementi">
-            <NumField
+            <LenField
               label="↔"
               value={p.gap ?? 16}
               onChange={(v) => onProp('gap', v ?? 0, `gap:${node.id}`)}
@@ -333,7 +445,7 @@ export function Inspector({
           </Row>
           {p.width === 'fixed' && (
             <Row label="Fissa a">
-              <NumField
+              <LenField
                 label="L"
                 value={p.fixedW ?? 240}
                 onChange={(v) => onProp('fixedW', v ?? 240, `fixedW:${node.id}`)}
@@ -341,7 +453,7 @@ export function Inspector({
             </Row>
           )}
           <Row label="Massima" hint="Larghezza massima">
-            <NumField
+            <LenField
               label="M"
               value={p.maxW ?? null}
               placeholder="nessuna"
@@ -350,13 +462,13 @@ export function Inspector({
           </Row>
           {!isI && (
             <Row label="Margine interno">
-              <NumField
+              <LenField
                 label="X"
                 value={p.padX ?? (isB ? 24 : 0)}
                 onChange={(v) => onProp('padX', v ?? 0, `padX:${node.id}`)}
                 max={200}
               />
-              <NumField
+              <LenField
                 label="Y"
                 value={p.padY ?? (isB ? 14 : 0)}
                 onChange={(v) => onProp('padY', v ?? 0, `padY:${node.id}`)}
@@ -364,6 +476,7 @@ export function Inspector({
               />
             </Row>
           )}
+          <SizeExtra {...design} />
         </Section>
       )}
 
@@ -380,11 +493,10 @@ export function Inspector({
           {isT && (
             <>
               <Row label="Colore">
-                <Select
-                  label="Colore del testo"
+                <ColorField
                   value={p.color ?? 'text'}
-                  options={COLOR_OPTIONS}
-                  onChange={(v) => onProp('color', v as PageNode['color'])}
+                  palette={palette}
+                  onChange={(v) => onProp('color', v ?? 'text')}
                 />
               </Row>
               <Row label="Allineamento">
@@ -415,7 +527,7 @@ export function Inspector({
             />
           </Row>
           <Row label="Dimensione">
-            <NumField
+            <LenField
               value={p.fontSize ?? null}
               placeholder="dello stile"
               onChange={(v) => onProp('fontSize', v, `fontSize:${node.id}`)}
@@ -423,6 +535,7 @@ export function Inspector({
               max={200}
             />
           </Row>
+          <TypographyExtra {...design} />
         </Section>
       )}
 
@@ -455,16 +568,7 @@ export function Inspector({
             />
           </Row>
         )}
-        {(isF || isT) && !isSec && (
-          <Row label="Sfondo">
-            <Select
-              label="Sfondo"
-              value={p.bg ?? ''}
-              options={BG_OPTIONS}
-              onChange={(v) => onProp('bg', (v || null) as PageNode['bg'])}
-            />
-          </Row>
-        )}
+        {(isF || isT || node.type === 'embed') && <FillFields {...design} />}
         {isSec && (
           <Row label="Foto di sfondo">
             <button
@@ -640,6 +744,125 @@ export function Inspector({
               onPlay()
             }}
           />
+        )}
+      </Section>
+
+      <PositionSection {...design} />
+      <EffectsSection {...design} />
+
+      <InteractionsSection
+        node={node}
+        onChange={(interactions, group) => onContent({ interactions }, group)}
+        onPreview={onPreview}
+      />
+
+      <Section title="Comportamento" {...sect(['sticky', 'stickyTop', 'minH'])}>
+        <Row label="Altezza min." hint="In percentuale dell’altezza dello schermo">
+          <Seg
+            value={p.minH ?? 0}
+            onChange={(v) => onProp('minH', v || null)}
+            options={[
+              { value: 0, label: 'Auto' },
+              { value: 50, label: '50%' },
+              { value: 80, label: '80%' },
+              { value: 100, label: '100%' },
+              { value: 200, label: '200%' },
+            ]}
+          />
+        </Row>
+        {isSec && (
+          <>
+            <Toggle
+              label="Resta fisso in alto (menu)"
+              checked={!!node.sticky}
+              onChange={(v) => onContent({ sticky: v || undefined })}
+            />
+            {node.sticky && (
+              <>
+                <Toggle
+                  label="Si nasconde scorrendo in giù"
+                  checked={!!node.stickyHide}
+                  onChange={(v) => onContent({ stickyHide: v || undefined })}
+                />
+                <Toggle
+                  label="Effetto vetro quando la pagina scorre"
+                  checked={!!node.stickyGlass}
+                  onChange={(v) => onContent({ stickyGlass: v || undefined })}
+                />
+                <Toggle
+                  label="Sopra la sezione successiva"
+                  checked={!!node.stickyOverlay}
+                  onChange={(v) => onContent({ stickyOverlay: v || undefined })}
+                />
+                <p className="text-[11px] leading-relaxed text-fg3">
+                  Nascondi e vetro si vedono nell’anteprima e sul sito. Se la sezione è globale, il menu è fisso su
+                  tutte le pagine.
+                </p>
+              </>
+            )}
+          </>
+        )}
+        {!isSec && (
+          <>
+            <Toggle
+              label="Resta fermo mentre la pagina scorre"
+              checked={!!p.sticky}
+              onChange={(v) => onProp('sticky', v || undefined)}
+            />
+            {p.sticky && (
+              <Row label="Distanza dall’alto">
+                <LenField
+                  value={p.stickyTop ?? 24}
+                  max={400}
+                  onChange={(v) => onProp('stickyTop', v ?? 0, `stickyTop:${node.id}`)}
+                />
+              </Row>
+            )}
+            {p.sticky && (
+              <p className="text-[11px] leading-relaxed text-fg3">
+                Resta fermo finché il suo contenitore è visibile: dai al contenitore un’altezza maggiore (per esempio
+                200%).
+              </p>
+            )}
+          </>
+        )}
+        {isF && (
+          <>
+            <Toggle
+              label="Scorre all’infinito (nastro)"
+              checked={!!node.marquee}
+              onChange={(v) => onContent({ marquee: v ? { duration: 30 } : null, ...(v ? {} : {}) })}
+            />
+            {node.marquee && (
+              <>
+                <Row label="Velocità">
+                  <Seg
+                    value={node.marquee.duration}
+                    onChange={(duration) => onContent({ marquee: { ...node.marquee, duration } })}
+                    options={[
+                      { value: 50, label: 'Lenta' },
+                      { value: 30, label: 'Media' },
+                      { value: 14, label: 'Veloce' },
+                    ]}
+                  />
+                </Row>
+                <Toggle
+                  label="Verso destra"
+                  checked={!!node.marquee.reverse}
+                  onChange={(reverse) => onContent({ marquee: { duration: node.marquee?.duration ?? 30, reverse } })}
+                />
+                {p.layout !== 'row' && (
+                  <button
+                    type="button"
+                    onClick={() => onProp('layout', 'row')}
+                    className="text-left text-[11.5px] text-accent hover:underline"
+                  >
+                    Il nastro funziona in riga: imposta la direzione in riga
+                  </button>
+                )}
+              </>
+            )}
+          </>
         )}
       </Section>
 

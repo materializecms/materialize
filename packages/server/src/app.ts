@@ -49,6 +49,17 @@ const linkPath = (token: string) => `/admin/_invite/${token}`
 
 type Env = { Variables: { user: User } }
 
+/** The custom code blocks in a document: it runs on the public site, so only admins may change it. */
+function embedsOf(value: unknown, out: string[] = []): string[] {
+  if (Array.isArray(value)) for (const v of value) embedsOf(v, out)
+  else if (value && typeof value === 'object') {
+    const node = value as Record<string, unknown>
+    if (node.type === 'embed' && typeof node.id === 'string') out.push(`${node.id}:${String(node.html ?? '')}`)
+    for (const v of Object.values(node)) if (v && typeof v === 'object') embedsOf(v, out)
+  }
+  return out
+}
+
 class ApiError extends HTTPException {
   constructor(
     status: 400 | 401 | 403 | 404 | 409 | 413 | 422 | 429,
@@ -118,6 +129,16 @@ export function createApp(ctx: ServerContext) {
   // Fonts are cached next to the media library (.materialize/fonts by default).
   const fonts = createFonts(join(dirname(resolve(ctx.config().media.dir)), 'fonts'))
   const app = new Hono<Env>()
+
+  const guardEmbeds = (user: User, before: unknown, after: unknown) => {
+    if (user.role === 'admin') return
+    if (JSON.stringify(embedsOf(before).sort()) !== JSON.stringify(embedsOf(after).sort()))
+      throw new ApiError(
+        403,
+        'embed_admin_only',
+        'Solo un amministratore può aggiungere o modificare il codice personalizzato',
+      )
+  }
 
   const collection = (name: string): Collection => {
     const found = ctx.config().collections.find((x) => x.name === name)
@@ -406,6 +427,49 @@ export function createApp(ctx: ServerContext) {
     return c.json({ theme })
   })
 
+  // Sections shared by several pages (menu, footer): edited once, live everywhere.
+  app.get('/api/globals', requireUser, async (c) => c.json({ globals: (await settings.get('globals')) ?? {} }))
+
+  app.put('/api/globals', requireUser, async (c) => {
+    const input = await body(c, z.object({ globals: z.record(z.string(), z.record(z.string(), z.unknown())) }))
+    const before = (await settings.get('globals')) ?? {}
+    guardEmbeds(c.get('user'), before, input.globals)
+    await settings.set('globals', input.globals, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ globals: input.globals })
+  })
+
+  // Reusable components with their variants.
+  app.get('/api/components', requireUser, async (c) => c.json({ components: (await settings.get('components')) ?? {} }))
+
+  app.put('/api/components', requireUser, async (c) => {
+    const input = await body(c, z.object({ components: z.record(z.string(), z.record(z.string(), z.unknown())) }))
+    const before = (await settings.get('components')) ?? {}
+    guardEmbeds(c.get('user'), before, input.components)
+    await settings.set('components', input.components, c.get('user').id)
+    ctx.onPublish?.()
+    return c.json({ components: input.components })
+  })
+
+  // Entries with their data, for lists bound to a collection on the canvas.
+  app.get('/api/collections/:name/entries', requireUser, async (c) => {
+    const def = collection(c.req.param('name'))
+    const { items } = await content.list(def.name, {
+      locale: locale(c.req.query('locale')),
+      limit: Math.min(Number(c.req.query('limit') ?? 24), 100),
+    })
+    const docs = await content.getMany(items.map((i) => i.id))
+    const byId = new Map(docs.map((d) => [d.id, d]))
+    return c.json({
+      items: items.flatMap((i) => {
+        const doc = byId.get(i.id)
+        return doc
+          ? [{ id: doc.id, title: doc.title, url: def.url ? def.url(doc.data as never) : null, data: doc.data }]
+          : []
+      }),
+    })
+  })
+
   app.get('/api/overview', requireUser, async (c) => {
     const known = new Set(ctx.config().collections.map((col) => col.name))
     const overview = await content.overview(locale(c.req.query('locale')))
@@ -438,6 +502,7 @@ export function createApp(ctx: ServerContext) {
       throw new ApiError(409, 'singleton_exists', `"${def.label}" already exists; edit it instead`)
     }
     const draft = draftData(def, input.data)
+    guardEmbeds(c.get('user'), null, draft.data)
     const doc = await slugGuard(() =>
       content.create({ collection: def.name, locale: lang, ...draft, userId: c.get('user').id }),
     )
@@ -456,6 +521,7 @@ export function createApp(ctx: ServerContext) {
     const existing = await loadDocument(c.req.param('id'))
     const input = await body(c, documentBody)
     const draft = draftData(collection(existing.collection), input.data)
+    guardEmbeds(c.get('user'), existing.data, draft.data)
     const doc = await slugGuard(() => content.update(existing.id, { ...draft, userId: c.get('user').id }))
     return c.json(toJson(doc as StoredDocument))
   })

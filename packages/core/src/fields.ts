@@ -351,7 +351,7 @@ const pageNodeSchema: z.ZodType<PageNode> = z.lazy(() =>
   z
     .object({
       id: z.string().min(1),
-      type: z.enum(['frame', 'text', 'image', 'button']),
+      type: z.enum(['frame', 'text', 'image', 'button', 'video', 'embed', 'scene']),
       name: z.string().max(120).optional(),
       children: z.array(pageNodeSchema).optional(),
     })

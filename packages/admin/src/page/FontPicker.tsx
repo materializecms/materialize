@@ -26,7 +26,9 @@ export function FontPicker({
   onChange: (font: Pick<FontInfo, 'family' | 'category'>) => void
   label: string
 }) {
-  useEffect(() => loadFont(value), [value])
+  useEffect(() => {
+    if (value !== 'Del tema') loadFont(value)
+  }, [value])
   return (
     <Popover
       width={300}

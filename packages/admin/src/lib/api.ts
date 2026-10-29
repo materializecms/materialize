@@ -1,5 +1,5 @@
 import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
-import type { Theme } from '@materializecms/core/page'
+import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/core/page'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -175,6 +175,14 @@ export const api = {
   schema: () => request<Schema>('GET', '/schema'),
   theme: () => request<{ theme: Theme }>('GET', '/theme'),
   fonts: () => request<{ items: FontInfo[] }>('GET', '/fonts'),
+  components: () => request<{ components: Record<string, Component> }>('GET', '/components'),
+  saveComponents: (components: Record<string, Component>) =>
+    request<{ components: Record<string, Component> }>('PUT', '/components', { components }),
+  globals: () => request<{ globals: Record<string, PageNode> }>('GET', '/globals'),
+  saveGlobals: (globals: Record<string, PageNode>) =>
+    request<{ globals: Record<string, PageNode> }>('PUT', '/globals', { globals }),
+  entries: (collection: string, locale: string) =>
+    request<{ items: (BoundEntry & { id: string })[] }>('GET', `/collections/${collection}/entries${q({ locale })}`),
   saveTheme: (theme: Theme) => request<{ theme: Theme }>('PUT', '/theme', { theme }),
   overview: (locale: string) => request<Overview>('GET', `/overview${q({ locale })}`),
   list: (collection: string, params: { locale?: string; search?: string; limit?: number; offset?: number }) =>
@@ -228,5 +236,5 @@ export const api = {
 
 /** A lighter copy of a library image for previews (the server makes it on first request). */
 export function thumb(src: string, width = 640): string {
-  return src.startsWith('/media/') && !src.endsWith('.gif') ? `${src}@${width}.webp` : src
+  return src.startsWith('/media/') && !/\.(gif|glb)$/.test(src) ? `${src}@${width}.webp` : src
 }

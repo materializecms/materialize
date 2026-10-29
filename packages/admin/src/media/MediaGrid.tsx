@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { CircleAlert, ImageUp, X } from 'lucide-react'
+import { Box, CircleAlert, ImageUp, X } from 'lucide-react'
 import { type DragEvent, type ReactNode, useState } from 'react'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
@@ -147,12 +147,19 @@ export function MediaGrid({
               selected === asset.id ? 'border-accent ring-3 ring-accent/25' : 'border-line hover:border-line2',
             )}
           >
-            <img
-              src={thumb(asset.url, 320)}
-              alt={asset.alt}
-              loading="lazy"
-              className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            />
+            {asset.url.endsWith('.glb') ? (
+              <span className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:12px_12px] text-fg3">
+                <Box className="size-8" />
+                <span className="font-mono text-[10.5px]">Modello 3D</span>
+              </span>
+            ) : (
+              <img
+                src={thumb(asset.url, 320)}
+                alt={asset.alt}
+                loading="lazy"
+                className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            )}
             <span className="block truncate border-t border-line bg-panel px-2 py-1.5 text-[11.5px] text-fg2">
               {asset.filename}
             </span>

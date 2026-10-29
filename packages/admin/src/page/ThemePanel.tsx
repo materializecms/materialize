@@ -1,6 +1,6 @@
 import { fontStack, TEXT_STYLES, type Theme, type ThemeColors } from '@materializecms/core/page'
 import { Moon, Sun } from 'lucide-react'
-import { NumField, Row, Section, Seg } from './controls.tsx'
+import { NumField, Row, Section, Seg, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
 
 const COLOR_LABELS: { key: keyof ThemeColors; label: string; hint: string }[] = [
@@ -147,6 +147,39 @@ export function ThemePanel({
           <Row label="Schede" hint="Raggio degli angoli di immagini e schede">
             <NumField value={theme.cardRadius} onChange={(v) => set({ cardRadius: v ?? 0 })} max={48} />
           </Row>
+        </Section>
+        <Section title="Esperienza">
+          <Toggle
+            label="Scorrimento morbido"
+            checked={!!theme.smoothScroll}
+            onChange={(smoothScroll) => set({ smoothScroll })}
+          />
+          <Row label="Cursore">
+            <Seg
+              value={theme.cursor ?? 'default'}
+              onChange={(cursor) => set({ cursor })}
+              options={[
+                { value: 'default', label: 'Normale' },
+                { value: 'dot', label: 'Punto' },
+                { value: 'ring', label: 'Anello' },
+              ]}
+            />
+          </Row>
+          <Row label="Tra le pagine" hint="Transizione quando si passa da una pagina all’altra">
+            <Seg
+              value={theme.transition ?? 'none'}
+              onChange={(transition) => set({ transition })}
+              options={[
+                { value: 'none', label: 'Nessuna' },
+                { value: 'fade', label: 'Dissolvi' },
+                { value: 'slide', label: 'Scorri' },
+              ]}
+            />
+          </Row>
+          <p className="text-[11px] leading-relaxed text-fg3">
+            Si vedono sul sito pubblicato. Chi ha chiesto meno movimento al proprio dispositivo non li riceve, e su
+            telefoni e tablet restano disattivati scorrimento morbido e cursore.
+          </p>
         </Section>
       </fieldset>
     </div>

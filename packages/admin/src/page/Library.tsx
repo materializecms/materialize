@@ -1,17 +1,20 @@
 import { buildSection, LIBRARY } from '@materializecms/core/library'
-import { pageRootStyle, renderSections, type Theme } from '@materializecms/core/page'
-import { Image as ImageIcon, MousePointerClick, Rows3, Search, Type } from 'lucide-react'
+import { type Component, type PageNode, pageRootStyle, renderSections, type Theme } from '@materializecms/core/page'
+import { Code, Image as ImageIcon, MousePointerClick, Rows3, Search, Sparkles, Type, Video } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Kbd } from '../components/ui.tsx'
 import { DRAG_ELEMENT, DRAG_SECTION } from './Canvas.tsx'
 
-export type ElementKind = 'frame' | 'text' | 'image' | 'button'
+export type ElementKind = 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene'
 
 const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.ReactNode }[] = [
   { kind: 'frame', label: 'Contenitore', key: 'F', icon: <Rows3 /> },
   { kind: 'text', label: 'Testo', key: 'T', icon: <Type /> },
   { kind: 'image', label: 'Immagine', key: 'I', icon: <ImageIcon /> },
   { kind: 'button', label: 'Pulsante', key: 'B', icon: <MousePointerClick /> },
+  { kind: 'video', label: 'Video', key: 'V', icon: <Video /> },
+  { kind: 'embed', label: 'Codice', key: 'C', icon: <Code /> },
+  { kind: 'scene', label: 'WebGL', key: 'G', icon: <Sparkles /> },
 ]
 
 const TILE_W = 1280
@@ -22,9 +25,17 @@ export function Library({
   brand,
   onAddElement,
   onAddSection,
+  globals,
+  onAddGlobal,
+  components,
+  onAddComponent,
 }: {
   theme: Theme
   brand: string
+  globals: Record<string, PageNode>
+  onAddGlobal: (id: string) => void
+  components: Record<string, Component>
+  onAddComponent: (id: string) => void
   onAddElement: (kind: ElementKind) => void
   onAddSection: (key: string) => void
 }) {
@@ -49,6 +60,31 @@ export function Library({
         })
     return out
   }, [theme, brand])
+  const globalPreviews = useMemo(
+    () =>
+      Object.entries(globals).map(([id, node]) => ({
+        id,
+        label: node.name || 'Sezione globale',
+        ...renderSections([node], theme, { animations: 'none', base: false }),
+      })),
+    [globals, theme],
+  )
+  const componentPreviews = useMemo(
+    () =>
+      Object.values(components).flatMap((c) => {
+        const node = c.variants[0]?.node
+        if (!node) return []
+        const out = renderSections([node], theme, { animations: 'none', base: false })
+        return [
+          {
+            id: c.id,
+            label: `${c.name} · ${c.variants.length === 1 ? '1 variante' : `${c.variants.length} varianti`}`,
+            ...out,
+          },
+        ]
+      }),
+    [components, theme],
+  )
   const css = useMemo(
     () =>
       Object.values(previews)
@@ -106,7 +142,49 @@ export function Library({
         </div>
       </div>
       <style>{css}</style>
+      <style>{globalPreviews.map((g) => g.css).join('\n')}</style>
+      <style>{componentPreviews.map((g) => g.css).join('\n')}</style>
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3">
+        {componentPreviews.length > 0 && !q && cat === 'all' && (
+          <section>
+            <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">
+              Componenti
+              <span className="font-normal text-fg3">riutilizzabili, con varianti</span>
+            </h3>
+            <div className="space-y-2.5">
+              {componentPreviews.map((g) => (
+                <Tile
+                  key={g.id}
+                  id={`component:${g.id}`}
+                  label={g.label}
+                  html={g.html}
+                  root={pageRootStyle(theme)}
+                  onAdd={() => onAddComponent(g.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+        {globalPreviews.length > 0 && !q && cat === 'all' && (
+          <section>
+            <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">
+              Sezioni globali
+              <span className="font-normal text-fg3">condivise da tutte le pagine</span>
+            </h3>
+            <div className="space-y-2.5">
+              {globalPreviews.map((g) => (
+                <Tile
+                  key={g.id}
+                  id={`global:${g.id}`}
+                  label={g.label}
+                  html={g.html}
+                  root={pageRootStyle(theme)}
+                  onAdd={() => onAddGlobal(g.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
         {groups.map((c) => (
           <section key={c.key}>
             <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">

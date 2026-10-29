@@ -4,8 +4,18 @@
  *
  *   <Page sections={entry.data.page} />
  */
-import { fontLinks, librarySrcset, type PageNode, renderPage, type Theme } from '@materializecms/core/page'
-import { getTheme } from '../content.ts'
+import {
+  type BoundEntry,
+  expandComponents,
+  expandGlobals,
+  librarySrcset,
+  type PageNode,
+  pageFontLinks,
+  renderPage,
+  type Theme,
+  walk,
+} from '@materializecms/core/page'
+import { getComponents, getEntries, getGlobals, getTheme } from '../content.ts'
 
 interface Props {
   sections?: PageNode[] | null
@@ -15,9 +25,34 @@ interface Props {
 
 const { sections, theme } = Astro.props
 const active = theme ?? (await getTheme())
-const { html, css } = renderPage(sections ?? [], active, { srcset: librarySrcset })
+const nodes = expandComponents(expandGlobals(sections ?? [], await getGlobals()), await getComponents())
+// Published entries for the lists bound to a collection.
+const data: Record<string, BoundEntry[]> = {}
+const bound = new Set<string>()
+walk(nodes, (n) => {
+  if (n.bind?.collection) bound.add(n.bind.collection)
+})
+for (const name of bound) {
+  data[name] = (await getEntries(name).catch(() => [])).map((e) => ({ title: e.title, url: e.url, data: e.data }))
+}
+const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data })
 ---
 
-{fontLinks(active).map((href) => <link rel="stylesheet" href={href} />)}
+{pageFontLinks(active, nodes).map((href) => <link rel="stylesheet" href={href} />)}
 <style is:inline set:html={css}></style>
 <Fragment set:html={html} />
+
+<script>
+  // Interactions, smooth scrolling and the custom cursor; does nothing on pages without them.
+  import { startMotion } from '@materializecms/core/motion'
+  import { startScenes } from '@materializecms/core/scene'
+
+  // Independent: a problem in one never stops the other.
+  for (const start of [() => startScenes(document), () => startMotion(document, { site: true })]) {
+    try {
+      start()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+</script>

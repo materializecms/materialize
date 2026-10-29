@@ -12,7 +12,7 @@ export interface Upload {
   error?: string
 }
 
-export const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,image/gif'
+export const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,image/gif,.glb,model/gltf-binary'
 
 /** Uploads files three at a time, with progress, and refreshes the library when they land. */
 export function useUploads(onDone?: (asset: MediaAsset) => void) {
