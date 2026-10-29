@@ -1,0 +1,126 @@
+import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materialize/core'
+
+export type { CollectionDescription, FieldDescription, ValidationIssue }
+
+export type DocumentStatus = 'draft' | 'published' | 'changed'
+export type Data = Record<string, unknown>
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: 'admin' | 'editor'
+}
+
+export interface Schema {
+  site: { name: string; url?: string }
+  locales: { default: string; available: string[] }
+  collections: CollectionDescription[]
+}
+
+export interface DocumentSummary {
+  id: string
+  title: string
+  slug: string | null
+  status: DocumentStatus
+  updatedAt: string
+  publishedAt: string | null
+}
+
+export interface StoredDocument extends DocumentSummary {
+  collection: string
+  locale: string
+  data: Data
+  publishedData: Data | null
+  createdAt: string
+  url: string | null
+  /** Problems to fix before publishing; returned when a draft is saved. */
+  issues?: ValidationIssue[]
+}
+
+export interface Revision {
+  id: string
+  kind: 'save' | 'publish' | 'restore'
+  data: Data
+  createdAt: string
+  authorId: string | null
+}
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly issues: ValidationIssue[]
+  constructor(status: number, code: string, message: string, issues: ValidationIssue[] = []) {
+    super(message)
+    this.status = status
+    this.code = code
+    this.issues = issues
+  }
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      credentials: 'same-origin',
+      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch {
+    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+  }
+  if (res.status === 204) return undefined as T
+  const json = await res.json().catch(() => null)
+  if (!res.ok) {
+    const error = json?.error ?? {}
+    throw new ApiError(res.status, error.code ?? 'error', translate(error.code, error.message), error.issues ?? [])
+  }
+  return json as T
+}
+
+// The API speaks English; the admin speaks to editors in Italian.
+const MESSAGES: Record<string, string> = {
+  invalid_credentials: 'Email o password non corretti',
+  too_many_attempts: 'Troppi tentativi. Riprova tra un minuto',
+  unauthenticated: 'Accedi per continuare',
+  forbidden: 'Solo gli amministratori possono farlo',
+  invalid_content: 'Alcuni campi vanno sistemati',
+  invalid_request: 'Controlla i dati inseriti',
+  slug_taken: 'Questo indirizzo è già usato da un altro documento',
+  singleton_exists: 'Questo documento esiste già',
+  already_set_up: 'Un amministratore esiste già',
+  not_found: 'Documento non trovato',
+}
+
+function translate(code: string | undefined, fallback: string | undefined): string {
+  return (code && MESSAGES[code]) || fallback || 'Qualcosa è andato storto'
+}
+
+const q = (params: Record<string, string | number | undefined>) => {
+  const s = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') s.set(k, String(v))
+  const text = s.toString()
+  return text ? `?${text}` : ''
+}
+
+export const api = {
+  setupStatus: () => request<{ needsSetup: boolean }>('GET', '/setup'),
+  setup: (input: { email: string; name: string; password: string }) => request<{ user: User }>('POST', '/setup', input),
+  login: (input: { email: string; password: string }) => request<{ user: User }>('POST', '/auth/login', input),
+  logout: () => request<{ ok: true }>('POST', '/auth/logout'),
+  me: () => request<{ user: User }>('GET', '/auth/me'),
+  schema: () => request<Schema>('GET', '/schema'),
+  list: (collection: string, params: { locale?: string; search?: string; limit?: number; offset?: number }) =>
+    request<{ items: DocumentSummary[]; total: number }>('GET', `/collections/${collection}${q(params)}`),
+  create: (collection: string, data: Data, locale?: string) =>
+    request<StoredDocument>('POST', `/collections/${collection}`, { data, locale }),
+  get: (id: string) => request<StoredDocument>('GET', `/documents/${id}`),
+  save: (id: string, data: Data) => request<StoredDocument>('PUT', `/documents/${id}`, { data }),
+  publish: (id: string) => request<StoredDocument>('POST', `/documents/${id}/publish`),
+  unpublish: (id: string) => request<StoredDocument>('POST', `/documents/${id}/unpublish`),
+  remove: (id: string) => request<void>('DELETE', `/documents/${id}`),
+  revisions: (id: string) => request<{ items: Revision[] }>('GET', `/documents/${id}/revisions`),
+  restore: (id: string, revision: string) =>
+    request<StoredDocument>('POST', `/documents/${id}/revisions/${revision}/restore`),
+}

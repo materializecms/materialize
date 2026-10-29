@@ -1,0 +1,31 @@
+{
+  "name": "materialize-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "Materialize \u2014 open source CMS with a Figma-grade visual editor and static, fast sites.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @materialize/admin && npm run dev -w examples/sito",
+    "dev:admin": "npm run dev -w @materialize/admin",
+    "build": "npm run build -w @materialize/admin",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json && tsc -p packages/admin/tsconfig.json",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

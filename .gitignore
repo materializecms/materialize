@@ -1,0 +1,12 @@
+node_modules/
+.materialize/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+dist/

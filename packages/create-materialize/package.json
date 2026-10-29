@@ -1,0 +1,14 @@
+{
+  "name": "create-materialize",
+  "version": "0.1.0",
+  "description": "Create a new Materialize site with one command: npm create materialize@latest",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "create-materialize": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "template"
+  ]
+}

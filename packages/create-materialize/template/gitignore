@@ -1,0 +1,4 @@
+node_modules/
+.materialize/
+.env
+.DS_Store

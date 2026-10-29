@@ -1,0 +1,14 @@
+{
+  "name": "@materialize/core",
+  "version": "0.1.0",
+  "description": "Schema-as-code for Materialize: collections, blocks, fields, types and validation.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./slug": "./src/slug.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}

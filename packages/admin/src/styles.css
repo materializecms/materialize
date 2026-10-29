@@ -1,0 +1,156 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --accent: #3d5afe;
+  --accent-fg: #ffffff;
+  --bg: #f6f6f7;
+  --panel: #ffffff;
+  --panel2: #f6f6f7;
+  --border: #eaeaec;
+  --border2: #dfdfe4;
+  --text: #0a0a0b;
+  --text2: #5a5a62;
+  --text3: #72727b;
+  --hover: #f0f0f2;
+  --canvas: #ebebee;
+  --dot: #d2d2d8;
+  --seg: #eeeef0;
+  --input: #ffffff;
+  --warn: #b54708;
+  --ok: #0b7a60;
+  --danger: #c4320a;
+  --pop: 0 1px 2px rgba(10, 10, 11, 0.06), 0 12px 32px rgba(10, 10, 11, 0.12);
+  color-scheme: light;
+}
+
+.dark {
+  --accent: #5b74ff;
+  --bg: #0b0b0c;
+  --panel: #121214;
+  --panel2: #18181b;
+  --border: #222226;
+  --border2: #2e2e34;
+  --text: #ededef;
+  --text2: #a3a3ac;
+  --text3: #8b8b95;
+  --hover: #1d1d21;
+  --canvas: #08080a;
+  --dot: #24242a;
+  --seg: #1b1b1f;
+  --input: #16161a;
+  --warn: #f5a35c;
+  --ok: #45d6ac;
+  --danger: #ff7a59;
+  --pop: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
+  --color-line: var(--border);
+  --color-line2: var(--border2);
+  --color-fg: var(--text);
+  --color-fg2: var(--text2);
+  --color-fg3: var(--text3);
+  --color-hover: var(--hover);
+  --color-canvas: var(--canvas);
+  --color-dot: var(--dot);
+  --color-seg: var(--seg);
+  --color-input: var(--input);
+  --color-warn: var(--warn);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --shadow-pop: var(--pop);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* Rich text editor (Tiptap) */
+.mz-prose {
+  outline: none;
+  line-height: 1.6;
+}
+.mz-prose > * + * {
+  margin-top: 0.6em;
+}
+.mz-prose h2 {
+  font-size: 1.35em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.mz-prose h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+.mz-prose h4 {
+  font-weight: 600;
+}
+.mz-prose blockquote {
+  border-left: 2px solid var(--border2);
+  padding-left: 0.9em;
+  color: var(--text2);
+}
+.mz-prose ul {
+  list-style: disc;
+  padding-left: 1.3em;
+}
+.mz-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mz-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--text3);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Canvas dotted background */
+.mz-dots {
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@keyframes mz-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+.mz-pop-in {
+  animation: mz-in 120ms ease-out;
+}

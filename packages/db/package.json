@@ -1,0 +1,14 @@
+{
+  "name": "@materialize/db",
+  "version": "0.1.0",
+  "description": "Storage for Materialize: documents with drafts, publishing and revisions, users and sessions.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "0.18.0",
+    "drizzle-orm": "0.45.4"
+  }
+}

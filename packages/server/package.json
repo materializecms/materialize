@@ -1,0 +1,18 @@
+{
+  "name": "@materialize/server",
+  "version": "0.1.0",
+  "description": "HTTP API for Materialize: authentication, content management and the public delivery API.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@materialize/admin": "0.1.0",
+    "@materialize/core": "0.1.0",
+    "@materialize/db": "0.1.0",
+    "hono": "4.13.14",
+    "zod": "4.6.7"
+  }
+}

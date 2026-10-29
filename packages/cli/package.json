@@ -1,0 +1,17 @@
+{
+  "name": "@materialize/cli",
+  "version": "0.1.0",
+  "description": "The materialize command: run the CMS locally with live schema reload.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "materialize": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/load-config.ts"
+  },
+  "dependencies": {
+    "@materialize/core": "0.1.0",
+    "@materialize/server": "0.1.0"
+  }
+}
