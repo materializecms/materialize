@@ -1,0 +1,74 @@
+---
+import Media from '@materializecms/astro/components/Media.astro'
+import type { Media as MediaValue } from '@materializecms/core'
+
+interface Props {
+  quote: string
+  author?: string
+  role?: string
+  portrait?: MediaValue
+  field: (name: string) => Record<string, string>
+}
+
+const { quote, author, role, portrait, field } = Astro.props
+---
+
+<section class="quote section">
+  <figure class="wrap inner">
+    <blockquote {...field('quote')}>{quote}</blockquote>
+    {
+      (author || portrait?.src) && (
+        <figcaption>
+          {portrait?.src && <Media media={portrait} class="portrait" sizes="56px" />}
+          <span>
+            {author && <strong {...field('author')}>{author}</strong>}
+            {role && <span class="soft" {...field('role')}>{role}</span>}
+          </span>
+        </figcaption>
+      )
+    }
+  </figure>
+</section>
+
+<style>
+  .inner {
+    max-width: 980px;
+    margin-inline: auto;
+    text-align: center;
+  }
+  blockquote {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    font-size: clamp(30px, 4vw, 52px);
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+  blockquote::before {
+    content: '“';
+  }
+  blockquote::after {
+    content: '”';
+  }
+  figcaption {
+    margin-top: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    font-size: 15px;
+  }
+  figcaption > span {
+    display: grid;
+  }
+  strong {
+    font-weight: 500;
+  }
+  .quote :global(.portrait) {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+</style>

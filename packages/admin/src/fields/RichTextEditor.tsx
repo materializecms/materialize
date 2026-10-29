@@ -1,4 +1,4 @@
-import type { RichText } from '@materialize/core'
+import type { RichText } from '@materializecms/core'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Heading2, Heading3, Italic, Link2, List, Quote, Unlink } from 'lucide-react'

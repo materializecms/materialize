@@ -4,7 +4,7 @@
  * Files from the media library get AVIF and WebP in several widths: browsers pick the
  * lightest one for the screen, using `sizes` (how wide the image is shown; default: full width).
  */
-import type { Media } from '@materialize/core'
+import type { Media } from '@materializecms/core'
 import type { HTMLAttributes } from 'astro/types'
 
 interface Props extends Omit<HTMLAttributes<'img'>, 'src' | 'alt'> {

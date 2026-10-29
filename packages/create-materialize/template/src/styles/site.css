@@ -1,0 +1,186 @@
+:root {
+  /* The site's palette and type: change these to make the starter yours. */
+  --ink: #111113;
+  --ink-2: #4b4b52;
+  --ink-3: #85858d;
+  --paper: #ffffff;
+  --paper-2: #f4f4f5;
+  --line: #e4e4e7;
+  --accent: #3b5bdb;
+  --sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --display: var(--sans);
+  --wrap: min(1240px, 100% - 48px);
+
+  /* What block style settings mean on this site (see @materializecms/astro blocks.css). */
+  --theme-muted-bg: var(--paper-2);
+  --theme-dark-bg: var(--ink);
+  --theme-dark-fg: var(--paper);
+  --theme-accent-bg: var(--accent);
+  --theme-accent-fg: #fff;
+  --theme-space-normal: clamp(56px, 8vw, 112px);
+}
+
+/* Text that is quieter than the body, on any background. */
+.soft {
+  color: color-mix(in srgb, currentColor 68%, transparent);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px / 1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.wrap {
+  width: var(--wrap);
+  margin-inline: auto;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+}
+
+/* Buttons flip on dark backgrounds. */
+.mz-block[data-bg="dark"],
+.mz-block[data-bg="accent"],
+.on-dark {
+  --btn-bg: var(--paper);
+  --btn-fg: var(--ink);
+}
+.mz-block[data-bg="muted"] {
+  --btn-bg: var(--ink);
+  --btn-fg: var(--paper);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--btn-bg, var(--ink));
+  color: var(--btn-fg, var(--paper));
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+.button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.button::after {
+  content: "→";
+  transition: transform 0.2s ease;
+}
+.button:hover::after {
+  transform: translateX(3px);
+}
+
+.prose {
+  font-size: 19px;
+  line-height: 1.7;
+  color: color-mix(in srgb, currentColor 78%, transparent);
+}
+.prose > * + * {
+  margin-top: 1em;
+}
+.prose h2,
+.prose h3 {
+  color: var(--mz-fg, var(--ink));
+  margin-top: 1.6em;
+}
+.prose h2 {
+  font-size: 36px;
+}
+.prose h3 {
+  font-size: 28px;
+}
+.prose strong {
+  font-weight: 600;
+}
+.prose a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+.prose ul {
+  padding-left: 1.2em;
+}
+.prose blockquote {
+  margin: 1.4em 0;
+  padding: 0;
+  font-family: var(--display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-size: 30px;
+  line-height: 1.2;
+  color: var(--mz-fg, var(--ink));
+}
+
+/* Section rhythm shared by blocks: the block's spacing setting wins. */
+.section {
+  padding-block: var(--mz-space, var(--theme-space-normal));
+}
+
+/* Gentle entrance as sections scroll into view (skipped when motion is reduced). */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        transform: translateY(32px);
+      }
+    }
+  }
+}

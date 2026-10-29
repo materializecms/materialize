@@ -1,4 +1,4 @@
-import type { MaterializeConfig } from '@materialize/core'
+import type { MaterializeConfig } from '@materializecms/core'
 import { html } from 'hono/html'
 
 /** Page served at "/" until the site renderer ships: confirms the server works and links to the admin. */

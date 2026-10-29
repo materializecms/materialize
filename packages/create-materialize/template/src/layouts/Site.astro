@@ -1,0 +1,154 @@
+---
+import '@fontsource-variable/geist'
+import '../styles/site.css'
+import { type Entry, getEntries, getSingleton } from '@materializecms/astro/content'
+
+interface Props {
+  title: string
+  description?: string
+  entry?: Entry
+  /** Rendered inside the editor canvas. */
+  preview?: boolean
+}
+
+const { title, description, entry, preview } = Astro.props
+const settings = await getSingleton('settings')
+const siteName: string = settings?.data.siteName ?? '__SITE_NAME__'
+const contacts = settings?.data.contacts ?? {}
+const accent: string | undefined = settings?.data.accent
+
+// Navigation: every published page except the home, in creation order.
+const pages = (await getEntries('pages')).filter((p) => p.url && p.url !== '/')
+const seo = entry?.data.seo ?? {}
+const pageTitle = seo.title || (entry?.url === '/' ? siteName : `${title} · ${siteName}`)
+const metaDescription = seo.description || description
+const current = Astro.url.pathname.replace(/\/$/, '') || '/'
+---
+
+<!doctype html>
+<html lang={entry?.locale ?? 'it'}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    {metaDescription && <meta name="description" content={metaDescription} />}
+    {seo.noindex && <meta name="robots" content="noindex" />}
+    {seo.image?.src && <meta property="og:image" content={seo.image.src} />}
+    <meta property="og:title" content={pageTitle} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {Astro.site && entry?.url && <link rel="canonical" href={new URL(entry.url, Astro.site)} />}
+    {accent && <style set:html={`:root{--accent:${accent}}`} />}
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap bar">
+        <a href="/" class="brand">{siteName}</a>
+        {
+          pages.length > 0 && (
+            <nav aria-label="Principale">
+              {pages.map((p) => (
+                <a href={p.url} aria-current={current === p.url ? 'page' : undefined}>
+                  {p.title}
+                </a>
+              ))}
+            </nav>
+          )
+        }
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap cols">
+        <div>
+          <p class="brand">{siteName}</p>
+          {contacts.address && <p class="muted address">{contacts.address}</p>}
+        </div>
+        <div class="contacts">
+          {contacts.email && <a href={`mailto:${contacts.email}`}>{contacts.email}</a>}
+          {contacts.phone && <a href={`tel:${contacts.phone.replace(/\s+/g, '')}`}>{contacts.phone}</a>}
+        </div>
+        <p class="muted small">© {new Date().getFullYear()} {siteName}</p>
+      </div>
+    </footer>
+    {preview && <style>{`html{scroll-behavior:auto}`}</style>}
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    height: 68px;
+  }
+  .brand {
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+  nav {
+    display: flex;
+    gap: 28px;
+    font-size: 15px;
+  }
+  nav a {
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+  nav a:hover,
+  nav a[aria-current='page'] {
+    color: var(--ink);
+  }
+  .site-footer {
+    margin-top: 0;
+    border-top: 1px solid var(--line);
+    padding: 56px 0 40px;
+    font-size: 15px;
+  }
+  .cols {
+    display: grid;
+    gap: 28px;
+  }
+  @media (min-width: 760px) {
+    .cols {
+      grid-template-columns: 1.4fr 1fr auto;
+      align-items: end;
+    }
+  }
+  .contacts {
+    display: grid;
+    gap: 4px;
+  }
+  .contacts a {
+    text-decoration: none;
+    color: var(--ink-2);
+  }
+  .contacts a:hover {
+    color: var(--accent);
+  }
+  .muted {
+    color: var(--ink-3);
+  }
+  .address {
+    margin-top: 8px;
+    white-space: pre-line;
+  }
+  .small {
+    font-size: 13px;
+  }
+</style>

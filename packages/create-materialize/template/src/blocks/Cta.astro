@@ -1,0 +1,55 @@
+---
+import type { BlockStyle, Link } from '@materializecms/core'
+
+interface Props {
+  title: string
+  text?: string
+  link: Link
+  _style?: BlockStyle
+  field: (name: string) => Record<string, string>
+}
+
+const { title, text, link, field, _style } = Astro.props
+// Dark by default; a background chosen in the editor takes over.
+const ownBackground = !_style?.background
+---
+
+<section class:list={['cta', { 'own-bg on-dark': ownBackground }]}>
+  <div class="wrap inner">
+    <h2 {...field('title')}>{title}</h2>
+    {text && <p {...field('text')}>{text}</p>}
+    {
+      link?.href && (
+        <a class="button" href={link.href} target={link.newTab ? '_blank' : undefined}>
+          {link.label || 'Contattaci'}
+        </a>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  .cta {
+    text-align: center;
+    padding-block: var(--mz-space, clamp(72px, 10vw, 144px));
+  }
+  .own-bg {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .inner {
+    max-width: 860px;
+  }
+  h2 {
+    font-size: clamp(44px, 6.5vw, 88px);
+  }
+  p {
+    margin: 24px auto 0;
+    max-width: 46ch;
+    font-size: 19px;
+    color: color-mix(in srgb, currentColor 70%, transparent);
+  }
+  .button {
+    margin-top: 40px;
+  }
+</style>

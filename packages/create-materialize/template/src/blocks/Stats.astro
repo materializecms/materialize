@@ -1,0 +1,56 @@
+---
+interface Props {
+  title?: string
+  items?: { value: string; label: string }[]
+  field: (name: string) => Record<string, string>
+}
+
+const { title, items = [], field } = Astro.props
+---
+
+<section class="stats section">
+  <div class="wrap">
+    {title && <h2 class="eyebrow" {...field('title')}>{title}</h2>}
+    <dl>
+      {
+        items.map((item) => (
+          <div>
+            <dt class="soft">{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
+  </div>
+</section>
+
+<style>
+  h2 {
+    font-family: var(--sans);
+    margin-bottom: 40px;
+  }
+  dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 40px 32px;
+    margin: 0;
+  }
+  dl > div {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 6px;
+    border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    padding-top: 20px;
+  }
+  dd {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    font-size: clamp(48px, 6vw, 80px);
+    line-height: 1;
+  }
+  dt {
+    font-size: 15px;
+  }
+</style>

@@ -1,0 +1,73 @@
+---
+interface Props {
+  title: string
+  items?: { question: string; answer: string }[]
+  field: (name: string) => Record<string, string>
+}
+
+const { title, items = [], field } = Astro.props
+---
+
+<section class="faq section">
+  <div class="wrap grid">
+    <h2 {...field('title')}>{title}</h2>
+    <div>
+      {
+        items.map((item, i) => (
+          <details open={i === 0}>
+            <summary>{item.question}</summary>
+            <p class="soft">{item.answer}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    gap: 32px;
+  }
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: 5fr 7fr;
+      gap: 72px;
+    }
+  }
+  h2 {
+    font-size: clamp(36px, 4.5vw, 56px);
+  }
+  details {
+    border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    padding: 22px 0;
+  }
+  details:last-child {
+    border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  }
+  summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    font-size: 20px;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::after {
+    content: '+';
+    font-size: 24px;
+    line-height: 1;
+    transition: transform 0.25s ease;
+  }
+  details[open] summary::after {
+    transform: rotate(45deg);
+  }
+  p {
+    margin-top: 12px;
+    max-width: 60ch;
+    white-space: pre-line;
+  }
+</style>

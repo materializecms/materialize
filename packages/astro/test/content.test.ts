@@ -1,5 +1,5 @@
-import { defineBlock, defineCollection, defineConfig, f } from '@materialize/core'
-import { type ContentStore, createAuthStore, createContentStore, type Database, openDatabase } from '@materialize/db'
+import { defineBlock, defineCollection, defineConfig, f } from '@materializecms/core'
+import { type ContentStore, createAuthStore, createContentStore, type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { getEntries, getRoutes, getSingleton, previewEntry } from '../src/content.ts'
 import { setRuntime } from '../src/runtime.ts'

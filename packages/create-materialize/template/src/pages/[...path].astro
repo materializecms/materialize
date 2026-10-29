@@ -1,0 +1,58 @@
+---
+import Blocks from '@materializecms/astro/components/Blocks.astro'
+import { type Entry, getRoutes } from '@materializecms/astro/content'
+import Site from '../layouts/Site.astro'
+
+// One static page for every published document that has an address.
+// Until a home page is published, the home shows how to start.
+export async function getStaticPaths() {
+  const routes: { params: { path: string | undefined }; props: { entry: Entry | null } }[] = await getRoutes()
+  if (!routes.some((r) => r.params.path === undefined)) routes.push({ params: { path: undefined }, props: { entry: null } })
+  return routes
+}
+
+const { entry } = Astro.props as { entry: Entry | null }
+---
+
+{
+  entry ? (
+    <Site title={entry.title} entry={entry}>
+      <Blocks blocks={entry.data.blocks} />
+    </Site>
+  ) : (
+    <Site title="Benvenuto">
+      <section class="wrap welcome">
+        <p class="eyebrow">Materialize</p>
+        <h1>Il sito è pronto.</h1>
+        <p class="soft">
+          Apri il pannello, crea una pagina con indirizzo <code>home</code> e pubblicala: comparirà qui.
+        </p>
+        <a class="button" href="/admin">Apri il pannello</a>
+      </section>
+    </Site>
+  )
+}
+
+<style>
+  .welcome {
+    padding: clamp(96px, 14vw, 180px) 0;
+  }
+  h1 {
+    margin-top: 20px;
+    font-size: clamp(44px, 7vw, 88px);
+  }
+  p.soft {
+    margin-top: 24px;
+    max-width: 44ch;
+    font-size: 19px;
+  }
+  code {
+    font-size: 0.9em;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--paper-2);
+  }
+  .button {
+    margin-top: 36px;
+  }
+</style>

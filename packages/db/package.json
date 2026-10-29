@@ -1,5 +1,5 @@
 {
-  "name": "@materialize/db",
+  "name": "@materializecms/db",
   "version": "0.1.0",
   "description": "Storage for Materialize: documents with drafts, publishing and revisions, users and sessions.",
   "type": "module",

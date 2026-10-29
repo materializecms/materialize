@@ -1,4 +1,4 @@
-import type { FieldDescription, RichText } from '@materialize/core'
+import type { FieldDescription, RichText } from '@materializecms/core'
 import { describe, expect, it } from 'vitest'
 import { clean, getIn, move, setIn } from '../src/lib/doc.ts'
 import { fromTiptap, toTiptap } from '../src/lib/richtext.ts'

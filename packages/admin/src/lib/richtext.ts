@@ -1,4 +1,4 @@
-import type { RichText, RichTextBlock, RichTextRun } from '@materialize/core'
+import type { RichText, RichTextBlock, RichTextRun } from '@materializecms/core'
 
 /** Minimal shape of Tiptap/ProseMirror JSON that we read and write. */
 export interface PMNode {

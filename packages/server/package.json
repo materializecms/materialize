@@ -1,5 +1,5 @@
 {
-  "name": "@materialize/server",
+  "name": "@materializecms/server",
   "version": "0.1.0",
   "description": "HTTP API for Materialize: authentication, content management and the public delivery API.",
   "type": "module",
@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@hono/node-server": "2.1.5",
-    "@materialize/admin": "0.1.0",
-    "@materialize/core": "0.1.0",
-    "@materialize/db": "0.1.0",
+    "@materializecms/admin": "0.1.0",
+    "@materializecms/core": "0.1.0",
+    "@materializecms/db": "0.1.0",
     "hono": "4.13.14",
     "sharp": "0.35.5",
     "zod": "4.6.7"

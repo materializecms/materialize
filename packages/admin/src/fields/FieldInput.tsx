@@ -1,5 +1,5 @@
-import type { Link as LinkValue, Media, RichText, Seo } from '@materialize/core'
-import { slugify } from '@materialize/core/slug'
+import type { Link as LinkValue, Media, RichText, Seo } from '@materializecms/core'
+import { slugify } from '@materializecms/core/slug'
 import { ArrowDown, ArrowUp, Plus, Trash2, Wand2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { Button, cx, IconButton, Input, Segmented, Switch, Textarea } from '../components/ui.tsx'

@@ -1,7 +1,13 @@
 import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { MaterializeConfig } from '@materialize/core'
-import { type AuthStore, type ContentStore, createAuthStore, createContentStore, openDatabase } from '@materialize/db'
+import type { MaterializeConfig } from '@materializecms/core'
+import {
+  type AuthStore,
+  type ContentStore,
+  createAuthStore,
+  createContentStore,
+  openDatabase,
+} from '@materializecms/db'
 
 /** What the site needs from Materialize while Astro renders: the live schema and the stores. */
 export interface Runtime {
@@ -13,7 +19,8 @@ export interface Runtime {
 // Shared through globalThis: `materialize dev` sets it before starting Astro, and Astro's own
 // module graph (where pages run) reads the same object.
 const KEY = '__materialize_runtime__'
-type Holder = { [KEY]?: Runtime | Promise<Runtime> }
+const CHANGED = '__materialize_content_changed__'
+type Holder = { [KEY]?: Runtime | Promise<Runtime>; [CHANGED]?: () => void }
 const holder = globalThis as Holder
 
 export function setRuntime(runtime: Runtime): void {
@@ -22,6 +29,16 @@ export function setRuntime(runtime: Runtime): void {
 
 export function hasRuntime(): boolean {
   return holder[KEY] !== undefined
+}
+
+/** Called by the dev server: what to do when published content changes. The latest server wins. */
+export function onContentChange(listener: () => void): void {
+  holder[CHANGED] = listener
+}
+
+/** Published content changed: the dev server forgets the pages it has listed (getStaticPaths). */
+export function contentChanged(): void {
+  holder[CHANGED]?.()
 }
 
 export async function getRuntime(): Promise<Runtime> {

@@ -1,5 +1,5 @@
-import type { Collection, Field, Fields, MaterializeConfig } from '@materialize/core'
-import type { StoredDocument } from '@materialize/db'
+import type { Collection, Field, Fields, MaterializeConfig } from '@materializecms/core'
+import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
 
 // biome-ignore lint/suspicious/noExplicitAny: site templates read content freely; the schema validated it

@@ -3,8 +3,8 @@ import { createReadStream } from 'node:fs'
 import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
-import { slugify } from '@materialize/core'
-import type { MediaAsset } from '@materialize/db'
+import { slugify } from '@materializecms/core'
+import type { MediaAsset } from '@materializecms/db'
 import sharp, { type Metadata } from 'sharp'
 
 /** Formats people can upload, by what the file really is (not by its name). */

@@ -4,11 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "materialize dev",
+    "build": "materialize build",
     "start": "materialize start"
   },
   "dependencies": {
-    "@materialize/cli": "^0.1.0",
-    "@materialize/core": "^0.1.0"
+    "@astrojs/node": "^11.1.9",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@materializecms/astro": "^__VERSION__",
+    "@materializecms/cli": "^__VERSION__",
+    "@materializecms/core": "^__VERSION__",
+    "astro": "^7.4.4"
   },
   "engines": {
     "node": ">=24"

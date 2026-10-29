@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AstroIntegration } from 'astro'
-import { hasRuntime, loadRuntime } from './runtime.ts'
+import { hasRuntime, loadRuntime, onContentChange } from './runtime.ts'
 
 export type { Entry } from './content.ts'
 
@@ -36,11 +36,16 @@ function sitePlugin(root: string, options: Required<MaterializeOptions>) {
         : `const Layout = () => { throw new Error('Materialize: create ${options.layout} to preview pages') }`
       return `${imports.join('\n')}\n${layoutImport}\nexport const blocks = { ${entries.join(', ')} }\nexport { Layout }\n`
     },
-    // A new or removed block component must show up without restarting the dev server.
     configureServer(server: {
       watcher: { on: (event: string, cb: (path: string) => void) => void }
       moduleGraph: { getModuleById: (id: string) => unknown; invalidateModule: (mod: never) => void }
+      environments: Record<string, { hot: { send: (event: string, data: unknown) => void } }>
     }) {
+      // Astro remembers getStaticPaths() in dev; after a publish, new or moved pages must show up.
+      onContentChange(() => {
+        for (const environment of Object.values(server.environments)) environment.hot.send('astro:content-changed', {})
+      })
+      // A new or removed block component must show up without restarting the dev server.
       const refresh = (path: string) => {
         if (!path.startsWith(blocksDir)) return
         const mod = server.moduleGraph.getModuleById(RESOLVED)
@@ -54,12 +59,12 @@ function sitePlugin(root: string, options: Required<MaterializeOptions>) {
 
 /**
  * Connects an Astro site to Materialize: pages read published content with
- * `@materialize/astro/content`, and the admin previews drafts with the site's real components.
+ * `@materializecms/astro/content`, and the admin previews drafts with the site's real components.
  */
 export default function materialize(options: MaterializeOptions = {}): AstroIntegration {
   const resolved = { blocks: options.blocks ?? 'src/blocks', layout: options.layout ?? 'src/layouts/Site.astro' }
   return {
-    name: '@materialize/astro',
+    name: '@materializecms/astro',
     hooks: {
       'astro:config:setup': async ({ config, injectRoute, updateConfig }) => {
         const root = fileURLToPath(config.root)

@@ -16,6 +16,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["packages/*/src", "packages/*/test", "examples/*/*.ts", "vitest.config.ts"],
+  "include": ["packages/*/src", "packages/*/test", "examples/*/*.ts", "scripts", "vitest.config.ts"],
   "exclude": ["packages/admin"]
 }

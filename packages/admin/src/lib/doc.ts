@@ -1,4 +1,4 @@
-import type { FieldDescription, ValidationIssue } from '@materialize/core'
+import type { FieldDescription, ValidationIssue } from '@materializecms/core'
 
 export type Path = (string | number)[]
 

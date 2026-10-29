@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { getRequestListener } from '@hono/node-server'
-import { ADMIN_DIST } from '@materialize/admin'
-import type { MaterializeConfig } from '@materialize/core'
-import { type Database, openDatabase } from '@materialize/db'
+import { ADMIN_DIST } from '@materializecms/admin'
+import type { MaterializeConfig } from '@materializecms/core'
+import { type Database, openDatabase } from '@materializecms/db'
 import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'

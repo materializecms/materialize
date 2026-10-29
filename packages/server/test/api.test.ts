@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { defineBlock, defineCollection, defineConfig, f } from '@materialize/core'
-import { type Database, openDatabase } from '@materialize/db'
+import { defineBlock, defineCollection, defineConfig, f } from '@materializecms/core'
+import { type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp, hashPassword, verifyPassword } from '../src/index.ts'
 

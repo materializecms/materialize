@@ -1,4 +1,4 @@
-import type { Link, Media, RichText } from '@materialize/core'
+import type { Link, Media, RichText } from '@materializecms/core'
 import { ImageIcon } from 'lucide-react'
 import { type ElementType, type ReactNode, useLayoutEffect, useRef } from 'react'
 import { cx } from '../components/ui.tsx'

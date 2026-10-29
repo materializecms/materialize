@@ -1,0 +1,53 @@
+---
+import Media from '@materializecms/astro/components/Media.astro'
+import type { Media as MediaValue } from '@materializecms/core'
+
+interface Props {
+  title?: string
+  images?: MediaValue[]
+  layout?: 'grid' | 'mosaic'
+  field: (name: string) => Record<string, string>
+}
+
+const { title, images = [], layout = 'mosaic', field } = Astro.props
+---
+
+<section class="gallery section">
+  <div class="wrap">
+    {title && <h2 {...field('title')}>{title}</h2>}
+    <div class:list={['grid', layout]}>
+      {images.map((image, i) => <Media media={image} sizes={layout === 'mosaic' && i % 5 === 0 ? '(min-width: 900px) 66vw, 100vw' : '(min-width: 900px) 33vw, 100vw'} />)}
+    </div>
+  </div>
+</section>
+
+<style>
+  h2 {
+    font-size: clamp(36px, 4.5vw, 56px);
+    margin-bottom: 40px;
+  }
+  .grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+    aspect-ratio: 4 / 3;
+  }
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    /* Library images sit inside <picture>, links to other sites are plain <img>. */
+    .mosaic > :global(:nth-child(5n + 1) img),
+    .mosaic > :global(img:nth-child(5n + 1)) {
+      grid-column: span 2;
+      grid-row: span 2;
+      aspect-ratio: auto;
+    }
+  }
+</style>

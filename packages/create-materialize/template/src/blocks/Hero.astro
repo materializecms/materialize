@@ -1,0 +1,118 @@
+---
+import Media from '@materializecms/astro/components/Media.astro'
+import type { Link, Media as MediaValue } from '@materializecms/core'
+
+interface Props {
+  eyebrow?: string
+  title: string
+  subtitle?: string
+  image?: MediaValue
+  cta?: Link
+  variant?: 'split' | 'center' | 'cover'
+  field: (name: string) => Record<string, string>
+}
+
+const { eyebrow, title, subtitle, image, cta, variant = 'split', field } = Astro.props
+---
+
+<section class:list={['hero', variant, { 'no-image': !image?.src, 'on-dark': variant === 'cover' }]}>
+  {variant === 'cover' && image?.src && <Media media={image} class="backdrop" priority sizes="100vw" />}
+  <div class="wrap inner">
+    <div class="copy">
+      {eyebrow && <p class="eyebrow" {...field('eyebrow')}>{eyebrow}</p>}
+      <h1 {...field('title')}>{title}</h1>
+      {subtitle && <p class="subtitle" {...field('subtitle')}>{subtitle}</p>}
+      {
+        cta?.href && (
+          <a class="button" href={cta.href} target={cta.newTab ? '_blank' : undefined}>
+            {cta.label || 'Scopri'}
+          </a>
+        )
+      }
+    </div>
+    {variant !== 'cover' && image?.src && <Media media={image} class="picture" priority />}
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding-block: var(--mz-space, clamp(56px, 9vw, 120px));
+    overflow: hidden;
+  }
+  .inner {
+    display: grid;
+    gap: 48px;
+    align-items: center;
+  }
+  h1 {
+    font-size: clamp(48px, 8vw, 104px);
+  }
+  .eyebrow {
+    margin-bottom: 24px;
+  }
+  .subtitle {
+    margin-top: 28px;
+    max-width: 34ch;
+    font-size: clamp(18px, 1.6vw, 21px);
+    color: color-mix(in srgb, currentColor 72%, transparent);
+  }
+  .button {
+    margin-top: 36px;
+  }
+  .picture {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  @media (min-width: 900px) {
+    .split .inner {
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 72px;
+    }
+  }
+
+  .center .copy {
+    text-align: center;
+    max-width: 900px;
+    margin-inline: auto;
+  }
+  .center .subtitle {
+    margin-inline: auto;
+  }
+  .center .picture {
+    aspect-ratio: 21 / 9;
+  }
+
+  .cover {
+    min-height: min(92vh, 860px);
+    display: flex;
+    align-items: flex-end;
+    color: #fff;
+    background: var(--ink);
+  }
+  .cover .backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgb(0 0 0 / 0.65), rgb(0 0 0 / 0.1) 60%);
+  }
+  .cover .inner {
+    position: relative;
+    z-index: 1;
+    width: var(--wrap);
+  }
+  .cover .eyebrow,
+  .cover .subtitle {
+    color: rgb(255 255 255 / 0.8);
+  }
+</style>

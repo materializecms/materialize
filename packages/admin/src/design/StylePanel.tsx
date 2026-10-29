@@ -1,5 +1,5 @@
-import type { BlockStyle } from '@materialize/core/style'
-import { ANCHOR_PATTERN } from '@materialize/core/style'
+import type { BlockStyle } from '@materializecms/core/style'
+import { ANCHOR_PATTERN } from '@materializecms/core/style'
 import { Hash, Play } from 'lucide-react'
 import { cx, IconButton, Input, Segmented } from '../components/ui.tsx'
 import { useForm, useIssues } from '../fields/form-context.ts'

@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import {
   type Collection,
   describeCollection,
@@ -7,7 +8,7 @@ import {
   titleOf,
   type ValidationIssue,
   validate,
-} from '@materialize/core'
+} from '@materializecms/core'
 import {
   type AuthStore,
   type ContentStore,
@@ -20,7 +21,7 @@ import {
   SlugTakenError,
   type StoredDocument,
   type User,
-} from '@materialize/db'
+} from '@materializecms/db'
 import { type Context, Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
@@ -33,7 +34,8 @@ import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Outp
 import { hashPassword, verifyPassword } from './password.ts'
 import { statusPage } from './status-page.ts'
 
-export const VERSION = '0.1.0'
+/** The installed version, from this package's package.json (same place in the sources and in the release). */
+export const VERSION: string = createRequire(import.meta.url)('../package.json').version
 const SESSION_COOKIE = 'mz_session'
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000
 const INVITE_TTL = 7 * 24 * 60 * 60 * 1000

@@ -2,9 +2,9 @@
 import { watch } from 'node:fs'
 import { relative } from 'node:path'
 import { styleText } from 'node:util'
-import type { MaterializeConfig } from '@materialize/core'
-import { createAuthStore, createContentStore } from '@materialize/db'
-import { createMediaFiles, startServer, VERSION } from '@materialize/server'
+import type { MaterializeConfig } from '@materializecms/core'
+import { createAuthStore, createContentStore } from '@materializecms/db'
+import { createMediaFiles, startServer, VERSION } from '@materializecms/server'
 import { findConfig, loadConfig } from './load-config.ts'
 import { buildSite, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 
@@ -73,14 +73,20 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     res.end('<meta http-equiv="refresh" content="1">Il sito si sta avviando…')
   }
   let production: ProductionSite | undefined
+  let contentChanged = () => {}
   const server = await startServer(config, {
     port,
     site: withSite ? (req, res) => siteHandler(req, res) : undefined,
-    onPublish: () => void production?.rebuild(),
+    onPublish: () => {
+      void production?.rebuild()
+      contentChanged()
+    },
   })
   let closeSite: (() => Promise<void>) | undefined
   if (withSite) {
-    const { setRuntime } = await import('@materialize/astro/runtime')
+    const runtime = await import('@materializecms/astro/runtime')
+    contentChanged = runtime.contentChanged
+    const { setRuntime } = runtime
     setRuntime({
       config: () => current,
       content: createContentStore(server.database.db),

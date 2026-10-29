@@ -1,0 +1,5 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*", "node_modules/@materializecms/astro/src/virtual.d.ts"],
+  "exclude": ["dist"]
+}

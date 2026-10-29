@@ -1,4 +1,4 @@
-import type { Media } from '@materialize/core'
+import type { Media } from '@materializecms/core'
 import { ImageOff, Images, Link2, Loader2, Trash2, Upload } from 'lucide-react'
 import { type PointerEvent, useRef, useState } from 'react'
 import { Button, cx, IconButton, Input, toast } from '../components/ui.tsx'

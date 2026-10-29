@@ -25,6 +25,17 @@ describe('createProject', () => {
     const config = await readFile(join(dir, 'materialize.config.ts'), 'utf8')
     expect(config).toContain("site: { name: 'Studio rossi' }")
     expect(config).not.toContain('__')
+    expect(pkg.dependencies['@materializecms/cli']).toMatch(/^\^\d+\.\d+\.\d+/)
+    const layout = await readFile(join(dir, 'src/layouts/Site.astro'), 'utf8')
+    expect(layout).toContain("?? 'Studio rossi'")
+    expect(existsSync(join(dir, 'src/blocks/Hero.astro'))).toBe(true)
+  })
+
+  it('keeps quotes in the site name from breaking the code', async () => {
+    const dir = await createProject(join(root, 'x'), "L'officina")
+    const config = await readFile(join(dir, 'materialize.config.ts'), 'utf8')
+    expect(config).toContain("site: { name: 'L\\'officina' }")
+    expect(await readFile(join(dir, 'README.md'), 'utf8')).toContain("# L'officina")
   })
 
   it('refuses to overwrite a folder with files', async () => {

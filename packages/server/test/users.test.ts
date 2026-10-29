@@ -1,5 +1,5 @@
-import { defineCollection, defineConfig, f } from '@materialize/core'
-import { type Database, openDatabase } from '@materialize/db'
+import { defineCollection, defineConfig, f } from '@materializecms/core'
+import { type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createApp } from '../src/index.ts'
 

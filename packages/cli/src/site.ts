@@ -3,7 +3,7 @@ import { copyFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { MediaFiles } from '@materialize/server'
+import type { MediaFiles } from '@materializecms/server'
 
 export const ASTRO_CONFIGS = ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']
 
@@ -25,7 +25,7 @@ export async function startDevSite(
     devToolbar: { enabled: false },
     // Astro also listens on its own port, where the browser connects for hot reload.
     server: { port, host: 'localhost' },
-    vite: { server: { hmr: { clientPort: port } } },
+    vite: { server: { ws: { clientPort: port } } },
   })
   return { handle: (req, res) => server.handle(req, res), close: () => server.stop() }
 }

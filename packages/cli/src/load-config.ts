@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { MaterializeConfig } from '@materialize/core'
+import type { MaterializeConfig } from '@materializecms/core'
 
 export const CONFIG_FILES = ['materialize.config.ts', 'materialize.config.js', 'materialize.config.mjs']
 

@@ -1,5 +1,5 @@
 {
-  "name": "@materialize/admin",
+  "name": "@materializecms/admin",
   "version": "0.1.0",
   "description": "Materialize admin panel: content and design editing in the browser.",
   "type": "module",
@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@materialize/core": "0.1.0"
+    "@materializecms/core": "0.1.0"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "5.3.0",

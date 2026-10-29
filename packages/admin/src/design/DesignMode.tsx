@@ -1,4 +1,4 @@
-import type { BlockStyle } from '@materialize/core/style'
+import type { BlockStyle } from '@materializecms/core/style'
 import {
   ArrowDown,
   ArrowUp,

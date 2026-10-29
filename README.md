@@ -2,11 +2,19 @@
 
 CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
 
-> Stato: **libreria media**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design, il renderer Astro e la libreria media con immagini ottimizzate. Il server MCP e le funzioni AI arrivano nelle fasi successive.
+> Stato: **prima versione installabile**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design, il renderer Astro, la libreria media, la gestione delle persone e il comando per creare un nuovo sito. Il server MCP e le funzioni AI arrivano nelle fasi successive.
 
-## Avvio rapido
+## Un nuovo sito
 
 Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
+
+```bash
+npm create materialize@latest
+```
+
+Il comando chiede la cartella, copia un sito Astro con nove blocchi pronti (copertina, testo, galleria, citazione, numeri, servizi, domande, contatti, invito), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin per creare l'account.
+
+## Sviluppare Materialize
 
 ```bash
 npm install
@@ -37,8 +45,8 @@ Il sito è un progetto [Astro](https://astro.build) accanto a `materialize.confi
 
 ```astro
 ---
-import Blocks from '@materialize/astro/components/Blocks.astro'
-import { getRoutes } from '@materialize/astro/content'
+import Blocks from '@materializecms/astro/components/Blocks.astro'
+import { getRoutes } from '@materializecms/astro/content'
 import Site from '../layouts/Site.astro'
 
 export const getStaticPaths = getRoutes
@@ -69,7 +77,7 @@ In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si 
 I contenuti si definiscono in `materialize.config.ts`, con tipi TypeScript ricavati automaticamente:
 
 ```ts
-import { defineBlock, defineCollection, defineConfig, f } from '@materialize/core'
+import { defineBlock, defineCollection, defineConfig, f } from '@materializecms/core'
 
 const hero = defineBlock({
   name: 'hero',
@@ -107,7 +115,7 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 | `packages/admin`              | Pannello di amministrazione (React, Tailwind, Tiptap), compilato con Vite                                                 |
 | `packages/astro`              | Integrazione Astro: contenuti pubblicati per le pagine, componenti per blocchi e testo, anteprima delle bozze per la tela |
 | `packages/cli`                | Comando `materialize dev` / `materialize start`                                                                           |
-| `packages/create-materialize` | `npm create materialize` per un nuovo progetto                                                                            |
+| `packages/create-materialize` | `npm create materialize`: copia il sito di partenza in `template/` e installa le dipendenze                               |
 | `examples/sito`       | Sito d'esempio di uno studio di architettura                                                                              |
 
 ## API
@@ -144,11 +152,24 @@ npm test            # test (Vitest)
 npm run typecheck   # TypeScript 7
 npm run lint        # Biome
 npm run check       # tutto quanto sopra
+npm run release     # prepara i pacchetti npm in .release/ (non pubblica nulla)
 ```
+
+## Pubblicare su npm
+
+I pacchetti si chiamano `@materializecms/*`, più `create-materialize`. `npm run release` compila il pannello e i pacchetti (JavaScript con i tipi), li assembla in `.release/<pacchetto>` e crea gli archivi in `.release/tarballs`. Tutti i pacchetti hanno la stessa versione: per una nuova versione si aggiorna `version` in ogni `packages/*/package.json`.
+
+La pubblicazione è un passo a parte, da un account npm con accesso allo scope `@materializecms`:
+
+```bash
+for p in core db admin server astro cli create-materialize; do npm publish .release/$p; done
+```
+
+Per provare prima l'installazione senza pubblicare, si possono caricare gli stessi pacchetti su un registro locale (per esempio Verdaccio) e lanciare `npm create materialize@latest` con `--registry`.
 
 ## Scelte tecniche
 
-- **Node 24** esegue TypeScript direttamente: nessun passaggio di build in sviluppo. Il codice resta compatibile con Bun.
+- **Node 24** esegue TypeScript direttamente: nessun passaggio di build in sviluppo. I pacchetti pubblicati invece sono compilati, perché Node non esegue TypeScript dentro `node_modules`.
 - **SQLite via libSQL**: un file locale di default; con la stessa API funziona un database remoto Turso (`database.url` nel config).
 - **Contenuti come JSON validato**: cambiare i campi nello schema non richiede migrazioni del database.
 
@@ -158,4 +179,4 @@ npm run check       # tutto quanto sopra
 2. Traduzioni collegate tra loro, invio delle email (inviti e password) tramite SMTP o un servizio esterno.
 3. Media su storage esterno (S3, R2) e CDN, documenti oltre alle immagini.
 4. Server MCP e funzioni AI.
-5. Build dei pacchetti per la pubblicazione su npm, e il sito nel modello di `create-materialize`.
+5. Rilasci automatici (changelog, pubblicazione da CI) e una guida al deploy su hosting comuni.

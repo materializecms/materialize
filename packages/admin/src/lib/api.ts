@@ -1,4 +1,4 @@
-import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materialize/core'
+import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 

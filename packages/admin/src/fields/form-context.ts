@@ -1,4 +1,4 @@
-import type { ValidationIssue } from '@materialize/core'
+import type { ValidationIssue } from '@materializecms/core'
 import { createContext, useContext } from 'react'
 
 export interface FormState {
