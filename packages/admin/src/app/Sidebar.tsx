@@ -14,13 +14,15 @@ import {
   Search,
   SlidersHorizontal,
   Sun,
+  UserRound,
   Users,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { cx, Kbd, MenuItem, MenuSeparator, Popover } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
 import { type Theme, useTheme } from '../lib/prefs.ts'
-import { href, navigate, useRoute } from '../lib/router.ts'
+import { href, navigate, type Route, useRoute } from '../lib/router.ts'
+import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 
@@ -49,7 +51,8 @@ export function Sidebar() {
   const route = useRoute()
   const [theme, setTheme] = useTheme()
   const queryClient = useQueryClient()
-  const current = route.name === 'home' || route.name === 'media' ? null : route.collection
+  const current = 'collection' in route ? route.collection : null
+  const [profile, setProfile] = useState(false)
 
   const logout = async () => {
     await api.logout().catch(() => {})
@@ -101,21 +104,13 @@ export function Sidebar() {
           </a>
         ))}
         <div className="px-2 pt-4 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Libreria</div>
-        <a
-          href={href({ name: 'media' })}
-          onClick={(e) => {
-            if (e.metaKey || e.ctrlKey) return
-            e.preventDefault()
-            navigate({ name: 'media' })
-          }}
-          className={cx(
-            'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
-            route.name === 'media' ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
-          )}
-        >
-          <Images />
-          <span className="truncate">Media</span>
-        </a>
+        <NavLink route={{ name: 'media' }} active={route.name === 'media'} icon={<Images />} label="Media" />
+        {user.role === 'admin' && (
+          <>
+            <div className="px-2 pt-4 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Gestione</div>
+            <NavLink route={{ name: 'people' }} active={route.name === 'people'} icon={<UserRound />} label="Persone" />
+          </>
+        )}
       </nav>
 
       <div className="space-y-1 border-t border-line p-2.5">
@@ -198,6 +193,15 @@ export function Sidebar() {
                   Apri il sito
                 </MenuItem>
               )}
+              <MenuItem
+                icon={<UserRound />}
+                onClick={() => {
+                  close()
+                  setProfile(true)
+                }}
+              >
+                Il tuo profilo
+              </MenuItem>
               <MenuItem icon={<LogOut />} onClick={logout}>
                 Esci
               </MenuItem>
@@ -205,6 +209,27 @@ export function Sidebar() {
           )}
         </Popover>
       </div>
+      {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
     </aside>
+  )
+}
+
+function NavLink({ route, active, icon, label }: { route: Route; active: boolean; icon: ReactNode; label: string }) {
+  return (
+    <a
+      href={href(route)}
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey) return
+        e.preventDefault()
+        navigate(route)
+      }}
+      className={cx(
+        'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
+        active ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+      )}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </a>
   )
 }

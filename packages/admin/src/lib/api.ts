@@ -12,6 +12,21 @@ export interface User {
   role: 'admin' | 'editor'
 }
 
+export interface Member extends User {
+  createdAt: string
+  lastSeenAt: string | null
+}
+
+export interface Invite {
+  id: string
+  kind: 'invite' | 'reset'
+  email: string
+  name: string
+  role: User['role']
+  createdAt: string
+  expiresAt: string
+}
+
 export interface Schema {
   site: { name: string; url?: string }
   /** The site renders previews with its own components (Astro): the canvas shows the real page. */
@@ -115,6 +130,11 @@ const MESSAGES: Record<string, string> = {
   not_found: 'Documento non trovato',
   file_too_large: 'Il file è troppo grande: al massimo 25 MB',
   missing_file: 'Nessun file ricevuto',
+  email_taken: 'Questo indirizzo ha già un account',
+  last_admin: 'Serve almeno un amministratore: nomina prima qualcun altro',
+  remove_self: 'Non puoi rimuovere te stesso',
+  invalid_link: 'Il link non è valido o è scaduto: chiedine uno nuovo a chi ti ha invitato',
+  wrong_password: 'La password attuale non è corretta',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -147,6 +167,23 @@ export const api = {
   revisions: (id: string) => request<{ items: Revision[] }>('GET', `/documents/${id}/revisions`),
   restore: (id: string, revision: string) =>
     request<StoredDocument>('POST', `/documents/${id}/revisions/${revision}/restore`),
+  people: () => request<{ users: Member[]; invites: Invite[] }>('GET', '/users'),
+  invite: (input: { email: string; name?: string; role: User['role'] }) =>
+    request<{ invite: Invite; link: string }>('POST', '/users/invites', input),
+  revokeInvite: (id: string) => request<void>('DELETE', `/users/invites/${encodeURIComponent(id)}`),
+  updateUser: (id: string, input: { role?: User['role']; name?: string }) =>
+    request<{ user: User }>('PATCH', `/users/${id}`, input),
+  removeUser: (id: string) => request<void>('DELETE', `/users/${id}`),
+  resetLink: (id: string) => request<{ invite: Invite; link: string }>('POST', `/users/${id}/reset`),
+  inviteInfo: (token: string) =>
+    request<{ kind: Invite['kind']; email: string; name: string; role: User['role']; expiresAt: string; site: string }>(
+      'GET',
+      `/invites/${token}`,
+    ),
+  acceptInvite: (token: string, input: { name?: string; password: string }) =>
+    request<{ user: User }>('POST', `/invites/${token}/accept`, input),
+  updateMe: (input: { name: string }) => request<{ user: User }>('PATCH', '/auth/me', input),
+  changePassword: (input: { current: string; next: string }) => request<{ ok: true }>('POST', '/auth/password', input),
   media: (params: { search?: string; limit?: number; offset?: number }) =>
     request<{ items: MediaAsset[]; total: number }>('GET', `/media${q(params)}`),
   mediaItem: (id: string) => request<MediaAsset>('GET', `/media/${id}`),

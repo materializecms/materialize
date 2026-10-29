@@ -5,6 +5,8 @@ import { ApiError, api } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
+import { InviteScreen } from '../people/InviteScreen.tsx'
+import { PeopleScreen } from '../people/PeopleScreen.tsx'
 import { AuthScreen } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
@@ -13,6 +15,13 @@ import { DocumentScreen } from './DocumentScreen.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
 export function App() {
+  const route = useRoute()
+  // One-time links work without signing in, so they come before everything else.
+  if (route.name === 'invite') return <InviteScreen token={route.token} />
+  return <SignedIn />
+}
+
+function SignedIn() {
   const setup = useQuery({ queryKey: ['setup'], queryFn: api.setupStatus })
   const me = useQuery({
     queryKey: ['me'],
@@ -72,23 +81,29 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
   )
 
   const collection =
-    route.name === 'home' || route.name === 'media'
+    route.name === 'home' || route.name === 'media' || route.name === 'people' || route.name === 'invite'
       ? undefined
       : schema.collections.find((c) => c.name === route.collection)
 
   return (
     <SessionContext.Provider value={session}>
       <div className="flex h-full min-h-0">
-        {(route.name === 'home' || route.name === 'media' || route.name === 'collection' || collection?.singleton) && (
-          <Sidebar />
-        )}
+        {(route.name === 'home' ||
+          route.name === 'media' ||
+          route.name === 'people' ||
+          route.name === 'collection' ||
+          collection?.singleton) && <Sidebar />}
         <main className="flex min-w-0 flex-1 flex-col">
           {route.name === 'home' ? (
             <Loading />
           ) : route.name === 'media' ? (
             <MediaLibrary />
+          ) : route.name === 'people' ? (
+            <PeopleScreen />
           ) : !collection ? (
-            <Fatal message={`La collezione "${route.collection}" non esiste nello schema.`} />
+            <Fatal
+              message={`La collezione "${'collection' in route ? route.collection : ''}" non esiste nello schema.`}
+            />
           ) : route.name === 'collection' ? (
             <CollectionView key={collection.name} collection={collection} />
           ) : (

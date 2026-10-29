@@ -15,6 +15,7 @@ import {
   createContentStore,
   createMediaStore,
   type Database,
+  EmailTakenError,
   type MediaAsset,
   SlugTakenError,
   type StoredDocument,
@@ -35,6 +36,10 @@ import { statusPage } from './status-page.ts'
 export const VERSION = '0.1.0'
 const SESSION_COOKIE = 'mz_session'
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000
+const INVITE_TTL = 7 * 24 * 60 * 60 * 1000
+const RESET_TTL = 24 * 60 * 60 * 1000
+/** Where people open their one-time link: the admin's welcome screen. */
+const linkPath = (token: string) => `/admin/_invite/${token}`
 
 type Env = { Variables: { user: User } }
 
@@ -51,6 +56,7 @@ class ApiError extends HTTPException {
 
 const credentials = z.object({ email: z.email(), password: z.string().min(1) })
 const setupBody = z.object({ email: z.email(), name: z.string().trim().min(1), password: z.string().min(10) })
+const roleSchema = z.enum(['admin', 'editor'])
 const documentBody = z.object({ data: z.record(z.string(), z.unknown()), locale: z.string().optional() })
 
 async function body<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
@@ -233,6 +239,138 @@ export function createApp(ctx: ServerContext) {
   })
 
   app.get('/api/auth/me', requireUser, (c) => c.json({ user: c.get('user') }))
+
+  app.patch('/api/auth/me', requireUser, async (c) => {
+    const input = await body(c, z.object({ name: z.string().trim().min(1).max(80) }))
+    return c.json({ user: await auth.updateUser(c.get('user').id, input) })
+  })
+
+  app.post('/api/auth/password', requireUser, async (c) => {
+    const input = await body(c, z.object({ current: z.string().min(1), next: z.string().min(10) }))
+    const user = c.get('user')
+    const hash = await auth.getPasswordHash(user.id)
+    if (!hash || !(await verifyPassword(input.current, hash))) {
+      throw new ApiError(422, 'wrong_password', 'The current password is not correct', [
+        { path: 'current', message: 'La password attuale non è corretta' },
+      ])
+    }
+    // Other devices are signed out; this one stays in.
+    await auth.setPassword(user.id, await hashPassword(input.next), getCookie(c, SESSION_COOKIE))
+    return c.json({ ok: true })
+  })
+
+  // ---------- people (admins only) ----------
+
+  const loadUser = async (id: string) => {
+    const user = await auth.getUser(id)
+    if (!user) throw new ApiError(404, 'not_found', 'This person does not exist')
+    return user
+  }
+
+  app.get('/api/users', requireUser, requireAdmin, async (c) =>
+    c.json({ users: await auth.listUsers(), invites: await auth.pendingInvites() }),
+  )
+
+  app.post('/api/users/invites', requireUser, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z.object({ email: z.email(), name: z.string().trim().max(80).optional(), role: roleSchema }),
+    )
+    try {
+      const { token, invite } = await auth.createInvite({
+        kind: 'invite',
+        ...input,
+        createdBy: c.get('user').id,
+        ttlMs: INVITE_TTL,
+      })
+      return c.json({ invite, link: linkPath(token) }, 201)
+    } catch (error) {
+      if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
+      throw error
+    }
+  })
+
+  app.delete('/api/users/invites/:id', requireUser, requireAdmin, async (c) => {
+    if (!(await auth.revokeInvite(c.req.param('id')))) throw new ApiError(404, 'not_found', 'Invitation not found')
+    return c.body(null, 204)
+  })
+
+  app.patch('/api/users/:id', requireUser, requireAdmin, async (c) => {
+    const target = await loadUser(c.req.param('id'))
+    const input = await body(
+      c,
+      z.object({ role: roleSchema.optional(), name: z.string().trim().min(1).max(80).optional() }),
+    )
+    if (target.role === 'admin' && input.role === 'editor' && (await auth.countAdmins()) === 1) {
+      throw new ApiError(409, 'last_admin', 'The site needs at least one administrator')
+    }
+    return c.json({ user: await auth.updateUser(target.id, input) })
+  })
+
+  app.delete('/api/users/:id', requireUser, requireAdmin, async (c) => {
+    const target = await loadUser(c.req.param('id'))
+    if (target.id === c.get('user').id) throw new ApiError(409, 'remove_self', 'You cannot remove yourself')
+    if (target.role === 'admin' && (await auth.countAdmins()) === 1) {
+      throw new ApiError(409, 'last_admin', 'The site needs at least one administrator')
+    }
+    await auth.deleteUser(target.id)
+    return c.body(null, 204)
+  })
+
+  app.post('/api/users/:id/reset', requireUser, requireAdmin, async (c) => {
+    const target = await loadUser(c.req.param('id'))
+    const { token, invite } = await auth.createInvite({
+      kind: 'reset',
+      email: target.email,
+      name: target.name,
+      role: target.role,
+      userId: target.id,
+      createdBy: c.get('user').id,
+      ttlMs: RESET_TTL,
+    })
+    return c.json({ invite, link: linkPath(token) }, 201)
+  })
+
+  // ---------- one-time links (no session needed) ----------
+
+  const loadInvite = async (token: string) => {
+    const invite = await auth.findInvite(token)
+    if (!invite) throw new ApiError(404, 'invalid_link', 'This link is not valid or has expired')
+    return invite
+  }
+
+  app.get('/api/invites/:token', async (c) => {
+    const { kind, email, name, role, expiresAt } = await loadInvite(c.req.param('token'))
+    return c.json({ kind, email, name, role, expiresAt, site: ctx.config().site.name })
+  })
+
+  app.post('/api/invites/:token/accept', async (c) => {
+    const token = c.req.param('token')
+    const invite = await loadInvite(token)
+    const input = await body(
+      c,
+      z.object({ name: z.string().trim().min(1).max(80).optional(), password: z.string().min(10) }),
+    )
+    const passwordHash = await hashPassword(input.password)
+    let user: User | null
+    if (invite.kind === 'reset' && invite.userId) {
+      await auth.setPassword(invite.userId, passwordHash)
+      user = await auth.getUser(invite.userId)
+    } else {
+      if (await auth.emailTaken(invite.email))
+        throw new ApiError(409, 'email_taken', 'This email already has an account')
+      user = await auth.createUser({
+        email: invite.email,
+        name: input.name || invite.name || invite.email.split('@')[0] || invite.email,
+        role: invite.role,
+        passwordHash,
+      })
+    }
+    await auth.consumeInvite(token)
+    if (!user) throw new ApiError(404, 'not_found', 'This person does not exist')
+    await startSession(c, user.id)
+    return c.json({ user }, invite.kind === 'reset' ? 200 : 201)
+  })
 
   // ---------- schema ----------
 

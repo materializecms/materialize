@@ -22,6 +22,7 @@ Il sito d'esempio (Studio Rossi) parte su http://localhost:4321 e il pannello su
 - **Stile di ogni blocco**: sfondo, spazio sopra e sotto, animazione all'ingresso (con anteprima) e ancora per i link interni. Le scelte sono nomi del tema del sito, non colori liberi: le pagine restano coerenti chiunque le modifichi.
 - **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
 - **Media**: libreria con caricamento trascinando i file, ricerca, testo alternativo e conteggio delle pagine che usano ogni immagine. Dal campo immagine si carica, si sceglie dalla libreria o si trascina un file.
+- **Persone**: gli amministratori invitano editor e altri amministratori con un link valido 7 giorni, cambiano ruoli, rimuovono accessi e creano link per una nuova password (24 ore). C'è sempre almeno un amministratore. Ognuno cambia nome e password dal proprio profilo.
 - Cronologia con ripristino, annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
 
 Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
@@ -111,18 +112,21 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 
 ## API
 
-| Metodo e percorso                                                     | Descrizione                                                                                                    |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `GET /api/setup` · `POST /api/setup`                                  | Primo amministratore (solo se non ne esiste uno)                                                               |
-| `POST /api/auth/login` · `logout` · `GET /api/auth/me`                | Sessione con cookie sicuro                                                                                     |
-| `GET /api/schema`                                                     | Collezioni e campi, per costruire le form                                                                      |
-| `GET` · `POST /api/collections/:nome`                                 | Elenco con ricerca, creazione con validazione                                                                  |
-| `GET` · `PUT` · `DELETE /api/documents/:id`                           | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin) |
-| `POST /api/documents/:id/publish` · `unpublish`                       | Pubblica la bozza se è valida, o la ritira dal sito                                                            |
-| `GET /api/documents/:id/revisions` · `POST …/:rev/restore`            | Cronologia e ripristino                                                                                        |
-| `GET` · `POST /api/media` · `GET` · `PATCH` · `DELETE /api/media/:id` | Libreria media: elenco e ricerca, caricamento, testo alternativo e utilizzi, eliminazione (admin)              |
-| `GET /media/:file`                                                    | Immagini pubbliche: l’originale, o una variante con `@larghezza.formato`                                       |
-| `GET /api/content/:nome` · `/:slug`                                   | API pubblica: solo contenuti pubblicati                                                                        |
+| Metodo e percorso                                                                                     | Descrizione                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GET /api/setup` · `POST /api/setup`                                                                  | Primo amministratore (solo se non ne esiste uno)                                                               |
+| `POST /api/auth/login` · `logout` · `GET /api/auth/me`                                                | Sessione con cookie sicuro                                                                                     |
+| `GET /api/schema`                                                                                     | Collezioni e campi, per costruire le form                                                                      |
+| `GET` · `POST /api/collections/:nome`                                                                 | Elenco con ricerca, creazione con validazione                                                                  |
+| `GET` · `PUT` · `DELETE /api/documents/:id`                                                           | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin) |
+| `POST /api/documents/:id/publish` · `unpublish`                                                       | Pubblica la bozza se è valida, o la ritira dal sito                                                            |
+| `GET /api/documents/:id/revisions` · `POST …/:rev/restore`                                            | Cronologia e ripristino                                                                                        |
+| `GET /api/users` · `POST /api/users/invites` · `PATCH` · `DELETE /api/users/:id` · `POST …/:id/reset` | Persone e inviti (admin): elenco, invito, ruolo, rimozione, link per nuova password                            |
+| `GET /api/invites/:token` · `POST …/accept`                                                           | Link di invito o di nuova password: si usa una volta, senza essere collegati                                   |
+| `PATCH /api/auth/me` · `POST /api/auth/password`                                                      | Il proprio nome e la propria password                                                                          |
+| `GET` · `POST /api/media` · `GET` · `PATCH` · `DELETE /api/media/:id`                                 | Libreria media: elenco e ricerca, caricamento, testo alternativo e utilizzi, eliminazione (admin)              |
+| `GET /media/:file`                                                                                    | Immagini pubbliche: l’originale, o una variante con `@larghezza.formato`                                       |
+| `GET /api/content/:nome` · `/:slug`                                                                   | API pubblica: solo contenuti pubblicati                                                                        |
 
 Le bozze non toccano il sito online finché non pubblichi. Le richieste di modifica da altri siti vengono bloccate (CSRF); le password usano scrypt; dei token di sessione viene salvato solo l'hash.
 
@@ -151,7 +155,7 @@ npm run check       # tutto quanto sopra
 ## Prossimi passi
 
 1. Editor: libreria di sezioni pronte con più varianti, modifica collaborativa in tempo reale, commenti.
-2. Utenti e inviti, traduzioni collegate tra loro.
+2. Traduzioni collegate tra loro, invio delle email (inviti e password) tramite SMTP o un servizio esterno.
 3. Media su storage esterno (S3, R2) e CDN, documenti oltre alle immagini.
 4. Server MCP e funzioni AI.
 5. Build dei pacchetti per la pubblicazione su npm, e il sito nel modello di `create-materialize`.

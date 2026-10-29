@@ -49,6 +49,7 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['admin', 'editor'] }).notNull(),
   passwordHash: text('password_hash').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }),
 })
 
 /** Only a SHA-256 hash of each session token is stored. */
@@ -59,6 +60,22 @@ export const sessions = sqliteTable('sessions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+/**
+ * One-time links: an invitation to join, or a password reset for an existing user.
+ * Like sessions, only a hash of the token is stored.
+ */
+export const invites = sqliteTable('invites', {
+  id: text('id').primaryKey(),
+  kind: text('kind', { enum: ['invite', 'reset'] }).notNull(),
+  email: text('email').notNull(),
+  name: text('name').notNull().default(''),
+  role: text('role', { enum: ['admin', 'editor'] }).notNull(),
+  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  createdBy: text('created_by'),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
 /** Uploaded files. The file lives in storage under `key`; documents reference it as `/media/<key>`. */
@@ -137,5 +154,23 @@ export const MIGRATIONS: string[][] = [
       created_by TEXT
     )`,
     'CREATE INDEX IF NOT EXISTS media_created ON media (created_at)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS invites (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      created_by TEXT,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    )`,
+  ],
+  [
+    'ALTER TABLE users ADD COLUMN last_seen_at INTEGER',
+    // Before this column, sign-ins were only visible through the sessions still open.
+    'UPDATE users SET last_seen_at = (SELECT MAX(created_at) FROM sessions WHERE sessions.user_id = users.id)',
   ],
 ]

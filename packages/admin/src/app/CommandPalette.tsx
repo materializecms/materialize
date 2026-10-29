@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { FileText, Images, Monitor, Moon, Plus, Search, Sun } from 'lucide-react'
+import { FileText, Images, Monitor, Moon, Plus, Search, Sun, UserRound } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
@@ -20,7 +20,7 @@ interface Command {
 
 /** ⌘K: jump to any collection or document, create content, switch theme. */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { schema, locale } = useSession()
+  const { schema, locale, user } = useSession()
   const [, setTheme] = useTheme()
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -85,6 +85,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         run: () => navigate({ name: 'media' }),
       })
     }
+    if (user.role === 'admin' && match('Persone inviti utenti')) {
+      out.push({
+        id: 'go:people',
+        label: 'Persone',
+        icon: <UserRound />,
+        group: 'Vai a',
+        run: () => navigate({ name: 'people' }),
+      })
+    }
     for (const c of schema.collections) {
       if (c.singleton) continue
       const label = `Nuovo in ${c.label}`
@@ -107,7 +116,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       if (match(t.label)) out.push({ ...t, id: `theme:${t.id}`, group: 'Preferenze', run: () => setTheme(t.id) })
     }
     return out
-  }, [query, debounced, schema.collections, searches, setTheme])
+  }, [query, debounced, schema.collections, searches, setTheme, user.role])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new result list starts from the top
   useEffect(() => setActive(0), [commands.length])

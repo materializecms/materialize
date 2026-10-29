@@ -5,6 +5,7 @@ import {
   createAuthStore,
   createContentStore,
   type Database,
+  EmailTakenError,
   openDatabase,
   SlugTakenError,
 } from '../src/index.ts'
@@ -124,5 +125,54 @@ describe('auth', () => {
     const user = await auth.createUser({ email: 'a@b.it', name: 'A', role: 'editor', passwordHash: 'x' })
     const { token } = await auth.createSession(user.id, -1)
     expect(await auth.userForSession(token)).toBeNull()
+  })
+})
+
+describe('people and invitations', () => {
+  it('invites once per email, and links work only until used or expired', async () => {
+    const admin = await auth.createUser({ email: 'elena@studio.it', name: 'Elena', role: 'admin', passwordHash: 'x' })
+    const { token } = await auth.createInvite({
+      kind: 'invite',
+      email: 'Marco@Studio.it',
+      role: 'editor',
+      ttlMs: 60_000,
+    })
+    expect((await auth.findInvite(token))?.email).toBe('marco@studio.it')
+    expect((await auth.pendingInvites()).map((i) => i.email)).toEqual(['marco@studio.it'])
+
+    // A new invitation to the same address replaces the old link.
+    const second = await auth.createInvite({ kind: 'invite', email: 'marco@studio.it', role: 'admin', ttlMs: 60_000 })
+    expect(await auth.findInvite(token)).toBeNull()
+    await auth.consumeInvite(second.token)
+    expect(await auth.findInvite(second.token)).toBeNull()
+
+    const expired = await auth.createInvite({ kind: 'invite', email: 'luca@studio.it', role: 'editor', ttlMs: -1 })
+    expect(await auth.findInvite(expired.token)).toBeNull()
+
+    await expect(
+      auth.createInvite({ kind: 'invite', email: admin.email, role: 'editor', ttlMs: 60_000 }),
+    ).rejects.toBeInstanceOf(EmailTakenError)
+  })
+
+  it('changes roles, lists last sign-in and signs out everywhere on a new password', async () => {
+    const a = await auth.createUser({ email: 'a@studio.it', name: 'A', role: 'admin', passwordHash: 'x' })
+    const b = await auth.createUser({ email: 'b@studio.it', name: 'B', role: 'editor', passwordHash: 'x' })
+    const keep = await auth.createSession(b.id, 60_000)
+    const other = await auth.createSession(b.id, 60_000)
+    expect((await auth.listUsers()).map((u) => [u.name, u.lastSeenAt !== null])).toEqual([
+      ['A', false],
+      ['B', true],
+    ])
+
+    await auth.updateUser(b.id, { role: 'admin' })
+    expect(await auth.countAdmins()).toBe(2)
+
+    await auth.setPassword(b.id, 'y', keep.token)
+    expect(await auth.userForSession(keep.token)).not.toBeNull()
+    expect(await auth.userForSession(other.token)).toBeNull()
+    expect(await auth.getPasswordHash(b.id)).toBe('y')
+
+    expect(await auth.deleteUser(a.id)).toBe(true)
+    expect(await auth.countUsers()).toBe(1)
   })
 })

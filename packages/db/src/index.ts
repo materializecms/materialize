@@ -1,4 +1,12 @@
-export { type AuthStore, createAuthStore, type Role, type User } from './auth.ts'
+export {
+  type AuthStore,
+  createAuthStore,
+  EmailTakenError,
+  type Invite,
+  type Member,
+  type Role,
+  type User,
+} from './auth.ts'
 export {
   type ContentStore,
   createContentStore,

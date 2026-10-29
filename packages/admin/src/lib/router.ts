@@ -5,6 +5,8 @@ const BASE = '/admin'
 export type Route =
   | { name: 'home' }
   | { name: 'media' }
+  | { name: 'people' }
+  | { name: 'invite'; token: string }
   | { name: 'collection'; collection: string }
   | { name: 'document'; collection: string; id: string }
   | { name: 'new'; collection: string }
@@ -19,6 +21,8 @@ export function parse(pathname: string): Route {
   if (!collection) return { name: 'home' }
   // Collection names cannot start with "_", so built-in screens never clash with them.
   if (collection === '_media') return { name: 'media' }
+  if (collection === '_people') return { name: 'people' }
+  if (collection === '_invite' && id) return { name: 'invite', token: id }
   if (!id) return { name: 'collection', collection }
   if (id === 'new') return { name: 'new', collection }
   return { name: 'document', collection, id }
@@ -30,6 +34,10 @@ export function href(route: Route): string {
       return `${BASE}/`
     case 'media':
       return `${BASE}/_media`
+    case 'people':
+      return `${BASE}/_people`
+    case 'invite':
+      return `${BASE}/_invite/${route.token}`
     case 'collection':
       return `${BASE}/${route.collection}`
     case 'new':
