@@ -6,10 +6,10 @@ import { ApiError, api } from '../lib/api.ts'
 export function Logo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <rect width="32" height="32" rx="8" className="fill-fg" />
+      <rect width="32" height="32" rx="8" className="fill-accent" />
       <path
         d="M9 22V10l7 7 7-7v12"
-        className="stroke-bg"
+        className="stroke-white"
         strokeWidth="2.6"
         fill="none"
         strokeLinejoin="round"

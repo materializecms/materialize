@@ -1,26 +1,23 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowUpRight,
   BookOpen,
   Briefcase,
-  ExternalLink,
   FileText,
   Folder,
   Globe,
   Images,
+  LayoutGrid,
   LogOut,
-  Monitor,
-  Moon,
   Newspaper,
   Search,
   SlidersHorizontal,
-  Sun,
   UserRound,
   Users,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { cx, Kbd, MenuItem, MenuSeparator, Popover } from '../components/ui.tsx'
+import { cx, Kbd, MenuItem, MenuSeparator, Popover, ThemeSwitch, TintIcon, tintOf } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
-import { type Theme, useTheme } from '../lib/prefs.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { Logo } from './Auth.tsx'
@@ -37,6 +34,21 @@ export function collectionIcon(c: CollectionDescription): ReactNode {
   return <Folder />
 }
 
+/** The hue of a collection, the same everywhere in the panel. */
+export function useCollectionTint() {
+  const { schema } = useSession()
+  return (name: string) => {
+    const index = schema.collections.findIndex((c) => c.name === name)
+    return tintOf(name, index >= 0 ? index : undefined)
+  }
+}
+
+/** Counts and recent changes, shared by the sidebar and the home. */
+export function useOverview() {
+  const { locale } = useSession()
+  return useQuery({ queryKey: ['overview', locale], queryFn: () => api.overview(locale), staleTime: 15_000 })
+}
+
 export const localeName = (code: string) => {
   try {
     const name = new Intl.DisplayNames(['it'], { type: 'language' }).of(code) ?? code
@@ -46,13 +58,17 @@ export const localeName = (code: string) => {
   }
 }
 
+const sectionLabel = 'px-2 pt-5 pb-1.5 text-[11px] font-medium text-fg3'
+
 export function Sidebar() {
   const { schema, user, locale, setLocale, openPalette } = useSession()
   const route = useRoute()
-  const [theme, setTheme] = useTheme()
   const queryClient = useQueryClient()
+  const tint = useCollectionTint()
+  const overview = useOverview()
   const current = 'collection' in route ? route.collection : null
   const [profile, setProfile] = useState(false)
+  const countOf = (name: string) => overview.data?.counts.find((c) => c.collection === name)?.total
 
   const logout = async () => {
     await api.logout().catch(() => {})
@@ -60,60 +76,80 @@ export function Sidebar() {
     location.assign('/admin/')
   }
 
-  const themeIcon = { light: <Sun />, dark: <Moon />, system: <Monitor /> }
-
   return (
-    <aside className="flex w-[232px] shrink-0 flex-col border-r border-line bg-panel">
-      <div className="flex h-12 items-center gap-2.5 px-3.5">
-        <Logo className="size-6" />
+    <aside className="flex w-[236px] shrink-0 flex-col">
+      <div className="flex h-14 items-center gap-2.5 px-4">
+        <Logo className="size-7" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-semibold">{schema.site.name}</div>
+          <div className="truncate text-[13.5px] leading-tight font-semibold tracking-[-0.01em]">
+            {schema.site.name}
+          </div>
+          <a
+            href="/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[11.5px] text-fg3 hover:text-accent"
+          >
+            <span className="size-1.5 rounded-full bg-ok" />
+            Visita il sito
+            <ArrowUpRight className="size-3" />
+          </a>
         </div>
       </div>
 
-      <div className="px-2.5 pb-2">
+      <div className="px-3 pt-1 pb-1">
         <button
           type="button"
           onClick={openPalette}
-          className="flex h-8 w-full items-center gap-2 rounded-md border border-line bg-panel2 px-2.5 text-fg3 transition-colors hover:border-line2 hover:text-fg2"
+          className="flex h-8 w-full items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-fg3 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-colors hover:border-line2 hover:text-fg2"
         >
           <Search className="size-3.5" />
-          <span className="flex-1 text-left">Cerca…</span>
+          <span className="flex-1 text-left">Cerca o vai a…</span>
           <Kbd>⌘K</Kbd>
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2.5 py-1">
-        <div className="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Contenuti</div>
+      <nav className="flex-1 overflow-y-auto px-3 pb-3">
+        <div className="pt-3">
+          <NavItem route={{ name: 'home' }} active={route.name === 'home'} label="Panoramica">
+            <TintIcon color="var(--text2)" size="sm">
+              <LayoutGrid />
+            </TintIcon>
+          </NavItem>
+        </div>
+        <div className={sectionLabel}>Contenuti</div>
         {schema.collections.map((c) => (
-          <a
+          <NavItem
             key={c.name}
-            href={href({ name: 'collection', collection: c.name })}
-            onClick={(e) => {
-              if (e.metaKey || e.ctrlKey) return
-              e.preventDefault()
-              navigate({ name: 'collection', collection: c.name })
-            }}
-            className={cx(
-              'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
-              current === c.name ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
-            )}
+            route={{ name: 'collection', collection: c.name }}
+            active={current === c.name}
+            label={c.label}
+            count={c.singleton ? undefined : countOf(c.name)}
           >
-            {collectionIcon(c)}
-            <span className="truncate">{c.label}</span>
-          </a>
+            <TintIcon color={tint(c.name)} size="sm">
+              {collectionIcon(c)}
+            </TintIcon>
+          </NavItem>
         ))}
-        <div className="px-2 pt-4 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Libreria</div>
-        <NavLink route={{ name: 'media' }} active={route.name === 'media'} icon={<Images />} label="Media" />
+        <div className={sectionLabel}>Libreria</div>
+        <NavItem route={{ name: 'media' }} active={route.name === 'media'} label="Media" count={overview.data?.media}>
+          <TintIcon color="#0ea5e9" size="sm">
+            <Images />
+          </TintIcon>
+        </NavItem>
         {user.role === 'admin' && (
           <>
-            <div className="px-2 pt-4 pb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">Gestione</div>
-            <NavLink route={{ name: 'people' }} active={route.name === 'people'} icon={<UserRound />} label="Persone" />
+            <div className={sectionLabel}>Gestione</div>
+            <NavItem route={{ name: 'people' }} active={route.name === 'people'} label="Persone">
+              <TintIcon color="#8b5cf6" size="sm">
+                <UserRound />
+              </TintIcon>
+            </NavItem>
           </>
         )}
       </nav>
 
-      <div className="space-y-1 border-t border-line p-2.5">
+      <div className="space-y-1 px-3 pb-3">
         {schema.locales.available.length > 1 && (
           <Popover
             side="top"
@@ -151,85 +187,87 @@ export function Sidebar() {
           </Popover>
         )}
 
-        <Popover
-          side="top"
-          width={216}
-          trigger={({ toggle, ref }) => (
-            <button
-              ref={ref}
-              type="button"
-              onClick={toggle}
-              className="flex h-10 w-full items-center gap-2.5 rounded-md px-2 text-left hover:bg-hover"
-            >
-              <span className="flex size-6 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-accent-fg">
-                {user.name.slice(0, 1).toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">{user.name}</span>
-                <span className="block truncate text-[11px] text-fg3">
-                  {user.role === 'admin' ? 'Amministratore' : 'Editor'}
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-panel p-1 shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
+          <Popover
+            side="top"
+            width={216}
+            trigger={({ toggle, ref }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={toggle}
+                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left hover:bg-hover"
+              >
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#8b5cf6] text-[11px] font-semibold text-white">
+                  {user.name.slice(0, 1).toUpperCase()}
                 </span>
-              </span>
-            </button>
-          )}
-        >
-          {(close) => (
-            <div className="p-1">
-              <div className="px-2 pt-1.5 pb-1 text-[11px] font-medium text-fg3">Tema</div>
-              {(['light', 'dark', 'system'] as Theme[]).map((t) => (
-                <MenuItem key={t} icon={themeIcon[t]} checked={theme === t} onClick={() => setTheme(t)}>
-                  {{ light: 'Chiaro', dark: 'Scuro', system: 'Come il sistema' }[t]}
-                </MenuItem>
-              ))}
-              <MenuSeparator />
-              {schema.site.url && (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] leading-tight font-medium">{user.name}</span>
+                  <span className="block truncate text-[11px] text-fg3">
+                    {user.role === 'admin' ? 'Amministratore' : 'Editor'}
+                  </span>
+                </span>
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="p-1">
                 <MenuItem
-                  icon={<ExternalLink />}
+                  icon={<UserRound />}
                   onClick={() => {
-                    window.open(schema.site.url, '_blank', 'noopener')
                     close()
+                    setProfile(true)
                   }}
                 >
-                  Apri il sito
+                  Il tuo profilo
                 </MenuItem>
-              )}
-              <MenuItem
-                icon={<UserRound />}
-                onClick={() => {
-                  close()
-                  setProfile(true)
-                }}
-              >
-                Il tuo profilo
-              </MenuItem>
-              <MenuItem icon={<LogOut />} onClick={logout}>
-                Esci
-              </MenuItem>
-            </div>
-          )}
-        </Popover>
+                <MenuSeparator />
+                <MenuItem icon={<LogOut />} onClick={logout}>
+                  Esci
+                </MenuItem>
+              </div>
+            )}
+          </Popover>
+          <ThemeSwitch compact />
+        </div>
       </div>
       {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
     </aside>
   )
 }
 
-function NavLink({ route, active, icon, label }: { route: Route; active: boolean; icon: ReactNode; label: string }) {
+function NavItem({
+  route,
+  active,
+  label,
+  count,
+  children,
+}: {
+  route: Route
+  active: boolean
+  label: string
+  count?: number
+  children: ReactNode
+}) {
   return (
     <a
       href={href(route)}
+      aria-current={active ? 'page' : undefined}
       onClick={(e) => {
         if (e.metaKey || e.ctrlKey) return
         e.preventDefault()
         navigate(route)
       }}
       className={cx(
-        'flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
-        active ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+        'flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-[13px] transition-colors',
+        active
+          ? 'bg-panel font-medium text-fg shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(10_10_11/0.05)]'
+          : 'text-fg2 hover:bg-hover hover:text-fg',
       )}
     >
-      {icon}
-      <span className="truncate">{label}</span>
+      {children}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {count !== undefined && count > 0 && <span className="text-[11.5px] text-fg3 tabular-nums">{count}</span>}
     </a>
   )
 }

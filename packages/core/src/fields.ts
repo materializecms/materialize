@@ -258,7 +258,9 @@ function relation<const O extends RelationOptions<boolean, boolean>>(
 }
 
 export type BlockValue<B extends Block> =
-  B extends Block<infer N, infer F> ? { _type: N; _key: string; _style?: BlockStyle } & InferFields<F> : never
+  B extends Block<infer N, infer F>
+    ? { _type: N; _key: string; _label?: string; _style?: BlockStyle } & InferFields<F>
+    : never
 
 interface BlocksOptions<R extends boolean> extends Common<R> {
   min?: number
@@ -279,6 +281,8 @@ function blocks<const B extends readonly Block[], const O extends BlocksOptions<
         z.object({
           _type: z.literal(b.name),
           _key: z.string().min(1),
+          // A name chosen in the editor's layers, for people only: the site ignores it.
+          _label: z.string().max(80).optional(),
           _style: blockStyleSchema.optional(),
           ...objectShape(b.fields),
         }),

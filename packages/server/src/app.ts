@@ -388,6 +388,19 @@ export function createApp(ctx: ServerContext) {
 
   // ---------- management API ----------
 
+  app.get('/api/overview', requireUser, async (c) => {
+    const known = new Set(ctx.config().collections.map((col) => col.name))
+    const overview = await content.overview(locale(c.req.query('locale')))
+    const people = new Map((await auth.listUsers()).map((u) => [u.id, u.name]))
+    return c.json({
+      counts: overview.counts.filter((row) => known.has(row.collection)),
+      recent: overview.recent
+        .filter((row) => known.has(row.collection))
+        .map(({ updatedBy, ...row }) => ({ ...row, updatedBy: updatedBy ? (people.get(updatedBy) ?? null) : null })),
+      media: (await mediaStore.list({ limit: 1 })).total,
+    })
+  })
+
   app.get('/api/collections/:name', requireUser, async (c) => {
     const def = collection(c.req.param('name'))
     const result = await content.list(def.name, {

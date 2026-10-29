@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { Spinner } from '../components/ui.tsx'
+import { cx, Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
-import { navigate, useRoute } from '../lib/router.ts'
+import { useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
@@ -12,6 +12,7 @@ import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
 import { type Session, SessionContext } from './context.ts'
 import { DocumentScreen } from './DocumentScreen.tsx'
+import { Overview } from './Overview.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
 export function App() {
@@ -70,11 +71,6 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const first = schema.collections.find((c) => !c.singleton) ?? schema.collections[0]
-  useEffect(() => {
-    if (route.name === 'home' && first) navigate({ name: 'collection', collection: first.name }, { replace: true })
-  }, [route.name, first])
-
   const session = useMemo<Session>(
     () => ({ user, schema, locale: activeLocale, setLocale, openPalette: () => setPalette(true) }),
     [user, schema, activeLocale, setLocale],
@@ -85,17 +81,22 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
       ? undefined
       : schema.collections.find((c) => c.name === route.collection)
 
+  // The page editor takes the whole window; everything else sits in a panel beside the sidebar.
+  const fullscreen = (route.name === 'document' || route.name === 'new') && !collection?.singleton
+
   return (
     <SessionContext.Provider value={session}>
-      <div className="flex h-full min-h-0">
-        {(route.name === 'home' ||
-          route.name === 'media' ||
-          route.name === 'people' ||
-          route.name === 'collection' ||
-          collection?.singleton) && <Sidebar />}
-        <main className="flex min-w-0 flex-1 flex-col">
+      <div className="flex h-full min-h-0 bg-bg">
+        {!fullscreen && <Sidebar />}
+        <main
+          className={cx(
+            'flex min-w-0 flex-1 flex-col',
+            !fullscreen &&
+              'my-2 mr-2 overflow-hidden rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04),0_8px_24px_rgb(10_10_11/0.04)]',
+          )}
+        >
           {route.name === 'home' ? (
-            <Loading />
+            <Overview />
           ) : route.name === 'media' ? (
             <MediaLibrary />
           ) : route.name === 'people' ? (

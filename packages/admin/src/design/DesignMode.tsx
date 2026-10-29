@@ -8,6 +8,7 @@ import {
   GripVertical,
   Info,
   Monitor,
+  PencilLine,
   Plus,
   Smartphone,
   Tablet,
@@ -171,6 +172,15 @@ export function DesignMode({
         selected={selected}
         onSelect={setSelected}
         onMove={(from, to) => setBlocks(move(blocks, from, to))}
+        onRename={(key, label) =>
+          setBlocks(
+            blocks.map((b) => {
+              if (b._key !== key) return b
+              const { _label: _, ...rest } = b
+              return label ? { ...rest, _label: label } : rest
+            }),
+          )
+        }
         onAdd={(def) => insert(def, blocks.length)}
         canAdd={canAdd}
         issues={issues}
@@ -554,6 +564,7 @@ function Layers({
   selected,
   onSelect,
   onMove,
+  onRename,
   onAdd,
   canAdd,
   issues,
@@ -564,12 +575,14 @@ function Layers({
   selected: string | null
   onSelect: (key: string | null) => void
   onMove: (from: number, to: number) => void
+  onRename: (key: string, label: string) => void
   onAdd: (def: BlockDef) => void
   canAdd: boolean
   issues: ValidationIssue[]
   path: string
 }) {
   const [drag, setDrag] = useState<{ from: number; over: number | null } | null>(null)
+  const [renaming, setRenaming] = useState<string | null>(null)
 
   const onDragOver = (e: DragEvent, i: number) => {
     if (!drag) return
@@ -631,35 +644,85 @@ function Layers({
         >
           {blocks.map((block, i) => {
             const def = defs.find((d) => d.name === block._type)
-            const title = def ? blockTitle(def.fields, block) : undefined
+            const title = (block._label as string | undefined) || (def ? blockTitle(def.fields, block) : undefined)
             const errors = countIssuesUnder(issues, `${path}.${i}`)
             return (
-              <div key={block._key} className="relative">
+              <div key={block._key} className="group/row relative">
                 {drag?.over === i && <div className="absolute -top-px right-1 left-1 h-0.5 rounded bg-accent" />}
-                <button
-                  type="button"
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = 'move'
-                    setDrag({ from: i, over: null })
-                  }}
-                  onDragEnd={() => setDrag(null)}
-                  onDragOver={(e) => onDragOver(e, i)}
-                  onDrop={onDrop}
-                  onClick={() => onSelect(block._key)}
-                  className={cx(
-                    'group flex h-8 w-full items-center gap-2 rounded-md pr-1.5 pl-1 text-left text-[13px] [&>svg]:size-4 [&>svg]:shrink-0',
-                    selected === block._key ? 'bg-accent/10 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
-                    drag?.from === i && 'opacity-40',
-                  )}
-                >
-                  <GripVertical className="!size-3.5 cursor-grab text-fg3 opacity-0 group-hover:opacity-100" />
-                  {blockIcon(block._type)}
-                  <span className={cx('truncate', selected === block._key && 'font-medium')}>
-                    {title ?? def?.label ?? block._type}
-                  </span>
-                  {errors > 0 && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-danger" />}
-                </button>
+                {renaming === block._key ? (
+                  <div className="flex h-8 items-center gap-2 rounded-md bg-accent/10 pr-1.5 pl-1 [&>svg]:size-4 [&>svg]:shrink-0">
+                    <span className="w-3.5" />
+                    {blockIcon(block._type)}
+                    <input
+                      autoFocus
+                      aria-label="Nome del livello"
+                      defaultValue={title ?? def?.label ?? block._type}
+                      maxLength={80}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onBlur={(e) => {
+                        const value = e.currentTarget.value.trim()
+                        onRename(
+                          block._key,
+                          value === (def ? blockTitle(def.fields, { ...block, _label: undefined }) : '') ? '' : value,
+                        )
+                        setRenaming(null)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur()
+                        if (e.key === 'Escape') setRenaming(null)
+                        e.stopPropagation()
+                      }}
+                      className="h-6 min-w-0 flex-1 rounded border border-accent bg-input px-1.5 text-[13px] text-fg outline-none"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    draggable
+                    title="Doppio clic per rinominare"
+                    onDoubleClick={() => setRenaming(block._key)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'F2' || (e.key === 'Enter' && selected === block._key)) {
+                        e.preventDefault()
+                        setRenaming(block._key)
+                      }
+                    }}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move'
+                      setDrag({ from: i, over: null })
+                    }}
+                    onDragEnd={() => setDrag(null)}
+                    onDragOver={(e) => onDragOver(e, i)}
+                    onDrop={onDrop}
+                    onClick={() => onSelect(block._key)}
+                    className={cx(
+                      'group flex h-8 w-full items-center gap-2 rounded-md pr-1.5 pl-1 text-left text-[13px] [&>svg]:size-4 [&>svg]:shrink-0',
+                      selected === block._key ? 'bg-accent/10 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
+                      drag?.from === i && 'opacity-40',
+                    )}
+                  >
+                    <GripVertical className="!size-3.5 cursor-grab text-fg3 opacity-0 group-hover:opacity-100" />
+                    {blockIcon(block._type)}
+                    <span className={cx('truncate', selected === block._key && 'font-medium')}>
+                      {title ?? def?.label ?? block._type}
+                    </span>
+                    {errors > 0 && <span className="ml-auto size-1.5 shrink-0 rounded-full bg-danger" />}
+                  </button>
+                )}
+                {renaming !== block._key && (
+                  <button
+                    type="button"
+                    aria-label={`Rinomina ${title ?? def?.label ?? block._type}`}
+                    title="Rinomina"
+                    onClick={() => setRenaming(block._key)}
+                    className={cx(
+                      'absolute top-1 flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/row:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100',
+                      errors > 0 ? 'right-4' : 'right-1',
+                    )}
+                  >
+                    <PencilLine className="size-3.5" />
+                  </button>
+                )}
                 {drag?.over === blocks.length && i === blocks.length - 1 && (
                   <div className="absolute right-1 -bottom-px left-1 h-0.5 rounded bg-accent" />
                 )}

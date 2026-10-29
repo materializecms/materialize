@@ -42,6 +42,14 @@ export interface DocumentSummary {
   status: DocumentStatus
   updatedAt: string
   publishedAt: string | null
+  /** First image in the document, for thumbnails. */
+  image?: string | null
+}
+
+export interface Overview {
+  counts: { collection: string; total: number; drafts: number; changed: number }[]
+  recent: (DocumentSummary & { collection: string; updatedBy: string | null })[]
+  media: number
 }
 
 export interface StoredDocument extends DocumentSummary {
@@ -155,6 +163,7 @@ export const api = {
   logout: () => request<{ ok: true }>('POST', '/auth/logout'),
   me: () => request<{ user: User }>('GET', '/auth/me'),
   schema: () => request<Schema>('GET', '/schema'),
+  overview: (locale: string) => request<Overview>('GET', `/overview${q({ locale })}`),
   list: (collection: string, params: { locale?: string; search?: string; limit?: number; offset?: number }) =>
     request<{ items: DocumentSummary[]; total: number }>('GET', `/collections/${collection}${q(params)}`),
   create: (collection: string, data: Data, locale?: string) =>

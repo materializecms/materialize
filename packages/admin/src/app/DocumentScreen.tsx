@@ -27,6 +27,7 @@ import {
   Segmented,
   Spinner,
   StatusBadge,
+  ThemeSwitch,
   toast,
 } from '../components/ui.tsx'
 import { DesignMode } from '../design/DesignMode.tsx'
@@ -45,6 +46,7 @@ import { fullDate, relativeTime } from '../lib/format.ts'
 import { useHistory } from '../lib/history.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
+import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { localeName } from './Sidebar.tsx'
 
@@ -104,6 +106,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   const [focusRequest, setFocusRequest] = useState<{ path: string; n: number } | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false)
   const [panel, setPanel] = usePref<'on' | 'off'>('mz-doc-panel', 'on')
   const blocksField = fields.find((f) => f.kind === 'blocks')
   const [modePref, setMode] = usePref<Mode>('mz-mode', 'design')
@@ -197,6 +200,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
       }
       const res = await api.publish(target.id)
       applyServer(res, latest.current.current)
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
       toast(doc?.publishedAt ? 'Modifiche pubblicate' : 'Pubblicato')
     } catch (error) {
       handleError(error)
@@ -209,7 +213,8 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
     if (!doc) return
     try {
       applyServer(await api.unpublish(doc.id), latest.current.current)
-      toast('Ritirato dal sito')
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
+      toast('Tolto dal sito: ora è una bozza')
     } catch (error) {
       handleError(error)
     }
@@ -310,24 +315,25 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   return (
     <FormContext.Provider value={formState}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <header
-          className={cx(
-            'relative flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel pr-3',
-            collection.singleton ? 'pl-5' : 'pl-2',
-          )}
-        >
+        <header className="relative flex h-[52px] shrink-0 items-center gap-2 border-b border-line bg-panel pr-3 pl-3">
           {/* A singleton has no list to go back to: it stays in the sidebar like any section. */}
           {!collection.singleton && (
-            <IconButton
-              label={`Torna a ${collection.label}`}
+            <button
+              type="button"
+              title={`Torna a ${collection.label}`}
+              aria-label={`Torna a ${collection.label}`}
               onClick={() => navigate({ name: 'collection', collection: collection.name })}
+              className="group relative flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-hover"
             >
-              <ArrowLeft />
-            </IconButton>
+              <Logo className="size-6 transition-opacity group-hover:opacity-0" />
+              <ArrowLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
           )}
           <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
             {!collection.singleton && (
               <>
+                <span className="hidden shrink-0 font-semibold xl:inline">{schema.site.name}</span>
+                <span className="hidden text-fg3 xl:inline">/</span>
                 <button
                   type="button"
                   className="shrink-0 text-fg2 hover:text-fg"
@@ -386,6 +392,8 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             <IconButton label="Ripristina (⇧⌘Z)" disabled={!history.canRedo} onClick={history.redo}>
               <Redo2 />
             </IconButton>
+            <div className="mx-1 h-5 w-px bg-line" />
+            <ThemeSwitch compact />
             {mode === 'content' && (
               <IconButton
                 label="Pannello documento"
@@ -411,10 +419,13 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                     disabled={!doc?.publishedAt}
                     onClick={() => {
                       close()
-                      void unpublish()
+                      setConfirmUnpublish(true)
                     }}
                   >
-                    Ritira dal sito
+                    <span className="block">Togli dal sito</span>
+                    <span className="block text-[11.5px] font-normal text-fg3">
+                      {doc?.publishedAt ? 'Torna bozza, non più visibile online' : 'Non è pubblicato'}
+                    </span>
                   </MenuItem>
                   <MenuItem
                     icon={<Copy />}
@@ -503,6 +514,30 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
           </div>
         )}
       </div>
+
+      <Dialog
+        open={confirmUnpublish}
+        onClose={() => setConfirmUnpublish(false)}
+        title={`Togliere “${title}” dal sito?`}
+        footer={
+          <>
+            <Button onClick={() => setConfirmUnpublish(false)} data-autofocus>
+              Annulla
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setConfirmUnpublish(false)
+                void unpublish()
+              }}
+            >
+              Togli dal sito
+            </Button>
+          </>
+        }
+      >
+        Non sarà più visibile online e tornerà una bozza. Il contenuto resta qui: puoi ripubblicarlo quando vuoi.
+      </Dialog>
 
       <Dialog
         open={confirmDelete}

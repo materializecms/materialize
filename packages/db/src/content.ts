@@ -26,6 +26,8 @@ export interface DocumentSummary {
   status: DocumentStatus
   updatedAt: Date
   publishedAt: Date | null
+  /** The first image in the document, for thumbnails in lists. */
+  image: string | null
 }
 
 export interface Revision {
@@ -51,6 +53,18 @@ const REVISION_MERGE_MS = 5 * 60 * 1000
 function statusOf(row: Pick<Row, 'publishedAt' | 'hasChanges'>): DocumentStatus {
   if (!row.publishedAt) return 'draft'
   return row.hasChanges ? 'changed' : 'published'
+}
+
+/** The first image found in a document's data (fields first, then blocks, in order). */
+export function firstImage(value: unknown, depth = 0): string | null {
+  if (!value || typeof value !== 'object' || depth > 6) return null
+  const record = value as Record<string, unknown>
+  if (typeof record.src === 'string' && record.src && 'alt' in record) return record.src
+  for (const child of Array.isArray(value) ? value : Object.values(record)) {
+    const found = firstImage(child, depth + 1)
+    if (found) return found
+  }
+  return null
 }
 
 function toDocument(row: Row): StoredDocument {
@@ -150,6 +164,46 @@ export function createContentStore(db: Db) {
           status: statusOf(r),
           updatedAt: r.updatedAt,
           publishedAt: r.publishedAt ?? null,
+          image: firstImage(r.data),
+        })),
+      }
+    },
+
+    /** Counts per collection and the latest changes across all of them: the panel's home. */
+    async overview(locale: string, recent = 8) {
+      const counts = await db
+        .select({
+          collection: documents.collection,
+          total: count(),
+          drafts: sql<number>`sum(case when ${documents.publishedAt} is null then 1 else 0 end)`,
+          changed: sql<number>`sum(case when ${documents.publishedAt} is not null and ${documents.hasChanges} then 1 else 0 end)`,
+        })
+        .from(documents)
+        .where(eq(documents.locale, locale))
+        .groupBy(documents.collection)
+      const rows = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.locale, locale))
+        .orderBy(desc(documents.updatedAt), desc(sql`rowid`))
+        .limit(recent)
+      return {
+        counts: counts.map((c) => ({
+          collection: c.collection,
+          total: c.total,
+          drafts: Number(c.drafts ?? 0),
+          changed: Number(c.changed ?? 0),
+        })),
+        recent: rows.map((r) => ({
+          id: r.id,
+          collection: r.collection,
+          title: r.title,
+          slug: r.slug,
+          status: statusOf(r),
+          updatedAt: r.updatedAt,
+          publishedAt: r.publishedAt ?? null,
+          image: firstImage(r.data),
+          updatedBy: r.updatedBy ?? null,
         })),
       }
     },

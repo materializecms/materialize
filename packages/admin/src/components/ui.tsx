@@ -1,4 +1,4 @@
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2, Monitor, Moon, Sun } from 'lucide-react'
 import {
   type ComponentProps,
   type InputHTMLAttributes,
@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import type { DocumentStatus } from '../lib/api.ts'
+import { type Theme, useTheme } from '../lib/prefs.ts'
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
 
@@ -21,7 +22,8 @@ export const cx = (...classes: (string | false | null | undefined)[]) => classes
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-fg text-bg hover:opacity-90 disabled:opacity-40',
+  primary:
+    'bg-accent text-accent-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(10_10_11/0.18)] hover:brightness-110 disabled:opacity-40',
   secondary: 'bg-panel border border-line2 text-fg hover:bg-hover disabled:opacity-50',
   ghost: 'text-fg2 hover:bg-hover hover:text-fg disabled:opacity-40',
   danger: 'bg-danger text-white hover:opacity-90 disabled:opacity-50',
@@ -184,18 +186,106 @@ export function Segmented<T extends string>({
 
 // ---------- status ----------
 
-const statusInfo: Record<DocumentStatus, { label: string; dot: string }> = {
-  draft: { label: 'Bozza', dot: 'bg-fg3' },
-  published: { label: 'Pubblicato', dot: 'bg-ok' },
-  changed: { label: 'Modifiche non pubblicate', dot: 'bg-warn' },
+const statusInfo: Record<DocumentStatus, { label: string; short: string; pill: string; dot: string }> = {
+  draft: { label: 'Bozza', short: 'Bozza', pill: 'bg-seg text-fg2', dot: 'bg-fg3' },
+  published: { label: 'Pubblicato', short: 'Pubblicato', pill: 'bg-ok/12 text-ok', dot: 'bg-ok' },
+  changed: { label: 'Modifiche da pubblicare', short: 'Da pubblicare', pill: 'bg-warn/12 text-warn', dot: 'bg-warn' },
 }
 
 export function StatusBadge({ status, short }: { status: DocumentStatus; short?: boolean }) {
   const info = statusInfo[status]
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap text-fg2">
+    <span
+      className={cx(
+        'inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-[11.5px] font-medium whitespace-nowrap',
+        info.pill,
+      )}
+    >
       <span className={cx('size-1.5 rounded-full', info.dot)} />
-      {short && status === 'changed' ? 'Modificato' : info.label}
+      {short ? info.short : info.label}
+    </span>
+  )
+}
+
+const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
+  { value: 'light', label: 'Tema chiaro', icon: <Sun /> },
+  { value: 'dark', label: 'Tema scuro', icon: <Moon /> },
+  { value: 'system', label: 'Tema come il sistema', icon: <Monitor /> },
+]
+
+/** Light, dark or like the system, reachable from every screen, the editor included. */
+export function ThemeSwitch({ compact }: { compact?: boolean }) {
+  const [theme, setTheme] = useTheme()
+  if (compact) {
+    const i = THEMES.findIndex((t) => t.value === theme)
+    const current = THEMES[i] ?? THEMES[2]
+    const next = THEMES[(i + 1) % THEMES.length] ?? THEMES[0]
+    return (
+      <IconButton
+        label={`${current?.label} · passa a ${next?.label.toLowerCase()}`}
+        onClick={() => next && setTheme(next.value)}
+      >
+        {current?.icon}
+      </IconButton>
+    )
+  }
+  return (
+    <div role="radiogroup" aria-label="Tema" className="inline-flex rounded-md bg-seg p-0.5">
+      {THEMES.map((t) => (
+        // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
+        <button
+          key={t.value}
+          type="button"
+          role="radio"
+          aria-checked={theme === t.value}
+          title={t.label}
+          aria-label={t.label}
+          onClick={() => setTheme(t.value)}
+          className={cx(
+            'inline-flex h-6 w-7 items-center justify-center rounded-[5px] transition-colors [&_svg]:size-3.5',
+            theme === t.value ? 'bg-panel text-fg shadow-sm' : 'text-fg3 hover:text-fg',
+          )}
+        >
+          {t.icon}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ---------- identity ----------
+
+/** Each collection gets its own hue, so lists, the sidebar and the home read at a glance. */
+const TINTS = ['#3d5afe', '#8b5cf6', '#0ea5a4', '#e5487d', '#e8a33d', '#2f9e6e', '#f26b3a', '#0ea5e9']
+
+export function tintOf(key: string, index?: number): string {
+  if (index !== undefined) return TINTS[index % TINTS.length] as string
+  let h = 0
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return TINTS[h % TINTS.length] as string
+}
+
+/** A rounded square holding an icon in a collection's hue. */
+export function TintIcon({
+  color,
+  size = 'md',
+  children,
+}: {
+  color: string
+  size?: 'sm' | 'md' | 'lg'
+  children: ReactNode
+}) {
+  return (
+    <span
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
+      className={cx(
+        'inline-flex shrink-0 items-center justify-center',
+        size === 'sm' && 'size-5 rounded-[5px] [&_svg]:size-3',
+        size === 'md' && 'size-7 rounded-md [&_svg]:size-3.5',
+        size === 'lg' && 'size-9 rounded-lg [&_svg]:size-[18px]',
+      )}
+    >
+      {children}
     </span>
   )
 }

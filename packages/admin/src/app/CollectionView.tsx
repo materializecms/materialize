@@ -1,20 +1,26 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Plus, Search } from 'lucide-react'
+import { LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Button, EmptyState, Input, Spinner, StatusBadge } from '../components/ui.tsx'
-import { api, type CollectionDescription } from '../lib/api.ts'
+import { Button, cx, EmptyState, Input, Segmented, Spinner, StatusBadge, TintIcon } from '../components/ui.tsx'
+import { api, type CollectionDescription, type DocumentStatus, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
+import { usePref } from '../lib/prefs.ts'
 import { href, navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
-import { collectionIcon } from './Sidebar.tsx'
+import { Thumb } from './Overview.tsx'
+import { collectionIcon, useCollectionTint } from './Sidebar.tsx'
 
 const PAGE = 50
+type Filter = 'all' | DocumentStatus
 
 export function CollectionView({ collection }: { collection: CollectionDescription }) {
   const { locale } = useSession()
+  const tint = useCollectionTint()(collection.name)
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [limit, setLimit] = useState(PAGE)
+  const [filter, setFilter] = useState<Filter>('all')
+  const [view, setView] = usePref<'list' | 'grid'>(`mz-view-${collection.name}`, 'list')
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 200)
@@ -35,37 +41,82 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
       doc
         ? { name: 'document', collection: collection.name, id: doc.id }
         : { name: 'new', collection: collection.name },
-      {
-        replace: true,
-      },
+      { replace: true },
     )
   }, [collection, list.data])
 
   const create = () => navigate({ name: 'new', collection: collection.name })
+  const items = (list.data?.items ?? []).filter((d) => filter === 'all' || d.status === filter)
+  const countOf = (status: DocumentStatus) => list.data?.items.filter((d) => d.status === status).length ?? 0
+  const icon = <TintIcon color={tint}>{collectionIcon(collection)}</TintIcon>
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
-        <span className="text-fg3 [&_svg]:size-4">{collectionIcon(collection)}</span>
-        <h1 className="text-[14px] font-semibold">{collection.label}</h1>
-        {list.data && <span className="text-fg3 tabular-nums">{list.data.total}</span>}
-        <div className="flex-1" />
-        <div className="relative w-56">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Cerca in ${collection.label.toLowerCase()}`}
-            className="pl-8"
-            aria-label="Cerca"
+      <header className="shrink-0 px-8 pt-8">
+        <div className="flex flex-wrap items-center gap-3">
+          <TintIcon color={tint} size="lg">
+            {collectionIcon(collection)}
+          </TintIcon>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.025em]">{collection.label}</h1>
+            <p className="text-[12.5px] text-fg3">
+              {list.data ? (list.data.total === 1 ? '1 documento' : `${list.data.total} documenti`) : ' '}
+            </p>
+          </div>
+          <Button variant="primary" icon={<Plus className="size-4" />} onClick={create}>
+            Nuovo
+          </Button>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-b border-line pb-3">
+          <div role="tablist" aria-label="Stato" className="flex gap-1">
+            {(
+              [
+                ['all', 'Tutti', list.data?.items.length ?? 0],
+                ['published', 'Pubblicati', countOf('published')],
+                ['changed', 'Da pubblicare', countOf('changed')],
+                ['draft', 'Bozze', countOf('draft')],
+              ] as [Filter, string, number][]
+            ).map(([value, label, n]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={filter === value}
+                onClick={() => setFilter(value)}
+                className={cx(
+                  'inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors',
+                  filter === value ? 'bg-fg text-bg' : 'text-fg2 hover:bg-hover hover:text-fg',
+                )}
+              >
+                {label}
+                <span className={cx('tabular-nums', filter === value ? 'opacity-60' : 'text-fg3')}>{n}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex-1" />
+          <div className="relative w-60">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Cerca in ${collection.label.toLowerCase()}`}
+              className="pl-8"
+              aria-label="Cerca"
+            />
+          </div>
+          <Segmented
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'list', label: <List />, title: 'Elenco' },
+              { value: 'grid', label: <LayoutGrid />, title: 'Griglia' },
+            ]}
           />
         </div>
-        <Button variant="primary" icon={<Plus className="size-4" />} onClick={create}>
-          Nuovo
-        </Button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto px-8 pt-2 pb-10">
         {list.isPending || collection.singleton ? (
           <div className="flex justify-center py-20">
             <Spinner />
@@ -74,10 +125,14 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
           <EmptyState icon={collectionIcon(collection)} title="Impossibile caricare l’elenco">
             {list.error.message}
           </EmptyState>
-        ) : list.data.items.length === 0 ? (
+        ) : items.length === 0 ? (
           debounced ? (
             <EmptyState icon={<Search />} title="Nessun risultato">
               Nessun documento contiene “{debounced}”.
+            </EmptyState>
+          ) : filter !== 'all' ? (
+            <EmptyState icon={collectionIcon(collection)} title="Niente qui">
+              Nessun documento con questo stato.
             </EmptyState>
           ) : (
             <EmptyState icon={collectionIcon(collection)} title={`Ancora nessun elemento in ${collection.label}`}>
@@ -86,42 +141,36 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
               </Button>
             </EmptyState>
           )
+        ) : view === 'grid' ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4 pt-3">
+            {items.map((doc) => (
+              <Card key={doc.id} collection={collection} doc={doc} icon={icon} />
+            ))}
+          </div>
         ) : (
-          <table className="w-full border-collapse text-left">
-            <thead className="sticky top-0 bg-bg/95 backdrop-blur">
-              <tr className="border-b border-line text-[12px] text-fg3">
-                <th className="py-2 pr-3 pl-5 font-medium">Titolo</th>
-                <th className="w-52 px-3 py-2 font-medium">Stato</th>
-                <th className="w-40 py-2 pr-5 pl-3 text-right font-medium">Modificato</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.data.items.map((doc) => (
-                <tr key={doc.id} className="group border-b border-line transition-colors hover:bg-panel">
-                  <td className="py-0 pr-3 pl-5">
-                    <a
-                      href={href({ name: 'document', collection: collection.name, id: doc.id })}
-                      onClick={(e) => {
-                        if (e.metaKey || e.ctrlKey) return
-                        e.preventDefault()
-                        navigate({ name: 'document', collection: collection.name, id: doc.id })
-                      }}
-                      className="flex min-h-11 flex-col justify-center py-2"
-                    >
-                      <span className="font-medium text-fg">{doc.title}</span>
-                      {doc.slug && <span className="font-mono text-[11.5px] text-fg3">/{doc.slug}</span>}
-                    </a>
-                  </td>
-                  <td className="px-3">
-                    <StatusBadge status={doc.status} />
-                  </td>
-                  <td className="py-0 pr-5 pl-3 text-right text-fg2 tabular-nums" title={fullDate(doc.updatedAt)}>
+          <ul>
+            {items.map((doc) => (
+              <li key={doc.id} className="border-b border-line last:border-0">
+                <a
+                  {...link(collection, doc)}
+                  className="-mx-3 flex min-h-14 items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-hover"
+                >
+                  <Thumb doc={doc} fallback={icon} className="size-10" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-fg">{doc.title}</span>
+                    {doc.slug && <span className="block truncate font-mono text-[11.5px] text-fg3">/{doc.slug}</span>}
+                  </span>
+                  <StatusBadge status={doc.status} short />
+                  <span
+                    className="w-28 shrink-0 text-right text-[12px] text-fg3 tabular-nums"
+                    title={fullDate(doc.updatedAt)}
+                  >
                     {relativeTime(doc.updatedAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
         )}
         {list.data && list.data.total > list.data.items.length && (
           <div className="flex justify-center py-4">
@@ -132,5 +181,61 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
         )}
       </div>
     </div>
+  )
+}
+
+function link(collection: CollectionDescription, doc: DocumentSummary) {
+  const route = { name: 'document', collection: collection.name, id: doc.id } as const
+  return {
+    href: href(route),
+    onClick: (e: React.MouseEvent) => {
+      if (e.metaKey || e.ctrlKey) return
+      e.preventDefault()
+      navigate(route)
+    },
+  }
+}
+
+function Card({
+  collection,
+  doc,
+  icon,
+}: {
+  collection: CollectionDescription
+  doc: DocumentSummary
+  icon: React.ReactNode
+}) {
+  return (
+    <a
+      {...link(collection, doc)}
+      className="group overflow-hidden rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-[box-shadow,border-color,transform] hover:-translate-y-px hover:border-line2 hover:shadow-pop"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-panel2">
+        {doc.image ? (
+          <img
+            src={thumb(doc.image, 640)}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:14px_14px]">
+            {icon}
+          </div>
+        )}
+        <span className="absolute top-2.5 left-2.5 rounded-full bg-panel shadow-sm">
+          <StatusBadge status={doc.status} short />
+        </span>
+      </div>
+      <div className="px-3.5 py-3">
+        <div className="truncate font-medium">{doc.title}</div>
+        <div className="mt-0.5 flex justify-between gap-2 text-[12px] text-fg3">
+          <span className="truncate font-mono">{doc.slug ? `/${doc.slug}` : ''}</span>
+          <span className="shrink-0" title={fullDate(doc.updatedAt)}>
+            {relativeTime(doc.updatedAt)}
+          </span>
+        </div>
+      </div>
+    </a>
   )
 }
