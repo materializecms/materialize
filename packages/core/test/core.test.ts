@@ -95,6 +95,21 @@ describe('collections', () => {
     expect(result.ok).toBe(false)
   })
 
+  it('keeps block style settings and rejects values outside the design system', () => {
+    const block = { _type: 'hero', _key: 'a', title: 'Ciao', _style: { background: 'dark', animation: 'rise' } }
+    const ok = validate(pages, { title: 'Home', blocks: [block] })
+    expect(ok.ok && ok.data.blocks?.[0]?._style).toEqual({ background: 'dark', animation: 'rise' })
+
+    const bad = validate(pages, {
+      title: 'Home',
+      blocks: [{ ...block, _style: { background: '#ff0000', anchor: 'Chi Siamo' } }],
+    })
+    expect(bad.ok ? [] : bad.issues.map((i) => i.path)).toEqual([
+      'blocks.0._style.background',
+      'blocks.0._style.anchor',
+    ])
+  })
+
   it('fills an empty slug from its source field', () => {
     expect(prepare(pages, { title: 'Chi siamo' }).slug).toBe('chi-siamo')
     expect(prepare(pages, { title: 'Chi siamo', slug: 'studio' }).slug).toBe('studio')

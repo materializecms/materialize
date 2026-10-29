@@ -33,3 +33,4 @@ export {
   validate,
 } from './schema.ts'
 export { SLUG_PATTERN, slugify } from './slug.ts'
+export { ANCHOR_PATTERN, BLOCK_STYLE, type BlockStyle } from './style.ts'

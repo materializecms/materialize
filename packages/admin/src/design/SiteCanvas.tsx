@@ -17,6 +17,10 @@ export interface SiteCanvasProps {
   labels: Record<string, string>
   onSelect: (key: string | null) => void
   onField: (blockKey: string, field: string, text: string) => void
+  /** Reorders blocks dragged on the canvas. */
+  onMove: (from: number, to: number) => void
+  /** Plays the selected block's entrance animation again. */
+  replay?: { key: string; n: number } | null
 }
 
 const EDITOR_CSS = `
@@ -30,19 +34,38 @@ const EDITOR_CSS = `
 [data-mz-selected] [data-mz-field]:hover{outline:1px dashed currentColor;outline-offset:4px}
 [data-mz-field][contenteditable]{outline:2px solid #3d5afe!important;outline-offset:4px;border-radius:2px;cursor:text}
 .reveal{animation:none!important}
+[data-mz-handle]{position:absolute;top:8px;right:8px;z-index:2147483647;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:7px;background:#3d5afe;color:#fff;font:500 11.5px/1 system-ui,sans-serif;cursor:grab;user-select:none;box-shadow:0 2px 10px rgb(0 0 0 / .25)}
+[data-mz-handle]:active{cursor:grabbing}
+[data-mz-dragging]{opacity:.35}
+[data-mz-drop]{position:absolute;left:0;right:0;height:4px;margin-top:-2px;background:#3d5afe;border-radius:2px;z-index:2147483647;pointer-events:none;box-shadow:0 0 0 3px rgb(61 90 254 / .25)}
+html.mz-drag,html.mz-drag *{cursor:grabbing!important;user-select:none!important}
 `
 
+const REPLAY: Record<string, Keyframe> = {
+  fade: { opacity: 0 },
+  rise: { opacity: 0, transform: 'translateY(48px)' },
+  zoom: { opacity: 0, transform: 'scale(.94)' },
+  slide: { opacity: 0, transform: 'translateX(-56px)' },
+}
+
 export function SiteCanvas(props: SiteCanvasProps) {
-  const { collection, locale, data, width, selected, errors, labels, onSelect, onField } = props
+  const { collection, locale, data, width, selected, errors, labels, onSelect, onField, onMove, replay } = props
   const frame = useRef<HTMLIFrameElement>(null)
   const outer = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ scale: 1, height: 800 })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // Latest callbacks for listeners attached inside the iframe.
-  const handlers = useRef({ onSelect, onField, selected, errors, labels })
-  handlers.current = { onSelect, onField, selected, errors, labels }
-  const state = useRef({ html: '', loaded: false, pending: null as string | null, blocks: new Map<string, string>() })
+  const handlers = useRef({ onSelect, onField, onMove, selected, errors, labels })
+  handlers.current = { onSelect, onField, onMove, selected, errors, labels }
+  const state = useRef({
+    html: '',
+    loaded: false,
+    pending: null as string | null,
+    blocks: new Map<string, string>(),
+    // The click that ends a drag must not change the selection.
+    dragged: false,
+  })
 
   // Fit the device width into the available space; the frame height acts as the device viewport.
   useLayoutEffect(() => {
@@ -160,10 +183,30 @@ export function SiteCanvas(props: SiteCanvasProps) {
       el.toggleAttribute('data-mz-selected', key === selected)
       el.toggleAttribute('data-mz-error', errors.has(key) && key !== selected)
       el.dataset.mzLabel = labels[key] ?? el.dataset.mzType ?? ''
+      // A handle on the selected block lets it be dragged to a new position.
+      const handle = el.querySelector(':scope > [data-mz-handle]')
+      if (key === selected && !handle) {
+        const h = doc.createElement('div')
+        h.dataset.mzHandle = ''
+        h.textContent = '⠿ Trascina per spostare'
+        el.append(h)
+      } else if (key !== selected) handle?.remove()
     }
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: decorate reads the latest props
   useEffect(decorate, [selected, errors, labels])
+
+  // Plays the block's entrance once more, the same motion the site runs on scroll (blocks.css).
+  useEffect(() => {
+    const doc = frame.current?.contentDocument
+    const el = replay ? doc?.querySelector<HTMLElement>(`[data-mz-block="${replay.key}"]`) : null
+    const from = REPLAY[el?.dataset.anim ?? '']
+    if (!el || !from) return
+    for (const child of el.children) {
+      if (child.hasAttribute('data-mz-handle')) continue
+      child.animate([from, { opacity: 1, transform: 'none' }], { duration: 900, easing: 'cubic-bezier(.2,.7,.2,1)' })
+    }
+  }, [replay])
 
   // Scroll the selected block into view inside the device viewport.
   useEffect(() => {
@@ -199,6 +242,12 @@ export function SiteCanvas(props: SiteCanvasProps) {
     doc.addEventListener(
       'click',
       (e) => {
+        if (state.current.dragged) {
+          state.current.dragged = false
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
         const target = e.target as HTMLElement
         // The canvas is for editing: links and buttons do not navigate.
         if (target.closest('a, button, form')) e.preventDefault()
@@ -211,6 +260,11 @@ export function SiteCanvas(props: SiteCanvasProps) {
       true,
     )
     doc.addEventListener('submit', (e) => e.preventDefault(), true)
+    doc.addEventListener('pointerdown', (e) => {
+      const handle = (e.target as HTMLElement).closest('[data-mz-handle]')
+      const block = handle?.closest<HTMLElement>('[data-mz-block]')
+      if (handle && block) startDrag(doc, block, e)
+    })
     // Shortcuts (undo, save, delete…) belong to the admin, not to the page inside the canvas.
     // Text shortcuts (select all, copy, paste) stay native.
     doc.addEventListener('keydown', (e) => {
@@ -237,6 +291,72 @@ export function SiteCanvas(props: SiteCanvasProps) {
     })
     decorate()
     if (reloaded) void render()
+  }
+
+  /** Drag a block by its handle: a line shows where it will land; dropping reorders the page. */
+  function startDrag(doc: Document, block: HTMLElement, down: PointerEvent) {
+    down.preventDefault()
+    const win = doc.defaultView
+    if (!win) return
+    const blocks = () => [...doc.querySelectorAll<HTMLElement>('[data-mz-block]')]
+    const from = blocks().indexOf(block)
+    const line = doc.createElement('div')
+    line.dataset.mzDrop = ''
+    let target = from
+    let moved = false
+    let scroll = 0
+    let frameId = 0
+
+    const place = (y: number) => {
+      const list = blocks()
+      target = list.length
+      for (let i = 0; i < list.length; i++) {
+        const r = (list[i] as HTMLElement).getBoundingClientRect()
+        if (y < r.top + r.height / 2) {
+          target = i
+          break
+        }
+      }
+      const ref = list[target] ?? list[list.length - 1]
+      if (!ref) return
+      const r = ref.getBoundingClientRect()
+      line.style.top = `${(target < list.length ? r.top : r.bottom) + win.scrollY}px`
+    }
+    // Near the top or bottom edge the page scrolls, so blocks can travel far.
+    const tick = () => {
+      if (scroll) win.scrollBy(0, scroll)
+      frameId = win.requestAnimationFrame(tick)
+    }
+    const move = (e: PointerEvent) => {
+      if (!moved && Math.abs(e.clientY - down.clientY) < 4) return
+      if (!moved) {
+        moved = true
+        block.setAttribute('data-mz-dragging', '')
+        doc.documentElement.classList.add('mz-drag')
+        doc.body.append(line)
+        frameId = win.requestAnimationFrame(tick)
+      }
+      const edge = 70
+      scroll = e.clientY < edge ? -14 : e.clientY > win.innerHeight - edge ? 14 : 0
+      place(e.clientY)
+    }
+    const up = () => {
+      doc.removeEventListener('pointermove', move)
+      doc.removeEventListener('pointerup', up)
+      win.cancelAnimationFrame(frameId)
+      block.removeAttribute('data-mz-dragging')
+      doc.documentElement.classList.remove('mz-drag')
+      line.remove()
+      if (!moved) return
+      state.current.dragged = true
+      setTimeout(() => {
+        state.current.dragged = false
+      }, 0)
+      const to = target > from ? target - 1 : target
+      if (to !== from) handlers.current.onMove(from, to)
+    }
+    doc.addEventListener('pointermove', move)
+    doc.addEventListener('pointerup', up)
   }
 
   function startEditing(el: HTMLElement, key: string) {

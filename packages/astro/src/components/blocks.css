@@ -1,0 +1,94 @@
+/*
+ * Block style settings (`_style`) become CSS variables on each block's wrapper.
+ * The site gives them meaning by defining the theme variables, for example in its global CSS:
+ *
+ *   :root { --theme-muted-bg: #efeae0; --theme-dark-bg: #16140f; --theme-dark-fg: #f7f4ee; … }
+ *
+ * Block components then read --mz-bg, --mz-fg and --mz-space with their own defaults:
+ *   padding-block: var(--mz-space, 96px); background: var(--mz-bg, transparent);
+ */
+.mz-block {
+  display: block;
+}
+.mz-block[data-bg] {
+  background: var(--mz-bg);
+  color: var(--mz-fg);
+}
+.mz-block[data-bg="default"] {
+  --mz-bg: var(--theme-bg, transparent);
+  --mz-fg: var(--theme-fg, inherit);
+}
+.mz-block[data-bg="muted"] {
+  --mz-bg: var(--theme-muted-bg, #f2f2f2);
+  --mz-fg: var(--theme-muted-fg, inherit);
+}
+.mz-block[data-bg="dark"] {
+  --mz-bg: var(--theme-dark-bg, #111);
+  --mz-fg: var(--theme-dark-fg, #fff);
+}
+.mz-block[data-bg="accent"] {
+  --mz-bg: var(--theme-accent-bg, #3d5afe);
+  --mz-fg: var(--theme-accent-fg, #fff);
+}
+.mz-block[data-space="none"] {
+  --mz-space: 0px;
+}
+.mz-block[data-space="compact"] {
+  --mz-space: var(--theme-space-compact, clamp(32px, 4vw, 56px));
+}
+.mz-block[data-space="normal"] {
+  --mz-space: var(--theme-space-normal, clamp(56px, 8vw, 112px));
+}
+.mz-block[data-space="spacious"] {
+  --mz-space: var(--theme-space-spacious, clamp(88px, 13vw, 184px));
+}
+.mz-block[id] {
+  scroll-margin-top: var(--theme-anchor-offset, 80px);
+}
+
+/* Entrance animations driven by scrolling: no JavaScript, and skipped when motion is reduced. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .mz-block[data-anim] > * {
+      animation: var(--mz-anim) linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 45%;
+    }
+  }
+  .mz-block[data-anim="fade"] {
+    --mz-anim: mz-fade;
+  }
+  .mz-block[data-anim="rise"] {
+    --mz-anim: mz-rise;
+  }
+  .mz-block[data-anim="zoom"] {
+    --mz-anim: mz-zoom;
+  }
+  .mz-block[data-anim="slide"] {
+    --mz-anim: mz-slide;
+  }
+}
+
+@keyframes mz-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes mz-rise {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+@keyframes mz-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes mz-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-56px);
+  }
+}

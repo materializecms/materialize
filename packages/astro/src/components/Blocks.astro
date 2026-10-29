@@ -1,26 +1,40 @@
 ---
+import { blocks as components } from 'virtual:materialize/site'
 /**
  * Renders a list of blocks with the site's components from src/blocks.
  * Each component receives the block's fields plus `field(name)`: spread it on the element showing
  * a text field (`<h1 {...field('title')}>`) so editors can change that text right on the canvas.
+ * Style settings (background, spacing, animation, anchor) land on a wrapper: see blocks.css.
  */
-import { blocks as components } from 'virtual:materialize/site'
+import type { BlockStyle } from '@materialize/core'
+import './blocks.css'
 
 interface Props {
-  blocks?: ({ _type: string; _key: string } & Record<string, unknown>)[] | null
+  blocks?: ({ _type: string; _key: string; _style?: BlockStyle } & Record<string, unknown>)[] | null
 }
 
 const { blocks = [] } = Astro.props
 const preview = (Astro.locals as { materializePreview?: boolean }).materializePreview === true
 const field = preview ? (name: string) => ({ 'data-mz-field': name }) : () => ({})
+const attrs = (style: BlockStyle = {}) => ({
+  id: style.anchor || undefined,
+  'data-bg': style.background && style.background !== 'default' ? style.background : undefined,
+  'data-space': style.spacing && style.spacing !== 'normal' ? style.spacing : undefined,
+  'data-anim': style.animation && style.animation !== 'none' ? style.animation : undefined,
+})
 ---
 
 {
   (blocks ?? []).map((block) => {
     const Component = components[block._type]
-    if (!preview) return Component ? <Component {...block} field={field} /> : null
+    if (!Component && !preview) return null
     return (
-      <div data-mz-block={block._key} data-mz-type={block._type}>
+      <div
+        class="mz-block"
+        {...attrs(block._style)}
+        data-mz-block={preview ? block._key : undefined}
+        data-mz-type={preview ? block._type : undefined}
+      >
         {Component ? (
           <Component {...block} field={field} />
         ) : (

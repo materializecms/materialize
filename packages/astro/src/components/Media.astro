@@ -29,8 +29,9 @@ const largest = widths[widths.length - 1]
   media?.src &&
     (library ? (
       <picture style="display:contents">
-        <source type="image/avif" srcset={srcset('avif')} sizes={sizes} />
-        <source type="image/webp" srcset={srcset('webp')} sizes={sizes} />
+        {/* Hidden: with a transparent <picture>, sources would otherwise become grid or flex items. */}
+        <source type="image/avif" srcset={srcset('avif')} sizes={sizes} style="display:none" />
+        <source type="image/webp" srcset={srcset('webp')} sizes={sizes} style="display:none" />
         <img
           src={`${media.src}@${largest}.${fallback}`}
           srcset={srcset(fallback)}

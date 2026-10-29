@@ -1,3 +1,4 @@
+import type { BlockStyle } from '@materialize/core/style'
 import {
   ArrowDown,
   ArrowUp,
@@ -31,6 +32,7 @@ import { blockTitle, countIssuesUnder, move, newBlock, newKey } from '../lib/doc
 import { usePref } from '../lib/prefs.ts'
 import { BlockPreview } from './BlockPreview.tsx'
 import { SiteCanvas } from './SiteCanvas.tsx'
+import { StylePanel } from './StylePanel.tsx'
 
 type Block = Record<string, unknown> & { _type: string; _key: string }
 type Device = 'desktop' | 'tablet' | 'mobile'
@@ -60,6 +62,8 @@ export function DesignMode({
   const canAdd = max === undefined || blocks.length < max
 
   const { schema, locale } = useSession()
+  const [inspectorTab, setInspectorTab] = usePref<'content' | 'style'>('mz-inspector-tab', 'content')
+  const [replay, setReplay] = useState<{ key: string; n: number } | null>(null)
   const live = schema.preview === true
   const index = blocks.findIndex((b) => b._key === selected)
   const current = index >= 0 ? blocks[index] : undefined
@@ -217,6 +221,8 @@ export function DesignMode({
             errors={errorKeys}
             labels={labels}
             onSelect={setSelected}
+            replay={replay}
+            onMove={(from, to) => setBlocks(move(blocks, from, to))}
             onField={(key, field, text) => {
               const i = blocks.findIndex((b) => b._key === key)
               const block = blocks[i]
@@ -342,19 +348,43 @@ export function DesignMode({
                 <Trash2 />
               </IconButton>
             </div>
+            <div className="border-b border-line px-4 py-2">
+              <Segmented
+                size="sm"
+                className="flex w-full"
+                value={inspectorTab}
+                onChange={setInspectorTab}
+                options={[
+                  { value: 'content', label: 'Contenuto' },
+                  { value: 'style', label: 'Stile' },
+                ]}
+              />
+            </div>
             <div className="p-4">
-              {(() => {
-                const def = defs.find((d) => d.name === current._type)
-                if (!def) return null
-                return (
-                  <FieldsForm
-                    fields={def.fields}
-                    value={current}
-                    path={[blocksField.name, index]}
-                    onChange={(v, group) => updateBlock(index, v as Block, group)}
-                  />
-                )
-              })()}
+              {inspectorTab === 'style' ? (
+                <StylePanel
+                  value={current._style as BlockStyle | undefined}
+                  path={`${blocksField.name}.${index}`}
+                  onChange={(style, group) => {
+                    const { _style: _, ...rest } = current
+                    updateBlock(index, (style ? { ...rest, _style: style } : rest) as Block, group && `style:${group}`)
+                  }}
+                  onReplay={live ? () => setReplay((r) => ({ key: current._key, n: (r?.n ?? 0) + 1 })) : undefined}
+                />
+              ) : (
+                (() => {
+                  const def = defs.find((d) => d.name === current._type)
+                  if (!def) return null
+                  return (
+                    <FieldsForm
+                      fields={def.fields}
+                      value={current}
+                      path={[blocksField.name, index]}
+                      onChange={(v, group) => updateBlock(index, v as Block, group)}
+                    />
+                  )
+                })()
+              )}
             </div>
           </div>
         ) : (

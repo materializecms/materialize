@@ -1,5 +1,13 @@
 import { z } from 'zod'
 import { SLUG_PATTERN } from './slug.ts'
+import { ANCHOR_PATTERN, BLOCK_STYLE, type BlockStyle } from './style.ts'
+
+const blockStyleSchema = z.object({
+  background: z.enum(BLOCK_STYLE.background).optional(),
+  spacing: z.enum(BLOCK_STYLE.spacing).optional(),
+  animation: z.enum(BLOCK_STYLE.animation).optional(),
+  anchor: z.string().max(60).regex(ANCHOR_PATTERN, 'Usa lettere minuscole, numeri e trattini').optional(),
+})
 
 export type FieldKind =
   | 'text'
@@ -250,7 +258,7 @@ function relation<const O extends RelationOptions<boolean, boolean>>(
 }
 
 export type BlockValue<B extends Block> =
-  B extends Block<infer N, infer F> ? { _type: N; _key: string } & InferFields<F> : never
+  B extends Block<infer N, infer F> ? { _type: N; _key: string; _style?: BlockStyle } & InferFields<F> : never
 
 interface BlocksOptions<R extends boolean> extends Common<R> {
   min?: number
@@ -268,7 +276,12 @@ function blocks<const B extends readonly Block[], const O extends BlocksOptions<
     { min: o?.min, max: o?.max },
     () => {
       const variants = defs.map((b) =>
-        z.object({ _type: z.literal(b.name), _key: z.string().min(1), ...objectShape(b.fields) }),
+        z.object({
+          _type: z.literal(b.name),
+          _key: z.string().min(1),
+          _style: blockStyleSchema.optional(),
+          ...objectShape(b.fields),
+        }),
       )
       const item =
         variants.length === 1
