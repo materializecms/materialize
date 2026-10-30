@@ -43,6 +43,8 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { useSession } from '../app/context.ts'
+import { localeName } from '../app/Sidebar.tsx'
 import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
@@ -178,6 +180,7 @@ export function Inspector({
   components: Record<string, Component>
   componentActions: ComponentActions
 }) {
+  const { locale, schema } = useSession()
   const p = resolveNode(view ?? node, device)
   const hasEntrance = !!node.interactions?.some((i) => i.trigger === 'load' || i.trigger === 'view')
   const [naming, setNaming] = useState<string | null>(null)
@@ -323,6 +326,8 @@ export function Inspector({
             <div className="flex items-center gap-2 rounded-lg bg-accent/10 px-2.5 py-2 text-[11.5px] text-accent">
               <span className="min-w-0 flex-1">
                 Sezione globale: le modifiche valgono su tutte le pagine che la usano.
+                {locale !== schema.locales.default &&
+                  ` In ${localeName(locale).toLowerCase()} cambiano solo testi, link e immagini: struttura e stile si modificano nella lingua principale.`}
               </span>
               <button type="button" onClick={onUnlinkGlobal} className="shrink-0 font-medium underline">
                 Scollega
@@ -446,55 +451,74 @@ export function Inspector({
         </Section>
       )}
 
-      {(isT || isB) && (
-        <Section
-          title="Contenuto"
-          action={
-            <AiTextMenu
-              text={isT ? plainText(node) : (node.text ?? '')}
-              onResult={(text) =>
-                onContent(isT ? { text, runs: null } : { text: text.replace(/\n/g, ' ') }, `ai:${node.id}`)
+      {isT && node.langs ? (
+        <Section title="Lingue">
+          <Row label="Mostra">
+            <Seg
+              value={node.langs}
+              onChange={(v) => onContent({ langs: v }, `langs:${node.id}`)}
+              options={[
+                { value: 'code', label: 'Sigle · IT' },
+                { value: 'name', label: 'Nomi · Italiano' },
+              ]}
+            />
+          </Row>
+          <p className="text-[11.5px] leading-relaxed text-fg3">
+            Porta alla stessa pagina nelle altre lingue in cui è pubblicata. Le lingue si scelgono in Impostazioni →
+            Lingue.
+          </p>
+        </Section>
+      ) : (
+        (isT || isB) && (
+          <Section
+            title="Contenuto"
+            action={
+              <AiTextMenu
+                text={isT ? plainText(node) : (node.text ?? '')}
+                onResult={(text) =>
+                  onContent(isT ? { text, runs: null } : { text: text.replace(/\n/g, ' ') }, `ai:${node.id}`)
+                }
+              />
+            }
+          >
+            <Textarea
+              aria-label="Testo"
+              value={isT ? plainText(node) : (node.text ?? '')}
+              onChange={(e) =>
+                onContent(
+                  isT ? { text: e.target.value, runs: null } : { text: e.target.value.replace(/\n/g, ' ') },
+                  `text:${node.id}`,
+                )
               }
             />
-          }
-        >
-          <Textarea
-            aria-label="Testo"
-            value={isT ? plainText(node) : (node.text ?? '')}
-            onChange={(e) =>
-              onContent(
-                isT ? { text: e.target.value, runs: null } : { text: e.target.value.replace(/\n/g, ' ') },
-                `text:${node.id}`,
-              )
-            }
-          />
-          {isT && !!node.runs?.length && (
-            <p className="text-[11px] text-fg3">Grassetti e link si modificano sulla tela, con un doppio clic.</p>
-          )}
-          {isB && (
-            <>
-              <Row label="Collegamento">
-                <input
-                  aria-label="Collegamento"
-                  value={node.href ?? ''}
-                  placeholder="/contatti"
-                  onChange={(e) => onContent({ href: e.target.value }, `href:${node.id}`)}
-                  className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+            {isT && !!node.runs?.length && (
+              <p className="text-[11px] text-fg3">Grassetti e link si modificano sulla tela, con un doppio clic.</p>
+            )}
+            {isB && (
+              <>
+                <Row label="Collegamento">
+                  <input
+                    aria-label="Collegamento"
+                    value={node.href ?? ''}
+                    placeholder="/contatti"
+                    onChange={(e) => onContent({ href: e.target.value }, `href:${node.id}`)}
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+                  />
+                </Row>
+                <Toggle
+                  label="Apri in una nuova scheda"
+                  checked={!!node.newTab}
+                  onChange={(v) => onContent({ newTab: v || undefined })}
                 />
-              </Row>
-              <Toggle
-                label="Apri in una nuova scheda"
-                checked={!!node.newTab}
-                onChange={(v) => onContent({ newTab: v || undefined })}
-              />
-              <Toggle
-                label="Invia il modulo che lo contiene"
-                checked={!!node.submit}
-                onChange={(v) => onContent({ submit: v || undefined })}
-              />
-            </>
-          )}
-        </Section>
+                <Toggle
+                  label="Invia il modulo che lo contiene"
+                  checked={!!node.submit}
+                  onChange={(v) => onContent({ submit: v || undefined })}
+                />
+              </>
+            )}
+          </Section>
+        )
       )}
 
       <SceneSection

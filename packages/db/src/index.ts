@@ -19,6 +19,7 @@ export {
   type Revision,
   SlugTakenError,
   type StoredDocument,
+  type Translation,
 } from './content.ts'
 export { type Database, type Db, openDatabase } from './database.ts'
 export { createMediaStore, type MediaAsset, type MediaStore } from './media.ts'

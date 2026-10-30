@@ -50,6 +50,7 @@ import { navigate, setNavigationGuard } from '../lib/router.ts'
 import { PageEditor } from '../page/PageEditor.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
+import { LanguageMenu } from './LanguageMenu.tsx'
 import { localeName } from './Sidebar.tsx'
 
 /**
@@ -65,6 +66,12 @@ export function DocumentScreen({ collection, id }: { collection: CollectionDescr
     enabled: !!id,
     staleTime: Infinity,
   })
+  // A document opens in its own language: lists, menus and footers on the canvas follow it.
+  const { locale, setLocale, schema } = useSession()
+  const docLocale = doc.data?.locale
+  useEffect(() => {
+    if (docLocale && docLocale !== locale && schema.locales.available.includes(docLocale)) setLocale(docLocale)
+  }, [docLocale, locale, setLocale, schema.locales.available])
   if (id && doc.isPending) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -399,6 +406,16 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             )}
             <span className="truncate font-medium">{collection.singleton ? collection.label : title}</span>
           </div>
+          {doc && (
+            <LanguageMenu
+              doc={doc}
+              collection={collection.name}
+              onSynced={(res) => {
+                history.set(res.data)
+                applyServer(res, JSON.stringify(clean(fields, res.data)))
+              }}
+            />
+          )}
           {doc && <StatusBadge status={dirty && status === 'published' ? 'changed' : status} short />}
           <SaveState
             saving={saving}

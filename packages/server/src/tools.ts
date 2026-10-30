@@ -439,6 +439,33 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
       },
     }),
     tool({
+      name: 'list_translations',
+      title: 'Guardo le lingue',
+      description:
+        'The language versions of an entry (its original and translations, with id and status) and the site languages it is still missing.',
+      input: z.object({ id: z.string() }),
+      readOnly: true,
+      run: (input) => call('GET', `/api/documents/${encodeURIComponent(input.id)}/translations`),
+    }),
+    tool({
+      name: 'translate_entry',
+      title: 'Traduco',
+      description:
+        'Creates the version of an entry in another site language, as a draft linked to the original. With translate: true the site AI translates every text (and the address); otherwise it is a copy to translate, e.g. with update_entry or edit_page. Menus and footers shared by pages are translated once per language in the editor.',
+      input: z.object({
+        id: z.string(),
+        locale: z.string().describe('A language code from get_site, e.g. "en"'),
+        translate: z.boolean().default(true),
+      }),
+      run: async (input) => {
+        const doc = await call<Doc>('POST', `/api/documents/${encodeURIComponent(input.id)}/translations`, {
+          locale: input.locale,
+          translate: input.translate,
+        })
+        return { id: doc.id, title: doc.title, url: doc.url, locale: input.locale, published: false }
+      },
+    }),
+    tool({
       name: 'list_library',
       title: 'Guardo la libreria di sezioni',
       description: 'Ready-made sections that can be added to a page (edit_page → add_section), by category.',

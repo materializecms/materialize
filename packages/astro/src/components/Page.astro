@@ -1,8 +1,9 @@
 ---
+import { localizeLinks } from '@materializecms/core/i18n'
 /**
  * A page built on the canvas: its sections rendered with the site's theme, exactly as the editor shows them.
  *
- *   <Page sections={entry.data.page} />
+ *   <Page sections={entry.data.page} document={entry} />
  */
 import {
   type BoundEntry,
@@ -15,7 +16,16 @@ import {
   type Theme,
   walk,
 } from '@materializecms/core/page'
-import { getComponents, getEntries, getGlobals, getTheme } from '../content.ts'
+import {
+  type Entry,
+  getAlternates,
+  getComponents,
+  getEntries,
+  getGlobals,
+  getLinkMap,
+  getLocales,
+  getTheme,
+} from '../content.ts'
 
 interface Props {
   sections?: PageNode[] | null
@@ -29,11 +39,28 @@ interface Props {
   }
   /** Defaults to the theme saved in the panel. */
   theme?: Theme
+  /**
+   * The document this page shows (the canvas page itself, or a template's entry): its language
+   * picks the words of menus and footers, the lists' entries and where internal links go.
+   */
+  document?: Entry
 }
 
 const { sections, theme, entry } = Astro.props
+const shown = Astro.props.document ?? (entry && 'collection' in entry ? (entry as Entry) : undefined)
+const locales = await getLocales()
+const lang = shown?.locale ?? entry?.locale ?? locales.default
+// Language switchers: this page in each language, or that language's home page when it is not translated.
+const alternates = shown ? await getAlternates(shown) : []
+for (const l of locales.available) {
+  if (alternates.some((a) => a.locale === l)) continue
+  const home = l === locales.default ? '/' : (await getLinkMap(l))['/']
+  if (home && (l === locales.default || home !== '/')) alternates.push({ locale: l, url: home })
+}
+alternates.sort((a, b) => locales.available.indexOf(a.locale) - locales.available.indexOf(b.locale))
 const active = theme ?? (await getTheme())
-const nodes = expandComponents(expandGlobals(sections ?? [], await getGlobals()), await getComponents())
+let nodes = expandComponents(expandGlobals(sections ?? [], await getGlobals(lang)), await getComponents())
+if (lang !== locales.default) nodes = localizeLinks(nodes, await getLinkMap(lang))
 // Published entries for the lists bound to a collection.
 const data: Record<string, BoundEntry[]> = {}
 const bound = new Set<string>()
@@ -41,7 +68,7 @@ walk(nodes, (n) => {
   if (n.bind?.collection) bound.add(n.bind.collection)
 })
 for (const name of bound) {
-  data[name] = (await getEntries(name).catch(() => [])).map((e) => ({
+  data[name] = (await getEntries(name, { locale: lang }).catch(() => [])).map((e) => ({
     title: e.title,
     url: e.url,
     data: e.data,
@@ -52,7 +79,7 @@ for (const name of bound) {
 const page = entry
   ? { title: entry.title, url: entry.url, data: entry.data, labels: entry.labels, locale: entry.locale }
   : undefined
-const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page })
+const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page, locale: lang, alternates })
 ---
 
 {pageFontLinks(active, nodes).map((href) => <link rel="stylesheet" href={href} />)}

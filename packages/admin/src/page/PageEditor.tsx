@@ -105,6 +105,7 @@ const CONTENT_KEYS = new Set<string>([
   'stickyGlass',
   'stickyOverlay',
   'mobileMenu',
+  'langs',
   'navShape',
   'anchor',
   'scene',
@@ -225,6 +226,17 @@ function newElement(kind: ElementKind): PageNode {
   const id = newId()
   if (kind === 'text')
     return { id, type: 'text', name: 'Testo', text: 'Nuovo testo', style: 'body', color: 'text', width: 'fill' }
+  if (kind === 'langs')
+    return {
+      id,
+      type: 'text',
+      name: 'Lingue',
+      text: 'IT / EN',
+      langs: 'code',
+      style: 'body',
+      color: 'text',
+      width: 'hug',
+    }
   if (kind === 'image')
     return {
       id,
@@ -308,7 +320,13 @@ export function PageEditor({
 }) {
   const { user, schema, locale } = useSession()
   const queryClient = useQueryClient()
-  const globalsQuery = useQuery({ queryKey: ['globals'], queryFn: api.globals, staleTime: Infinity })
+  // In another language, global sections show that language's words (structure stays the main one's).
+  const mainLanguage = locale === schema.locales.default
+  const globalsQuery = useQuery({
+    queryKey: ['globals', locale],
+    queryFn: () => api.globals(locale),
+    staleTime: Infinity,
+  })
   const globals = globalsQuery.data?.globals ?? {}
   const componentsQuery = useQuery({ queryKey: ['components'], queryFn: api.components, staleTime: Infinity })
   const components = componentsQuery.data?.components ?? {}
@@ -533,15 +551,15 @@ export function PageEditor({
       const collapsed = collapseGlobals(withRefs.nodes)
       const merged = { ...globalsRef.current, ...collapsed.globals }
       if (JSON.stringify(merged) !== JSON.stringify(globalsRef.current)) {
-        queryClient.setQueryData(['globals'], (old: typeof globalsQuery.data) => ({ ...old, globals: merged }))
+        queryClient.setQueryData(['globals', locale], (old: typeof globalsQuery.data) => ({ ...old, globals: merged }))
         clearTimeout(globalsTimer.current)
         globalsTimer.current = setTimeout(() => {
-          api.saveGlobals(merged).catch((e: Error) => toast(e.message, 'error'))
+          api.saveGlobals(merged, locale).catch((e: Error) => toast(e.message, 'error'))
         }, 600)
       }
       onChange({ ...dataRef.current, [pageField.name]: collapsed.nodes }, group)
     },
-    [onChange, pageField.name, queryClient],
+    [onChange, pageField.name, queryClient, locale],
   )
 
   const info = findNode(nodes, selected)
@@ -705,6 +723,10 @@ export function PageEditor({
       }
       parentId = last.id
       index = last.children?.length ?? 0
+    } else if (node.type === 'frame' && !f.parent && f.node.children?.length) {
+      // A container with a filled section selected goes below it, not inside: a new block.
+      parentId = null
+      index = f.index + 1
     } else if (f.node.type === 'frame') {
       parentId = f.node.id
       index = f.node.children?.length ?? 0
@@ -1153,7 +1175,8 @@ export function PageEditor({
         e.key.length === 1 &&
         /\S/.test(e.key) &&
         selectionRef.current.length === 1 &&
-        ['text', 'button'].includes(findNode(nodesRef.current, id)?.node.type ?? '')
+        ['text', 'button'].includes(findNode(nodesRef.current, id)?.node.type ?? '') &&
+        !findNode(nodesRef.current, id)?.node.langs
       ) {
         // A selected text takes what is typed, instead of the letters adding elements by accident.
         e.preventDefault()
@@ -1171,6 +1194,7 @@ export function PageEditor({
             g: 'scene',
             o: 'icon',
             k: 'input',
+            l: 'langs',
           } as const
         )[e.key.toLowerCase()]
         if (kind) {
@@ -1359,11 +1383,22 @@ export function PageEditor({
                 globalUsage={globalsQuery.data?.usage ?? {}}
                 usedHere={new Set(nodes.flatMap((n) => (n.global ? [n.global] : [])))}
                 onRenameGlobal={(gid, name) => {
+                  if (!mainLanguage) {
+                    toast('Le sezioni globali si rinominano nella lingua principale', 'error')
+                    return
+                  }
                   const next = { ...globalsRef.current, [gid]: { ...(globalsRef.current[gid] as PageNode), name } }
-                  queryClient.setQueryData(['globals'], (old: typeof globalsQuery.data) => ({ ...old, globals: next }))
+                  queryClient.setQueryData(['globals', locale], (old: typeof globalsQuery.data) => ({
+                    ...old,
+                    globals: next,
+                  }))
                   api.saveGlobals(next).catch((e: Error) => toast(e.message, 'error'))
                 }}
                 onRemoveGlobal={(gid) => {
+                  if (!mainLanguage) {
+                    toast('Le sezioni globali si eliminano nella lingua principale', 'error')
+                    return
+                  }
                   const { [gid]: _, ...next } = globalsRef.current
                   api
                     .saveGlobals(next)
@@ -1404,7 +1439,7 @@ export function PageEditor({
 
         {/* center: toolbar and canvas */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel px-3">
+          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line overflow-x-auto bg-panel px-3 [scrollbar-width:none]">
             {mode === 'design' && (
               <div className="flex items-center gap-0.5">
                 {(
@@ -1431,7 +1466,12 @@ export function PageEditor({
               </div>
             )}
             {mode === 'content' && (
-              <span className="text-[12px] text-fg2">Clicca un testo per scriverci, un’immagine per cambiarla.</span>
+              <span
+                title="Clicca un testo per scriverci, un’immagine per cambiarla."
+                className="min-w-0 truncate text-[12px] text-fg2"
+              >
+                Clicca un testo per scriverci, un’immagine per cambiarla.
+              </span>
             )}
             <div className="flex-1" />
             <Segmented

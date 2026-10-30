@@ -13,7 +13,8 @@
     "./motion": "./src/motion.ts",
     "./scene": "./src/scene.ts",
     "./icons": "./src/icons.ts",
-    "./seo": "./src/seo.ts"
+    "./seo": "./src/seo.ts",
+    "./i18n": "./src/i18n.ts"
   },
   "dependencies": {
     "lucide": "1.64.0",

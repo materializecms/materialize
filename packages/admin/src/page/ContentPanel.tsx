@@ -143,7 +143,7 @@ function itemsOf(section: PageNode): Item[] {
     for (const n of list) {
       if (n.hidden) continue
       const from = n.field ? `dal campo “${n.field}”` : bound
-      if (['text', 'button', 'image', 'icon', 'input'].includes(n.type)) out.push({ node: n, bound: from })
+      if (['text', 'button', 'image', 'icon', 'input'].includes(n.type) && !n.langs) out.push({ node: n, bound: from })
       // A list fed by a collection: its first child is a template, the entries fill it.
       if (n.children) walk(n.bind ? n.children.slice(0, 1) : n.children, n.bind ? 'da una raccolta' : from)
     }

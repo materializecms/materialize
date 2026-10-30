@@ -15,6 +15,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ['K', 'Campo di un modulo'],
       ['G', 'Scena WebGL'],
       ['C', 'Codice'],
+      ['L', 'Selettore della lingua'],
     ],
   },
   {

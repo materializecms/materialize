@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, asc, count, desc, eq, inArray, isNotNull, like, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNotNull, like, or, sql } from 'drizzle-orm'
 import type { Db } from './database.ts'
 import { documents, revisions } from './tables.ts'
 
@@ -17,6 +17,17 @@ export interface StoredDocument {
   createdAt: Date
   updatedAt: Date
   publishedAt: Date | null
+  /** The original this document translates; null for originals. */
+  sourceId: string | null
+}
+
+/** One language version of a document. */
+export interface Translation {
+  id: string
+  locale: string
+  title: string
+  status: DocumentStatus
+  sourceId: string | null
 }
 
 export interface DocumentSummary {
@@ -28,6 +39,8 @@ export interface DocumentSummary {
   publishedAt: Date | null
   /** The first image in the document, for thumbnails in lists. */
   image: string | null
+  /** The other languages it exists in. */
+  locales: string[]
 }
 
 export interface Revision {
@@ -80,6 +93,7 @@ function toDocument(row: Row): StoredDocument {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     publishedAt: row.publishedAt ?? null,
+    sourceId: row.sourceId ?? null,
   }
 }
 
@@ -139,6 +153,22 @@ export function createContentStore(db: Db) {
     }
   }
 
+  /** The languages of each listed document's group (original plus translations), by group key. */
+  async function groupsOf(rows: Row[]): Promise<Map<string, string[]>> {
+    const keys = [...new Set(rows.map((r) => r.sourceId ?? r.id))]
+    const out = new Map<string, string[]>()
+    if (!keys.length) return out
+    const members = await db
+      .select({ id: documents.id, sourceId: documents.sourceId, locale: documents.locale })
+      .from(documents)
+      .where(or(inArray(documents.id, keys), inArray(documents.sourceId, keys)))
+    for (const m of members) {
+      const key = m.sourceId ?? m.id
+      out.set(key, [...(out.get(key) ?? []), m.locale])
+    }
+    return out
+  }
+
   return {
     async list(collection: string, options: ListOptions): Promise<{ items: DocumentSummary[]; total: number }> {
       const where = and(
@@ -155,6 +185,7 @@ export function createContentStore(db: Db) {
         .limit(Math.min(options.limit ?? 50, 200))
         .offset(options.offset ?? 0)
       const [totalRow] = await db.select({ n: count() }).from(documents).where(where)
+      const groups = await groupsOf(rows)
       return {
         total: totalRow?.n ?? 0,
         items: rows.map((r) => ({
@@ -165,8 +196,28 @@ export function createContentStore(db: Db) {
           updatedAt: r.updatedAt,
           publishedAt: r.publishedAt ?? null,
           image: firstImage(r.data),
+          locales: (groups.get(r.sourceId ?? r.id) ?? []).filter((l) => l !== r.locale),
         })),
       }
+    },
+
+    /** Every language version of a document, itself included: the original and its translations. */
+    async translations(id: string): Promise<Translation[]> {
+      const doc = await db.query.documents.findFirst({ where: eq(documents.id, id) })
+      if (!doc) return []
+      const key = doc.sourceId ?? doc.id
+      const rows = await db
+        .select()
+        .from(documents)
+        .where(or(eq(documents.id, key), eq(documents.sourceId, key)))
+        .orderBy(asc(documents.createdAt))
+      return rows.map((r) => ({
+        id: r.id,
+        locale: r.locale,
+        title: r.title,
+        status: statusOf(r),
+        sourceId: r.sourceId ?? null,
+      }))
     },
 
     /** Counts per collection and the latest changes across all of them: the panel's home. */
@@ -249,6 +300,7 @@ export function createContentStore(db: Db) {
       slug: string | null
       data: Record<string, unknown>
       userId?: string
+      sourceId?: string | null
     }): Promise<StoredDocument> {
       const now = new Date()
       const id = randomUUID()
@@ -265,6 +317,7 @@ export function createContentStore(db: Db) {
           updatedAt: now,
           createdBy: input.userId,
           updatedBy: input.userId,
+          sourceId: input.sourceId ?? null,
         }),
       )
       await addRevision(id, 'save', input.data, input.userId)
@@ -318,7 +371,28 @@ export function createContentStore(db: Db) {
 
     async remove(id: string): Promise<boolean> {
       const result = await db.delete(documents).where(eq(documents.id, id))
-      return result.rowsAffected > 0
+      if (!result.rowsAffected) return false
+      // Translations of a deleted original stay together: the oldest becomes their original.
+      const orphans = await db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.sourceId, id))
+        .orderBy(asc(documents.createdAt))
+      const [first, ...rest] = orphans
+      if (first) {
+        await db.update(documents).set({ sourceId: null }).where(eq(documents.id, first.id))
+        if (rest.length)
+          await db
+            .update(documents)
+            .set({ sourceId: first.id })
+            .where(
+              inArray(
+                documents.id,
+                rest.map((r) => r.id),
+              ),
+            )
+      }
+      return true
     },
 
     async revisions(documentId: string): Promise<Revision[]> {

@@ -1,6 +1,7 @@
 import { isAbsolute, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { MaterializeConfig } from '@materializecms/core'
+import { withLocales } from '@materializecms/core/i18n'
 import {
   type AuthStore,
   type ContentStore,
@@ -46,9 +47,13 @@ export function contentChanged(): void {
 }
 
 export async function getRuntime(): Promise<Runtime> {
-  const runtime = holder[KEY]
-  if (!runtime) throw new Error('Materialize is not set up: add materialize() to the integrations in astro.config')
-  return runtime
+  const pending = holder[KEY]
+  if (!pending) throw new Error('Materialize is not set up: add materialize() to the integrations in astro.config')
+  const runtime = await pending
+  // The languages chosen in Impostazioni → Lingue win over the config's.
+  const languages = runtime.settings ? await runtime.settings.get('locales') : null
+  if (!languages) return runtime
+  return { ...runtime, config: () => withLocales(runtime.config(), languages) }
 }
 
 // Native import: Astro may load integrations through Vite, which would otherwise handle this import itself.

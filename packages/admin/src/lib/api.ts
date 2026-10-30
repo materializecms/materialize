@@ -48,6 +48,17 @@ export interface DocumentSummary {
   image?: string | null
   /** Public address, when the collection has pages ("/" for the home page). */
   url?: string | null
+  /** The other languages it exists in. */
+  locales?: string[]
+}
+
+/** One language version of a document. */
+export interface Translation {
+  id: string
+  locale: string
+  title: string
+  status: DocumentStatus
+  sourceId: string | null
 }
 
 export interface FontInfo {
@@ -72,6 +83,8 @@ export interface StoredDocument extends DocumentSummary {
   publishedData: Data | null
   createdAt: string
   url: string | null
+  /** The original this document translates; null for originals. */
+  sourceId?: string | null
   /** Problems to fix before publishing; returned when a draft is saved. */
   issues?: ValidationIssue[]
 }
@@ -232,6 +245,8 @@ const MESSAGES: Record<string, string> = {
   wrong_password: 'La password attuale non è corretta',
   mail_not_configured: 'Prima configura l’invio delle email: server e mittente',
   ai_not_configured: 'L’AI non è configurata: Impostazioni → AI e MCP',
+  translation_exists: 'Questa lingua esiste già',
+  unknown_locale: 'Questa lingua non è attiva: Impostazioni → Lingue',
   session_required: 'Questa azione si fa dal pannello',
 }
 
@@ -259,7 +274,25 @@ export const api = {
   saveComponents: (components: Record<string, Component>) =>
     request<{ components: Record<string, Component> }>('PUT', '/components', { components }),
   /** Global sections, and the titles of the pages that use each one. */
-  globals: () => request<{ globals: Record<string, PageNode>; usage?: Record<string, string[]> }>('GET', '/globals'),
+  globals: (locale?: string) =>
+    request<{ globals: Record<string, PageNode>; usage?: Record<string, string[]> }>('GET', `/globals${q({ locale })}`),
+  languages: () =>
+    request<{ locales: { default: string; available: string[] }; documents: Record<string, number> }>(
+      'GET',
+      '/locales',
+    ),
+  saveLanguages: (locales: { default: string; available: string[] }) =>
+    request<{ locales: { default: string; available: string[] }; documents: Record<string, number> }>(
+      'PUT',
+      '/locales',
+      locales,
+    ),
+  translations: (id: string) =>
+    request<{ translations: Translation[]; missing: string[] }>('GET', `/documents/${id}/translations`),
+  translate: (id: string, locale: string, translate: boolean) =>
+    request<StoredDocument>('POST', `/documents/${id}/translations`, { locale, translate }),
+  syncTranslation: (id: string, translate: boolean) =>
+    request<{ document: StoredDocument; added: number }>('POST', `/documents/${id}/sync`, { translate }),
   comments: (docId: string) => request<{ items: PageComment[] }>('GET', `/documents/${docId}/comments`),
   addComment: (docId: string, input: { nodeId: string | null; body: string }) =>
     request<{ comment: PageComment }>('POST', `/documents/${docId}/comments`, input),
@@ -346,8 +379,8 @@ export const api = {
   saveRedirects: (redirects: Redirect[]) => request<{ redirects: Redirect[] }>('PUT', '/redirects', { redirects }),
   saveTemplates: (templates: Record<string, string>) =>
     request<{ templates: Record<string, string> }>('PUT', '/templates', { templates }),
-  saveGlobals: (globals: Record<string, PageNode>) =>
-    request<{ globals: Record<string, PageNode> }>('PUT', '/globals', { globals }),
+  saveGlobals: (globals: Record<string, PageNode>, locale?: string) =>
+    request<{ globals: Record<string, PageNode> }>('PUT', '/globals', { globals, locale }),
   entries: (collection: string, locale: string) =>
     request<{ items: (BoundEntry & { id: string })[] }>(
       'GET',

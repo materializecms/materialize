@@ -15,6 +15,7 @@ import {
 import { startScenes } from '@materializecms/core/scene'
 import { Bold, ImagePlus, Italic, Link2, Link2Off } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useSession } from '../app/context.ts'
 import { cx } from '../components/ui.tsx'
 import { domToRuns } from './runs.ts'
 
@@ -273,6 +274,7 @@ export function Canvas({
 
   useEffect(() => onFitZoom(Math.round(fit * 100) / 100), [fit, onFitZoom])
 
+  const { locale, schema } = useSession()
   const rendered = useMemo(
     () =>
       renderPage(nodes, theme, {
@@ -281,8 +283,11 @@ export function Canvas({
         srcset: librarySrcset,
         data,
         entry,
+        // Language switchers show every language of the site.
+        locale,
+        alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
       }),
-    [nodes, theme, playing, preview, data, entry],
+    [nodes, theme, playing, preview, data, entry, locale, schema.locales.available],
   )
 
   // The page is plain HTML from the renderer; while a text is being edited in place, it is left alone.
@@ -932,7 +937,7 @@ export function Canvas({
     onSelect(id)
     if (mode === 'content') {
       const node = findNode(nodes, id)?.node
-      if (node?.type === 'text' || node?.type === 'button') onEdit(id)
+      if ((node?.type === 'text' && !node.langs) || node?.type === 'button') onEdit(id)
       else if (node?.type === 'image') onPickImage(id)
     }
   }
@@ -941,7 +946,7 @@ export function Canvas({
     const id = idAt(e.target)
     const node = findNode(nodes, id)?.node
     if (!id || !node) return
-    if (node.type === 'text' || node.type === 'button') onEdit(id)
+    if ((node.type === 'text' && !node.langs) || node.type === 'button') onEdit(id)
     if (node.type === 'image') onPickImage(id)
   }
 
@@ -1538,7 +1543,7 @@ function Handles({
 
 export function typeLabel(n: PageNode): string {
   if (n.type === 'frame') return 'Contenitore'
-  if (n.type === 'text') return 'Testo'
+  if (n.type === 'text') return n.langs ? 'Lingue' : 'Testo'
   if (n.type === 'image') return 'Immagine'
   if (n.type === 'video') return 'Video'
   if (n.type === 'embed') return 'Codice'

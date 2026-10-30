@@ -164,6 +164,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                       </span>
                     )}
                   </span>
+                  <OtherLanguages doc={doc} />
                   <StatusBadge status={doc.status} short />
                   <span
                     className="w-28 shrink-0 text-right text-[12px] text-fg3 tabular-nums"
@@ -241,5 +242,24 @@ function Card({
         </div>
       </div>
     </a>
+  )
+}
+
+/** The other languages a document exists in, as small codes ("EN FR"). */
+function OtherLanguages({ doc }: { doc: DocumentSummary }) {
+  const { schema } = useSession()
+  if (schema.locales.available.length < 2) return null
+  const others = (doc.locales ?? []).filter((l) => schema.locales.available.includes(l))
+  return (
+    <span
+      className="flex shrink-0 gap-1"
+      title={others.length ? `Anche in: ${others.join(', ')}` : 'Solo in questa lingua'}
+    >
+      {others.map((l) => (
+        <span key={l} className="rounded border border-line px-1 font-mono text-[10px] leading-4 text-fg3 uppercase">
+          {l}
+        </span>
+      ))}
+    </span>
   )
 }

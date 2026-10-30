@@ -7,10 +7,19 @@ import {
   type MaterializeConfig,
   prepare,
   SLUG_PATTERN,
+  slugify,
   titleOf,
   type ValidationIssue,
   validate,
 } from '@materializecms/core'
+import {
+  documentSlots,
+  isLocaleCode,
+  mergeTranslation,
+  nodeSlots,
+  untranslatedIds,
+  withLocales,
+} from '@materializecms/core/i18n'
 import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
 import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import {
@@ -39,7 +48,17 @@ import { secureHeaders } from 'hono/secure-headers'
 import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { serveAdmin } from './admin.ts'
-import { AiError, type AiSettings, type Conversation, complete, EMPTY_AI, isReady, publicAi, runTurn } from './ai.ts'
+import {
+  AiError,
+  type AiSettings,
+  type Conversation,
+  complete,
+  EMPTY_AI,
+  isReady,
+  publicAi,
+  runTurn,
+  translateTexts,
+} from './ai.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import { isConfigured, type MailSettings, publicMail, sendMail, submissionText } from './mail.ts'
 import { createMcpServer } from './mcp.ts'
@@ -176,12 +195,18 @@ export interface ServerContext {
   onPublish?: () => void
 }
 
-export function createApp(ctx: ServerContext) {
+export function createApp(base: ServerContext) {
+  // The languages chosen in Impostazioni → Lingue win over the config's; read once, then kept current.
+  let languages: unknown = null
+  const ctx: ServerContext = { ...base, config: () => withLocales(base.config(), languages) }
   const content: ContentStore = createContentStore(ctx.database.db)
   const auth: AuthStore = createAuthStore(ctx.database.db)
   const allowLogin = createLimiter(10, 60_000)
   const mediaStore = createMediaStore(ctx.database.db)
   const settings = createSettingsStore(ctx.database.db)
+  const languagesLoaded = settings.get('locales').then((v) => {
+    languages = v
+  })
   const submissions = createSubmissionStore(ctx.database.db)
   const comments = createCommentStore(ctx.database.db)
   /**
@@ -615,12 +640,44 @@ export function createApp(ctx: ServerContext) {
     return out
   }
 
-  app.get('/api/globals', requireUser, async (c) =>
-    c.json({ globals: (await settings.get('globals')) ?? {}, usage: await globalUsage() }),
-  )
+  /**
+   * Global sections in a language: the main language's structure and design with that language's
+   * words (saved apart, under "globals:<locale>").
+   */
+  const globalsIn = async (lang: string | undefined): Promise<Record<string, PageNode>> => {
+    const main = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
+    if (!lang || lang === ctx.config().locales.default) return main
+    const words = (await settings.get<Record<string, PageNode>>(`globals:${lang}`)) ?? {}
+    return Object.fromEntries(
+      Object.entries(main).map(([id, n]) => [id, words[id] ? (mergeTranslation([n], [words[id]])[0] as PageNode) : n]),
+    )
+  }
+
+  app.get('/api/globals', requireUser, async (c) => {
+    await languagesLoaded
+    const lang = c.req.query('locale')
+    return c.json({ globals: await globalsIn(lang ? locale(lang) : undefined), usage: await globalUsage() })
+  })
 
   app.put('/api/globals', requireUser, async (c) => {
-    const input = await body(c, z.object({ globals: z.record(z.string(), z.record(z.string(), z.unknown())) }))
+    const input = await body(
+      c,
+      z.object({ globals: z.record(z.string(), z.record(z.string(), z.unknown())), locale: z.string().optional() }),
+    )
+    await languagesLoaded
+    const lang = input.locale ? locale(input.locale) : ctx.config().locales.default
+    if (lang !== ctx.config().locales.default) {
+      // Another language changes only the words: structure and design stay the main language's.
+      const main = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
+      const words = Object.fromEntries(
+        Object.entries(input.globals)
+          .filter(([id]) => main[id])
+          .map(([id, n]) => [id, n as unknown as PageNode]),
+      )
+      await settings.set(`globals:${lang}`, words, c.get('user').id)
+      ctx.onPublish?.()
+      return c.json({ globals: await globalsIn(lang) })
+    }
     const before = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
     guardEmbeds(c.get('user'), before, input.globals)
     const removed = Object.keys(before).filter((id) => !input.globals[id])
@@ -1227,6 +1284,159 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
     return c.json(toJson(doc))
+  })
+
+  // ---------- languages and translations ----------
+
+  /** How many documents each language has: removing a language hides them from the site. */
+  const countsByLocale = async (): Promise<Record<string, number>> => {
+    const out: Record<string, number> = {}
+    for (const def of ctx.config().collections)
+      for (const lang of new Set([...ctx.config().locales.available, ...base.config().locales.available]))
+        out[lang] = (out[lang] ?? 0) + (await content.list(def.name, { locale: lang, limit: 1 })).total
+    return out
+  }
+
+  app.get('/api/locales', requireUser, async (c) => {
+    await languagesLoaded
+    return c.json({ locales: ctx.config().locales, documents: await countsByLocale() })
+  })
+
+  app.put('/api/locales', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        default: z.string().refine(isLocaleCode, 'Codice lingua non valido'),
+        available: z.array(z.string().refine(isLocaleCode, 'Codice lingua non valido')).min(1).max(30),
+      }),
+    )
+    if (!input.available.includes(input.default))
+      throw new ApiError(400, 'invalid_locales', 'La lingua principale deve essere tra quelle del sito')
+    const value = { default: input.default, available: [...new Set(input.available)] }
+    await settings.set('locales', value, c.get('user').id)
+    languages = value
+    ctx.onPublish?.()
+    return c.json({ locales: ctx.config().locales, documents: await countsByLocale() })
+  })
+
+  app.get('/api/documents/:id/translations', requireUser, async (c) => {
+    await languagesLoaded
+    const doc = await loadDocument(c.req.param('id'))
+    const translations = await content.translations(doc.id)
+    const have = new Set(translations.map((t) => t.locale))
+    return c.json({
+      translations,
+      missing: ctx.config().locales.available.filter((l) => !have.has(l)),
+    })
+  })
+
+  /** The texts of a document in another language, through the AI: the copy is changed in place. */
+  const translateData = async (
+    def: Collection,
+    data: Record<string, unknown>,
+    from: string,
+    to: string,
+    only?: (slots: ReturnType<typeof documentSlots>) => ReturnType<typeof documentSlots>,
+  ) => {
+    const ai = await readyAi()
+    let slots = documentSlots(def.fields, data)
+    if (only) slots = only(slots)
+    if (!slots.length) return
+    const translated = await translateTexts(
+      ai,
+      slots.map((s) => s.text),
+      from,
+      to,
+    ).catch(aiFailed)
+    for (const [i, slot] of slots.entries()) slot.set(translated[i] as string)
+  }
+
+  app.post('/api/documents/:id/translations', requireUser, async (c) => {
+    const input = await body(c, z.object({ locale: z.string(), translate: z.boolean().default(false) }))
+    await languagesLoaded
+    const doc = await loadDocument(c.req.param('id'))
+    const def = collection(doc.collection)
+    const lang = locale(input.locale)
+    const group = await content.translations(doc.id)
+    if (group.some((t) => t.locale === lang))
+      throw new ApiError(409, 'translation_exists', 'Questa lingua esiste già: aprila dall’elenco delle lingue')
+    if (def.singleton && (await content.list(def.name, { locale: lang, limit: 1 })).total > 0)
+      throw new ApiError(409, 'singleton_exists', `"${def.label}" esiste già in questa lingua`)
+    if (input.translate && !allowAi(c.get('user').id))
+      throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const data = structuredClone(doc.data)
+    if (input.translate) {
+      // The address is translated too ("chi-siamo" → "about-us"), the home page keeps its own.
+      const slugField = def.slugField
+      const slug = slugField && typeof data[slugField] === 'string' ? (data[slugField] as string) : ''
+      const home = !slug || def.url?.({ ...data } as never) === '/'
+      await translateData(def, data, doc.locale, lang)
+      if (slugField && !home) {
+        const [title] = await translateTexts(await readyAi(), [slug.replace(/-/g, ' ')], doc.locale, lang).catch(
+          aiFailed,
+        )
+        const next = slugify(title ?? '')
+        if (next) data[slugField] = next
+      }
+    }
+    const draft = draftData(def, data)
+    const original = group.find((t) => !t.sourceId) ?? group[0]
+    const created = await slugGuard(() =>
+      content.create({
+        collection: def.name,
+        locale: lang,
+        ...draft,
+        userId: c.get('user').id,
+        sourceId: original?.id ?? doc.id,
+      }),
+    )
+    return c.json(toJson(created), 201)
+  })
+
+  /**
+   * Brings a translation in line with its original: the original's structure and design, with the
+   * words already translated; new elements come in the original's words, or translated by the AI.
+   */
+  app.post('/api/documents/:id/sync', requireUser, async (c) => {
+    const input = await body(c, z.object({ translate: z.boolean().default(false) }))
+    const doc = await loadDocument(c.req.param('id'))
+    if (!doc.sourceId) throw new ApiError(400, 'not_a_translation', 'Questa è la versione originale')
+    const original = await loadDocument(doc.sourceId)
+    const def = collection(doc.collection)
+    const data = structuredClone(doc.data)
+    const fresh = new Set<string>()
+    for (const [name, f] of Object.entries(def.fields)) {
+      if (f.kind !== 'page') continue
+      const from = Array.isArray(original.data[name]) ? (original.data[name] as PageNode[]) : []
+      const mine = Array.isArray(data[name]) ? (data[name] as PageNode[]) : []
+      for (const id of untranslatedIds(from, mine)) fresh.add(id)
+      data[name] = mergeTranslation(from, mine)
+    }
+    if (input.translate && fresh.size) {
+      if (!allowAi(c.get('user').id))
+        throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+      const ai = await readyAi()
+      for (const [name, f] of Object.entries(def.fields)) {
+        if (f.kind !== 'page' || !Array.isArray(data[name])) continue
+        const walk = (list: PageNode[]): PageNode[] =>
+          list.flatMap((n) => (fresh.has(n.id) ? [n] : walk(n.children ?? [])))
+        // Only the new elements' own texts: children of a new element are new too.
+        const own = nodeSlots(walk(data[name] as PageNode[]))
+        if (!own.length) continue
+        const translated = await translateTexts(
+          ai,
+          own.map((s) => s.text),
+          original.locale,
+          doc.locale,
+        ).catch(aiFailed)
+        for (const [i, slot] of own.entries()) slot.set(translated[i] as string)
+      }
+    }
+    for (const [name, f] of Object.entries(def.fields))
+      if (f.kind === 'page') await guardDesign(c.get('user'), doc.data[name], data[name])
+    const draft = draftData(def, data)
+    const saved = await slugGuard(() => content.update(doc.id, { ...draft, userId: c.get('user').id }))
+    return c.json({ document: toJson(saved as StoredDocument), added: fresh.size })
   })
 
   // ---------- media ----------

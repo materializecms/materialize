@@ -7,6 +7,7 @@ import {
   type Theme,
 } from '@materializecms/core/page'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSession } from '../app/context.ts'
 
 const LABEL: Record<Breakpoint, string> = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' }
 
@@ -39,9 +40,19 @@ export function DevicesView({
     return () => ro.disconnect()
   }, [])
   // One render serves every width: the page's own container queries do the rest.
+  const { locale, schema } = useSession()
   const { html, css } = useMemo(
-    () => renderPage(nodes, theme, { editor: true, animations: 'none', srcset: librarySrcset, data, entry }),
-    [nodes, theme, data, entry],
+    () =>
+      renderPage(nodes, theme, {
+        editor: true,
+        animations: 'none',
+        srcset: librarySrcset,
+        data,
+        entry,
+        locale,
+        alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
+      }),
+    [nodes, theme, data, entry, locale, schema.locales.available],
   )
   const devices = ['desktop', 'tablet', 'mobile'] as const
   const gap = 32

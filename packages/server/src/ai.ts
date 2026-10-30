@@ -267,3 +267,50 @@ async function openaiChat(s: AiSettings, body: { messages: unknown[]; tools?: un
   if (!message) throw new AiError('Il server AI ha dato una risposta vuota.')
   return { role: 'assistant', content: message.content ?? null, tool_calls: message.tool_calls }
 }
+
+// ---------- translation ----------
+
+const languageName = (code: string) => {
+  try {
+    return `${new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code} (${code})`
+  } catch {
+    return code
+  }
+}
+
+/**
+ * Translates a page's texts in batches, keeping their order: each batch goes out as a JSON list
+ * and must come back as a list of the same length. Marks like <b>, <i> and <a1> stay in place.
+ */
+export async function translateTexts(
+  s: AiSettings,
+  texts: string[],
+  from: string,
+  to: string,
+  onProgress?: (done: number) => void,
+): Promise<string[]> {
+  const system = `You translate the texts of a website from ${languageName(from)} to ${languageName(to)}. You receive a JSON array of strings and reply with a JSON array of their translations: same length, same order, nothing else (no code fences, no notes). Keep the tags <b>, </b>, <i>, </i>, <a1>, </a1> and so on around the matching words, keep line breaks, numbers, brand names, e-mail addresses and URLs. Write naturally for native readers, as a professional copywriter would, with the same tone and roughly the same length.`
+  const out: string[] = []
+  const BATCH = 60
+  for (let start = 0; start < texts.length; start += BATCH) {
+    const batch = texts.slice(start, start + BATCH)
+    let result: string[] | null = null
+    for (let attempt = 0; attempt < 2 && !result; attempt++) {
+      const reply = await complete(s, { system, prompt: JSON.stringify(batch) })
+      result = parseList(reply, batch.length)
+    }
+    if (!result) throw new AiError('Il modello non ha restituito la traduzione completa: riprova.')
+    out.push(...result)
+    onProgress?.(out.length)
+  }
+  return out
+}
+
+function parseList(reply: string, length: number): string[] | null {
+  const json = reply.slice(reply.indexOf('['), reply.lastIndexOf(']') + 1)
+  try {
+    const list = JSON.parse(json) as unknown
+    if (Array.isArray(list) && list.length === length && list.every((x) => typeof x === 'string')) return list
+  } catch {}
+  return null
+}

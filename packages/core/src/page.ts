@@ -195,6 +195,8 @@ export interface NodeProps {
   textStyle?: string | null
   text?: string
   runs?: Run[] | null
+  /** A language switcher in place of the text: language codes ("IT / EN") or names. */
+  langs?: 'code' | 'name' | null
   style?: TextStyle
   /** Rich text from a bound field (an article's body), set while rendering: never saved. */
   rich?: string
@@ -787,6 +789,19 @@ export interface RenderOptions {
    * except inside bound lists, which have their own entries.
    */
   entry?: BoundEntry
+  /** The page's language, and the same page in the site's other languages, for language switchers. */
+  locale?: string
+  alternates?: { locale: string; url: string }[]
+}
+
+/** A language's own name, as its speakers write it: "English", "Deutsch", "Italiano". */
+export function languageName(code: string): string {
+  try {
+    const name = new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code
+    return name.charAt(0).toLocaleUpperCase(code) + name.slice(1)
+  } catch {
+    return code
+  }
 }
 
 /** What a bound list needs from an entry. */
@@ -1200,6 +1215,10 @@ const BASE_CSS = `
 .mz-page .mz-open>.mz-burger span:first-child{transform:translateY(3.75px) rotate(45deg)}
 .mz-page .mz-open>.mz-burger span:last-child{transform:translateY(-3.75px) rotate(-45deg)}
 .mz-page [id]{scroll-margin-top:var(--mz-anchor-offset,0px)}
+.mz-page .mz-n[data-mz-langs]{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5em}
+.mz-page .mz-n[data-mz-langs] a{color:inherit;text-decoration:none;opacity:.55;transition:opacity .2s}
+.mz-page .mz-n[data-mz-langs] a:hover,.mz-page .mz-n[data-mz-langs] a[aria-current]{opacity:1}
+.mz-page .mz-n[data-mz-langs] span{opacity:.35}
 .mz-page [data-mz-prose]{white-space:normal}
 .mz-page [data-mz-prose]>*{margin:0}
 .mz-page [data-mz-prose]>*+*{margin-top:1em}
@@ -1318,7 +1337,14 @@ function nodeStyle(
   } else if (pl === 'grid')
     s.width = p.width === 'fixed' ? cssLength(p.fixedW, '240px') : p.width === 'hug' ? 'fit-content' : 'auto'
   else s.width = p.width === 'fixed' ? cssLength(p.fixedW, '240px') : p.width === 'hug' ? 'fit-content' : '100%'
-  s.maxWidth = p.maxW ? cssLength(p.maxW, 'none') : p.width === 'fixed' ? '100%' : 'none'
+  // The body of an article keeps a readable line length unless a width is set.
+  s.maxWidth = p.maxW
+    ? cssLength(p.maxW, 'none')
+    : p.width === 'fixed'
+      ? '100%'
+      : isT && p.rich && p.width !== 'hug'
+        ? '68ch'
+        : 'none'
   if (pl === 'col' && !isSec && p.width === 'hug') s.alignSelf = 'auto'
 
   // padding
@@ -1810,6 +1836,18 @@ export function renderSections(
         h1Used = true
       }
       if (p.rich) return `<div ${attrs.join(' ')} data-mz-prose>${p.rich}</div>`
+      if (p.langs) {
+        // A language switcher: the same page in each language it exists in.
+        const list = options.alternates?.length ? options.alternates : [{ locale: options.locale ?? 'it', url: '#' }]
+        const current = options.locale ?? list[0]?.locale
+        const links = list
+          .map(
+            (a) =>
+              `<a href="${esc(safeHref(a.url))}" hreflang="${esc(a.locale)}" lang="${esc(a.locale)}"${a.locale === current ? ' aria-current="true"' : ''}>${esc(p.langs === 'name' ? languageName(a.locale) : a.locale.toUpperCase())}</a>`,
+          )
+          .join('<span aria-hidden="true">/</span>')
+        return `<nav ${attrs.join(' ')} data-mz-langs aria-label="Lingua">${links}</nav>`
+      }
       // A linked text: the whole text is the link, in its own color.
       const inner = p.href
         ? `<a href="${esc(safeHref(p.href))}"${p.newTab ? ' target="_blank" rel="noopener"' : ''} style="color:inherit;text-decoration:none">${runsHtml(p)}</a>`

@@ -1,4 +1,5 @@
 import type { Collection, Field, Fields, MaterializeConfig, Media } from '@materializecms/core'
+import { mergeTranslation } from '@materializecms/core/i18n'
 import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
 import type { Redirect, SitemapPage, SiteSeo } from '@materializecms/core/seo'
 import type { StoredDocument } from '@materializecms/db'
@@ -20,6 +21,8 @@ export interface Entry<T extends Data = Data> {
   publishedAt: Date | null
   /** Readable values where the data holds a code: a choice's label, a related entry's title. */
   labels: Record<string, string>
+  /** The original this entry translates (another language); null for originals. */
+  sourceId?: string | null
 }
 
 function labelsOf(collection: Collection, data: Data): Record<string, string> {
@@ -67,6 +70,7 @@ function toEntry(config: MaterializeConfig, doc: StoredDocument, data: Data): En
     data,
     publishedAt: doc.publishedAt,
     labels: labelsOf(collection, data),
+    sourceId: doc.sourceId,
   }
 }
 
@@ -118,23 +122,65 @@ async function published(collection: string, locale?: string): Promise<Entry[]> 
   )
 }
 
-/** Sections shared by several pages, by id. */
-export async function getGlobals(): Promise<Record<string, PageNode>> {
-  const { settings } = await getRuntime()
-  return ((settings ? await settings.get('globals') : null) as Record<string, PageNode> | null) ?? {}
+/**
+ * Sections shared by several pages, by id; in another language, with that language's words
+ * (Impostazioni → Lingue: structure and design stay the main language's).
+ */
+export async function getGlobals(locale?: string): Promise<Record<string, PageNode>> {
+  const { settings, config } = await getRuntime()
+  const main = ((settings ? await settings.get('globals') : null) as Record<string, PageNode> | null) ?? {}
+  if (!settings || !locale || locale === config().locales.default) return main
+  const words = ((await settings.get(`globals:${locale}`)) as Record<string, PageNode> | null) ?? {}
+  return Object.fromEntries(
+    Object.entries(main).map(([id, n]) => [id, words[id] ? (mergeTranslation([n], [words[id]])[0] as PageNode) : n]),
+  )
+}
+
+/** Translations of an entry are linked to their original; older ones share its slug. */
+const sameGroup = (a: Entry, b: Entry) =>
+  a.sourceId || b.sourceId
+    ? (a.sourceId ?? a.id) === (b.sourceId ?? b.id)
+    : a.collection === b.collection && a.slug === b.slug
+
+/**
+ * Where each page of the main language lives in another one, by address: internal links on a
+ * translated page go to the translated pages.
+ */
+export async function getLinkMap(locale: string): Promise<Record<string, string>> {
+  const { config } = await getRuntime()
+  const cfg = config()
+  if (locale === cfg.locales.default) return {}
+  const map: Record<string, string> = {}
+  for (const collection of cfg.collections) {
+    if (!collection.url) continue
+    const all = await published(collection.name)
+    const here = all.filter((e) => e.locale === locale)
+    for (const e of all) {
+      if (e.locale !== cfg.locales.default || !e.url) continue
+      const t = here.find((x) => sameGroup(x, e))
+      if (t?.url) map[e.url.replace(/\/+$/, '') || '/'] = t.url
+    }
+  }
+  return map
 }
 
 /**
  * The canvas page chosen in the panel as the template of a collection's entries, as published;
  * null when the collection has none (its entries keep their own layout).
  */
-export async function getTemplate(collection: string): Promise<PageNode[] | null> {
+export async function getTemplate(collection: string, locale?: string): Promise<PageNode[] | null> {
   const { settings, config } = await getRuntime()
   const id = ((settings ? await settings.get('templates') : null) as Record<string, string> | null)?.[collection]
   if (!id) return null
   for (const c of config().collections) {
-    const found = (await published(c.name).catch(() => [])).find((e) => e.id === id)
-    if (found && Array.isArray(found.data.page)) return found.data.page as PageNode[]
+    const all = await published(c.name).catch(() => [])
+    const found = all.find((e) => e.id === id)
+    if (!found) continue
+    // The template translated into the entry's language, when there is one.
+    const translated =
+      locale && locale !== found.locale ? all.find((e) => e.locale === locale && sameGroup(e, found)) : null
+    const page = (translated ?? found).data.page
+    if (Array.isArray(page)) return page as PageNode[]
   }
   return null
 }
@@ -254,10 +300,7 @@ export async function getRedirects(): Promise<Redirect[]> {
   return ((settings ? await settings.get('redirects') : null) as Redirect[] | null) ?? []
 }
 
-/**
- * The same page in every language it is published in: translations share the collection and
- * the slug (singletons and pages without a slug match on the collection alone).
- */
+/** The same page in every language it is published in (its original and translations). */
 export async function getAlternates(entry: Entry): Promise<{ locale: string; url: string }[]> {
   if (!entry.url) return []
   const { config } = await getRuntime()
@@ -268,7 +311,7 @@ export async function getAlternates(entry: Entry): Promise<{ locale: string; url
       out.push({ locale, url: entry.url })
       continue
     }
-    const same = (await published(entry.collection, locale)).find((e) => e.slug === entry.slug)
+    const same = (await published(entry.collection, locale)).find((e) => sameGroup(e, entry))
     if (same?.url) out.push({ locale, url: same.url })
   }
   return out
@@ -306,4 +349,10 @@ export function firstImage(value: unknown, depth = 0): Media | undefined {
     if (found) return found
   }
   return undefined
+}
+
+/** The site's languages: the main one and every one pages can be published in. */
+export async function getLocales(): Promise<{ default: string; available: string[] }> {
+  const { config } = await getRuntime()
+  return config().locales
 }

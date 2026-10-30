@@ -20,10 +20,13 @@ export const documents = sqliteTable(
     publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
     createdBy: text('created_by'),
     updatedBy: text('updated_by'),
+    /** The document this one translates (in the site's main language); null for originals. */
+    sourceId: text('source_id'),
   },
   (t) => [
     uniqueIndex('documents_slug_unique').on(t.collection, t.locale, t.slug),
     index('documents_list').on(t.collection, t.locale, t.updatedAt),
+    index('documents_source').on(t.sourceId),
   ],
 )
 
@@ -276,5 +279,9 @@ export const MIGRATIONS: string[][] = [
       last_used_at INTEGER
     )`,
     'CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id)',
+  ],
+  [
+    'ALTER TABLE documents ADD COLUMN source_id TEXT',
+    'CREATE INDEX IF NOT EXISTS documents_source ON documents (source_id)',
   ],
 ]

@@ -3,6 +3,7 @@ import { type Component, type PageNode, pageRootStyle, renderSections, type Them
 import {
   Code,
   Image as ImageIcon,
+  Languages,
   MousePointerClick,
   Pencil,
   Rows3,
@@ -18,7 +19,17 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Kbd } from '../components/ui.tsx'
 import { DRAG_ELEMENT, DRAG_SECTION } from './Canvas.tsx'
 
-export type ElementKind = 'frame' | 'text' | 'image' | 'button' | 'video' | 'embed' | 'scene' | 'icon' | 'input'
+export type ElementKind =
+  | 'frame'
+  | 'text'
+  | 'image'
+  | 'button'
+  | 'video'
+  | 'embed'
+  | 'scene'
+  | 'icon'
+  | 'input'
+  | 'langs'
 
 const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.ReactNode }[] = [
   { kind: 'frame', label: 'Contenitore', key: 'F', icon: <Rows3 /> },
@@ -30,6 +41,7 @@ const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.Rea
   { kind: 'scene', label: 'WebGL', key: 'G', icon: <Sparkles /> },
   { kind: 'icon', label: 'Icona', key: 'O', icon: <Shapes /> },
   { kind: 'input', label: 'Campo', key: 'K', icon: <TextCursorInput /> },
+  { kind: 'langs', label: 'Lingue', key: 'L', icon: <Languages /> },
 ]
 
 const TILE_W = 1280
