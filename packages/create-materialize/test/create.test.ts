@@ -25,7 +25,8 @@ describe('createProject', () => {
     const config = await readFile(join(dir, 'materialize.config.ts'), 'utf8')
     expect(config).toContain("site: { name: 'Studio rossi' }")
     expect(config).not.toContain('__')
-    expect(pkg.dependencies['@materializecms/cli']).toMatch(/^\^\d+\.\d+\.\d+/)
+    // Exact versions: a site changes version only when it is updated on purpose.
+    expect(pkg.dependencies['@materializecms/cli']).toMatch(/^\d+\.\d+\.\d+$/)
     const layout = await readFile(join(dir, 'src/layouts/Site.astro'), 'utf8')
     expect(layout).toContain("?? 'Studio rossi'")
     expect(await readFile(join(dir, 'materialize.config.ts'), 'utf8')).toContain('f.page(')

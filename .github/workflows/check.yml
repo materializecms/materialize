@@ -22,5 +22,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npm run build
+      # Compiles and packs exactly what would be published, with its own TypeScript run.
+      - run: npm run release
+      # A new site made from these packages must install, build and start.
+      - run: npm run smoke
       - run: npm run audit

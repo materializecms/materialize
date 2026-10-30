@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { basename, extname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AstroIntegration } from 'astro'
 import { getRedirects } from './content.ts'
@@ -85,7 +85,8 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
           if (own(name)) continue
           injectRoute({
             pattern: `/${name}`,
-            entrypoint: new URL(`./routes/${name}.ts`, import.meta.url),
+            // TypeScript here, compiled JavaScript in the published package.
+            entrypoint: new URL(`./routes/${name}${extname(fileURLToPath(import.meta.url))}`, import.meta.url),
             prerender: true,
           })
         }

@@ -57,6 +57,8 @@ async function compile() {
     '--types',
     'node',
     '--strict',
+    '--noUncheckedIndexedAccess',
+    '--noImplicitOverride',
     '--skipLibCheck',
     '--erasableSyntaxOnly',
     '--verbatimModuleSyntax',
@@ -129,6 +131,8 @@ async function assemble(name: string, versions: Map<string, string>) {
   const manifest = releaseManifest(pkg, versions)
   await writeFile(join(dest, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   await cp(join(ROOT, 'LICENSE'), join(dest, 'LICENSE'))
+  // The panel reads what is new from here when it offers an update.
+  await cp(join(ROOT, 'CHANGELOG.md'), join(dest, 'CHANGELOG.md'))
   const ownReadme = join(src, 'README.md')
   await writeFile(join(dest, 'README.md'), await readFile(ownReadme, 'utf8').catch(() => readme(pkg)))
 }

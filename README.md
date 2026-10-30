@@ -2,11 +2,15 @@
 
 CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
 
-> Stato: **prima versione installabile**. Ci sono il core dello schema, il database, l'API con autenticazione, la CLI, il pannello con le modalità Contenuto e Design, il renderer Astro, la libreria media, la gestione delle persone e il comando per creare un nuovo sito. Il server MCP e le funzioni AI arrivano nelle fasi successive.
+> Stato: **Alpha**, verso la prima versione pubblica. Le novità di ogni versione sono in [CHANGELOG.md](CHANGELOG.md).
 
 ## Un nuovo sito
 
 Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
+
+### Dove installarlo
+
+Con il pannello, Materialize è un programma Node sempre acceso: serve un **server tuo**, cioè un VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) o un ambiente Docker. **Gli hosting condivisi PHP non sono adatti**, anche quelli con Node nel cPanel: memoria scarsa e processi sospesi quando non ci sono visite rendono lenti la generazione del sito e le immagini. Il sito generato, invece, è fatto di file statici e si può pubblicare anche su qualsiasi hosting statico.
 
 ```bash
 npm create materialize@latest
@@ -196,6 +200,8 @@ npm run lint        # Biome
 npm run check       # tutto quanto sopra
 npm run audit       # vulnerabilità note nelle dipendenze
 npm run release     # prepara i pacchetti npm in .release/ (non pubblica nulla)
+npm run smoke       # crea, compila e avvia un sito con i pacchetti di .release/
+npm run bump patch  # nuova versione per tutti i pacchetti (patch, minor, major o 1.2.3)
 ```
 
 ## Sicurezza
@@ -209,17 +215,21 @@ Il pannello si protegge da solo:
 
 HTTPS, proxy, Cloudflare, firewall e copie fuori dal server spettano a chi mette online il sito: sono spiegati in [docs/sicurezza.md](docs/sicurezza.md). Lo stato del singolo sito si vede in Impostazioni → Sicurezza.
 
-## Pubblicare su npm
+## Pubblicare una versione
 
-I pacchetti si chiamano `@materializecms/*`, più `create-materialize`. `npm run release` compila il pannello e i pacchetti (JavaScript con i tipi), li assembla in `.release/<pacchetto>` e crea gli archivi in `.release/tarballs`. Tutti i pacchetti hanno la stessa versione: per una nuova versione si aggiorna `version` in ogni `packages/*/package.json`.
+I pacchetti si chiamano `@materializecms/*`, più `create-materialize`, e hanno sempre tutti la stessa versione. Le novità per chi usa Materialize si scrivono man mano in [CHANGELOG.md](CHANGELOG.md), sotto «Prossima versione», in parole semplici: il pannello le mostrerà quando propone un aggiornamento.
 
-La pubblicazione è un passo a parte, da un account npm con accesso allo scope `@materializecms`:
+Per una nuova versione:
 
 ```bash
-for p in core db admin server astro cli create-materialize; do npm publish .release/$p; done
+npm run bump patch      # oppure minor, major, o una versione esatta come 0.2.0
+git commit -am "Versione 0.1.1"
+git tag v0.1.1 && git push --follow-tags
 ```
 
-Per provare prima l'installazione senza pubblicare, si possono caricare gli stessi pacchetti su un registro locale (per esempio Verdaccio) e lanciare `npm create materialize@latest` con `--registry`.
+`bump` aggiorna la versione di tutti i pacchetti, delle dipendenze tra loro, dell'esempio e del lockfile, e dà la data alla sezione «Prossima versione» del changelog (si rifiuta se è vuota). Il tag fa partire su GitHub il workflow **Rilascio**: gli stessi controlli di ogni modifica, poi `npm run release` (pannello e pacchetti compilati in `.release/`), `npm run smoke` (un sito nuovo creato da quei pacchetti deve installarsi, compilarsi e avviarsi), la pubblicazione su npm con la provenienza firmata e una release su GitHub con le note del changelog. Serve il segreto `NPM_TOKEN`: un token npm di tipo «automation» con accesso allo scope `@materializecms`.
+
+Si può fare tutto anche a mano: `npm run release`, `npm run smoke`, poi `npm run publish-release`, che pubblica i pacchetti nell'ordine giusto e salta quelli già presenti, così si può ripetere se si interrompe. Per una prova senza pubblicare davvero, lo stesso comando accetta un registro locale (per esempio [Verdaccio](https://verdaccio.org)): `npm run publish-release -- --registry http://localhost:4873`, poi `npm create materialize@latest` con `--registry`.
 
 ## Scelte tecniche
 

@@ -22,6 +22,9 @@
     "format": "biome check --write .",
     "check": "npm run lint && npm run typecheck && npm run test",
     "release": "node scripts/release.ts --pack",
+    "smoke": "node scripts/smoke.ts",
+    "bump": "node scripts/bump.ts",
+    "publish-release": "node scripts/publish.ts",
     "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {

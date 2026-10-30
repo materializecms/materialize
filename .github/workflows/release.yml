@@ -1,0 +1,38 @@
+# A tag like v0.2.0 publishes that version: the same checks as every change, then the packages
+# on npm with provenance (npm shows they were built here, from this commit), then a GitHub release
+# with the notes from CHANGELOG.md. Needs the NPM_TOKEN secret: an npm automation token with
+# access to the @materializecms scope.
+name: Rilascio
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run check
+      - run: npm run release
+      # A new site made from these packages must install, build and start.
+      - run: npm run smoke
+      - run: node scripts/publish.ts --tag "$GITHUB_REF_NAME" --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Release su GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/notes.ts "$GITHUB_REF_NAME" > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "Materialize ${GITHUB_REF_NAME#v}" --notes-file notes.md
