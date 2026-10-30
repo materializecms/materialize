@@ -7,6 +7,8 @@
       "!**/.materialize",
       "!**/*.db",
       "!packages/create-materialize/template",
+      "!sito-locale",
+      "!demo",
       "!**/dist",
       "!**/.astro",
       "!.release"

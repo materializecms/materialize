@@ -8,11 +8,10 @@
     "node": ">=24"
   },
   "workspaces": [
-    "packages/*",
-    "examples/*"
+    "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build -w @materializecms/admin && npm run dev -w examples/sito",
+    "dev": "node scripts/dev.ts",
     "dev:admin": "npm run dev -w @materializecms/admin",
     "build": "npm run build -w @materializecms/admin",
     "test": "vitest run",
@@ -28,8 +27,10 @@
     "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {
+    "@astrojs/node": "11.1.9",
     "@biomejs/biome": "2.6.4",
     "@types/node": "26.6.6",
+    "astro": "7.4.4",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
   }

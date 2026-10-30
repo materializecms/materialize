@@ -80,7 +80,7 @@ npm install
 npm run dev
 ```
 
-Il sito d'esempio (Studio Rossi) parte su http://localhost:4321 e il pannello su http://localhost:4321/admin: al primo accesso crei l'account amministratore direttamente dal pannello. Sito, pannello e API vivono sullo stesso indirizzo.
+La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso che riceve chi usa `npm create materialize`. La cartella resta sul tuo computer e git la ignora: il repository non contiene siti né contenuti di prova. Il sito parte su http://localhost:4321 e il pannello su http://localhost:4321/admin: al primo accesso crei l'account amministratore direttamente dal pannello. Sito, pannello e API vivono sullo stesso indirizzo.
 
 ## Il pannello
 
@@ -125,8 +125,6 @@ Le immagini caricate perdono i metadati della fotocamera (posizione GPS compresa
 ### Stile dei blocchi
 
 Ogni blocco può avere `_style` con `background` (`default`, `muted`, `dark`, `accent`), `spacing` (`none`, `compact`, `normal`, `spacious`), `animation` (`fade`, `rise`, `zoom`, `slide`) e `anchor`. `Blocks` li trasforma in variabili CSS sul contenitore del blocco; il sito decide cosa significano definendo `--theme-muted-bg`, `--theme-dark-bg`, `--theme-dark-fg`, `--theme-accent-bg` e simili. I componenti leggono `--mz-bg`, `--mz-fg` e `--mz-space` con i loro valori predefiniti. Le animazioni partono allo scorrimento, in solo CSS, e non partono per chi ha chiesto meno movimento.
-
-L'esempio Studio Rossi ha undici tipi di blocco: copertina, testo, progetti, galleria, citazione, numeri, servizi, team, domande frequenti, contatti e invito.
 
 Nei template le relazioni arrivano già risolte: un campo `relation` contiene i documenti collegati, con titolo, indirizzo e dati. Per il resto ci sono `getEntries`, `getEntry`, `getSingleton` e i componenti `RichText` e `Media` (immagini con punto focale).
 
@@ -216,7 +214,6 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 | `packages/astro`              | Integrazione Astro: contenuti pubblicati per le pagine, componenti per blocchi e testo, anteprima delle bozze per la tela |
 | `packages/cli`                | Comando `materialize dev` / `materialize start`                                                                           |
 | `packages/create-materialize` | `npm create materialize`: copia il sito di partenza in `template/` e installa le dipendenze                               |
-| `examples/sito`       | Sito d'esempio di uno studio di architettura                                                                              |
 
 ## API
 
