@@ -63,6 +63,7 @@ import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
+import { AssistantPanel } from './Assistant.tsx'
 import { type AlignHow, alignPatches } from './align.ts'
 import { autoBind } from './autobind.ts'
 import { Canvas, type DropTarget, type Mode, type RulerGuide } from './Canvas.tsx'
@@ -374,6 +375,8 @@ export function PageEditor({
   }
   // Comments and who else has the page open.
   const [commenting, setCommenting] = useState(false)
+  // The assistant's chat in the right panel, instead of the inspector.
+  const [assisting, setAssisting] = useState(false)
   const commentsQuery = useQuery({
     queryKey: ['comments', docId],
     queryFn: () => api.comments(docId as string),
@@ -1497,8 +1500,26 @@ export function PageEditor({
               </IconButton>
               <button
                 type="button"
+                title="Assistente AI"
+                onClick={() => {
+                  setAssisting(!assisting)
+                  setCommenting(false)
+                }}
+                className={cx(
+                  'flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium transition-colors [&_svg]:size-3.5',
+                  assisting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
+                )}
+              >
+                <Sparkles />
+                AI
+              </button>
+              <button
+                type="button"
                 title="Commenti sulla pagina"
-                onClick={() => setCommenting(!commenting)}
+                onClick={() => {
+                  setCommenting(!commenting)
+                  setAssisting(false)
+                }}
                 className={cx(
                   'relative flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors [&_svg]:size-3.5',
                   commenting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
@@ -1663,8 +1684,22 @@ export function PageEditor({
         </div>
 
         {/* right: element or page */}
-        <aside className="w-[288px] shrink-0 overflow-y-auto border-l border-line bg-panel">
-          {commenting ? (
+        <aside
+          className={cx(
+            'shrink-0 border-l border-line bg-panel',
+            assisting ? 'w-[340px] overflow-hidden' : 'w-[288px] overflow-y-auto',
+          )}
+        >
+          {/* Kept mounted while hidden: the conversation survives switching panels. */}
+          <div className={cx('h-full', !assisting && 'hidden')}>
+            <AssistantPanel
+              nodes={nodes}
+              selection={selection}
+              page={{ title: String(data[collection.titleField] ?? ''), collection: collection.name }}
+              onApply={(next) => setNodes(next, `ai:${Date.now()}`)}
+            />
+          </div>
+          {assisting ? null : commenting ? (
             <CommentsPanel docId={docId} nodes={nodes} selected={selected} onSelect={setSelected} />
           ) : mode === 'content' ? (
             <ContentPanel

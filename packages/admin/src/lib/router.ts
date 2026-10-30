@@ -6,7 +6,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'media' }
   | { name: 'people' }
-  | { name: 'settings'; tab?: 'mail' | 'messages' | 'seo' }
+  | { name: 'settings'; tab?: 'mail' | 'messages' | 'seo' | 'ai' }
   | { name: 'invite'; token: string }
   | { name: 'collection'; collection: string }
   | { name: 'document'; collection: string; id: string }
@@ -24,7 +24,10 @@ export function parse(pathname: string): Route {
   if (collection === '_media') return { name: 'media' }
   if (collection === '_people') return { name: 'people' }
   if (collection === '_settings')
-    return { name: 'settings', tab: id === 'messaggi' ? 'messages' : id === 'seo' ? 'seo' : 'mail' }
+    return {
+      name: 'settings',
+      tab: id === 'messaggi' ? 'messages' : id === 'seo' ? 'seo' : id === 'ai' ? 'ai' : 'mail',
+    }
   if (collection === '_invite' && id) return { name: 'invite', token: id }
   if (!id) return { name: 'collection', collection }
   if (id === 'new') return { name: 'new', collection }
@@ -40,7 +43,7 @@ export function href(route: Route): string {
     case 'people':
       return `${BASE}/_people`
     case 'settings':
-      return `${BASE}/_settings${route.tab === 'messages' ? '/messaggi' : route.tab === 'seo' ? '/seo' : ''}`
+      return `${BASE}/_settings${route.tab === 'messages' ? '/messaggi' : route.tab === 'seo' || route.tab === 'ai' ? `/${route.tab}` : ''}`
     case 'invite':
       return `${BASE}/_invite/${route.token}`
     case 'collection':

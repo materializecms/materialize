@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import {
@@ -28,19 +29,25 @@ import {
   type StoredDocument,
   type User,
 } from '@materializecms/db'
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { type Context, Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { csrf } from 'hono/csrf'
 import { HTTPException } from 'hono/http-exception'
 import { secureHeaders } from 'hono/secure-headers'
+import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 import { serveAdmin } from './admin.ts'
+import { AiError, type AiSettings, type Conversation, complete, EMPTY_AI, isReady, publicAi, runTurn } from './ai.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import { isConfigured, type MailSettings, publicMail, sendMail, submissionText } from './mail.ts'
+import { createMcpServer } from './mcp.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
 import { hashPassword, verifyPassword } from './password.ts'
+import { fetchPublicFile, RemoteError } from './remote.ts'
 import { statusPage } from './status-page.ts'
+import { apiCaller, assistantTools } from './tools.ts'
 
 /** The installed version, from this package's package.json (same place in the sources and in the release). */
 export const VERSION: string = createRequire(import.meta.url)('../package.json').version
@@ -51,7 +58,8 @@ const RESET_TTL = 24 * 60 * 60 * 1000
 /** Where people open their one-time link: the admin's welcome screen. */
 const linkPath = (token: string) => `/admin/_invite/${token}`
 
-type Env = { Variables: { user: User } }
+/** `viaToken`: signed in with a personal access token (an MCP client, a script) instead of the panel's cookie. */
+type Env = { Variables: { user: User; viaToken?: boolean } }
 
 /** The custom code blocks in a document: it runs on the public site, so only admins may change it. */
 function embedsOf(value: unknown, out: string[] = []): string[] {
@@ -233,11 +241,28 @@ export function createApp(ctx: ServerContext) {
     })
   }
 
+  /** The bearer token of a request, if it sends one (personal access tokens). */
+  const bearerOf = (c: Context) => /^Bearer\s+(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
+
   const requireUser: MiddlewareHandler<Env> = async (c, next) => {
+    const bearer = bearerOf(c)
+    if (bearer) {
+      const user = await auth.userForToken(bearer)
+      if (!user) throw new ApiError(401, 'invalid_token', 'This access token is not valid or was revoked')
+      c.set('user', user)
+      c.set('viaToken', true)
+      return next()
+    }
     const token = getCookie(c, SESSION_COOKIE)
     const user = token ? await auth.userForSession(token) : null
     if (!user) throw new ApiError(401, 'unauthenticated', 'Sign in to continue')
     c.set('user', user)
+    await next()
+  }
+
+  /** Only from the panel: a token cannot make or revoke tokens, nor change who someone is. */
+  const requireSession: MiddlewareHandler<Env> = async (c, next) => {
+    if (c.get('viaToken')) throw new ApiError(403, 'session_required', 'Do this from the admin panel')
     await next()
   }
 
@@ -294,7 +319,9 @@ export function createApp(ctx: ServerContext) {
   }
 
   app.use('*', secureHeaders())
-  app.use('/api/*', csrf())
+  // Requests with a bearer token carry no cookie, so a forged form cannot ride on them.
+  const checkOrigin = csrf()
+  app.use('/api/*', (c, next) => (bearerOf(c) ? next() : checkOrigin(c, next)))
   // Answers change with every edit: browsers must not reuse them.
   app.use('/api/*', async (c, next) => {
     await next()
@@ -312,6 +339,23 @@ export function createApp(ctx: ServerContext) {
   app.get('/admin', (c) => c.redirect('/admin/'))
   app.get('/admin/*', (c) => serveAdmin(c, ctx.adminDir))
   app.get('/api/health', (c) => c.json({ ok: true, version: VERSION }))
+
+  // MCP (Streamable HTTP, stateless): AI clients connect with a personal access token and act as
+  // its owner through the same API, checks included.
+  app.all('/mcp', requireUser, async (c) => {
+    const auth: Record<string, string> = {}
+    const authorization = c.req.header('authorization')
+    const cookie = c.req.header('cookie')
+    if (authorization) auth.authorization = authorization
+    else if (cookie) auth.cookie = cookie
+    const server = createMcpServer(apiCaller(app.fetch, auth), VERSION)
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    })
+    await server.connect(transport)
+    return transport.handleRequest(c.req.raw)
+  })
 
   // ---------- setup & auth ----------
 
@@ -351,12 +395,30 @@ export function createApp(ctx: ServerContext) {
 
   app.get('/api/auth/me', requireUser, (c) => c.json({ user: c.get('user') }))
 
+  // ---------- personal access tokens (MCP clients, scripts) ----------
+
+  app.get('/api/tokens', requireUser, requireSession, async (c) =>
+    c.json({ tokens: await auth.listTokens(c.get('user').id) }),
+  )
+
+  app.post('/api/tokens', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ name: z.string().trim().min(1).max(80) }))
+    const { token, record } = await auth.createToken(c.get('user').id, input.name)
+    return c.json({ token, record }, 201)
+  })
+
+  app.delete('/api/tokens/:id', requireUser, requireSession, async (c) => {
+    if (!(await auth.revokeToken(c.req.param('id'), c.get('user').id)))
+      throw new ApiError(404, 'not_found', 'There is no such token')
+    return c.json({ ok: true })
+  })
+
   app.patch('/api/auth/me', requireUser, async (c) => {
     const input = await body(c, z.object({ name: z.string().trim().min(1).max(80) }))
     return c.json({ user: await auth.updateUser(c.get('user').id, input) })
   })
 
-  app.post('/api/auth/password', requireUser, async (c) => {
+  app.post('/api/auth/password', requireUser, requireSession, async (c) => {
     const input = await body(c, z.object({ current: z.string().min(1), next: z.string().min(10) }))
     const user = c.get('user')
     const hash = await auth.getPasswordHash(user.id)
@@ -382,7 +444,7 @@ export function createApp(ctx: ServerContext) {
     c.json({ users: await auth.listUsers(), invites: await auth.pendingInvites() }),
   )
 
-  app.post('/api/users/invites', requireUser, requireAdmin, async (c) => {
+  app.post('/api/users/invites', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(
       c,
       z.object({ email: z.email(), name: z.string().trim().max(80).optional(), role: roleSchema }),
@@ -412,12 +474,12 @@ export function createApp(ctx: ServerContext) {
     }
   })
 
-  app.delete('/api/users/invites/:id', requireUser, requireAdmin, async (c) => {
+  app.delete('/api/users/invites/:id', requireUser, requireSession, requireAdmin, async (c) => {
     if (!(await auth.revokeInvite(c.req.param('id')))) throw new ApiError(404, 'not_found', 'Invitation not found')
     return c.body(null, 204)
   })
 
-  app.patch('/api/users/:id', requireUser, requireAdmin, async (c) => {
+  app.patch('/api/users/:id', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     const input = await body(
       c,
@@ -429,7 +491,7 @@ export function createApp(ctx: ServerContext) {
     return c.json({ user: await auth.updateUser(target.id, input) })
   })
 
-  app.delete('/api/users/:id', requireUser, requireAdmin, async (c) => {
+  app.delete('/api/users/:id', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     if (target.id === c.get('user').id) throw new ApiError(409, 'remove_self', 'You cannot remove yourself')
     if (target.role === 'admin' && (await auth.countAdmins()) === 1) {
@@ -439,7 +501,7 @@ export function createApp(ctx: ServerContext) {
     return c.body(null, 204)
   })
 
-  app.post('/api/users/:id/reset', requireUser, requireAdmin, async (c) => {
+  app.post('/api/users/:id/reset', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     const { token, invite } = await auth.createInvite({
       kind: 'reset',
@@ -649,11 +711,11 @@ export function createApp(ctx: ServerContext) {
     }
   }
 
-  app.get('/api/mail', requireUser, requireAdmin, async (c) =>
+  app.get('/api/mail', requireUser, requireSession, requireAdmin, async (c) =>
     c.json({ mail: publicMail(await settings.get<MailSettings>('mail')) }),
   )
 
-  app.put('/api/mail', requireUser, requireAdmin, async (c) => {
+  app.put('/api/mail', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(
       c,
       z.object({
@@ -676,7 +738,7 @@ export function createApp(ctx: ServerContext) {
     return c.json({ mail: publicMail(mail) })
   })
 
-  app.post('/api/mail/test', requireUser, requireAdmin, async (c) => {
+  app.post('/api/mail/test', requireUser, requireSession, requireAdmin, async (c) => {
     const mail = await settings.get<MailSettings>('mail')
     if (!isConfigured(mail)) throw new ApiError(400, 'mail_not_configured', 'Email is not set up')
     const to = mail.to || c.get('user').email
@@ -693,6 +755,181 @@ export function createApp(ctx: ServerContext) {
   })
 
   // A form on the site: the message is kept, and sent by email when email is set up.
+  // ---------- AI: settings, text actions and the editor's assistant ----------
+
+  const aiSettings = async () => ({ ...EMPTY_AI, ...(await settings.get<AiSettings>('ai')) })
+  const readyAi = async () => {
+    const ai = await aiSettings()
+    if (!isReady(ai)) throw new ApiError(400, 'ai_not_configured', 'L’AI non è configurata: Impostazioni → AI e MCP')
+    return ai
+  }
+  const aiFailed = (error: unknown): never => {
+    if (error instanceof AiError) throw new ApiError(422, 'ai_failed', error.message)
+    throw error
+  }
+  const allowAi = createLimiter(40, 60_000)
+
+  app.get('/api/ai', requireUser, async (c) => {
+    const ai = await aiSettings()
+    return c.json(c.get('user').role === 'admin' ? { ai: publicAi(ai) } : { ai: { ready: isReady(ai) } })
+  })
+
+  app.put('/api/ai', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        ai: z.object({
+          provider: z.enum(['anthropic', 'openai']),
+          // Empty: keep the saved key. null: remove it.
+          apiKey: z.string().max(500).nullable().optional(),
+          baseUrl: z.union([z.url().max(500), z.literal('')]),
+          model: z.string().trim().max(120),
+        }),
+      }),
+    )
+    const before = await aiSettings()
+    const apiKey = input.ai.apiKey === null ? '' : input.ai.apiKey?.trim() || before.apiKey
+    const ai: AiSettings = { ...input.ai, apiKey }
+    await settings.set('ai', ai, c.get('user').id)
+    return c.json({ ai: publicAi(ai) })
+  })
+
+  app.post('/api/ai/test', requireUser, requireSession, requireAdmin, async (c) => {
+    const ai = await readyAi()
+    const reply = await complete(ai, { system: 'Answer with one short word.', prompt: 'Say: ok' }).catch(aiFailed)
+    return c.json({ ok: true, reply })
+  })
+
+  const TEXT_ACTIONS: Record<string, string> = {
+    rewrite: 'Rewrite it so it reads better: same meaning, similar length.',
+    shorten: 'Make it shorter, keeping what matters.',
+    expand: 'Make it a little longer and richer, without inventing facts.',
+    fix: 'Fix spelling, grammar and punctuation only; change nothing else.',
+    formal: 'Make the tone more formal and professional.',
+    friendly: 'Make the tone warmer and more conversational.',
+    seo_title: 'Write a page title for search engines, at most 60 characters, from this page content.',
+    seo_description:
+      'Write a meta description for search engines, 120 to 160 characters, from this page content: what the page offers, with a reason to click.',
+  }
+
+  app.post('/api/ai/text', requireUser, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        action: z.enum(['translate', 'custom', 'alt', ...Object.keys(TEXT_ACTIONS)]),
+        text: z.string().max(40_000).default(''),
+        /** translate: the language to translate into. custom: what to do. */
+        instruction: z.string().trim().max(500).optional(),
+        /** alt: the picture (an address in the media library). */
+        src: z.string().max(1000).optional(),
+        /** The site's language, for texts written from scratch. */
+        locale: z.string().max(20).optional(),
+      }),
+    )
+    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const lang = input.locale ?? ctx.config().locales.default
+    const system = `You edit texts for a website. Reply with the resulting text only: no quotes, no preamble, no notes. Keep the language of the text${
+      input.action === 'translate' ? ' unless asked to translate' : ''
+    }; when writing from scratch, write in the language with code "${lang}". Keep line breaks where they make sense; never add Markdown.`
+    if (input.action === 'alt') {
+      const key = /^\/media\/([^/?#@]+)/.exec(input.src ?? '')?.[1]
+      const file = key ? await files.open(decodeURIComponent(key), { width: 1024, format: 'jpg' }) : null
+      if (!file) throw new ApiError(400, 'no_image', 'Scegli prima un’immagine della libreria')
+      const data = (await readFile(file.path)).toString('base64')
+      const text = await complete(ai, {
+        system,
+        prompt: `Write the alternative text (alt) for this image on a website, in the language with code "${lang}": one sentence, at most 125 characters, describing what matters for someone who cannot see it. No "image of".`,
+        image: { data, mime: 'image/jpeg' },
+      }).catch(aiFailed)
+      return c.json({ text })
+    }
+    if (!input.text.trim()) throw new ApiError(400, 'empty_text', 'Non c’è testo su cui lavorare')
+    const task =
+      input.action === 'translate'
+        ? `Translate it into ${input.instruction || 'English'}, naturally, as a native writer would.`
+        : input.action === 'custom'
+          ? (input.instruction ?? 'Improve it.')
+          : TEXT_ACTIONS[input.action]
+    const text = await complete(ai, { system, prompt: `${task}\n\n<text>\n${input.text}\n</text>` }).catch(aiFailed)
+    return c.json({ text })
+  })
+
+  /** Conversations with the assistant, per person and chat, kept for two hours in memory. */
+  const chats = new Map<string, { conv: Conversation; at: number }>()
+
+  app.post('/api/ai/chat', requireUser, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        chatId: z.string().max(64).optional(),
+        message: z.string().trim().min(1).max(8000),
+        /** The page as the editor holds it (shared sections and components expanded). */
+        nodes: z.array(z.record(z.string(), z.unknown())).max(400),
+        page: z.object({
+          title: z.string().max(300),
+          collection: z.string().max(100),
+          url: z.string().max(500).nullish(),
+        }),
+        selected: z.array(z.string().max(100)).max(50).optional(),
+      }),
+    )
+    const user = c.get('user')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const now = Date.now()
+    for (const [k, v] of chats) if (now - v.at > 2 * 60 * 60 * 1000) chats.delete(k)
+    const chatId = input.chatId ?? crypto.randomUUID()
+    const key = `${user.id}:${chatId}`
+    const entry = chats.get(key)
+    const conv = entry && entry.conv.provider === ai.provider ? entry.conv : { provider: ai.provider, messages: [] }
+    chats.set(key, { conv, at: now })
+
+    const before = input.nodes as unknown as PageNode[]
+    const page = { nodes: before }
+    const auth: Record<string, string> = {}
+    const authorization = c.req.header('authorization')
+    const cookie = c.req.header('cookie')
+    if (authorization) auth.authorization = authorization
+    else if (cookie) auth.cookie = cookie
+    const tools = assistantTools(apiCaller(app.fetch, auth), page, ctx.config().site.name)
+    const limited = await contentOnly(user)
+    const system = `You are the assistant inside Materialize, the visual editor of the website "${ctx.config().site.name}". The person (${user.name}) is editing the page "${input.page.title}" (collection ${input.page.collection}${input.page.url ? `, address ${input.page.url}` : ''}).
+Use the tools to look at the page (get_page, get_node) and change it (edit_page). Your changes go into the editor, where the person sees them at once and can undo them; they are not published.
+Read the page before changing it. Make the changes asked, consistent with the design already there (theme colors and text styles, spacing, the look of nearby sections); prefer the section library for new sections. Keep ids of existing nodes.
+${limited ? 'This person may change only contents (texts, links, images, alt texts), not the layout or the design: do not add, remove or move nodes, and do not change styles.\n' : ''}When done, say in one or two short sentences what you changed. Reply in the person's language. If something cannot be done with the tools, say so.
+${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')} (what "this" refers to).` : ''}`
+
+    return streamSSE(c, async (stream) => {
+      const send = (data: unknown) => stream.writeSSE({ data: JSON.stringify(data) })
+      try {
+        const reply = await runTurn(ai, conv, {
+          system,
+          text: input.message,
+          tools,
+          onEvent: (e) => void send(e),
+        })
+        chats.set(key, { conv, at: Date.now() })
+        if (page.nodes !== before) {
+          if (limited && !sameDesign(before, page.nodes))
+            await send({
+              type: 'error',
+              message: 'Puoi cambiare solo i contenuti: le modifiche al layout non sono state applicate.',
+            })
+          else await send({ type: 'page', nodes: page.nodes })
+        }
+        await send({ type: 'text', text: reply })
+        await send({ type: 'done', chatId })
+      } catch (error) {
+        if (!(error instanceof AiError)) console.error(error)
+        // A failed turn leaves the conversation as it was before it.
+        chats.delete(key)
+        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'done', chatId })
+      }
+    })
+  })
+
   app.post('/api/forms/:form', async (c) => {
     const form = c.req.param('form').slice(0, 80)
     const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'local'
@@ -752,7 +989,7 @@ export function createApp(ctx: ServerContext) {
     c.json({ editorial: (await settings.get<{ editorsContentOnly?: boolean }>('editorial')) ?? {} }),
   )
 
-  app.put('/api/editorial', requireUser, requireAdmin, async (c) => {
+  app.put('/api/editorial', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(c, z.object({ editorial: z.object({ editorsContentOnly: z.boolean().optional() }) }))
     await settings.set('editorial', input.editorial, c.get('user').id)
     return c.json({ editorial: input.editorial })
@@ -1039,6 +1276,29 @@ export function createApp(ctx: ServerContext) {
       return c.json(assetJson(asset), 201)
     },
   )
+
+  // An image from the web, for AI tools: downloaded by the server, checked like an upload.
+  app.post('/api/media/from-url', requireUser, async (c) => {
+    const input = await body(c, z.object({ url: z.url(), alt: z.string().max(500).optional() }))
+    let saved: Awaited<ReturnType<typeof files.save>>
+    let name: string
+    try {
+      const remote = await fetchPublicFile(input.url, MAX_UPLOAD)
+      name = remote.name
+      saved = await files.save(name, remote.bytes)
+    } catch (error) {
+      if (error instanceof RemoteError || error instanceof MediaError)
+        throw new ApiError(422, 'invalid_file', error.message)
+      throw error
+    }
+    const asset = await mediaStore.create({
+      ...saved,
+      filename: name.slice(0, 200),
+      alt: input.alt ?? '',
+      createdBy: c.get('user').id,
+    })
+    return c.json(assetJson(asset), 201)
+  })
 
   app.get('/api/media/:id', requireUser, async (c) => {
     const asset = await loadAsset(c.req.param('id'))

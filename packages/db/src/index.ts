@@ -1,10 +1,12 @@
 export {
+  type ApiToken,
   type AuthStore,
   createAuthStore,
   EmailTakenError,
   type Invite,
   type Member,
   type Role,
+  TOKEN_PREFIX,
   type User,
 } from './auth.ts'
 export { type Comment, type CommentStore, createCommentStore } from './comments.ts'

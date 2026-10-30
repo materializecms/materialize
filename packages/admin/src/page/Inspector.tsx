@@ -43,6 +43,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
 import type { AlignHow } from './align.ts'
@@ -446,7 +447,17 @@ export function Inspector({
       )}
 
       {(isT || isB) && (
-        <Section title="Contenuto">
+        <Section
+          title="Contenuto"
+          action={
+            <AiTextMenu
+              text={isT ? plainText(node) : (node.text ?? '')}
+              onResult={(text) =>
+                onContent(isT ? { text, runs: null } : { text: text.replace(/\n/g, ' ') }, `ai:${node.id}`)
+              }
+            />
+          }
+        >
           <Textarea
             aria-label="Testo"
             value={isT ? plainText(node) : (node.text ?? '')}
@@ -523,13 +534,22 @@ export function Inspector({
               </span>
             )}
           </button>
-          <input
-            aria-label="Testo alternativo"
-            value={node.alt ?? ''}
-            placeholder="Descrivi l’immagine a chi non la vede"
-            onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
-            className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
-          />
+          <div className="flex items-center gap-1">
+            <input
+              aria-label="Testo alternativo"
+              value={node.alt ?? ''}
+              placeholder="Descrivi l’immagine a chi non la vede"
+              onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
+              className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+            />
+            <AiButton
+              action="alt"
+              src={node.src ?? undefined}
+              label=""
+              title="Descrivi l’immagine con l’AI"
+              onResult={(alt) => onContent({ alt }, `ai:${node.id}`)}
+            />
+          </div>
           <Row label="Proporzioni">
             <Select
               label="Proporzioni"

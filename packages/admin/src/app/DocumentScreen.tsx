@@ -336,7 +336,13 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
 
   const visibleIssues = useMemo(() => (showErrors ? issues : []), [showErrors, issues])
   const formState = useMemo(
-    () => ({ issues: visibleIssues, docTitle: title, docUrl: doc?.url ?? null, siteUrl: schema.site.url }),
+    () => ({
+      issues: visibleIssues,
+      docTitle: title,
+      docUrl: doc?.url ?? null,
+      siteUrl: schema.site.url,
+      docText: () => wordsOf(latest.current.value).join('\n').slice(0, 20_000),
+    }),
     [visibleIssues, title, doc?.url, schema.site.url],
   )
 
@@ -626,6 +632,22 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
       </Dialog>
     </FormContext.Provider>
   )
+}
+
+/** Every piece of text in a document (fields, page texts, rich text), in reading order. */
+function wordsOf(value: unknown, out: string[] = [], key = ''): string[] {
+  if (typeof value === 'string') {
+    // Addresses, ids and settings are not words.
+    if (
+      value.trim() &&
+      !/^(src|href|id|url|slug|icon|svg|html|style|type|layout|color|bg|anim|.*Id)$/.test(key) &&
+      !/^[#/]|^https?:/.test(value)
+    )
+      out.push(value.trim())
+  } else if (Array.isArray(value)) for (const v of value) wordsOf(v, out, key)
+  else if (value && typeof value === 'object')
+    for (const [k, v] of Object.entries(value)) if (k !== 'seo' && k !== 'over') wordsOf(v, out, k)
+  return out
 }
 
 function SaveState({

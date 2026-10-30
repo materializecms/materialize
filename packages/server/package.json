@@ -8,10 +8,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@hono/node-server": "2.1.5",
     "@materializecms/admin": "0.1.0",
     "@materializecms/core": "0.1.0",
     "@materializecms/db": "0.1.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "hono": "4.13.14",
     "nodemailer": "10.1.1",
     "sharp": "0.35.5",

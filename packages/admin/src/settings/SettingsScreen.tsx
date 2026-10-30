@@ -6,12 +6,13 @@ import { Button, EmptyState, IconButton, Input, Segmented, Spinner, toast } from
 import { ApiError, api, type MailSettings } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
+import { AiScreen } from './AiSettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
 
 /** Site settings: outgoing email (SMTP), search engines, and the messages sent from the site's forms. */
-export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | 'seo' }) {
+export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | 'seo' | 'ai' }) {
   const { user } = useSession()
   const unread = useQuery({ queryKey: ['submissions'], queryFn: () => api.submissions() }).data?.unread ?? 0
   return (
@@ -27,12 +28,15 @@ export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | '
           options={[
             { value: 'mail', label: 'Email' },
             { value: 'seo', label: 'SEO' },
+            { value: 'ai', label: 'AI e MCP' },
             { value: 'messages', label: unread ? `Messaggi · ${unread}` : 'Messaggi' },
           ]}
         />
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'messages' ? (
+        {tab === 'ai' ? (
+          <AiScreen />
+        ) : tab === 'messages' ? (
           <Messages canDelete={user.role === 'admin'} />
         ) : tab === 'seo' ? (
           <SeoSettings editable={user.role === 'admin'} />

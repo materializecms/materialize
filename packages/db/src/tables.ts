@@ -135,6 +135,26 @@ export const comments = sqliteTable(
   (t) => [index('comments_document').on(t.documentId)],
 )
 
+/**
+ * Personal access tokens, for programs acting as a person (an MCP client, a script). Like sessions,
+ * only a hash is stored; `hint` keeps the last characters so people can tell them apart.
+ */
+export const apiTokens = sqliteTable(
+  'api_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    hint: text('hint').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('api_tokens_user').on(t.userId)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -244,5 +264,17 @@ export const MIGRATIONS: string[][] = [
       created_at INTEGER NOT NULL
     )`,
     'CREATE INDEX IF NOT EXISTS comments_document ON comments (document_id)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS api_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      hint TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      last_used_at INTEGER
+    )`,
+    'CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id)',
   ],
 ]

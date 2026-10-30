@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Images, Search, Trash2, Upload as UploadIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
+import { AiButton } from '../components/AiMenu.tsx'
 import { Button, Dialog, IconButton, Input, Spinner, Textarea, toast } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
@@ -90,10 +91,10 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
   const [confirm, setConfirm] = useState(false)
   const usage = detail.data?.usage
 
-  const saveAlt = async () => {
-    if (alt === (detail.data?.alt ?? asset.alt)) return
+  const saveAlt = async (value = alt) => {
+    if (value === (detail.data?.alt ?? asset.alt)) return
     try {
-      await api.updateMedia(asset.id, { alt })
+      await api.updateMedia(asset.id, { alt: value })
       queryClient.invalidateQueries({ queryKey: ['media'] })
       queryClient.invalidateQueries({ queryKey: ['media-item', asset.id] })
       setSaved(true)
@@ -162,11 +163,24 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
           <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-fg2">
             Testo alternativo
             {saved && <Check className="size-3.5 text-ok" />}
+            {asset.mime.startsWith('image/') && (
+              <span className="ml-auto">
+                <AiButton
+                  action="alt"
+                  src={asset.url}
+                  label="Descrivi con l’AI"
+                  onResult={(text) => {
+                    setAlt(text)
+                    void saveAlt(text)
+                  }}
+                />
+              </span>
+            )}
           </span>
           <Textarea
             value={alt}
             onChange={(e) => setAlt(e.target.value)}
-            onBlur={saveAlt}
+            onBlur={() => saveAlt()}
             placeholder="Descrivi l’immagine a chi non può vederla"
           />
           <span className="mt-1 block text-[12px] text-fg3">Proposto quando scegli l’immagine in un documento.</span>

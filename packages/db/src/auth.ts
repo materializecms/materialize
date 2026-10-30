@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { and, asc, count, eq, gt, lt, ne, sql } from 'drizzle-orm'
 import type { Db } from './database.ts'
-import { invites, sessions, users } from './tables.ts'
+import { apiTokens, invites, sessions, users } from './tables.ts'
 
 export type Role = 'admin' | 'editor'
 
@@ -28,6 +28,19 @@ export interface Invite {
   createdAt: Date
   expiresAt: Date
 }
+
+/** A personal access token as listed: the secret itself is shown only once, when created. */
+export interface ApiToken {
+  id: string
+  name: string
+  /** The last characters of the secret, to tell tokens apart. */
+  hint: string
+  createdAt: Date
+  lastUsedAt: Date | null
+}
+
+/** Prefix of every personal access token, so they are easy to recognise (and to scan for if leaked). */
+export const TOKEN_PREFIX = 'mzp_'
 
 /** Raised when an email already belongs to someone. */
 export class EmailTakenError extends Error {
@@ -83,6 +96,50 @@ export function createAuthStore(db: Db) {
       }
       const user = await db.query.users.findFirst({ where: eq(users.id, session.userId) })
       return user ? { id: user.id, email: user.email, name: user.name, role: user.role } : null
+    },
+
+    /** A new personal access token for someone: returns the secret, which is never stored. */
+    async createToken(userId: string, name: string): Promise<{ token: string; record: ApiToken }> {
+      const token = `${TOKEN_PREFIX}${randomBytes(32).toString('base64url')}`
+      const record = {
+        id: randomUUID(),
+        name: name.trim(),
+        hint: token.slice(-4),
+        createdAt: new Date(),
+        lastUsedAt: null,
+      }
+      await db.insert(apiTokens).values({ ...record, userId, tokenHash: hashToken(token) })
+      return { token, record }
+    },
+
+    async listTokens(userId: string): Promise<ApiToken[]> {
+      const rows = await db.query.apiTokens.findMany({
+        where: eq(apiTokens.userId, userId),
+        orderBy: asc(apiTokens.createdAt),
+      })
+      return rows.map(({ id, name, hint, createdAt, lastUsedAt }) => ({ id, name, hint, createdAt, lastUsedAt }))
+    },
+
+    /** Only the owner can revoke a token. */
+    async revokeToken(id: string, userId: string): Promise<boolean> {
+      const res = await db.delete(apiTokens).where(and(eq(apiTokens.id, id), eq(apiTokens.userId, userId)))
+      return res.rowsAffected > 0
+    },
+
+    /** Who a token belongs to; notes when it was last used (at most once a minute). */
+    async userForToken(token: string): Promise<User | null> {
+      if (!token.startsWith(TOKEN_PREFIX)) return null
+      const row = await db.query.apiTokens.findFirst({ where: eq(apiTokens.tokenHash, hashToken(token)) })
+      if (!row) return null
+      const user = await db.query.users.findFirst({ where: eq(users.id, row.userId) })
+      if (!user) return null
+      const now = Date.now()
+      if (!row.lastUsedAt || now - row.lastUsedAt.getTime() > 60_000)
+        await db
+          .update(apiTokens)
+          .set({ lastUsedAt: new Date(now) })
+          .where(eq(apiTokens.id, row.id))
+      return { id: user.id, email: user.email, name: user.name, role: user.role }
     },
 
     async deleteSession(token: string): Promise<void> {

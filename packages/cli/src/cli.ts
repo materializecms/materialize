@@ -5,7 +5,7 @@ import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
 import { type Redirect, resolveRedirect } from '@materializecms/core/seo'
 import { createAuthStore, createContentStore, createSettingsStore } from '@materializecms/db'
-import { createFonts, createMediaFiles, startServer, VERSION } from '@materializecms/server'
+import { apiCaller, createFonts, createMcpServer, createMediaFiles, startServer, VERSION } from '@materializecms/server'
 import { findConfig, loadConfig } from './load-config.ts'
 import { buildSite, exportFonts, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 
@@ -20,10 +20,14 @@ ${accent('materialize')} ${dim(VERSION)}
   materialize dev      Avvia CMS e sito, ricarica lo schema a ogni salvataggio
   materialize build    Genera il sito statico in dist/client, immagini comprese
   materialize start    Avvia CMS e sito in produzione (il sito si rigenera a ogni pubblicazione)
+  materialize mcp      Server MCP su stdio per i client AI locali (serve il CMS avviato)
   materialize --help   Mostra questo aiuto
 
 Opzioni
   --port <numero>      Porta del server (predefinita: quella del config, 4321)
+  --url <indirizzo>    Con mcp: il CMS a cui collegarsi (predefinito: http://localhost:<porta>)
+
+Il server MCP usa un token personale (Impostazioni → AI e MCP) in MATERIALIZE_TOKEN.
 `
 
 function summary(config: MaterializeConfig): string {
@@ -166,9 +170,39 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   process.on('SIGTERM', stop)
 }
 
+/**
+ * MCP over stdio, for AI clients that start a local process: the same tools as /mcp, sent to a
+ * running CMS with a personal access token. Nothing but the protocol may go to stdout.
+ */
+async function mcp(args: string[]): Promise<void> {
+  const token = process.env.MATERIALIZE_TOKEN?.trim()
+  if (!token) {
+    console.error('Manca MATERIALIZE_TOKEN: crea un token in Impostazioni → AI e MCP e passalo al client.')
+    process.exit(1)
+  }
+  const flag = args.indexOf('--url')
+  let url = flag >= 0 ? args[flag + 1] : process.env.MATERIALIZE_URL
+  if (!url) {
+    const path = findConfig(process.cwd())
+    const port = path ? (await loadConfig(path)).server.port : 4321
+    url = `http://localhost:${port}`
+  }
+  const base = url.replace(/\/+$/, '')
+  const health = await fetch(`${base}/api/health`).catch(() => null)
+  if (!health?.ok) {
+    console.error(`Il CMS non risponde su ${base}: avvialo con materialize dev (o start), oppure indica --url.`)
+    process.exit(1)
+  }
+  const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
+  const server = createMcpServer(apiCaller(fetch, { authorization: `Bearer ${token}` }, base), VERSION)
+  await server.connect(new StdioServerTransport())
+}
+
 const [command = 'help', ...args] = process.argv.slice(2)
 if (command === 'dev' || command === 'start' || command === 'build') {
   await run(command, args)
+} else if (command === 'mcp') {
+  await mcp(args)
 } else if (command === '--version' || command === '-v') {
   console.log(VERSION)
 } else {

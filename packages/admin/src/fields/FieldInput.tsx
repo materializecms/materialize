@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ChevronRight, Plus, Trash2, Wand2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
+import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
 import { Button, cx, IconButton, Input, Segmented, Switch, Textarea } from '../components/ui.tsx'
 import { api, type FieldDescription } from '../lib/api.ts'
 import { emptyValue, move, optionList, type Path, pathKey } from '../lib/doc.ts'
@@ -87,6 +88,16 @@ export function Field(props: FieldProps) {
           {field.required && <span className="ml-0.5 text-fg3">*</span>}
         </label>
         <Counter field={field} value={props.value} />
+        {field.kind === 'text' && (
+          <span className={cx('self-center', typeof field.options.max !== 'number' && 'ml-auto')}>
+            <AiTextMenu
+              text={typeof props.value === 'string' ? props.value : ''}
+              onResult={(text) =>
+                props.onChange(field.options.multiline ? text : text.replace(/\n/g, ' '), `ai:${pathKey(path)}`)
+              }
+            />
+          </span>
+        )}
       </div>
       <FieldControl {...props} />
       {field.description && !inline && <p className="mt-1.5 text-[12px] text-fg3">{field.description}</p>}
@@ -417,7 +428,7 @@ const SCHEMA_HINTS: Record<string, string> = {
 }
 
 function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; path: Path }) {
-  const { docTitle, docUrl, siteUrl } = useForm()
+  const { docTitle, docUrl, siteUrl, docText } = useForm()
   const { schema } = useSession()
   const saved = useQuery({ queryKey: ['seo'], queryFn: api.seo, staleTime: 60_000 }).data?.seo
   const site = { ...saved, siteName: saved?.siteName || schema.site.name }
@@ -489,6 +500,24 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               {value.socialDescription || description || ''}
             </div>
           </div>
+        </div>
+      )}
+      {docText && (
+        <div className="-mb-1 flex justify-end gap-1">
+          <AiButton
+            action="seo_title"
+            text={docText()}
+            label="Scrivi il titolo"
+            title="Il titolo per Google, scritto dall’AI dal contenuto della pagina"
+            onResult={(t) => set('title', t, 'ai:seo')}
+          />
+          <AiButton
+            action="seo_description"
+            text={docText()}
+            label="Scrivi la descrizione"
+            title="La descrizione per Google, scritta dall’AI dal contenuto della pagina"
+            onResult={(t) => set('description', t, 'ai:seo')}
+          />
         </div>
       )}
       {field('title', seoField('title', 'text', 'Titolo per i motori di ricerca', { max: 70, placeholder: title }))}

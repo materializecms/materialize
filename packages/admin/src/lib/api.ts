@@ -110,6 +110,48 @@ export interface MailSettings {
   hasPassword?: boolean
 }
 
+/** The AI behind the assistant and the text actions: the key never comes back. */
+export interface AiSettings {
+  provider: 'anthropic' | 'openai'
+  baseUrl: string
+  model: string
+  hasKey?: boolean
+  /** The server has ANTHROPIC_API_KEY in its environment. */
+  envKey?: boolean
+  ready: boolean
+}
+
+/** A personal access token as listed (the secret is shown only when created). */
+export interface ApiToken {
+  id: string
+  name: string
+  hint: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+export type TextAction =
+  | 'rewrite'
+  | 'shorten'
+  | 'expand'
+  | 'fix'
+  | 'formal'
+  | 'friendly'
+  | 'translate'
+  | 'custom'
+  | 'seo_title'
+  | 'seo_description'
+  | 'alt'
+
+/** What the assistant reports while it works, then its answer and the changed page. */
+export type ChatEvent =
+  | { type: 'status'; text: string }
+  | { type: 'tool'; name: string; title: string }
+  | { type: 'text'; text: string }
+  | { type: 'page'; nodes: PageNode[] }
+  | { type: 'error'; message: string }
+  | { type: 'done'; chatId: string }
+
 export interface Submission {
   id: string
   form: string
@@ -189,6 +231,8 @@ const MESSAGES: Record<string, string> = {
   invalid_link: 'Il link non è valido o è scaduto: chiedine uno nuovo a chi ti ha invitato',
   wrong_password: 'La password attuale non è corretta',
   mail_not_configured: 'Prima configura l’invio delle email: server e mittente',
+  ai_not_configured: 'L’AI non è configurata: Impostazioni → AI e MCP',
+  session_required: 'Questa azione si fa dal pannello',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -231,6 +275,62 @@ export const api = {
   saveMail: (mail: MailSettings & { pass?: string | null }) =>
     request<{ mail: MailSettings }>('PUT', '/mail', { mail }),
   testMail: () => request<{ ok: true; to: string }>('POST', '/mail/test'),
+  ai: () => request<{ ai: AiSettings }>('GET', '/ai'),
+  saveAi: (ai: Omit<AiSettings, 'ready' | 'hasKey' | 'envKey'> & { apiKey?: string | null }) =>
+    request<{ ai: AiSettings }>('PUT', '/ai', { ai }),
+  testAi: () => request<{ ok: true; reply: string }>('POST', '/ai/test'),
+  aiText: (input: { action: TextAction; text?: string; instruction?: string; src?: string; locale?: string }) =>
+    request<{ text: string }>('POST', '/ai/text', input),
+  tokens: () => request<{ tokens: ApiToken[] }>('GET', '/tokens'),
+  createToken: (name: string) => request<{ token: string; record: ApiToken }>('POST', '/tokens', { name }),
+  revokeToken: (id: string) => request<{ ok: true }>('DELETE', `/tokens/${id}`),
+  /** A turn with the assistant: events arrive as the server sends them. */
+  chat: async (
+    input: {
+      chatId?: string
+      message: string
+      nodes: PageNode[]
+      page: { title: string; collection: string; url?: string | null }
+      selected?: string[]
+    },
+    onEvent: (e: ChatEvent) => void,
+    signal?: AbortSignal,
+  ) => {
+    let res: Response
+    try {
+      res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+        signal,
+      })
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') throw error
+      throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+    }
+    if (!res.ok || !res.body) throw errorFrom(res.status, await res.json().catch(() => null))
+    // Server-sent events: "data: {...}" lines, a blank line after each.
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+    let buffer = ''
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += value
+      let end = buffer.indexOf('\n\n')
+      while (end >= 0) {
+        const chunk = buffer.slice(0, end)
+        buffer = buffer.slice(end + 2)
+        const data = chunk
+          .split('\n')
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.slice(5).trimStart())
+          .join('\n')
+        if (data) onEvent(JSON.parse(data) as ChatEvent)
+        end = buffer.indexOf('\n\n')
+      }
+    }
+  },
   submissions: (params: { limit?: number; offset?: number } = {}) =>
     request<{ items: Submission[]; total: number; unread: number }>('GET', `/submissions${q(params)}`),
   markSubmission: (id: string, read: boolean) => request<{ ok: true }>('PATCH', `/submissions/${id}`, { read }),

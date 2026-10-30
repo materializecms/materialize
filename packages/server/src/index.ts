@@ -7,8 +7,10 @@ import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'
 export { createFonts, type FontInfo, type Fonts } from './fonts.ts'
+export { createMcpServer, registerTools } from './mcp.ts'
 export { createMediaFiles, type MediaFiles } from './media.ts'
 export { hashPassword, verifyPassword } from './password.ts'
+export { apiCaller, siteTools } from './tools.ts'
 
 /** Serves the public site: every request outside /api, /admin and /media goes here. */
 export type SiteHandler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
@@ -28,7 +30,7 @@ export interface ServerOptions {
   onPublish?: () => void
 }
 
-const OWN = /^\/(api|admin|media|fonts)(\/|\?|$)/
+const OWN = /^\/(api|admin|media|fonts|mcp)(\/|\?|$)/
 
 export async function startServer(initial: MaterializeConfig, options: ServerOptions = {}): Promise<RunningServer> {
   let config = initial

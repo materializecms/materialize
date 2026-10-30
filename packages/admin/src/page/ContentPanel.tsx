@@ -2,6 +2,7 @@ import { iconSvg } from '@materializecms/core/icons'
 import type { NodeProps, PageNode, Run } from '@materializecms/core/page'
 import { Globe, ImagePlus, Link2, ListTree } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
+import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
 import { cx } from '../components/ui.tsx'
 import { domToRuns, simplify } from './runs.ts'
 
@@ -218,17 +219,40 @@ export function ContentPanel({
                     selected === n.id && 'ring-2 ring-accent/40 ring-offset-4 ring-offset-panel',
                   )}
                 >
-                  <div className="text-[11px] text-fg3">
-                    {n.type === 'image'
-                      ? 'Immagine'
-                      : n.type === 'button'
-                        ? 'Pulsante'
-                        : n.type === 'icon'
-                          ? 'Icona'
-                          : n.type === 'input'
-                            ? 'Campo del modulo'
-                            : (STYLE_LABEL[n.style ?? ''] ?? 'Testo')}
-                    {bound && <span> · {bound}</span>}
+                  <div className="flex min-h-6 items-center gap-1 text-[11px] text-fg3">
+                    <span className="min-w-0 flex-1 truncate">
+                      {n.type === 'image'
+                        ? 'Immagine'
+                        : n.type === 'button'
+                          ? 'Pulsante'
+                          : n.type === 'icon'
+                            ? 'Icona'
+                            : n.type === 'input'
+                              ? 'Campo del modulo'
+                              : (STYLE_LABEL[n.style ?? ''] ?? 'Testo')}
+                      {bound && <span> · {bound}</span>}
+                    </span>
+                    {!bound && (n.type === 'text' || n.type === 'button') && (
+                      <AiTextMenu
+                        text={plain(n)}
+                        onResult={(text) =>
+                          onContent(
+                            n.id,
+                            n.type === 'text' ? { text, runs: null } : { text: text.replace(/\n/g, ' ') },
+                            `ai:${n.id}`,
+                          )
+                        }
+                      />
+                    )}
+                    {!bound && n.type === 'image' && (
+                      <AiButton
+                        action="alt"
+                        src={n.src ?? undefined}
+                        label="Descrivi"
+                        title="Scrivi la descrizione con l’AI"
+                        onResult={(alt) => onContent(n.id, { alt }, `ai:${n.id}`)}
+                      />
+                    )}
                   </div>
                   {bound ? (
                     <p className="truncate text-[12.5px] text-fg3 italic">
