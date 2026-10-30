@@ -1,6 +1,7 @@
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Data } from '../lib/api.ts'
+import { EMBED_FRAME, writeFrame } from '../lib/frames.ts'
 
 /**
  * The page rendered by the site itself (its layout and block components), inside an iframe.
@@ -122,7 +123,8 @@ export function SiteCanvas(props: SiteCanvasProps) {
     const doc = iframe.contentDocument
     if (!s.loaded || !doc?.body) {
       s.html = html
-      iframe.srcdoc = html
+      // Written into the empty frame page once it is there (see onLoad).
+      if (doc?.documentElement.hasAttribute('data-mz-blank')) writeFrame(doc, html)
       return
     }
     // Keep the text someone is typing on the canvas: finish the swap when they leave the field.
@@ -223,7 +225,11 @@ export function SiteCanvas(props: SiteCanvasProps) {
     const doc = iframe?.contentDocument
     if (!doc) return
     const s = state.current
-    // The empty frame also fires load before the first render arrives.
+    // The empty frame page: the render goes in when it has arrived (also after a reload).
+    if (doc.documentElement.hasAttribute('data-mz-blank')) {
+      if (s.html) writeFrame(doc, s.html)
+      return
+    }
     if (!s.html) return
     // A later load is a reload (the site's code changed): it shows the first render again, so refresh it.
     const reloaded = s.loaded
@@ -392,6 +398,7 @@ export function SiteCanvas(props: SiteCanvasProps) {
       <div className="flex h-full justify-center px-8 pt-6">
         <iframe
           ref={frame}
+          src={EMBED_FRAME}
           title="Anteprima della pagina"
           onLoad={onLoad}
           className="shrink-0 rounded-md bg-white shadow-[0_0_0_1px_rgba(0,0,0,.06),0_8px_40px_rgba(0,0,0,.08)] transition-[width] duration-200"

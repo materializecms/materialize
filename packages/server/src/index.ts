@@ -6,6 +6,8 @@ import { type Database, openDatabase } from '@materializecms/db'
 import { createApp } from './app.ts'
 
 export { createApp, type ServerContext, VERSION } from './app.ts'
+export { extractTarGz } from './archive.ts'
+export { restoreMedia } from './backups.ts'
 export { createFonts, type FontInfo, type Fonts } from './fonts.ts'
 export { createMcpServer, registerTools } from './mcp.ts'
 export { createMediaFiles, type MediaFiles } from './media.ts'

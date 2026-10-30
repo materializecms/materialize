@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './app/App.tsx'
 import { Toaster } from './components/ui.tsx'
 import { ApiError } from './lib/api.ts'
+import { fillEmbedFrames } from './lib/frames.ts'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -15,6 +16,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+fillEmbedFrames()
 
 const root = document.getElementById('root')
 if (root) {

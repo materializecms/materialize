@@ -182,12 +182,25 @@ npm run build       # compila il pannello
 # nella cartella del sito
 npx materialize build   # genera il sito statico in dist/, da pubblicare su qualsiasi hosting
 npx materialize start   # produzione: sito statico, pannello e rigenerazione a ogni pubblicazione
+npx materialize restore <file>   # rimette un backup o l'archivio completo (a server fermo)
 npm test            # test (Vitest)
 npm run typecheck   # TypeScript 7
 npm run lint        # Biome
 npm run check       # tutto quanto sopra
+npm run audit       # vulnerabilità note nelle dipendenze
 npm run release     # prepara i pacchetti npm in .release/ (non pubblica nulla)
 ```
+
+## Sicurezza
+
+Il pannello si protegge da solo:
+- limiti agli accessi falliti;
+- verifica in due passaggi;
+- regole CSP;
+- registro delle attività;
+- backup giornalieri del database e delle immagini, e un archivio completo da scaricare.
+
+HTTPS, proxy, Cloudflare, firewall e copie fuori dal server spettano a chi mette online il sito: sono spiegati in [docs/sicurezza.md](docs/sicurezza.md). Lo stato del singolo sito si vede in Impostazioni → Sicurezza.
 
 ## Pubblicare su npm
 

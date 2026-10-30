@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { Readable } from 'node:stream'
 import { getConnInfo } from '@hono/node-server/conninfo'
 import {
   type Collection,
@@ -62,6 +64,8 @@ import {
   runTurn,
   translateTexts,
 } from './ai.ts'
+import { type ArchiveEntry, folderEntries, tarGz } from './archive.ts'
+import { type BackupSettings, createBackups, DEFAULT_BACKUPS } from './backups.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import { isConfigured, type MailSettings, publicMail, sendMail, submissionText } from './mail.ts'
 import { createMcpServer } from './mcp.ts'
@@ -222,6 +226,32 @@ export function createApp(base: ServerContext) {
   const submissions = createSubmissionStore(ctx.database.db)
   const comments = createCommentStore(ctx.database.db)
   const activityLog = createActivityStore(ctx.database.db)
+  const backups = createBackups(ctx.database, () => ctx.config().media.dir)
+  const backupSettings = async (): Promise<BackupSettings> => ({
+    ...DEFAULT_BACKUPS,
+    ...(await settings.get<Partial<BackupSettings>>('backups')),
+  })
+  /** Once a day, a copy of the database, made by the server itself; old copies go. */
+  const autoBackup = async () => {
+    const s = await backupSettings()
+    if (!s.enabled || !backups.available()) return
+    const last = (await backups.list())[0]
+    if (last && Date.now() - last.createdAt.getTime() < 23 * 60 * 60_000) return
+    const made = await backups.create('auto')
+    await backups.prune(s.keep)
+    await backups.mirrorMedia()
+    await activityLog.record({
+      userId: null,
+      userName: '',
+      action: 'backup.created',
+      target: made.name,
+      detail: { auto: true },
+      ip: null,
+    })
+  }
+  const backupFailed = (error: unknown) => console.error('Materialize: backup not made', error)
+  setTimeout(() => void autoBackup().catch(backupFailed), 60_000).unref?.()
+  setInterval(() => void autoBackup().catch(backupFailed), 60 * 60_000).unref?.()
   /**
    * Who has a document open, in memory: each editor checks in every few seconds with the element it
    * has selected. Gone after 30 s of silence.
@@ -679,7 +709,7 @@ export function createApp(base: ServerContext) {
     access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.'],
     people: ['user.'],
     content: ['document.', 'media.', 'message.'],
-    settings: ['settings.'],
+    settings: ['settings.', 'backup.'],
   }
 
   app.get('/api/activity', requireUser, requireAdmin, async (c) => {
@@ -703,7 +733,7 @@ export function createApp(base: ServerContext) {
       status: 'ok' | 'warn' | 'bad' | 'info'
       title: string
       detail: string
-      action?: 'people' | 'profile' | 'mail'
+      action?: 'people' | 'profile' | 'mail' | 'backups'
     }
     const checks: Check[] = []
     const people = await auth.listUsers()
@@ -839,6 +869,47 @@ export function createApp(base: ServerContext) {
             .join(', ')}. Le pause finiscono da sole.`
         : 'Dopo 5 errori un’email va in pausa, dopo 20 un indirizzo: la pausa raddoppia a ogni nuovo errore.',
     })
+    if (!backups.available())
+      checks.push({
+        id: 'backups',
+        status: 'info',
+        title: 'Database ospitato da un fornitore',
+        detail:
+          'I backup del database li fa il fornitore (Turso, libSQL): controlla che siano attivi nel suo pannello.',
+      })
+    else {
+      const b = await backupSettings()
+      const last = (await backups.list())[0]
+      const age = last ? Date.now() - last.createdAt.getTime() : Number.POSITIVE_INFINITY
+      checks.push(
+        !b.enabled
+          ? {
+              id: 'backups',
+              status: 'warn',
+              title: 'Backup automatici spenti',
+              detail: last
+                ? `L’ultima copia è di ${Math.round(age / 86_400_000)} giorni fa. Riaccendili qui sotto.`
+                : 'Non c’è nessuna copia del database. Riaccendili qui sotto.',
+              action: 'backups',
+            }
+          : age > 2 * 86_400_000
+            ? {
+                id: 'backups',
+                status: last ? 'warn' : 'info',
+                title: last ? 'L’ultimo backup è vecchio' : 'Il primo backup arriva a breve',
+                detail: last
+                  ? 'Il server fa una copia al giorno mentre è acceso: se resta spento a lungo, scaricane una a mano.'
+                  : 'Il server fa una copia del database poco dopo l’avvio, poi una al giorno.',
+                action: 'backups',
+              }
+            : {
+                id: 'backups',
+                status: 'ok',
+                title: 'Backup del database ogni giorno',
+                detail: `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round(age / 3_600_000), 'hour')}, immagini comprese; ne restano ${b.keep}. Per una copia fuori dal server, scarica l’archivio completo.`,
+              },
+      )
+    }
     const tokens = await activityLog.tokens()
     const stale = tokens.filter((t) => Date.now() - (t.lastUsedAt ?? t.createdAt).getTime() > 90 * 24 * 60 * 60_000)
     if (tokens.length)
@@ -851,6 +922,95 @@ export function createApp(base: ServerContext) {
           : 'Tutti usati di recente. Ognuno può revocare i propri da Impostazioni → AI e MCP.',
       })
     return c.json({ checks })
+  })
+
+  // ---------- backups ----------
+
+  const backupState = async () => ({
+    ...(await backupSettings()),
+    available: backups.available(),
+    items: await backups.list(),
+    media: await backups.mediaCopy(),
+  })
+
+  app.get('/api/backups', requireUser, requireSession, requireAdmin, async (c) => c.json(await backupState()))
+
+  /**
+   * Everything in one .tar.gz: a fresh copy of the database, the original media and the fonts,
+   * written as it is downloaded. Works with a hosted database too, for the media.
+   */
+  app.get('/api/backups/archive', requireUser, requireSession, requireAdmin, async (c) => {
+    const work = await mkdtemp(join(tmpdir(), 'materialize-archive-'))
+    const entries: ArchiveEntry[] = []
+    if (backups.available()) {
+      const db = join(work, 'content.db')
+      await ctx.database.client.execute({ sql: 'VACUUM INTO ?', args: [db] })
+      entries.push({ name: 'content.db', path: db })
+    }
+    const mediaDir = resolve(ctx.config().media.dir)
+    entries.push(...(await folderEntries(mediaDir, 'media')))
+    entries.push(...(await folderEntries(join(dirname(mediaDir), 'fonts'), 'fonts')))
+    const manifest = join(work, 'materialize.json')
+    await writeFile(
+      manifest,
+      JSON.stringify(
+        {
+          site: ctx.config().site.name,
+          version: VERSION,
+          createdAt: new Date().toISOString(),
+          database: backups.available(),
+        },
+        null,
+        2,
+      ),
+    )
+    entries.unshift({ name: 'materialize.json', path: manifest })
+    const stream = tarGz(entries)
+    stream.on('close', () => void rm(work, { recursive: true, force: true }))
+    stream.on('error', (error) => {
+      console.error('Materialize: archive not completed', error)
+      void rm(work, { recursive: true, force: true })
+    })
+    await record(c, 'backup.archive', '', { files: entries.length })
+    const d = new Date()
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return c.body(Readable.toWeb(stream) as ReadableStream, 200, {
+      'content-type': 'application/gzip',
+      'content-disposition': `attachment; filename="materialize-${day}.tar.gz"`,
+    })
+  })
+
+  app.put('/api/backups', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ enabled: z.boolean(), keep: z.number().int().min(1).max(365) }))
+    await settings.set('backups', input, c.get('user').id)
+    await record(c, 'settings.backups', '', input)
+    return c.json(await backupState())
+  })
+
+  app.post('/api/backups', requireUser, requireSession, requireAdmin, async (c) => {
+    if (!backups.available())
+      throw new ApiError(409, 'backups_unavailable', 'The database is hosted: its provider keeps the backups')
+    const made = await backups.create()
+    await backups.prune((await backupSettings()).keep)
+    await backups.mirrorMedia()
+    await record(c, 'backup.created', made.name)
+    return c.json({ backup: made }, 201)
+  })
+
+  app.get('/api/backups/:name', requireUser, requireSession, requireAdmin, async (c) => {
+    const path = await backups.path(c.req.param('name'))
+    if (!path) throw new ApiError(404, 'not_found', 'There is no such backup')
+    await record(c, 'backup.downloaded', c.req.param('name'))
+    return c.body(await readFile(path), 200, {
+      'content-type': 'application/vnd.sqlite3',
+      'content-disposition': `attachment; filename="${c.req.param('name')}"`,
+    })
+  })
+
+  app.delete('/api/backups/:name', requireUser, requireSession, requireAdmin, async (c) => {
+    if (!(await backups.remove(c.req.param('name')))) throw new ApiError(404, 'not_found', 'There is no such backup')
+    await record(c, 'backup.deleted', c.req.param('name'))
+    return c.json({ ok: true })
   })
 
   app.put('/api/security', requireUser, requireSession, requireAdmin, async (c) => {

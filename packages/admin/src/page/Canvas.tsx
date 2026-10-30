@@ -17,6 +17,7 @@ import { Bold, ImagePlus, Italic, Link2, Link2Off } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { cx } from '../components/ui.tsx'
+import { EMBED_FRAME } from '../lib/frames.ts'
 import { domToRuns } from './runs.ts'
 
 export type Mode = 'design' | 'content'
@@ -283,6 +284,7 @@ export function Canvas({
         srcset: librarySrcset,
         data,
         entry,
+        frame: EMBED_FRAME,
         // Language switchers show every language of the site.
         locale,
         alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),

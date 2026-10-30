@@ -8,6 +8,7 @@ import {
 } from '@materializecms/core/page'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
+import { EMBED_FRAME } from '../lib/frames.ts'
 
 const LABEL: Record<Breakpoint, string> = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' }
 
@@ -49,6 +50,7 @@ export function DevicesView({
         srcset: librarySrcset,
         data,
         entry,
+        frame: EMBED_FRAME,
         locale,
         alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
       }),

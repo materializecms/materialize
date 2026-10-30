@@ -108,7 +108,24 @@ export interface SecurityCheck {
   status: 'ok' | 'warn' | 'bad' | 'info'
   title: string
   detail: string
-  action?: 'people' | 'profile' | 'mail'
+  action?: 'people' | 'profile' | 'mail' | 'backups'
+}
+
+export interface BackupFile {
+  name: string
+  size: number
+  createdAt: string
+}
+
+/** Impostazioni → Sicurezza → Backup. */
+export interface BackupState {
+  enabled: boolean
+  keep: number
+  /** False when the database is hosted (Turso, libSQL): its provider keeps the copies. */
+  available: boolean
+  items: BackupFile[]
+  /** The copy of the uploaded files beside the backups. */
+  media: { files: number; size: number }
 }
 
 export interface Overview {
@@ -293,6 +310,7 @@ const MESSAGES: Record<string, string> = {
   two_factor_required: 'Questo sito richiede la verifica in due passaggi',
   two_factor_off: 'Prima attiva la verifica in due passaggi per te',
   no_setup: 'Ricomincia l’attivazione',
+  backups_unavailable: 'Il database è ospitato da un fornitore: i backup li fa lui',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -330,6 +348,10 @@ export const api = {
   activity: (params: { group?: string; before?: number }) =>
     request<{ items: ActivityEntry[] }>('GET', `/activity${q(params)}`),
   securityOverview: () => request<{ checks: SecurityCheck[] }>('GET', '/security/overview'),
+  backups: () => request<BackupState>('GET', '/backups'),
+  saveBackups: (input: { enabled: boolean; keep: number }) => request<BackupState>('PUT', '/backups', input),
+  createBackup: () => request<{ backup: BackupFile }>('POST', '/backups'),
+  removeBackup: (name: string) => request<{ ok: true }>('DELETE', `/backups/${encodeURIComponent(name)}`),
   schema: () => request<Schema>('GET', '/schema'),
   theme: () => request<{ theme: Theme }>('GET', '/theme'),
   fonts: () => request<{ items: FontInfo[] }>('GET', '/fonts'),

@@ -12,10 +12,13 @@ const config = defineConfig({
 let database: Database
 let app: ReturnType<typeof createApp>
 
+const cookies = new WeakMap<object, () => string>()
+const cookieOf = (who: object) => cookies.get(who)?.() ?? ''
+
 /** A browser of its own, with its session cookie and, optionally, its address. */
 function client(ip?: string) {
   let cookie = ''
-  return async (method: string, path: string, json?: unknown) => {
+  const call = async (method: string, path: string, json?: unknown) => {
     const res = await app.request(path, {
       method,
       headers: {
@@ -31,6 +34,8 @@ function client(ip?: string) {
     const text = await res.text()
     return { status: res.status, body: text ? JSON.parse(text) : null }
   }
+  cookies.set(call, () => cookie)
+  return call
 }
 
 let admin: ReturnType<typeof client>
@@ -224,5 +229,112 @@ describe('security overview', () => {
     const after = (await admin('GET', '/api/security/overview')).body.checks as { id: string; status: string }[]
     expect(after.find((c) => c.id === 'admins-2fa')?.status).toBe('ok')
     expect(after.find((c) => c.id === 'everyone-2fa')?.status).toBe('ok')
+  })
+})
+
+describe('backups', () => {
+  it('copy the database, keep the newest and refuse foreign names', async () => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const dir = await mkdtemp(join(tmpdir(), 'mz-backup-'))
+    const db = await openDatabase({ url: `file:${join(dir, 'content.db')}` })
+    const local = createApp({
+      config: () => ({ ...config, database: { url: `file:${join(dir, 'content.db')}` } }),
+      database: db,
+    })
+    const previous = app
+    app = local
+    try {
+      const me = client('10.0.5.1')
+      await me('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: PASSWORD })
+      expect((await me('GET', '/api/backups')).body).toMatchObject({ enabled: true, keep: 14, available: true })
+      await me('PUT', '/api/backups', { enabled: true, keep: 2 })
+      for (let i = 0; i < 3; i++) expect((await me('POST', '/api/backups')).status).toBe(201)
+      const items = (await me('GET', '/api/backups')).body.items as { name: string; size: number }[]
+      expect(items).toHaveLength(2)
+      expect(items[0]?.size).toBeGreaterThan(1000)
+
+      // The copy is a working database with the same people in it.
+      const { readFile } = await import('node:fs/promises')
+      const copy = await openDatabase({ url: `file:${join(dir, 'backups', items[0]?.name as string)}` })
+      const rows = await copy.client.execute('SELECT email FROM users')
+      expect(rows.rows[0]?.email).toBe('elena@studiorossi.it')
+      copy.close()
+      expect((await readFile(join(dir, 'backups', items[0]?.name as string))).subarray(0, 15).toString()).toBe(
+        'SQLite format 3',
+      )
+
+      expect((await me('GET', '/api/backups/..%2Fcontent.db')).status).toBe(404)
+      expect((await me('DELETE', `/api/backups/${items[1]?.name}`)).status).toBe(200)
+      const log = (await me('GET', '/api/activity?group=settings')).body.items.map((e: { action: string }) => e.action)
+      expect(log).toContain('backup.created')
+    } finally {
+      app = previous
+      db.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('are not offered for a database kept elsewhere', async () => {
+    expect((await admin('GET', '/api/backups')).body.available).toBe(false)
+    expect((await admin('POST', '/api/backups')).status).toBe(409)
+  })
+})
+
+describe('media backups and the whole archive', () => {
+  it('copy new media, keep deleted ones, and pack everything in one archive', async () => {
+    const { mkdtemp, rm, writeFile, readFile, mkdir, stat } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const { extractTarGz } = await import('../src/archive.ts')
+    const { restoreMedia } = await import('../src/backups.ts')
+    const dir = await mkdtemp(join(tmpdir(), 'mz-media-'))
+    const media = join(dir, 'media')
+    await mkdir(join(media, '.cache', 'a.jpg'), { recursive: true })
+    await writeFile(join(media, 'a.jpg'), 'immagine a')
+    await writeFile(join(media, 'b.jpg'), 'immagine b')
+    await writeFile(join(media, '.cache', 'a.jpg', '640.webp'), 'copia ridotta')
+    const url = `file:${join(dir, 'content.db')}`
+    const db = await openDatabase({ url })
+    const previous = app
+    app = createApp({ config: () => ({ ...config, database: { url }, media: { dir: media } }), database: db })
+    try {
+      const me = client('10.0.6.1')
+      await me('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: PASSWORD })
+      await me('POST', '/api/backups')
+      expect((await me('GET', '/api/backups')).body.media.files).toBe(2)
+
+      // A file deleted from the library stays in the copy.
+      await rm(join(media, 'b.jpg'))
+      await me('POST', '/api/backups')
+      expect(await readFile(join(dir, 'backups', 'media', 'b.jpg'), 'utf8')).toBe('immagine b')
+      expect(JSON.parse(await readFile(join(dir, 'backups', 'media', '.removed.json'), 'utf8'))).toHaveProperty('b.jpg')
+
+      // The whole archive, downloaded and read back: database, originals, no resized copies.
+      const res = await app.request('/api/backups/archive', {
+        headers: { origin: 'http://localhost', cookie: cookieOf(me) },
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-disposition')).toMatch(/materialize-\d{4}-\d{2}-\d{2}\.tar\.gz/)
+      const archive = join(dir, 'tutto.tar.gz')
+      await writeFile(archive, Buffer.from(await res.arrayBuffer()))
+      const out = join(dir, 'estratto')
+      const written = await extractTarGz(archive, (name) => join(out, name))
+      expect(written.sort()).toEqual(['content.db', 'materialize.json', 'media/a.jpg'])
+      expect(await readFile(join(out, 'media', 'a.jpg'), 'utf8')).toBe('immagine a')
+      const copy = await openDatabase({ url: `file:${join(out, 'content.db')}` })
+      expect((await copy.client.execute('SELECT email FROM users')).rows[0]?.email).toBe('elena@studiorossi.it')
+      copy.close()
+
+      // A restored database gets its missing images back from the media copy; nothing outside it.
+      const back = await restoreMedia(join(dir, 'content.db'), media, ['b.jpg', '../content.db', '.removed.json'])
+      expect(back).toBe(1)
+      expect(await stat(join(media, 'b.jpg')).catch(() => null)).not.toBeNull()
+    } finally {
+      app = previous
+      db.close()
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 })

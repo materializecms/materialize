@@ -789,6 +789,11 @@ export interface RenderOptions {
    * except inside bound lists, which have their own entries.
    */
   entry?: BoundEntry
+  /**
+   * Editor: an empty page that previews of custom code load into (then filled by message),
+   * instead of srcdoc frames, which would inherit the panel's security policy.
+   */
+  frame?: string
   /** The page's language, and the same page in the site's other languages, for language switchers. */
   locale?: string
   alternates?: { locale: string; url: string }[]
@@ -1907,8 +1912,13 @@ export function renderSections(
     if (n.type === 'embed') {
       // The editor shows custom code in a sandbox; the site runs it as written.
       const code = p.html ?? ''
-      if (options.editor)
-        return `<div ${attrs.join(' ')}><iframe sandbox="allow-scripts" title="${esc(p.name || 'Codice personalizzato')}" srcdoc="${esc(code)}" style="border:0;width:100%;height:100%;min-height:inherit;display:block;pointer-events:none"></iframe></div>`
+      if (options.editor) {
+        // With a frame page, the sandbox is made inside it, where the panel's policy does not reach.
+        const source = options.frame
+          ? `src="${esc(options.frame)}" data-mz-embed="${esc(code)}"`
+          : `sandbox="allow-scripts" srcdoc="${esc(code)}"`
+        return `<div ${attrs.join(' ')}><iframe title="${esc(p.name || 'Codice personalizzato')}" ${source} style="border:0;width:100%;height:100%;min-height:inherit;display:block;pointer-events:none"></iframe></div>`
+      }
       return `<div ${attrs.join(' ')}>${code}</div>`
     }
     // image

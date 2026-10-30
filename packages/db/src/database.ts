@@ -10,6 +10,8 @@ export type Db = LibSQLDatabase<typeof tables>
 export interface Database {
   db: Db
   client: Client
+  /** Where it lives: `file:…`, `:memory:` or a hosted libSQL URL. */
+  url: string
   close: () => void
 }
 
@@ -25,7 +27,7 @@ export async function openDatabase(options: { url: string; authToken?: string })
   await client.execute('PRAGMA foreign_keys = ON')
   if (options.url.startsWith('file:')) await client.execute('PRAGMA journal_mode = WAL')
   await migrate(client)
-  return { db: drizzle(client, { schema: tables }), client, close: () => client.close() }
+  return { db: drizzle(client, { schema: tables }), client, url: options.url, close: () => client.close() }
 }
 
 async function migrate(client: Client): Promise<void> {

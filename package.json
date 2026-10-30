@@ -21,7 +21,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "release": "node scripts/release.ts --pack"
+    "release": "node scripts/release.ts --pack",
+    "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

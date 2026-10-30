@@ -1,19 +1,22 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CircleAlert,
   CircleCheck,
   CircleX,
+  DatabaseBackup,
+  Download,
   FileText,
   Info,
   KeyRound,
   LogIn,
   Settings,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
+import { Button, cx, EmptyState, IconButton, Spinner, Switch, toast } from '../components/ui.tsx'
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
@@ -33,6 +36,7 @@ const SETTINGS: Record<string, string> = {
   seo: 'la SEO del sito',
   redirects: 'i reindirizzamenti',
   languages: 'le lingue del sito',
+  backups: 'i backup automatici',
 }
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */
@@ -121,6 +125,14 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `ha eliminato il file ${t}`, group: 'content' }
     case 'message.deleted':
       return { text: 'ha eliminato un messaggio ricevuto', group: 'content' }
+    case 'backup.created':
+      return { text: d.auto ? 'Backup automatico del database' : 'ha fatto un backup del database', group: 'settings' }
+    case 'backup.downloaded':
+      return { text: `ha scaricato il backup ${e.target}`, group: 'settings' }
+    case 'backup.deleted':
+      return { text: `ha eliminato il backup ${e.target}`, group: 'settings' }
+    case 'backup.archive':
+      return { text: 'ha scaricato l’archivio completo del sito', group: 'settings' }
   }
   if (kind === 'settings') return { text: `ha cambiato ${SETTINGS[what] ?? 'le impostazioni'}`, group: 'settings' }
   return { text: e.action, group: 'settings' }
@@ -158,6 +170,7 @@ export function SecuritySettings({ onOpenProfile }: { onOpenProfile: () => void 
   return (
     <div className="mx-auto max-w-3xl space-y-10 px-5 py-8">
       <Overview onOpenProfile={onOpenProfile} />
+      <BackupsSection />
       <ActivityLog />
     </div>
   )
@@ -195,15 +208,169 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
                 onClick={() =>
                   c.action === 'profile'
                     ? onOpenProfile()
-                    : navigate(c.action === 'mail' ? { name: 'settings', tab: 'mail' } : { name: 'people' })
+                    : c.action === 'backups'
+                      ? document.getElementById('backups')?.scrollIntoView({ behavior: 'smooth' })
+                      : navigate(c.action === 'mail' ? { name: 'settings', tab: 'mail' } : { name: 'people' })
                 }
               >
-                {c.action === 'profile' ? 'Attiva' : c.action === 'mail' ? 'Configura' : 'Persone'}
+                {c.action === 'profile'
+                  ? 'Attiva'
+                  : c.action === 'mail'
+                    ? 'Configura'
+                    : c.action === 'backups'
+                      ? 'Backup'
+                      : 'Persone'}
               </Button>
             )}
           </li>
         ))}
       </ul>
+    </section>
+  )
+}
+
+const size = (bytes: number) =>
+  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+/** Daily copies of the database: switch, how many to keep, make one now, download or delete. */
+function BackupsSection() {
+  const queryClient = useQueryClient()
+  const query = useQuery({ queryKey: ['backups'], queryFn: api.backups })
+  const [busy, setBusy] = useState(false)
+  if (!query.data) return <Spinner />
+  const data = query.data
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['backups'] })
+    void queryClient.invalidateQueries({ queryKey: ['security-overview'] })
+    void queryClient.invalidateQueries({ queryKey: ['activity'] })
+  }
+  const save = async (patch: Partial<{ enabled: boolean; keep: number }>) => {
+    try {
+      queryClient.setQueryData(['backups'], await api.saveBackups({ enabled: data.enabled, keep: data.keep, ...patch }))
+      refresh()
+    } catch (error) {
+      toast((error as Error).message, 'error')
+    }
+  }
+  return (
+    <section id="backups" className="scroll-mt-6 space-y-3">
+      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
+        <DatabaseBackup /> Backup
+      </h2>
+      <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-medium">Scarica tutto</div>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+            Un unico archivio con {data.available ? 'il database, ' : ''}tutte le immagini originali e i caratteri: da
+            tenere fuori dal server, o per spostare il sito. Si rimette con{' '}
+            <code className="font-mono text-[11.5px]">npx materialize restore</code>.
+          </p>
+        </div>
+        <a
+          href="/api/backups/archive"
+          download
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line2 px-2.5 text-[12px] font-medium hover:bg-hover [&_svg]:size-3.5"
+          onClick={() => {
+            toast('L’archivio si sta preparando: il download parte tra poco')
+            setTimeout(refresh, 3000)
+          }}
+        >
+          <Download /> Scarica tutto
+        </a>
+      </div>
+      {!data.available ? (
+        <p className="text-[13px] leading-relaxed text-fg2">
+          Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano
+          attivi nel suo pannello. L’archivio qui sopra contiene comunque immagini e caratteri.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+            <Switch
+              checked={data.enabled}
+              label="Backup automatici ogni giorno"
+              onChange={(enabled) => void save({ enabled })}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium">Una copia del database ogni giorno</div>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+                La fa il server mentre è acceso, nella cartella backups accanto al database. Ne tiene
+                <select
+                  value={data.keep}
+                  onChange={(e) => void save({ keep: Number(e.target.value) })}
+                  aria-label="Quante copie tenere"
+                  className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[12px] text-fg outline-none"
+                >
+                  {[7, 14, 30, 90].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+                e cancella le più vecchie. Copia anche le immagini nuove: quelle eliminate dalla libreria restano almeno
+                30 giorni.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              loading={busy}
+              onClick={async () => {
+                setBusy(true)
+                try {
+                  await api.createBackup()
+                  toast('Backup fatto')
+                  refresh()
+                } catch (error) {
+                  toast((error as Error).message, 'error')
+                } finally {
+                  setBusy(false)
+                }
+              }}
+            >
+              Fai un backup ora
+            </Button>
+          </div>
+          {data.items.length > 0 && (
+            <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
+              {data.items.map((b) => (
+                <li key={b.name} className="flex items-center gap-3 px-4 py-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-[12px]">{b.name}</div>
+                    <div className="text-[11.5px] text-fg3" title={fullDate(b.createdAt)}>
+                      {relativeTime(b.createdAt)} · {size(b.size)}
+                    </div>
+                  </div>
+                  <a
+                    href={`/api/backups/${encodeURIComponent(b.name)}`}
+                    download={b.name}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+                  >
+                    <Download /> Scarica
+                  </a>
+                  <IconButton
+                    label={`Elimina ${b.name}`}
+                    className="hover:text-danger"
+                    onClick={async () => {
+                      if (!confirm(`Eliminare il backup ${b.name}?`)) return
+                      await api.removeBackup(b.name).catch((e: Error) => toast(e.message, 'error'))
+                      refresh()
+                    }}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-[11.5px] leading-relaxed text-fg3">
+            {data.media.files > 0 && `Copia delle immagini: ${data.media.files} file, ${size(data.media.size)}. `}
+            Per rimettere un backup: ferma il server, poi nella cartella del sito{' '}
+            <code className="font-mono">npx materialize restore percorso/del/backup.db</code>. Le immagini che mancano
+            tornano dalla copia; il database di prima resta salvato tra i backup.
+          </p>
+        </>
+      )}
     </section>
   )
 }
