@@ -1193,8 +1193,23 @@ export function Inspector({
                 <Toggle
                   label="Verso destra"
                   checked={!!node.marquee.reverse}
-                  onChange={(reverse) => onContent({ marquee: { duration: node.marquee?.duration ?? 30, reverse } })}
+                  onChange={(reverse) => onContent({ marquee: { duration: 30, ...node.marquee, reverse } })}
                 />
+                <Row
+                  label="Sfuma ai lati"
+                  hint="I contenuti compaiono e svaniscono gradualmente invece di essere tagliati"
+                >
+                  <Seg
+                    value={node.marquee.fade ?? 0}
+                    onChange={(fade) => onContent({ marquee: { duration: 30, ...node.marquee, fade } })}
+                    options={[
+                      { value: 0, label: 'No' },
+                      { value: 8, label: 'Poco' },
+                      { value: 15, label: 'Medio' },
+                      { value: 25, label: 'Molto' },
+                    ]}
+                  />
+                </Row>
                 {p.layout !== 'row' && (
                   <button
                     type="button"

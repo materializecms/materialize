@@ -175,7 +175,8 @@ export interface NodeProps {
   /** Inside a bound list: which field of the entry fills this element ("title", "url", or a field name). */
   field?: string | null
   /** A frame whose children scroll endlessly sideways. */
-  marquee?: { duration: number; reverse?: boolean } | null
+  /** fade: how far in from each side the band fades out, in % of its width (0 = a sharp cut). */
+  marquee?: { duration: number; reverse?: boolean; fade?: number } | null
   // frame
   layout?: 'col' | 'row' | 'grid'
   gap?: Length
@@ -1700,6 +1701,12 @@ export function renderSections(
             // No growing in the endless track; a child's own fixed width (a logo, an icon) still applies.
             `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none}:where(.mz-page .${cls}>.mz-track>div>.mz-n){width:auto}`,
         )
+        // Soft edges: what enters and leaves fades in and out instead of being cut.
+        const fade = Math.min(40, Math.max(0, p.marquee.fade ?? 0))
+        if (fade) {
+          const mask = `linear-gradient(90deg,transparent,#000 ${fade}%,#000 ${100 - fade}%,transparent)`
+          desktop.push(`.mz-page .${cls}{-webkit-mask-image:${mask};mask-image:${mask}}`)
+        }
         // In the editor it stops under the pointer, so what is inside can be clicked.
         if (options.editor) desktop.push(`.mz-page .${cls}:hover>.mz-track{animation-play-state:paused}`)
         kids = `<div class="mz-track"><div>${kids}</div><div aria-hidden="true">${renderKids(true)}</div></div>`

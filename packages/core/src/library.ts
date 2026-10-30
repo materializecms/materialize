@@ -1467,7 +1467,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
         T('word', 'Parola', t, 'display', { width: 'hug', fontSize: '8vw', leading: 1, italic })
       const star = () => T('star', 'Separatore', '✦', 'h2', { width: 'hug', color: 'accent', fontSize: '3vw' })
       return S('Nastro di parole', { size: 's', gap: 0, topline: true, divider: true, overflow: 'hidden' }, [
-        F('Nastro', { layout: 'row', gap: '4vw', align: 'center', marquee: { duration: 40 } }, [
+        F('Nastro', { layout: 'row', gap: '4vw', align: 'center', marquee: { duration: 40, fade: 12 } }, [
           word('Architettura'),
           star(),
           word('Interni', true),
@@ -1484,7 +1484,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
         T('label', 'Etichetta', 'Hanno lavorato con noi', 'eyebrow', { color: 'muted', talign: 'center' }),
         F(
           'Nastro',
-          { layout: 'row', gap: 64, align: 'center', marquee: { duration: 30 } },
+          { layout: 'row', gap: 64, align: 'center', marquee: { duration: 30, fade: 15 } },
           [1, 2, 3, 4, 5, 6].map(() => logoTile({ tone: 2 })),
         ),
       ])
