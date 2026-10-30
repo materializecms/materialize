@@ -179,6 +179,26 @@ export const apiTokens = sqliteTable(
   (t) => [index('api_tokens_user').on(t.userId)],
 )
 
+/**
+ * What happened in the panel, for Impostazioni → Sicurezza: sign-ins, people, publishing,
+ * settings. The name is kept as it was, so entries stay readable after someone leaves.
+ */
+export const activity = sqliteTable(
+  'activity',
+  {
+    id: text('id').primaryKey(),
+    at: integer('at', { mode: 'timestamp_ms' }).notNull(),
+    userId: text('user_id'),
+    userName: text('user_name').notNull().default(''),
+    action: text('action').notNull(),
+    /** What it was done to: a page's title, a person's email… */
+    target: text('target').notNull().default(''),
+    detail: text('detail', { mode: 'json' }).$type<Record<string, unknown>>(),
+    ip: text('ip'),
+  },
+  (t) => [index('activity_at').on(t.at), index('activity_action').on(t.action, t.at)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -319,5 +339,19 @@ export const MIGRATIONS: string[][] = [
       locked_until INTEGER,
       updated_at INTEGER NOT NULL
     )`,
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS activity (
+      id TEXT PRIMARY KEY,
+      at INTEGER NOT NULL,
+      user_id TEXT,
+      user_name TEXT NOT NULL DEFAULT '',
+      action TEXT NOT NULL,
+      target TEXT NOT NULL DEFAULT '',
+      detail TEXT,
+      ip TEXT
+    )`,
+    'CREATE INDEX IF NOT EXISTS activity_at ON activity (at)',
+    'CREATE INDEX IF NOT EXISTS activity_action ON activity (action, at)',
   ],
 ]

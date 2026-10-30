@@ -89,6 +89,28 @@ export interface AccountSecurity {
   }[]
 }
 
+/** One line of the activity log. */
+export interface ActivityEntry {
+  id: string
+  seq: number
+  at: string
+  userId: string | null
+  userName: string
+  action: string
+  target: string
+  detail: Record<string, unknown> | null
+  ip: string | null
+}
+
+/** One point of the security overview, most urgent first. */
+export interface SecurityCheck {
+  id: string
+  status: 'ok' | 'warn' | 'bad' | 'info'
+  title: string
+  detail: string
+  action?: 'people' | 'profile' | 'mail'
+}
+
 export interface Overview {
   counts: { collection: string; total: number; drafts: number; changed: number }[]
   recent: (DocumentSummary & { collection: string; updatedBy: string | null })[]
@@ -305,6 +327,9 @@ export const api = {
   saveSiteSecurity: (input: { requireTwoFactor: boolean }) =>
     request<{ requireTwoFactor: boolean }>('PUT', '/security', input),
   resetTwoFactor: (userId: string) => request<{ user: User }>('DELETE', `/users/${userId}/two-factor`),
+  activity: (params: { group?: string; before?: number }) =>
+    request<{ items: ActivityEntry[] }>('GET', `/activity${q(params)}`),
+  securityOverview: () => request<{ checks: SecurityCheck[] }>('GET', '/security/overview'),
   schema: () => request<Schema>('GET', '/schema'),
   theme: () => request<{ theme: Theme }>('GET', '/theme'),
   fonts: () => request<{ items: FontInfo[] }>('GET', '/fonts'),

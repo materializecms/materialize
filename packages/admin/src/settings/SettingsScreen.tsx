@@ -7,8 +7,10 @@ import { Button, EmptyState, IconButton, Input, Segmented, Spinner, toast } from
 import { ApiError, api, type CollectionDescription, type MailSettings } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
+import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { AiScreen } from './AiSettings.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
+import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
@@ -33,8 +35,10 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   const singletons = schema.collections.filter((c) => c.singleton)
   const active = tab ?? singletons[0]?.name ?? 'mail'
   const single = singletons.find((c) => c.name === active)
+  const [profile, setProfile] = useState(false)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
         <Settings className="size-4 text-fg3" />
         <h1 className="text-[14px] font-semibold">Impostazioni</h1>
@@ -48,6 +52,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             { value: 'mail', label: 'Email' },
             { value: 'seo', label: 'SEO' },
             { value: 'languages', label: 'Lingue' },
+            { value: 'security', label: 'Sicurezza' },
             { value: 'ai', label: 'AI e MCP' },
             { value: 'messages', label: unread ? `Messaggi · ${unread}` : 'Messaggi' },
           ]}
@@ -59,6 +64,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {active === 'ai' ? (
             <AiScreen />
+          ) : active === 'security' ? (
+            <SecuritySettings onOpenProfile={() => setProfile(true)} />
           ) : active === 'languages' ? (
             <LanguagesSettings />
           ) : active === 'messages' ? (

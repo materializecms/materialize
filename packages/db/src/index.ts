@@ -1,3 +1,4 @@
+export { type ActivityEntry, type ActivityStore, createActivityStore } from './activity.ts'
 export {
   type ApiToken,
   type AuthStore,

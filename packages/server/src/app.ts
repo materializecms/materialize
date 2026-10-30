@@ -27,6 +27,7 @@ import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializ
 import {
   type AuthStore,
   type ContentStore,
+  createActivityStore,
   createAuthStore,
   createCommentStore,
   createContentStore,
@@ -220,6 +221,7 @@ export function createApp(base: ServerContext) {
   })
   const submissions = createSubmissionStore(ctx.database.db)
   const comments = createCommentStore(ctx.database.db)
+  const activityLog = createActivityStore(ctx.database.db)
   /**
    * Who has a document open, in memory: each editor checks in every few seconds with the element it
    * has selected. Gone after 30 s of silence.
@@ -279,6 +281,32 @@ export function createApp(base: ServerContext) {
       return getConnInfo(c).remote.address ?? 'local'
     } catch {
       return 'local'
+    }
+  }
+
+  /**
+   * Notes what happened in the activity log (Impostazioni → Sicurezza). `who` defaults to the
+   * signed-in person; a failure to write never stops the request.
+   */
+  const record = async (
+    c: Context,
+    action: string,
+    target = '',
+    detail: Record<string, unknown> | null = null,
+    who?: { id: string; name: string } | null,
+  ) => {
+    const user = who === undefined ? (c.get('user') as User | undefined) : who
+    try {
+      await activityLog.record({
+        userId: user?.id ?? null,
+        userName: user?.name ?? '',
+        action,
+        target,
+        detail,
+        ip: clientIp(c),
+      })
+    } catch (error) {
+      console.error('Materialize: activity not recorded', error)
     }
   }
 
@@ -434,6 +462,7 @@ export function createApp(base: ServerContext) {
       passwordHash: await hashPassword(input.password),
     })
     await startSession(c, user.id)
+    await record(c, 'user.setup', user.email, null, user)
     return c.json({ user }, 201)
   })
 
@@ -480,6 +509,7 @@ export function createApp(base: ServerContext) {
   const signIn = async (c: Context, user: User, status: 200 | 201 = 200) => {
     if (user.twoFactor) return c.json({ twoFactor: true, ticket: challenge(user.id) }, 200)
     await startSession(c, user.id)
+    await record(c, 'login.ok', user.email, null, user)
     return c.json({ user }, status)
   }
 
@@ -487,12 +517,18 @@ export function createApp(base: ServerContext) {
     const input = await body(c, credentials)
     const email = input.email.trim().toLowerCase()
     const ip = clientIp(c)
-    await checkLocks(`email:${email}`, `ip:${ip}`)
+    try {
+      await checkLocks(`email:${email}`, `ip:${ip}`)
+    } catch (error) {
+      await record(c, 'login.blocked', email, null, null)
+      throw error
+    }
     const found = await auth.findForLogin(email)
     // A password is checked even for an unknown email: the answer takes as long either way.
     const ok = await verifyPassword(input.password, found?.passwordHash ?? (await dummyHash))
     if (!found || !ok) {
       await signInFailed(email, ip, !!found)
+      await record(c, 'login.failed', email, { known: !!found }, found ? { id: found.id, name: found.name } : null)
       throw new ApiError(401, 'invalid_credentials', 'Email or password is not correct')
     }
     await auth.clearFailures(`email:${email}`)
@@ -523,6 +559,8 @@ export function createApp(base: ServerContext) {
       } else if (input.code.replace(/\s/g, '').length > 6) ok = await auth.useRecoveryCode(pending.userId, input.code)
     }
     if (!ok) {
+      const who = await auth.getUser(pending.userId)
+      await record(c, 'login.code_failed', who?.email ?? '', null, who)
       await auth.recordFailure(key, EMAIL_THRESHOLD)
       await auth.recordFailure(`ip:${clientIp(c)}`, IP_THRESHOLD)
       throw new ApiError(401, 'invalid_code', 'The code is not correct')
@@ -532,12 +570,17 @@ export function createApp(base: ServerContext) {
     const user = await auth.getUser(pending.userId)
     if (!user) throw new ApiError(401, 'unauthenticated', 'Sign in to continue')
     await startSession(c, user.id)
+    await record(c, 'login.ok', user.email, { twoFactor: true }, user)
     return c.json({ user })
   })
 
   app.post('/api/auth/logout', async (c) => {
     const token = getCookie(c, SESSION_COOKIE)
-    if (token) await auth.deleteSession(token)
+    if (token) {
+      const user = await auth.userForSession(token)
+      await auth.deleteSession(token)
+      if (user) await record(c, 'logout', user.email, null, user)
+    }
     deleteCookie(c, SESSION_COOKIE, { path: '/' })
     return c.json({ ok: true })
   })
@@ -589,6 +632,7 @@ export function createApp(base: ServerContext) {
       ])
     const codes = recoveryCodes()
     await auth.enableTwoFactor(user.id, step, codes)
+    await record(c, 'twofactor.enabled', user.email)
     return c.json({ recoveryCodes: codes })
   })
 
@@ -598,6 +642,7 @@ export function createApp(base: ServerContext) {
       throw new ApiError(409, 'two_factor_required', 'This site requires two-step verification')
     await checkPassword(c.get('user').id, input.password)
     await auth.disableTwoFactor(c.get('user').id)
+    await record(c, 'twofactor.disabled', c.get('user').email)
     return c.json({ ok: true })
   })
 
@@ -607,29 +652,213 @@ export function createApp(base: ServerContext) {
     if (!c.get('user').twoFactor) throw new ApiError(409, 'two_factor_off', 'Two-step verification is off')
     const codes = recoveryCodes()
     await auth.setRecoveryCodes(c.get('user').id, codes)
+    await record(c, 'twofactor.recovery', c.get('user').email)
     return c.json({ recoveryCodes: codes })
   })
 
   app.delete('/api/auth/sessions/:id', requireUser, requireSession, async (c) => {
     if (!(await auth.endSession(c.get('user').id, c.req.param('id'))))
       throw new ApiError(404, 'not_found', 'This device is not signed in')
+    await record(c, 'session.ended', c.get('user').email)
     return c.json({ ok: true })
   })
 
-  app.post('/api/auth/sessions/others', requireUser, requireSession, async (c) =>
-    c.json({ ended: await auth.endOtherSessions(c.get('user').id, getCookie(c, SESSION_COOKIE)) }),
-  )
+  app.post('/api/auth/sessions/others', requireUser, requireSession, async (c) => {
+    const ended = await auth.endOtherSessions(c.get('user').id, getCookie(c, SESSION_COOKIE))
+    await record(c, 'session.ended_others', c.get('user').email, { ended })
+    return c.json({ ended })
+  })
 
   // The site's rules (Persone): two-step verification for everyone.
   app.get('/api/security', requireUser, requireAdmin, async (c) =>
     c.json({ requireTwoFactor: await twoFactorRequired() }),
   )
 
+  /** Groups of the activity log, by the start of their action codes. */
+  const ACTIVITY_GROUPS: Record<string, string[]> = {
+    access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.'],
+    people: ['user.'],
+    content: ['document.', 'media.', 'message.'],
+    settings: ['settings.'],
+  }
+
+  app.get('/api/activity', requireUser, requireAdmin, async (c) => {
+    const group = c.req.query('group')
+    const before = Number(c.req.query('before'))
+    const items = await activityLog.list({
+      prefixes: group ? ACTIVITY_GROUPS[group] : undefined,
+      before: before || undefined,
+      limit: 50,
+    })
+    return c.json({ items })
+  })
+
+  /**
+   * What an administrator should look at, in order: who signs in without a second step, whether
+   * warnings can reach people by email, the connection, recent failed sign-ins, old tokens.
+   */
+  app.get('/api/security/overview', requireUser, requireAdmin, async (c) => {
+    type Check = {
+      id: string
+      status: 'ok' | 'warn' | 'bad' | 'info'
+      title: string
+      detail: string
+      action?: 'people' | 'profile' | 'mail'
+    }
+    const checks: Check[] = []
+    const people = await auth.listUsers()
+    const required = await twoFactorRequired()
+    const admins = people.filter((p) => p.role === 'admin')
+    const adminsWithout = admins.filter((p) => !p.twoFactor)
+    const without = people.filter((p) => !p.twoFactor)
+    checks.push(
+      adminsWithout.length
+        ? {
+            id: 'admins-2fa',
+            status: 'bad',
+            title:
+              adminsWithout.length === 1
+                ? 'Un amministratore entra con la sola password'
+                : `${adminsWithout.length} amministratori entrano con la sola password`,
+            detail: `${adminsWithout.map((p) => p.name).join(', ')}: chi ruba quella password controlla tutto il sito. Attivate la verifica in due passaggi dal profilo → Sicurezza.`,
+            action: adminsWithout.some((p) => p.id === c.get('user').id) ? 'profile' : 'people',
+          }
+        : {
+            id: 'admins-2fa',
+            status: 'ok',
+            title: 'Gli amministratori usano la verifica in due passaggi',
+            detail: 'Per entrare servono password e codice dal telefono.',
+          },
+    )
+    checks.push(
+      required
+        ? {
+            id: 'everyone-2fa',
+            status: 'ok',
+            title: 'Verifica in due passaggi richiesta a tutti',
+            detail: without.length
+              ? `${without.length === 1 ? 'Una persona la attiverà' : `${without.length} persone la attiveranno`} al prossimo accesso.`
+              : 'Tutti l’hanno attivata.',
+          }
+        : {
+            id: 'everyone-2fa',
+            status: without.length ? 'warn' : 'ok',
+            title: without.length
+              ? `${without.length === 1 ? 'Una persona entra' : `${without.length} persone entrano`} con la sola password`
+              : 'Tutti usano la verifica in due passaggi',
+            detail: without.length
+              ? 'Potete richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.'
+              : 'Potete anche richiederla a tutti da Persone, per chi entrerà in futuro.',
+            action: without.length ? 'people' : undefined,
+          },
+    )
+    const mail = isConfigured(await settings.get<MailSettings>('mail'))
+    checks.push(
+      mail
+        ? {
+            id: 'mail',
+            status: 'ok',
+            title: 'Gli avvisi arrivano per email',
+            detail:
+              'Tentativi di accesso falliti, cambi di indirizzo e di verifica vengono segnalati a chi riguardano.',
+          }
+        : {
+            id: 'mail',
+            status: 'warn',
+            title: 'L’invio delle email non è configurato',
+            detail:
+              'Nessuno viene avvisato di tentativi di accesso falliti o di un indirizzo cambiato, e i link per una nuova password vanno mandati a mano.',
+            action: 'mail',
+          },
+    )
+    const url = new URL(c.req.url)
+    const local = /^(localhost|127\.|\[::1\])/.test(url.hostname)
+    const secure =
+      url.protocol === 'https:' ||
+      c.req.header('x-forwarded-proto') === 'https' ||
+      !!ctx.config().site.url?.startsWith('https:')
+    checks.push(
+      local
+        ? {
+            id: 'https',
+            status: 'info',
+            title: 'Pannello aperto in locale',
+            detail: 'Online, il sito va servito in HTTPS: password e sessioni viaggiano cifrate.',
+          }
+        : secure
+          ? {
+              id: 'https',
+              status: 'ok',
+              title: 'Connessione cifrata (HTTPS)',
+              detail: 'Password e sessioni viaggiano cifrate.',
+            }
+          : {
+              id: 'https',
+              status: 'bad',
+              title: 'Il pannello non usa HTTPS',
+              detail:
+                'Password e sessioni viaggiano in chiaro: attiva HTTPS sull’hosting (Let’s Encrypt è gratuito) o metti il sito dietro Cloudflare.',
+            },
+    )
+    const forwarded = !!c.req.header('x-forwarded-for')
+    const trust = ctx.config().server.trustProxy
+    if (forwarded && !trust)
+      checks.push({
+        id: 'proxy',
+        status: 'warn',
+        title: 'Il sito è dietro un proxy, ma non lo sa',
+        detail:
+          'Tutte le richieste sembrano arrivare dallo stesso indirizzo, quindi i limiti agli accessi per indirizzo non funzionano. Imposta server: { trustProxy: true } in materialize.config.ts.',
+      })
+    else if (trust && !forwarded && !local)
+      checks.push({
+        id: 'proxy',
+        status: 'warn',
+        title: 'trustProxy è acceso, ma non arriva nessun proxy',
+        detail:
+          'Senza un proxy davanti, chiunque può dichiarare un indirizzo falso e aggirare i limiti agli accessi. Se il sito non è dietro un proxy, spegnilo in materialize.config.ts.',
+      })
+    const day = new Date(Date.now() - 24 * 60 * 60_000)
+    const failed =
+      (await activityLog.countSince('login.failed', day)) + (await activityLog.countSince('login.code_failed', day))
+    const locked = await activityLog.lockedKeys()
+    checks.push({
+      id: 'failed',
+      status: failed >= 20 || locked.length ? 'warn' : 'ok',
+      title: failed
+        ? `${failed === 1 ? 'Un accesso fallito' : `${failed} accessi falliti`} nelle ultime 24 ore`
+        : 'Nessun accesso fallito nelle ultime 24 ore',
+      detail: locked.length
+        ? `In pausa adesso: ${locked
+            .map((k) =>
+              k
+                .replace(/^email:/, '')
+                .replace(/^ip:/, 'indirizzo ')
+                .replace(/^2fa:.*/, 'un codice di verifica'),
+            )
+            .join(', ')}. Le pause finiscono da sole.`
+        : 'Dopo 5 errori un’email va in pausa, dopo 20 un indirizzo: la pausa raddoppia a ogni nuovo errore.',
+    })
+    const tokens = await activityLog.tokens()
+    const stale = tokens.filter((t) => Date.now() - (t.lastUsedAt ?? t.createdAt).getTime() > 90 * 24 * 60 * 60_000)
+    if (tokens.length)
+      checks.push({
+        id: 'tokens',
+        status: stale.length ? 'warn' : 'ok',
+        title: `${tokens.length === 1 ? 'Un token di accesso' : `${tokens.length} token di accesso`} per i client AI`,
+        detail: stale.length
+          ? `${stale.length === 1 ? 'Uno non è usato' : `${stale.length} non sono usati`} da più di 90 giorni: chi li ha creati può revocarli da Impostazioni → AI e MCP.`
+          : 'Tutti usati di recente. Ognuno può revocare i propri da Impostazioni → AI e MCP.',
+      })
+    return c.json({ checks })
+  })
+
   app.put('/api/security', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(c, z.object({ requireTwoFactor: z.boolean() }))
     if (input.requireTwoFactor && !c.get('user').twoFactor)
       throw new ApiError(409, 'two_factor_off', 'Turn on two-step verification for yourself first')
     await settings.set('security', input, c.get('user').id)
+    await record(c, input.requireTwoFactor ? 'security.require_2fa' : 'security.optional_2fa')
     return c.json(input)
   })
 
@@ -641,13 +870,15 @@ export function createApp(base: ServerContext) {
 
   app.post('/api/tokens', requireUser, requireSession, async (c) => {
     const input = await body(c, z.object({ name: z.string().trim().min(1).max(80) }))
-    const { token, record } = await auth.createToken(c.get('user').id, input.name)
-    return c.json({ token, record }, 201)
+    const created = await auth.createToken(c.get('user').id, input.name)
+    await record(c, 'token.created', input.name)
+    return c.json(created, 201)
   })
 
   app.delete('/api/tokens/:id', requireUser, requireSession, async (c) => {
     if (!(await auth.revokeToken(c.req.param('id'), c.get('user').id)))
       throw new ApiError(404, 'not_found', 'There is no such token')
+    await record(c, 'token.revoked')
     return c.json({ ok: true })
   })
 
@@ -676,7 +907,10 @@ export function createApp(base: ServerContext) {
     }
     try {
       const updated = await auth.updateUser(user.id, { email: input.email })
-      if (updated && updated.email !== user.email) await emailChanged(user.email, updated.email, 'self')
+      if (updated && updated.email !== user.email) {
+        await emailChanged(user.email, updated.email, 'self')
+        await record(c, 'user.email', updated.email, { from: user.email })
+      }
       return c.json({ user: updated })
     } catch (error) {
       if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
@@ -695,6 +929,7 @@ export function createApp(base: ServerContext) {
     }
     // Other devices are signed out; this one stays in.
     await auth.setPassword(user.id, await hashPassword(input.next), getCookie(c, SESSION_COOKIE))
+    await record(c, 'user.password', user.email)
     return c.json({ ok: true })
   })
 
@@ -733,6 +968,7 @@ export function createApp(base: ServerContext) {
         ],
         link,
       )
+      await record(c, 'user.invited', input.email, { role: input.role })
       return c.json({ invite, link, mailed }, 201)
     } catch (error) {
       if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
@@ -742,6 +978,7 @@ export function createApp(base: ServerContext) {
 
   app.delete('/api/users/invites/:id', requireUser, requireSession, requireAdmin, async (c) => {
     if (!(await auth.revokeInvite(c.req.param('id')))) throw new ApiError(404, 'not_found', 'Invitation not found')
+    await record(c, 'user.invite_revoked')
     return c.body(null, 204)
   })
 
@@ -760,7 +997,11 @@ export function createApp(base: ServerContext) {
     }
     try {
       const updated = await auth.updateUser(target.id, input)
-      if (updated && updated.email !== target.email) await emailChanged(target.email, updated.email, c.get('user').name)
+      if (updated && updated.email !== target.email) {
+        await emailChanged(target.email, updated.email, c.get('user').name)
+        await record(c, 'user.email', updated.email, { from: target.email })
+      }
+      if (updated && updated.role !== target.role) await record(c, 'user.role', updated.email, { role: updated.role })
       return c.json({ user: updated })
     } catch (error) {
       if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
@@ -775,6 +1016,7 @@ export function createApp(base: ServerContext) {
       throw new ApiError(409, 'last_admin', 'The site needs at least one administrator')
     }
     await auth.deleteUser(target.id)
+    await record(c, 'user.removed', target.email)
     return c.body(null, 204)
   })
 
@@ -786,6 +1028,7 @@ export function createApp(base: ServerContext) {
       `${c.get('user').name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.`,
       'Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.',
     ])
+    await record(c, 'twofactor.reset', target.email)
     return c.json({ user: await auth.getUser(target.id) })
   })
 
@@ -808,6 +1051,7 @@ export function createApp(base: ServerContext) {
       ['È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:'],
       link,
     )
+    await record(c, 'user.reset_link', target.email)
     return c.json({ invite, link, mailed }, 201)
   })
 
@@ -848,6 +1092,7 @@ export function createApp(base: ServerContext) {
     }
     await auth.consumeInvite(token)
     if (!user) throw new ApiError(404, 'not_found', 'This person does not exist')
+    await record(c, invite.kind === 'reset' ? 'user.password_reset' : 'user.joined', user.email, null, user)
     // A new password is not a way around the second step.
     return signIn(c, user, invite.kind === 'reset' ? 200 : 201)
   })
@@ -874,6 +1119,7 @@ export function createApp(base: ServerContext) {
     const theme = normalizeTheme(input.theme)
     await settings.set('theme', theme, c.get('user').id)
     ctx.onPublish?.()
+    await record(c, 'settings.theme')
     return c.json({ theme })
   })
 
@@ -1068,6 +1314,7 @@ export function createApp(base: ServerContext) {
     const pass = input.mail.pass === null ? '' : input.mail.pass || before?.pass || ''
     const mail: MailSettings = { ...input.mail, pass }
     await settings.set('mail', mail, c.get('user').id)
+    await record(c, 'settings.mail')
     return c.json({ mail: publicMail(mail) })
   })
 
@@ -1124,6 +1371,7 @@ export function createApp(base: ServerContext) {
     const apiKey = input.ai.apiKey === null ? '' : input.ai.apiKey?.trim() || before.apiKey
     const ai: AiSettings = { ...input.ai, apiKey }
     await settings.set('ai', ai, c.get('user').id)
+    await record(c, 'settings.ai', ai.provider)
     return c.json({ ai: publicAi(ai) })
   })
 
@@ -1315,6 +1563,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
 
   app.delete('/api/submissions/:id', requireUser, requireAdmin, async (c) => {
     await submissions.remove(c.req.param('id'))
+    await record(c, 'message.deleted')
     return c.body(null, 204)
   })
 
@@ -1326,6 +1575,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
   app.put('/api/editorial', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(c, z.object({ editorial: z.object({ editorsContentOnly: z.boolean().optional() }) }))
     await settings.set('editorial', input.editorial, c.get('user').id)
+    await record(c, 'settings.editorial', '', { contentOnly: !!input.editorial.editorsContentOnly })
     return c.json({ editorial: input.editorial })
   })
 
@@ -1336,6 +1586,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const input = await body(c, z.object({ seo: siteSeoSchema }))
     await settings.set('seo', input.seo, c.get('user').id)
     ctx.onPublish?.()
+    await record(c, 'settings.seo')
     return c.json({ seo: input.seo })
   })
 
@@ -1364,6 +1615,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
       .filter((r, i, all) => r.from !== r.to && all.findIndex((o) => o.from === r.from) === i)
     await settings.set('redirects', redirects, c.get('user').id)
     ctx.onPublish?.()
+    await record(c, 'settings.redirects', '', { count: redirects.length })
     return c.json({ redirects })
   })
 
@@ -1491,6 +1743,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const doc = await slugGuard(() =>
       content.create({ collection: def.name, locale: lang, ...draft, userId: c.get('user').id }),
     )
+    await record(c, 'document.created', doc.title, { collection: def.name, id: doc.id })
     return c.json(toJson(doc), 201)
   })
 
@@ -1534,6 +1787,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     }
     const doc = (await content.publish(existing.id, c.get('user').id, data)) as StoredDocument
     ctx.onPublish?.()
+    await record(c, 'document.published', doc.title, { collection: def.name, id: doc.id, url: after })
     return c.json(toJson(doc))
   })
 
@@ -1541,6 +1795,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const existing = await loadDocument(c.req.param('id'))
     const doc = (await content.unpublish(existing.id, c.get('user').id)) as StoredDocument
     if (existing.publishedAt) ctx.onPublish?.()
+    await record(c, 'document.unpublished', doc.title, { collection: doc.collection, id: doc.id })
     return c.json(toJson(doc))
   })
 
@@ -1548,6 +1803,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const existing = await loadDocument(c.req.param('id'))
     await content.remove(existing.id)
     if (existing.publishedAt) ctx.onPublish?.()
+    await record(c, 'document.deleted', existing.title, { collection: existing.collection })
     return c.body(null, 204)
   })
 
@@ -1560,6 +1816,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const existing = await loadDocument(c.req.param('id'))
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
+    await record(c, 'document.restored', doc.title, { collection: doc.collection, id: doc.id })
     return c.json(toJson(doc))
   })
 
@@ -1593,6 +1850,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     await settings.set('locales', value, c.get('user').id)
     languages = value
     ctx.onPublish?.()
+    await record(c, 'settings.languages', value.available.join(', '))
     return c.json({ locales: ctx.config().locales, documents: await countsByLocale() })
   })
 
@@ -1667,6 +1925,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
         sourceId: original?.id ?? doc.id,
       }),
     )
+    await record(c, 'document.translated', created.title, { locale: lang, id: created.id, ai: input.translate })
     return c.json(toJson(created), 201)
   })
 
@@ -1760,6 +2019,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
         alt: typeof body.alt === 'string' ? body.alt : '',
         createdBy: c.get('user').id,
       })
+      await record(c, 'media.uploaded', asset.filename)
       return c.json(assetJson(asset), 201)
     },
   )
@@ -1784,6 +2044,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
       alt: input.alt ?? '',
       createdBy: c.get('user').id,
     })
+    await record(c, 'media.uploaded', asset.filename, { from: input.url })
     return c.json(assetJson(asset), 201)
   })
 
@@ -1802,6 +2063,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const asset = await loadAsset(c.req.param('id'))
     await mediaStore.remove(asset.id)
     await files.remove(asset.key)
+    await record(c, 'media.deleted', asset.filename)
     return c.body(null, 204)
   })
 

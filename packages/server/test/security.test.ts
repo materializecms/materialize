@@ -174,3 +174,55 @@ describe('devices', () => {
     expect((await admin('GET', '/api/auth/me')).status).toBe(200)
   })
 })
+
+describe('activity log', () => {
+  it('records sign-ins, people and publishing, for administrators only', async () => {
+    await login(client('10.0.4.1'), 'sbagliata')
+    await login(client('10.0.4.2'))
+    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@studiorossi.it', role: 'editor' })
+    const marco = client('10.0.4.3')
+    await marco('POST', `/api/invites/${body.link.split('/').pop()}/accept`, {
+      name: 'Marco',
+      password: 'password-di-marco',
+    })
+    const doc = (await admin('POST', '/api/collections/pages', { data: { title: 'Chi siamo' } })).body
+    await admin('POST', `/api/documents/${doc.id}/publish`)
+
+    const all = (await admin('GET', '/api/activity')).body.items as { action: string; target: string; ip: string }[]
+    const actions = all.map((e) => e.action)
+    expect(actions).toEqual(
+      expect.arrayContaining(['login.failed', 'login.ok', 'user.invited', 'user.joined', 'document.published']),
+    )
+    expect(all.find((e) => e.action === 'login.failed')).toMatchObject({
+      target: 'elena@studiorossi.it',
+      ip: '10.0.4.1',
+    })
+    // Newest first.
+    expect(actions[0]).toBe('document.published')
+
+    const access = (await admin('GET', '/api/activity?group=access')).body.items as { action: string }[]
+    expect(access.every((e) => /^(login|logout|session|twofactor|token|security)/.test(e.action))).toBe(true)
+    expect((await marco('GET', '/api/activity')).status).toBe(403)
+  })
+
+  it('pages through older entries', async () => {
+    for (let i = 0; i < 55; i++) await admin('POST', '/api/collections/pages', { data: { title: `Pagina ${i}` } })
+    const first = (await admin('GET', '/api/activity?group=content')).body.items
+    expect(first).toHaveLength(50)
+    const last = first[first.length - 1]
+    const more = (await admin('GET', `/api/activity?group=content&before=${last.seq}`)).body.items
+    expect(more.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('security overview', () => {
+  it('points at what to fix first', async () => {
+    const before = (await admin('GET', '/api/security/overview')).body.checks as { id: string; status: string }[]
+    expect(before.find((c) => c.id === 'admins-2fa')?.status).toBe('bad')
+    expect(before.find((c) => c.id === 'mail')?.status).toBe('warn')
+    await enable(admin)
+    const after = (await admin('GET', '/api/security/overview')).body.checks as { id: string; status: string }[]
+    expect(after.find((c) => c.id === 'admins-2fa')?.status).toBe('ok')
+    expect(after.find((c) => c.id === 'everyone-2fa')?.status).toBe('ok')
+  })
+})
