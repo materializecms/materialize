@@ -34,17 +34,10 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
     placeholderData: keepPreviousData,
   })
 
-  // A singleton is a single document: open it directly.
+  // A single document (site settings) lives in Impostazioni.
   useEffect(() => {
-    if (!collection.singleton || !list.data) return
-    const doc = list.data.items[0]
-    navigate(
-      doc
-        ? { name: 'document', collection: collection.name, id: doc.id }
-        : { name: 'new', collection: collection.name },
-      { replace: true },
-    )
-  }, [collection, list.data])
+    if (collection.singleton) navigate({ name: 'settings', tab: collection.name }, { replace: true })
+  }, [collection])
 
   const create = () => navigate({ name: 'new', collection: collection.name })
   const items = (list.data?.items ?? []).filter((d) => filter === 'all' || d.status === filter)

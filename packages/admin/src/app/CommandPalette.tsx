@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { FileText, Images, Monitor, Moon, Plus, Search, Sun, UserRound } from 'lucide-react'
+import { FileText, Images, Monitor, Moon, Plus, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
@@ -72,9 +72,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           label: c.label,
           icon: collectionIcon(c),
           group: 'Vai a',
-          run: () => navigate({ name: 'collection', collection: c.name }),
+          run: () =>
+            navigate(c.singleton ? { name: 'settings', tab: c.name } : { name: 'collection', collection: c.name }),
         })
       }
+    }
+    if (match('Impostazioni email seo lingue ai mcp messaggi')) {
+      out.push({
+        id: 'go:settings',
+        label: 'Impostazioni',
+        icon: <Settings />,
+        group: 'Vai a',
+        run: () => navigate({ name: 'settings' }),
+      })
     }
     if (match('Media immagini libreria')) {
       out.push({

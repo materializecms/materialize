@@ -205,7 +205,10 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
         queryClient.setQueryData(['doc', created.id], created)
         openedAsNew.add(created.id)
         setNavigationGuard(null)
-        navigate({ name: 'document', collection: collection.name, id: created.id }, { replace: true })
+        // A single document (site settings) is edited inside Impostazioni: no address of its own.
+        if (!collection.singleton)
+          navigate({ name: 'document', collection: collection.name, id: created.id }, { replace: true })
+        else void queryClient.invalidateQueries({ queryKey: ['list', collection.name] })
         return created
       }
       const res = await api.save(existing.id, data)
@@ -217,7 +220,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
     } finally {
       setSaving(false)
     }
-  }, [collection.name, locale, applyServer, handleError, queryClient])
+  }, [collection.name, collection.singleton, locale, applyServer, handleError, queryClient])
 
   // Autosave drafts of existing documents shortly after the last change.
   useEffect(() => {

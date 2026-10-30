@@ -2,8 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Inbox, Mail, Send, Settings, Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
+import { DocumentScreen } from '../app/DocumentScreen.tsx'
 import { Button, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
-import { ApiError, api, type MailSettings } from '../lib/api.ts'
+import { ApiError, api, type CollectionDescription, type MailSettings } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
 import { AiScreen } from './AiSettings.tsx'
@@ -12,10 +13,26 @@ import { SeoSettings } from './SeoSettings.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
 
-/** Site settings: outgoing email (SMTP), search engines, languages, AI, and the messages sent from the site's forms. */
-export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | 'seo' | 'ai' | 'languages' }) {
-  const { user } = useSession()
+/**
+ * A single-document collection's name as a settings tab: "Impostazioni del sito" → "Sito"
+ * (it already sits under Impostazioni).
+ */
+export function settingsLabel(c: CollectionDescription): string {
+  const short = c.label.replace(/^impostazioni(\s+(del|della|dello|dei|degli|delle|di))?\s*/i, '').trim()
+  return short ? short.charAt(0).toUpperCase() + short.slice(1) : 'Generale'
+}
+
+/**
+ * Impostazioni: the site's own data (single-document collections such as name, contacts and
+ * social links), outgoing email (SMTP), search engines, languages, AI, and the messages sent
+ * from the site's forms.
+ */
+export function SettingsScreen({ tab }: { tab?: string }) {
+  const { user, schema } = useSession()
   const unread = useQuery({ queryKey: ['submissions'], queryFn: () => api.submissions() }).data?.unread ?? 0
+  const singletons = schema.collections.filter((c) => c.singleton)
+  const active = tab ?? singletons[0]?.name ?? 'mail'
+  const single = singletons.find((c) => c.name === active)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
@@ -24,9 +41,10 @@ export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | '
         <div className="flex-1" />
         <Segmented
           size="sm"
-          value={tab}
+          value={active}
           onChange={(t) => navigate({ name: 'settings', tab: t })}
           options={[
+            ...singletons.map((c) => ({ value: c.name, label: settingsLabel(c) })),
             { value: 'mail', label: 'Email' },
             { value: 'seo', label: 'SEO' },
             { value: 'languages', label: 'Lingue' },
@@ -35,22 +53,44 @@ export function SettingsScreen({ tab = 'mail' }: { tab?: 'mail' | 'messages' | '
           ]}
         />
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'ai' ? (
-          <AiScreen />
-        ) : tab === 'languages' ? (
-          <LanguagesSettings />
-        ) : tab === 'messages' ? (
-          <Messages canDelete={user.role === 'admin'} />
-        ) : tab === 'seo' ? (
-          <SeoSettings editable={user.role === 'admin'} />
-        ) : user.role === 'admin' ? (
-          <MailForm />
-        ) : (
-          <EmptyState icon={<Mail />} title="L’invio delle email lo configura un amministratore" />
-        )}
-      </div>
+      {single ? (
+        <SingleDocument collection={single} />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {active === 'ai' ? (
+            <AiScreen />
+          ) : active === 'languages' ? (
+            <LanguagesSettings />
+          ) : active === 'messages' ? (
+            <Messages canDelete={user.role === 'admin'} />
+          ) : active === 'seo' ? (
+            <SeoSettings editable={user.role === 'admin'} />
+          ) : user.role === 'admin' ? (
+            <MailForm />
+          ) : (
+            <EmptyState icon={<Mail />} title="L’invio delle email lo configura un amministratore" />
+          )}
+        </div>
+      )}
     </div>
+  )
+}
+
+/** The document of a single-document collection, edited (and published) in place. */
+function SingleDocument({ collection }: { collection: CollectionDescription }) {
+  const { locale } = useSession()
+  const list = useQuery({
+    queryKey: ['list', collection.name, locale, 'single'],
+    queryFn: () => api.list(collection.name, { locale, limit: 1 }),
+  })
+  if (list.isPending)
+    return (
+      <div className="flex flex-1 justify-center py-20">
+        <Spinner />
+      </div>
+    )
+  return (
+    <DocumentScreen key={`${collection.name}/${locale}`} collection={collection} id={list.data?.items[0]?.id ?? null} />
   )
 }
 

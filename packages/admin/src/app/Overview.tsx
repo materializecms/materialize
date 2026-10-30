@@ -184,7 +184,7 @@ export function Overview() {
             {singletons.map((c) => (
               <Action
                 key={c.name}
-                route={{ name: 'collection', collection: c.name }}
+                route={{ name: 'settings', tab: c.name }}
                 icon={<SlidersHorizontal />}
                 color="var(--text2)"
                 title={c.label}

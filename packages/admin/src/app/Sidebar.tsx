@@ -119,39 +119,39 @@ export function Sidebar() {
           </NavItem>
         </div>
         <div className={sectionLabel}>Contenuti</div>
-        {schema.collections.map((c) => (
-          <NavItem
-            key={c.name}
-            route={{ name: 'collection', collection: c.name }}
-            active={current === c.name}
-            label={c.label}
-            count={c.singleton ? undefined : countOf(c.name)}
-          >
-            <TintIcon color={tint(c.name)} size="sm">
-              {collectionIcon(c)}
-            </TintIcon>
-          </NavItem>
-        ))}
+        {schema.collections
+          .filter((c) => !c.singleton)
+          .map((c) => (
+            <NavItem
+              key={c.name}
+              route={{ name: 'collection', collection: c.name }}
+              active={current === c.name}
+              label={c.label}
+              count={countOf(c.name)}
+            >
+              <TintIcon color={tint(c.name)} size="sm">
+                {collectionIcon(c)}
+              </TintIcon>
+            </NavItem>
+          ))}
         <div className={sectionLabel}>Libreria</div>
         <NavItem route={{ name: 'media' }} active={route.name === 'media'} label="Media" count={overview.data?.media}>
           <TintIcon color="#0ea5e9" size="sm">
             <Images />
           </TintIcon>
         </NavItem>
-        <NavItem route={{ name: 'settings', tab: 'messages' }} active={route.name === 'settings'} label="Impostazioni">
+        <div className={sectionLabel}>Gestione</div>
+        <NavItem route={{ name: 'settings' }} active={route.name === 'settings'} label="Impostazioni">
           <TintIcon color="#64748b" size="sm">
             <Settings />
           </TintIcon>
         </NavItem>
         {user.role === 'admin' && (
-          <>
-            <div className={sectionLabel}>Gestione</div>
-            <NavItem route={{ name: 'people' }} active={route.name === 'people'} label="Persone">
-              <TintIcon color="#8b5cf6" size="sm">
-                <UserRound />
-              </TintIcon>
-            </NavItem>
-          </>
+          <NavItem route={{ name: 'people' }} active={route.name === 'people'} label="Persone">
+            <TintIcon color="#8b5cf6" size="sm">
+              <UserRound />
+            </TintIcon>
+          </NavItem>
         )}
       </nav>
 
