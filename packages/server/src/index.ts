@@ -2,9 +2,18 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { getRequestListener } from '@hono/node-server'
 import { ADMIN_DIST } from '@materializecms/admin'
 import type { MaterializeConfig } from '@materializecms/core'
+import type { Updates } from '@materializecms/core/updates'
 import { type Database, openDatabase } from '@materializecms/db'
 import { createApp } from './app.ts'
 
+export {
+  isPatch,
+  newer,
+  type ReleaseNotes,
+  type UpdateSettings,
+  type UpdateStatus,
+  type Updates,
+} from '@materializecms/core/updates'
 export { createApp, type ServerContext, VERSION } from './app.ts'
 export { extractTarGz } from './archive.ts'
 export { restoreMedia } from './backups.ts'
@@ -30,6 +39,9 @@ export interface ServerOptions {
   /** The site renderer. Without one, "/" shows a status page. */
   site?: SiteHandler
   onPublish?: () => void
+  updates?: Updates
+  /** Required by the installation in the browser while there is no account yet. */
+  setupToken?: string
 }
 
 const OWN = /^\/(api|admin|media|fonts|mcp)(\/|\?|$)/
@@ -43,6 +55,8 @@ export async function startServer(initial: MaterializeConfig, options: ServerOpt
     adminDir: ADMIN_DIST,
     preview: !!options.site,
     onPublish: options.onPublish,
+    updates: options.updates,
+    setupToken: options.setupToken,
   })
   const api = getRequestListener(app.fetch)
   const site = options.site

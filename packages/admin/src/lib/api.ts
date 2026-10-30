@@ -2,6 +2,7 @@ import type { CollectionDescription, FieldDescription, ValidationIssue } from '@
 import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/core/page'
 import type { Redirect, SiteSeo } from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
+import type { UpdateSettings, UpdateStatus } from '@materializecms/core/updates'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -392,9 +393,29 @@ const q = (params: Record<string, string | number | undefined>) => {
   return text ? `?${text}` : ''
 }
 
+export type UpdateState = UpdateStatus & { settings: UpdateSettings }
+
+export interface SetupCheck {
+  id: string
+  label: string
+  state: 'ok' | 'warn' | 'error'
+  detail: string
+}
+
+/** Before the first account: what the installation needs to show. */
+export type SetupStatus =
+  | { needsSetup: false }
+  | { needsSetup: true; needsToken: boolean; checks: SetupCheck[]; site: { name: string; locale: string } }
+
 export const api = {
-  setupStatus: () => request<{ needsSetup: boolean }>('GET', '/setup'),
-  setup: (input: { email: string; name: string; password: string }) => request<{ user: User }>('POST', '/setup', input),
+  setupStatus: () => request<SetupStatus>('GET', '/setup'),
+  setup: (input: {
+    email: string
+    name: string
+    password: string
+    token?: string
+    site?: { name?: string; locale?: string }
+  }) => request<{ user: User }>('POST', '/setup', input),
   /** Either signed in, or a ticket for the second step (two-step verification). */
   login: (input: { email: string; password: string }) => request<SignIn>('POST', '/auth/login', input),
   verifyLogin: (input: { ticket: string; code: string }) =>
@@ -417,6 +438,12 @@ export const api = {
     request<{ items: ActivityEntry[] }>('GET', `/activity${q(params)}`),
   securityOverview: () => request<{ checks: SecurityCheck[] }>('GET', '/security/overview'),
   tracking: () => request<{ tracking: TrackingSettings }>('GET', '/tracking'),
+  updates: () => request<UpdateState>('GET', '/updates'),
+  checkUpdates: () => request<UpdateState>('POST', '/updates/check'),
+  installUpdate: (version: string) => request<UpdateState>('POST', '/updates/install', { version }),
+  rollbackUpdate: () => request<UpdateState>('POST', '/updates/rollback'),
+  saveUpdateSettings: (settings: UpdateSettings) => request<UpdateState>('PUT', '/updates/settings', settings),
+  health: () => request<{ ok: boolean; version: string }>('GET', '/health'),
   saveTracking: (tracking: TrackingSettings) =>
     request<{ tracking: TrackingSettings }>('PUT', '/tracking', { tracking }),
   readWordPress: (input: { url: string; user?: string; password?: string; limit?: number } | File) => {

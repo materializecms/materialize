@@ -15,7 +15,8 @@
     "./icons": "./src/icons.ts",
     "./seo": "./src/seo.ts",
     "./i18n": "./src/i18n.ts",
-    "./tracking": "./src/tracking.ts"
+    "./tracking": "./src/tracking.ts",
+    "./updates": "./src/updates.ts"
   },
   "dependencies": {
     "lucide": "1.64.0",

@@ -12,6 +12,7 @@ import { execFileSync } from 'node:child_process'
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseChangelog } from './changelog.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = join(ROOT, '.release')
@@ -129,6 +130,9 @@ async function assemble(name: string, versions: Map<string, string>) {
   for (const extra of EXTRA[name] ?? []) await cp(join(src, extra), join(dest, extra), { recursive: true })
 
   const manifest = releaseManifest(pkg, versions)
+  // The panel asks the registry for this field (npm view @materializecms/cli changelog) to show what is new.
+  if (name === 'cli')
+    manifest.changelog = parseChangelog(await readFile(join(ROOT, 'CHANGELOG.md'), 'utf8')).slice(0, 30)
   await writeFile(join(dest, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   await cp(join(ROOT, 'LICENSE'), join(dest, 'LICENSE'))
   // The panel reads what is new from here when it offers an update.

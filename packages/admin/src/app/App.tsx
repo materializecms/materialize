@@ -16,6 +16,7 @@ import { CommandPalette } from './CommandPalette.tsx'
 import { type Session, SessionContext } from './context.ts'
 import { DocumentScreen, openedAsNew } from './DocumentScreen.tsx'
 import { Overview } from './Overview.tsx'
+import { SetupWizard } from './Setup.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
 export function App() {
@@ -48,7 +49,8 @@ function SignedIn() {
     return <Fatal message={(setup.error ?? me.error ?? schema.error)?.message ?? ''} />
   }
   if (setup.isPending || me.isPending) return <Loading />
-  if (setup.data.needsSetup || !me.data) return <AuthScreen mode={setup.data.needsSetup ? 'setup' : 'login'} />
+  if (setup.data.needsSetup) return <SetupWizard status={setup.data} />
+  if (!me.data) return <AuthScreen />
   // The site requires two-step verification: nothing else until it is on.
   if (me.data.needsTwoFactor) return <RequiredTwoFactor />
   if (!schema.data) return <Loading />

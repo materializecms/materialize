@@ -8,15 +8,32 @@ CMS open source per agenzie e freelance: schema dei contenuti in codice, editor 
 
 Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
 
-### Dove installarlo
-
-Con il pannello, Materialize è un programma Node sempre acceso: serve un **server tuo**, cioè un VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) o un ambiente Docker. **Gli hosting condivisi PHP non sono adatti**, anche quelli con Node nel cPanel: memoria scarsa e processi sospesi quando non ci sono visite rendono lenti la generazione del sito e le immagini. Il sito generato, invece, è fatto di file statici e si può pubblicare anche su qualsiasi hosting statico.
-
 ```bash
 npm create materialize@latest
 ```
 
-Il comando chiede la cartella, copia un sito Astro con nove blocchi pronti (copertina, testo, galleria, citazione, numeri, servizi, domande, contatti, invito), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin per creare l'account.
+Il comando chiede la cartella, copia un sito Astro con nove blocchi pronti (copertina, testo, galleria, citazione, numeri, servizi, domande, contatti, invito), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
+
+### Dove installarlo
+
+Con il pannello, Materialize è un programma Node sempre acceso: serve un **server tuo**, cioè un VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) o un ambiente Docker. **Gli hosting condivisi PHP non sono adatti**, anche quelli con Node nel cPanel: memoria scarsa e processi sospesi quando non ci sono visite rendono lenti la generazione del sito e le immagini. Il sito generato, invece, è fatto di file statici e si può pubblicare anche su qualsiasi hosting statico.
+
+### L'installazione nel browser
+
+Al primo avvio il pannello guida l'installazione in tre passi: controlla il server (versione di Node, cartelle scrivibili, sito, HTTPS, aggiornamenti), chiede nome e lingua del sito, crea l'account amministratore, poi apre il pannello.
+
+In produzione (`materialize start`) l'installazione chiede il link che il server scrive all'avvio, `/admin/?installa=<codice>`: così un server appena messo online non può essere preso da chi lo trova per primo. Il codice cambia a ogni avvio e non serve più dopo l'installazione. In sviluppo (`materialize dev`) non serve.
+
+### Aggiornamenti
+
+Con `materialize start`, il server gira sotto un piccolo supervisore che lo tiene acceso (lo riavvia se si ferma) e applica gli aggiornamenti. Una volta al giorno il server controlla se c'è una versione nuova; l'amministratore la vede in **Impostazioni → Aggiornamenti**, con le novità dal changelog, e la installa con un clic:
+
+1. backup del database e dei media;
+2. la nuova versione si scarica in `.materialize/updates/next`, mentre il sito resta online;
+3. il server si riavvia sulla nuova versione, che deve partire e compilare il sito: se non ci riesce, torna da sola quella di prima;
+4. la versione precedente resta in `.materialize/updates/previous`, per tornarci con un clic.
+
+Si possono lasciar installare da sole le correzioni (stessa versione principale e secondaria, per esempio dalla 0.2.0 alla 0.2.1); le novità le decide sempre l'amministratore. Il server deve poter scrivere nella cartella del sito e trovare `npm`. Senza supervisore (`--no-supervisor`, o un altro programma che lancia il server) e in sviluppo il pannello mostra il comando da usare a mano. I file del sito (layout, blocchi, configurazione) non vengono mai toccati.
 
 ## Sviluppare Materialize
 

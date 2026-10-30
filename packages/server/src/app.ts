@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -28,6 +29,13 @@ import {
 import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
 import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { TRACKING_PATTERNS, type TrackingSettings, trackingBlocks } from '@materializecms/core/tracking'
+import {
+  DEFAULT_UPDATES,
+  isPatch,
+  type UpdateSettings,
+  type UpdateStatus,
+  type Updates,
+} from '@materializecms/core/updates'
 import {
   type AuthStore,
   type ContentStore,
@@ -133,7 +141,19 @@ class ApiError extends HTTPException {
 }
 
 const credentials = z.object({ email: z.email(), password: z.string().min(1) })
-const setupBody = z.object({ email: z.email(), name: z.string().trim().min(1), password: z.string().min(10) })
+const setupBody = z.object({
+  email: z.email(),
+  name: z.string().trim().min(1),
+  password: z.string().min(10),
+  /** From the link `materialize start` prints, when it set one. */
+  token: z.string().optional(),
+  site: z
+    .object({
+      name: z.string().trim().min(1).max(120).optional(),
+      locale: z.string().refine(isLocaleCode, 'Codice lingua non valido').optional(),
+    })
+    .optional(),
+})
 const roleSchema = z.enum(['admin', 'editor'])
 const documentBody = z.object({ data: z.record(z.string(), z.unknown()), locale: z.string().optional() })
 
@@ -223,6 +243,13 @@ export interface ServerContext {
   preview?: boolean
   /** Called after the live content changes (publish, unpublish, delete), e.g. to rebuild the static site. */
   onPublish?: () => void
+  /** Updates from the panel, when whoever started the server can apply them (materialize start). */
+  updates?: Updates
+  /**
+   * Asked by the installation in the browser before the first account exists, so whoever finds a
+   * fresh server first cannot claim it: `materialize start` prints the link that carries it.
+   */
+  setupToken?: string
 }
 
 export function createApp(base: ServerContext) {
@@ -265,6 +292,40 @@ export function createApp(base: ServerContext) {
   const backupFailed = (error: unknown) => console.error('Materialize: backup not made', error)
   setTimeout(() => void autoBackup().catch(backupFailed), 60_000).unref?.()
   setInterval(() => void autoBackup().catch(backupFailed), 60 * 60_000).unref?.()
+
+  const updateSettings = async (): Promise<UpdateSettings> => ({
+    ...DEFAULT_UPDATES,
+    ...(await settings.get<Partial<UpdateSettings>>('updates')),
+  })
+  /** A copy of the database (and of the media) right before an update. */
+  const backupBeforeUpdate = async () => {
+    if (!backups.available()) return
+    await backups.create('prima-dell-aggiornamento')
+    await backups.prune((await backupSettings()).keep)
+    await backups.mirrorMedia()
+  }
+  /** Once a day: is there a new version? Fixes install by themselves when the admin allowed it. */
+  const autoUpdate = async () => {
+    if (!ctx.updates) return
+    const s = await ctx.updates.check()
+    if (!(await updateSettings()).auto || s.unavailable || !s.latest || !isPatch(s.latest, s.current)) return
+    // Not again a version that already failed to start here, or one the admin went back from.
+    if (s.last && !s.last.ok && s.last.kind === 'install' && s.last.to === s.latest) return
+    if (s.last?.kind === 'rollback' && s.last.from === s.latest) return
+    await ctx.updates.install(s.latest, backupBeforeUpdate)
+    await activityLog.record({
+      userId: null,
+      userName: '',
+      action: 'update.install',
+      target: s.latest,
+      detail: { auto: true, from: s.current },
+      ip: null,
+    })
+  }
+  const updateFailed = (error: unknown) => console.error('Materialize: update check failed', error)
+  // Soon after starting, so the panel knows at once (the registry answers in a moment).
+  setTimeout(() => void autoUpdate().catch(updateFailed), 15_000).unref?.()
+  setInterval(() => void autoUpdate().catch(updateFailed), 24 * 60 * 60_000).unref?.()
   /**
    * Who has a document open, in memory: each editor checks in every few seconds with the element it
    * has selected. Gone after 30 s of silence.
@@ -493,11 +554,103 @@ export function createApp(base: ServerContext) {
 
   // ---------- setup & auth ----------
 
-  app.get('/api/setup', async (c) => c.json({ needsSetup: (await auth.countUsers()) === 0 }))
+  /** What the installation checks before it starts: each with what to do when it is not right. */
+  const setupChecks = async (c: Context) => {
+    const checks: { id: string; label: string; state: 'ok' | 'warn' | 'error'; detail: string }[] = []
+    const node = Number(process.versions.node.split('.')[0])
+    checks.push({
+      id: 'node',
+      label: `Node.js ${process.versions.node}`,
+      state: node >= 24 ? 'ok' : 'error',
+      detail: node >= 24 ? 'Versione adatta.' : 'Serve Node 24 o più recente.',
+    })
+    const mediaDir = resolve(ctx.config().media.dir)
+    let writable = true
+    try {
+      await mkdir(mediaDir, { recursive: true })
+      await access(mediaDir, constants.W_OK)
+    } catch {
+      writable = false
+    }
+    checks.push({
+      id: 'files',
+      label: 'Cartella dei file',
+      state: writable ? 'ok' : 'error',
+      detail: writable
+        ? 'Database e immagini si possono salvare.'
+        : `Il programma non può scrivere in ${mediaDir}: dagli i permessi su quella cartella.`,
+    })
+    checks.push({
+      id: 'site',
+      label: 'Sito',
+      state: ctx.preview ? 'ok' : 'warn',
+      detail: ctx.preview
+        ? 'Il sito si genera da solo a ogni pubblicazione.'
+        : 'Solo il CMS: in questa cartella non c’è un sito Astro.',
+    })
+    const url = new URL(c.req.url)
+    const local = /^(localhost|127\.|\[::1\])/.test(url.hostname)
+    const https = url.protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https'
+    checks.push({
+      id: 'https',
+      label: 'Connessione sicura',
+      state: https || local ? 'ok' : 'warn',
+      detail: https
+        ? 'HTTPS attivo.'
+        : local
+          ? 'In locale non serve HTTPS.'
+          : 'Senza HTTPS la password viaggia in chiaro: attivalo prima di metterlo online (guida in docs/sicurezza.md).',
+    })
+    const updates = await ctx.updates?.status()
+    checks.push({
+      id: 'updates',
+      label: 'Aggiornamenti',
+      state: updates && !updates.unavailable ? 'ok' : 'warn',
+      detail:
+        updates && !updates.unavailable
+          ? 'Si installano dal pannello, con un clic.'
+          : (updates?.unavailable ?? 'Si installano da terminale.'),
+    })
+    return checks
+  }
+
+  app.get('/api/setup', async (c) => {
+    const needsSetup = (await auth.countUsers()) === 0
+    if (!needsSetup) return c.json({ needsSetup })
+    await languagesLoaded
+    const config = ctx.config()
+    const named = config.collections.find((def) => def.singleton && def.fields.siteName)
+    const current = named
+      ? (await content.list(named.name, { locale: config.locales.default, limit: 1 })).items[0]
+      : null
+    const doc = current ? await content.get(current.id) : null
+    return c.json({
+      needsSetup,
+      needsToken: !!ctx.setupToken,
+      checks: await setupChecks(c),
+      site: {
+        name: (doc?.data.siteName as string | undefined) || config.site.name,
+        locale: config.locales.default,
+      },
+    })
+  })
 
   app.post('/api/setup', async (c) => {
     const input = await body(c, setupBody)
     if ((await auth.countUsers()) > 0) throw new ApiError(409, 'already_set_up', 'An administrator already exists')
+    if (ctx.setupToken && input.token !== ctx.setupToken)
+      throw new ApiError(
+        403,
+        'setup_token',
+        'Per installare serve il link stampato all’avvio del server (materialize start), con il suo codice',
+      )
+    // The site's language and name, before anything else is written in them.
+    if (input.site?.locale && input.site.locale !== ctx.config().locales.default) {
+      const value = { default: input.site.locale, available: [input.site.locale] }
+      await settings.set('locales', value)
+      languages = value
+    }
+    if (input.site?.name) await nameSite(input.site.name)
     const user = await auth.createUser({
       email: input.email,
       name: input.name,
@@ -508,6 +661,22 @@ export function createApp(base: ServerContext) {
     await record(c, 'user.setup', user.email, null, user)
     return c.json({ user }, 201)
   })
+
+  /** The site's name lives in its settings document (a single document with a `siteName` field), published. */
+  const nameSite = async (name: string) => {
+    const config = ctx.config()
+    const def = config.collections.find((d) => d.singleton && d.fields.siteName)
+    if (!def) return
+    const lang = config.locales.default
+    const found = (await content.list(def.name, { locale: lang, limit: 1 })).items[0]
+    const existing = found ? await content.get(found.id) : null
+    const draft = draftData(def, { ...existing?.data, siteName: name })
+    const doc = existing
+      ? await content.update(existing.id, draft)
+      : await content.create({ collection: def.name, locale: lang, ...draft })
+    if (doc) await content.publish(doc.id)
+    ctx.onPublish?.()
+  }
 
   /**
    * Sign-in pauses: after repeated failures an email, or an address, waits before trying again
@@ -722,7 +891,7 @@ export function createApp(base: ServerContext) {
     access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.'],
     people: ['user.'],
     content: ['document.', 'media.', 'message.'],
-    settings: ['settings.', 'backup.'],
+    settings: ['settings.', 'backup.', 'update.'],
   }
 
   app.get('/api/activity', requireUser, requireAdmin, async (c) => {
@@ -1024,6 +1193,63 @@ export function createApp(base: ServerContext) {
     if (!(await backups.remove(c.req.param('name')))) throw new ApiError(404, 'not_found', 'There is no such backup')
     await record(c, 'backup.deleted', c.req.param('name'))
     return c.json({ ok: true })
+  })
+
+  // ---------- updates ----------
+
+  const updateState = async () => {
+    const status: UpdateStatus = ctx.updates
+      ? await ctx.updates.status()
+      : {
+          current: VERSION,
+          latest: null,
+          notes: [],
+          checkedAt: null,
+          unavailable: 'Questo server non è avviato da materialize start: aggiorna da terminale.',
+          previous: null,
+          job: { state: 'idle' },
+          last: null,
+        }
+    return { ...status, settings: await updateSettings() }
+  }
+
+  app.get('/api/updates', requireUser, requireSession, requireAdmin, async (c) => c.json(await updateState()))
+
+  app.post('/api/updates/check', requireUser, requireSession, requireAdmin, async (c) => {
+    await ctx.updates?.check()
+    return c.json(await updateState())
+  })
+
+  app.post('/api/updates/install', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/) }))
+    if (!ctx.updates)
+      throw new ApiError(409, 'updates_unavailable', 'Gli aggiornamenti dal pannello non sono disponibili qui')
+    try {
+      await ctx.updates.install(input.version, backupBeforeUpdate)
+    } catch (error) {
+      throw new ApiError(409, 'update_refused', (error as Error).message)
+    }
+    await record(c, 'update.install', input.version, { from: VERSION })
+    return c.json(await updateState(), 202)
+  })
+
+  app.post('/api/updates/rollback', requireUser, requireSession, requireAdmin, async (c) => {
+    if (!ctx.updates)
+      throw new ApiError(409, 'updates_unavailable', 'Gli aggiornamenti dal pannello non sono disponibili qui')
+    try {
+      await ctx.updates.rollback()
+    } catch (error) {
+      throw new ApiError(409, 'update_refused', (error as Error).message)
+    }
+    await record(c, 'update.rollback', (await ctx.updates.status()).previous ?? '', { from: VERSION })
+    return c.json(await updateState(), 202)
+  })
+
+  app.put('/api/updates/settings', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ auto: z.boolean() }))
+    await settings.set('updates', input, c.get('user').id)
+    await record(c, 'settings.updates', input.auto ? 'auto' : 'manual')
+    return c.json(await updateState())
   })
 
   app.put('/api/security', requireUser, requireSession, requireAdmin, async (c) => {

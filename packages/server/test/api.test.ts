@@ -71,7 +71,7 @@ describe('passwords', () => {
 
 describe('setup and auth', () => {
   it('creates the first admin once and signs them in', async () => {
-    expect((await call('GET', '/api/setup')).body).toEqual({ needsSetup: true })
+    expect((await call('GET', '/api/setup')).body.needsSetup).toBe(true)
     const created = await signUp()
     expect(created.status).toBe(201)
     expect(created.body.user.role).toBe('admin')

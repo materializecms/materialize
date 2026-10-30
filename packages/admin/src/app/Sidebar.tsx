@@ -21,6 +21,7 @@ import { cx, Kbd, MenuItem, MenuSeparator, Popover, ThemeSwitch, TintIcon, tintO
 import { api, type CollectionDescription } from '../lib/api.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
+import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 
@@ -63,6 +64,7 @@ const sectionLabel = 'px-2 pt-5 pb-1.5 text-[12px] font-medium text-fg3'
 
 export function Sidebar() {
   const { schema, user, locale, setLocale, openPalette } = useSession()
+  const update = useUpdateAvailable()
   const route = useRoute()
   const queryClient = useQueryClient()
   const tint = useCollectionTint()
@@ -139,7 +141,12 @@ export function Sidebar() {
           </TintIcon>
         </NavItem>
         <div className={sectionLabel}>Gestione</div>
-        <NavItem route={{ name: 'settings' }} active={route.name === 'settings'} label="Impostazioni">
+        <NavItem
+          route={update ? { name: 'settings', tab: 'updates' } : { name: 'settings' }}
+          active={route.name === 'settings'}
+          label="Impostazioni"
+          note={update ? `È disponibile Materialize ${update}` : undefined}
+        >
           <TintIcon color="#64748b" size="sm">
             <Settings />
           </TintIcon>
@@ -245,12 +252,15 @@ function NavItem({
   active,
   label,
   count,
+  note,
   children,
 }: {
   route: Route
   active: boolean
   label: string
   count?: number
+  /** Something waiting there, shown as a dot (the text is its tooltip and accessible name). */
+  note?: string
   children: ReactNode
 }) {
   return (
@@ -272,6 +282,11 @@ function NavItem({
       {children}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count !== undefined && count > 0 && <span className="text-[12px] text-fg3 tabular-nums">{count}</span>}
+      {note && (
+        <span title={note} className="mr-1 size-2 shrink-0 rounded-full bg-accent">
+          <span className="sr-only">{note}</span>
+        </span>
+      )}
     </a>
   )
 }

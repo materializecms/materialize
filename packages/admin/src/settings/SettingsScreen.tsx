@@ -14,6 +14,7 @@ import { LanguagesSettings } from './LanguagesSettings.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 import { TrackingSettings } from './TrackingSettings.tsx'
+import { UpdatesSettings, useUpdateAvailable } from './UpdatesSettings.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
 
@@ -38,8 +39,9 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   const active = tab ?? singletons[0]?.name ?? 'mail'
   const single = singletons.find((c) => c.name === active)
   const [profile, setProfile] = useState(false)
+  const update = useUpdateAvailable()
   // Grouped, so the list can grow: the site's own data, how it talks to people, safety, tools.
-  const groups: { title: string; items: { value: string; label: string; badge?: number }[] }[] = [
+  const groups: { title: string; items: { value: string; label: string; badge?: number; dot?: boolean }[] }[] = [
     {
       title: 'Sito',
       items: [
@@ -62,10 +64,11 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       items: [
         { value: 'ai', label: 'AI e MCP' },
         { value: 'import', label: 'Importa' },
+        ...(user.role === 'admin' ? [{ value: 'updates', label: 'Aggiornamenti', dot: !!update }] : []),
       ],
     },
   ]
-  const item = (it: { value: string; label: string; badge?: number }) => (
+  const item = (it: { value: string; label: string; badge?: number; dot?: boolean }) => (
     <button
       key={it.value}
       type="button"
@@ -82,6 +85,11 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       {!!it.badge && (
         <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white tabular-nums">
           {it.badge}
+        </span>
+      )}
+      {it.dot && (
+        <span title="Nuova versione" className="size-2 rounded-full bg-accent">
+          <span className="sr-only">Nuova versione</span>
         </span>
       )}
     </button>
@@ -112,6 +120,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             <div className="min-h-0 flex-1 overflow-y-auto">
               {active === 'ai' ? (
                 <AiScreen />
+              ) : active === 'updates' ? (
+                <UpdatesSettings />
               ) : active === 'tracking' ? (
                 <TrackingSettings />
               ) : active === 'import' ? (

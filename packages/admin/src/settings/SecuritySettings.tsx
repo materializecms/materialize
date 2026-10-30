@@ -38,6 +38,7 @@ const SETTINGS: Record<string, string> = {
   languages: 'le lingue del sito',
   backups: 'i backup automatici',
   tracking: 'tracciamento e cookie',
+  updates: 'gli aggiornamenti automatici',
 }
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */
@@ -134,6 +135,15 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `ha eliminato il backup ${e.target}`, group: 'settings' }
     case 'backup.archive':
       return { text: 'ha scaricato l’archivio completo del sito', group: 'settings' }
+    case 'update.install':
+      return {
+        text: d.auto
+          ? `Aggiornamento automatico a Materialize ${e.target}`
+          : `ha avviato l’aggiornamento a Materialize ${e.target}`,
+        group: 'settings',
+      }
+    case 'update.rollback':
+      return { text: `è tornato a Materialize ${e.target}`, group: 'settings' }
   }
   if (kind === 'settings') return { text: `ha cambiato ${SETTINGS[what] ?? 'le impostazioni'}`, group: 'settings' }
   return { text: e.action, group: 'settings' }

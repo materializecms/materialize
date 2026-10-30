@@ -54,7 +54,12 @@ async function main() {
         throw new Error(`Il sito compilato non ha ${file}`)
 
     step('Avvio il server di produzione')
-    const server = spawn('npx', ['materialize', 'start', '--port', String(PORT)], { cwd: site, stdio: 'pipe' })
+    // Its own process group: npx, the supervisor and the server stop together at the end.
+    const server = spawn('npx', ['materialize', 'start', '--port', String(PORT)], {
+      cwd: site,
+      stdio: 'pipe',
+      detached: true,
+    })
     let log = ''
     server.stdout.on('data', (d) => (log += d))
     server.stderr.on('data', (d) => (log += d))
@@ -74,7 +79,7 @@ async function main() {
         if (res?.status !== status) throw new Error(`${path} risponde ${res?.status ?? 'niente'}\n${log}`)
       }
     } finally {
-      server.kill()
+      if (server.pid) process.kill(-server.pid, 'SIGTERM')
     }
     step('Tutto a posto: i pacchetti funzionano come li riceveranno gli utenti')
   } finally {

@@ -19,9 +19,9 @@ export function Logo({ className }: { className?: string }) {
   )
 }
 
-export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
+/** Signing in; the first account is made by the installation (Setup.tsx). */
+export function AuthScreen() {
   const queryClient = useQueryClient()
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -34,20 +34,15 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
     setBusy(true)
     setError(null)
     try {
-      if (mode === 'setup') await api.setup({ name, email, password })
-      else {
-        const res = await api.login({ email, password })
-        if (res.twoFactor) {
-          setTicket(res.ticket)
-          setPassword('')
-          return
-        }
+      const res = await api.login({ email, password })
+      if (res.twoFactor) {
+        setTicket(res.ticket)
+        setPassword('')
+        return
       }
       await queryClient.invalidateQueries()
     } catch (err) {
-      const issues = err instanceof ApiError ? err.issues : []
-      const pw = issues.find((i) => i.path === 'password')
-      setError(pw ? 'La password deve avere almeno 10 caratteri' : (err as Error).message)
+      setError((err as Error).message)
     } finally {
       setBusy(false)
     }
@@ -73,21 +68,9 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
     <div className="flex min-h-full items-center justify-center px-4 py-12">
       <form onSubmit={submit} className="w-full max-w-[340px]">
         <Logo className="mb-6 size-9" />
-        <h1 className="text-[20px] font-semibold tracking-tight">
-          {mode === 'setup' ? 'Benvenuto in Materialize' : 'Accedi'}
-        </h1>
-        <p className="mt-1 mb-6 text-fg2">
-          {mode === 'setup'
-            ? 'Crea l’account amministratore. Ci vuole un minuto.'
-            : 'Inserisci le tue credenziali per continuare.'}
-        </p>
+        <h1 className="text-[20px] font-semibold tracking-tight">Accedi</h1>
+        <p className="mt-1 mb-6 text-fg2">Inserisci le tue credenziali per continuare.</p>
         <div className="space-y-3.5">
-          {mode === 'setup' && (
-            <label className="block">
-              <span className={label}>Nome</span>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" autoFocus />
-            </label>
-          )}
           <label className="block">
             <span className={label}>Email</span>
             <Input
@@ -96,7 +79,7 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              autoFocus={mode === 'login'}
+              autoFocus
             />
           </label>
           <label className="block">
@@ -106,10 +89,8 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={mode === 'setup' ? 10 : undefined}
-              autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
             />
-            {mode === 'setup' && <span className="mt-1 block text-[13px] text-fg3">Almeno 10 caratteri.</span>}
           </label>
         </div>
         {error && (
@@ -118,7 +99,7 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
           </p>
         )}
         <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-          {mode === 'setup' ? 'Crea account e inizia' : 'Accedi'}
+          Accedi
         </Button>
       </form>
     </div>

@@ -14,3 +14,7 @@ export function relativeTime(value: string | Date): string {
 }
 
 export const fullDate = (value: string | Date) => full.format(new Date(value))
+
+const day = new Intl.DateTimeFormat('it', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+/** A calendar day ("2026-10-30" → "30 ottobre 2026"), with no time and no shift across time zones. */
+export const dayDate = (value: string) => day.format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
