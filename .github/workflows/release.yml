@@ -35,4 +35,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/notes.ts "$GITHUB_REF_NAME" > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "Materialize ${GITHUB_REF_NAME#v}" --notes-file notes.md
+          gh release create "$GITHUB_REF_NAME" --title "Materialize ${GITHUB_REF_NAME#v}" --notes-file notes.md packages/cli/install.sh

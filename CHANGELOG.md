@@ -17,6 +17,7 @@ La prima versione pubblica.
 - **Assistente AI e server MCP**: testi, traduzioni e modifiche alle pagine chiedendole a parole.
 - **Importazione da WordPress**: pagine, articoli e immagini.
 - **Statistiche e cookie**: Google Analytics, Tag Manager, Meta Pixel, Plausible, Matomo e codice personalizzato, con il banner per il consenso.
+- **Installazione su VPS con un comando**: Node.js, HTTPS con Caddy, servizio che riparte da solo, firewall e link per finire nel browser.
 - **Installazione nel browser**: controllo del server, nome e lingua del sito, account amministratore, passo per passo.
 - **Aggiornamenti con un clic** da Impostazioni → Aggiornamenti, con backup prima e ritorno automatico alla versione precedente se la nuova non parte; le correzioni possono installarsi da sole.
 - **Sicurezza**: verifica in due passaggi, pausa dopo i tentativi di accesso falliti, registro delle attività, backup giornalieri del database e dei media.

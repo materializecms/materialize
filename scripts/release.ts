@@ -20,7 +20,7 @@ const COMPILED = join(OUT, '.compiled')
 /** Published packages, dependencies first. */
 const PACKAGES = ['core', 'db', 'admin', 'server', 'astro', 'cli', 'create-materialize']
 /** Extra folders shipped as they are. */
-const EXTRA: Record<string, string[]> = { admin: ['dist'], 'create-materialize': ['template'] }
+const EXTRA: Record<string, string[]> = { admin: ['dist'], cli: ['install.sh'], 'create-materialize': ['template'] }
 
 type Json = Record<string, unknown>
 

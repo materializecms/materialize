@@ -18,11 +18,25 @@ Il comando chiede la cartella, copia un sito Astro con nove blocchi pronti (cope
 
 Con il pannello, Materialize è un programma Node sempre acceso: serve un **server tuo**, cioè un VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) o un ambiente Docker. **Gli hosting condivisi PHP non sono adatti**, anche quelli con Node nel cPanel: memoria scarsa e processi sospesi quando non ci sono visite rendono lenti la generazione del sito e le immagini. Il sito generato, invece, è fatto di file statici e si può pubblicare anche su qualsiasi hosting statico.
 
+### Installazione su un VPS
+
+Su un VPS nuovo con Debian 12 o Ubuntu 22.04 (o più recenti), almeno 1 GB di memoria e un dominio che punta al suo indirizzo IP, basta un comando:
+
+```bash
+curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain esempio.it
+```
+
+Lo script installa Node.js e Caddy, che serve il sito in HTTPS con un certificato Let's Encrypt rinnovato da solo. Poi crea il sito in `/srv/materialize` e lo avvia come servizio, che riparte con il server e dopo un errore. Infine apre nel firewall solo SSH, HTTP e HTTPS, attiva gli aggiornamenti di sicurezza del sistema e, sui server con poca memoria, aggiunge memoria di scambio. Alla fine scrive il link per completare l'installazione nel browser.
+
+Rilanciato, ripara l'installazione e riscrive il link, senza toccare il sito e i contenuti. `--help` elenca le opzioni: email per Let's Encrypt, versione, cartella, porta, un altro registro npm, firewall. Le variabili per il sito, per esempio `ANTHROPIC_API_KEY`, vanno in `/etc/materialize/env`; poi si esegue `systemctl restart materialize`. Il registro si legge con `journalctl -u materialize -f`.
+
+Il servizio passa al sito dall'ambiente quello che dipende dal server e non dal sito: `MATERIALIZE_SITE_URL`, `MATERIALIZE_PORT`, `MATERIALIZE_HOST` e `MATERIALIZE_TRUST_PROXY`. Valgono anche fuori dallo script, e `materialize.config.ts` resta uguale ovunque.
+
 ### L'installazione nel browser
 
 Al primo avvio il pannello guida l'installazione in tre passi: controlla il server (versione di Node, cartelle scrivibili, sito, HTTPS, aggiornamenti), chiede nome e lingua del sito, crea l'account amministratore, poi apre il pannello.
 
-In produzione (`materialize start`) l'installazione chiede il link che il server scrive all'avvio, `/admin/?installa=<codice>`: così un server appena messo online non può essere preso da chi lo trova per primo. Il codice cambia a ogni avvio e non serve più dopo l'installazione. In sviluppo (`materialize dev`) non serve.
+In produzione (`materialize start`) l'installazione chiede il link che il server scrive all'avvio, `/admin/?installa=<codice>`: così un server appena messo online non può essere preso da chi lo trova per primo. Il codice resta lo stesso anche se il server si riavvia (è in `.materialize/install-code`) e sparisce a installazione finita. In sviluppo (`materialize dev`) non serve.
 
 ### Aggiornamenti
 

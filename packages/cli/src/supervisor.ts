@@ -141,7 +141,7 @@ export async function supervise(script: string, args: string[], site = process.c
         await writeFile(join(dir, 'result.json'), JSON.stringify(result))
         continue
       }
-      console.log(`  Materialize ${pending.from} → ${pending.to}: avvio la nuova versione…`)
+      console.log(`  Materialize ${pending.from} → ${pending.to}: avvio la ${pending.to}…`)
       // The new version must report ready in time; otherwise the old one comes back.
       let ready = false
       let timer: NodeJS.Timeout | undefined

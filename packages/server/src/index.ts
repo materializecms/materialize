@@ -36,6 +36,8 @@ export interface RunningServer {
 
 export interface ServerOptions {
   port?: number
+  /** The address to listen on: every interface when missing, 127.0.0.1 behind a proxy on the same machine. */
+  host?: string
   /** The site renderer. Without one, "/" shows a status page. */
   site?: SiteHandler
   onPublish?: () => void
@@ -73,7 +75,7 @@ export async function startServer(initial: MaterializeConfig, options: ServerOpt
   const port = options.port ?? config.server.port
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, resolve)
+    server.listen(port, options.host, resolve)
   })
   return {
     url: `http://localhost:${port}`,

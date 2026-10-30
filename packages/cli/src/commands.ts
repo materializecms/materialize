@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { watch } from 'node:fs'
-import { copyFile, mkdir, open, rm } from 'node:fs/promises'
+import { copyFile, mkdir, open, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
@@ -41,11 +41,25 @@ ${accent('materialize')} ${dim(VERSION)}
 
 Opzioni
   --port <numero>      Porta del server (predefinita: quella del config, 4321)
+  --host <indirizzo>   Indirizzo su cui ascoltare (predefinito: tutti; 127.0.0.1 dietro un proxy)
   --url <indirizzo>    Con mcp: il CMS a cui collegarsi (predefinito: http://localhost:<porta>)
   --no-supervisor      Con start: senza supervisore (se il server lo tiene acceso un altro programma)
 
 Il server MCP usa un token personale (Impostazioni → AI e MCP) in MATERIALIZE_TOKEN.
 `
+
+/** Kept until the installation is done, so a restart (or the VPS installer, which reads it) keeps the same link. */
+const INSTALL_CODE = '.materialize/install-code'
+
+async function installCode(site: string): Promise<string> {
+  const path = join(site, INSTALL_CODE)
+  const kept = await readFile(path, 'utf8').catch(() => '')
+  if (/^[\w-]{12,}$/.test(kept.trim())) return kept.trim()
+  const code = randomBytes(9).toString('base64url')
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, code, { mode: 0o600 })
+  return code
+}
 
 function summary(config: MaterializeConfig): string {
   return config.collections.map((c) => c.name).join(', ')
@@ -87,8 +101,9 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     process.exit(0)
   }
 
-  const portFlag = args.indexOf('--port')
-  const port = portFlag >= 0 ? Number(args[portFlag + 1]) : config.server.port
+  const flag = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
+  const port = Number(flag('--port') ?? config.server.port)
+  const host = flag('--host') ?? process.env.MATERIALIZE_HOST
   let current = config
   // The site handler is swapped in once Astro is ready; until then visitors get a short wait page.
   let siteHandler: Handler = (_req, res) => {
@@ -111,11 +126,12 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   })
   // In production the first account needs the link printed below: a fresh server online cannot be
   // claimed by whoever finds it first.
-  const setupToken = mode === 'start' ? randomBytes(9).toString('base64url') : undefined
+  const setupToken = mode === 'start' ? await installCode(cwd) : undefined
   const server = await startServer(config, {
     updates,
     setupToken,
     port,
+    host,
     site: withSite
       ? async (req, res) => {
           // Old addresses (moved pages, Impostazioni → SEO) answer with a permanent redirect.
@@ -180,7 +196,9 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   console.log(`  ${dim('Database')}    ${config.database.url}`)
   console.log(`  ${dim('Collezioni')}  ${summary(config)}`)
   console.log()
-  if ((await createAuthStore(server.database.db).countUsers()) === 0) {
+  if ((await createAuthStore(server.database.db).countUsers()) > 0) {
+    if (setupToken) await rm(join(cwd, INSTALL_CODE), { force: true })
+  } else {
     const path = `/admin/${setupToken ? `?installa=${setupToken}` : ''}`
     console.log(`  ${accent('Installazione')}  apri ${server.url}${path}`)
     if (setupToken)
