@@ -16,10 +16,15 @@ function write(key: string, value: string) {
 }
 
 export function usePref<T extends string>(key: string, fallback: T): [T, (value: T) => void] {
-  const [value, setValue] = useState<T>(() => (read(key) as T | null) ?? fallback)
+  // Keyed by `key` too: when it changes (another page or device), the value is read again.
+  const [state, setState] = useState<{ key: string; value: T }>(() => ({
+    key,
+    value: (read(key) as T | null) ?? fallback,
+  }))
+  const value = state.key === key ? state.value : ((read(key) as T | null) ?? fallback)
   const update = useCallback(
     (next: T) => {
-      setValue(next)
+      setState({ key, value: next })
       write(key, next)
     },
     [key],

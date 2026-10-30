@@ -65,7 +65,7 @@ import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { type AlignHow, alignPatches } from './align.ts'
 import { autoBind } from './autobind.ts'
-import { Canvas, type DropTarget, type Mode } from './Canvas.tsx'
+import { Canvas, type DropTarget, type Mode, type RulerGuide } from './Canvas.tsx'
 import { CommentsPanel } from './CommentsPanel.tsx'
 import { ContentPanel, SectionsIndex } from './ContentPanel.tsx'
 import { ContextMenu, type MenuEntry } from './ContextMenu.tsx'
@@ -434,6 +434,16 @@ export function PageEditor({
   const [tourPref, setTourPref] = usePref<'todo' | 'done'>('mz-tour', 'todo')
   const [rulerPref, setRulerPref] = usePref<'on' | 'off'>('mz-rulers', 'on')
   const rulers = rulerPref === 'on'
+  // Guides pulled out of the rulers: an editing aid kept in this browser, per page and device.
+  const [guidesPref, setGuidesPref] = usePref<string>(`mz-guides:${docId ?? 'new'}:${device}`, '[]')
+  const rulerGuides = useMemo<RulerGuide[]>(() => {
+    try {
+      return JSON.parse(guidesPref)
+    } catch {
+      return []
+    }
+  }, [guidesPref])
+  const setRulerGuides = useCallback((g: RulerGuide[]) => setGuidesPref(JSON.stringify(g)), [setGuidesPref])
   const setRulers = (on: boolean) => setRulerPref(on ? 'on' : 'off')
   const [playing, setPlaying] = useState(0)
   const [previewing, setPreviewing] = useState(false)
@@ -1623,6 +1633,8 @@ export function PageEditor({
                 if (editing) setEditing(null)
               }}
               rulers={rulers}
+              rulerGuides={rulerGuides}
+              onRulerGuides={setRulerGuides}
               onContextMenu={openMenu}
               typeAhead={typeAhead}
               marks={marks}

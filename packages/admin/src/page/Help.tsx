@@ -50,6 +50,7 @@ const GROUPS: { title: string; keys: [string, string][] }[] = [
       ['⌥ (tenuto)', 'Distanze dall’elemento sotto il puntatore'],
       ['⌘ trascinando', 'Senza guide magnetiche'],
       ['⇧R', 'Righelli'],
+      ['Trascina da un righello', 'Nuova guida (sul righello o doppio clic la toglie)'],
       ['?', 'Questo elenco'],
     ],
   },

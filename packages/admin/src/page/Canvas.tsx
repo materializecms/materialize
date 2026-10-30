@@ -37,8 +37,57 @@ type Guide = { axis: 'x' | 'y'; at: number; from: number; to: number }
 /** A measured distance between two boxes, in stage pixels, with its value in page pixels. */
 type Gap = { x1: number; y1: number; x2: number; y2: number; label: number }
 
+/** A guide pulled out of a ruler, in page pixels: a vertical line at x, or a horizontal one at y. */
+export type RulerGuide = { axis: 'x' | 'y'; at: number }
+
 /** How close, in page pixels, an edge or center has to come to snap. */
 const SNAP = 6
+
+/** A stretch along one axis (a..b) and where it sits on the other (c0..c1), in a container's pixels. */
+type Span = { a: number; b: number; c0: number; c1: number }
+/** A distance shown while dragging, along the axis: from..to, drawn at `cross` on the other axis. */
+type SpacingMark = { from: number; to: number; cross: number }
+
+/**
+ * Where a box of `size`, now at `start`, would sit at equal distances: centred between two
+ * neighbours, or as far from one as two others already are from each other. Only neighbours level
+ * with it (overlapping on the other axis) count; the nearest position within `limit` wins.
+ */
+function equalSpacing(start: number, size: number, c0: number, c1: number, spans: Span[], limit: number) {
+  const row = spans.filter((s) => s.c0 < c1 && s.c1 > c0).sort((x, y) => x.a - y.a)
+  const mid = (p: Span, q: { c0: number; c1: number }) => (Math.max(p.c0, q.c0) + Math.min(p.c1, q.c1)) / 2
+  const free = (at: number) => row.every((s) => at + size <= s.a + 0.5 || at >= s.b - 0.5)
+  let best: { d: number; marks: SpacingMark[] } | null = null
+  const offer = (at: number, marks: SpacingMark[]) => {
+    const d = at - start
+    if (Math.abs(d) <= limit && free(at) && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, marks }
+  }
+  const box = { c0, c1 }
+  for (const [i, l] of row.entries())
+    for (const r of row.slice(i + 1)) {
+      if (r.a < l.b) continue
+      // Centred between l and r.
+      const at = (l.b + r.a - size) / 2
+      if (at >= l.b)
+        offer(at, [
+          { from: l.b, to: at, cross: mid(l, box) },
+          { from: at + size, to: r.a, cross: mid(r, box) },
+        ])
+    }
+  // The gap two neighbours already keep, repeated next to any of them.
+  for (let i = 0; i + 1 < row.length; i++) {
+    const p = row[i] as Span
+    const q = row[i + 1] as Span
+    const g = q.a - p.b
+    if (g <= 0) continue
+    const pair = { from: p.b, to: q.a, cross: mid(p, q) }
+    for (const n of row) {
+      offer(n.b + g, [pair, { from: n.b, to: n.b + g, cross: mid(n, box) }])
+      offer(n.a - g - size, [pair, { from: n.a - g, to: n.a, cross: mid(n, box) }])
+    }
+  }
+  return best as { d: number; marks: SpacingMark[] } | null
+}
 
 /**
  * Distances from the selected box to another: the gaps between them on each axis, or, when one is
@@ -114,6 +163,8 @@ export function Canvas({
   onPatch,
   onSelectMany,
   rulers = false,
+  rulerGuides = [],
+  onRulerGuides,
   onContextMenu,
   typeAhead,
   marks = [],
@@ -152,6 +203,9 @@ export function Canvas({
   onContextMenu?: (id: string, x: number, y: number) => void
   /** Rulers along the top and left edges, in page pixels. */
   rulers?: boolean
+  /** Guides pulled out of the rulers: free elements snap to them. */
+  rulerGuides?: RulerGuide[]
+  onRulerGuides?: (guides: RulerGuide[]) => void
   /** Other people's selections and elements with open comments, drawn over the page. */
   marks?: { id: string; label: string; color: string; kind: 'person' | 'pin' }[]
   /** Characters typed on a selected text before editing began, inserted once it starts. */
@@ -178,6 +232,18 @@ export function Canvas({
     marks: [],
   })
   const [guides, setGuides] = useState<Guide[]>([])
+  // Equal distances found while dragging, in stage pixels.
+  const [spacing, setSpacing] = useState<Gap[]>([])
+  // A ruler guide being pulled out or moved: which one (null: a new one) and where, in page pixels.
+  const [pulling, setPulling] = useState<{
+    index: number | null
+    axis: 'x' | 'y'
+    at: number
+    off: boolean
+    /** The element it snapped to, outlined. */
+    box: Box | null
+  } | null>(null)
+  const showGuides = rulers && !preview
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   // Holding ⌥ shows the distances from the selection to the element under the pointer.
   const [measuring, setMeasuring] = useState(false)
@@ -534,12 +600,31 @@ export function Canvas({
       const hostH = host.clientHeight
       const xs = [0, hostW / 2, hostW]
       const ys = [0, hostH / 2, hostH]
+      const sibs: { l: number; t: number; r: number; b: number }[] = []
       for (const sib of [...host.children]) {
         if (!(sib instanceof HTMLElement) || items.some((it) => it.el === sib)) continue
         if (!sib.dataset.mzId || sib.offsetParent !== host) continue
         xs.push(sib.offsetLeft, sib.offsetLeft + sib.offsetWidth / 2, sib.offsetLeft + sib.offsetWidth)
         ys.push(sib.offsetTop, sib.offsetTop + sib.offsetHeight / 2, sib.offsetTop + sib.offsetHeight)
+        sibs.push({
+          l: sib.offsetLeft,
+          t: sib.offsetTop,
+          r: sib.offsetLeft + sib.offsetWidth,
+          b: sib.offsetTop + sib.offsetHeight,
+        })
       }
+      // The rulers' guides, from page pixels to the container's.
+      const pageBox = root.current?.getBoundingClientRect()
+      const hostBox = host.getBoundingClientRect()
+      const hx = pageBox ? (hostBox.left - pageBox.left) / scale + host.clientLeft : 0
+      const hy = pageBox ? (hostBox.top - pageBox.top) / scale + host.clientTop : 0
+      const ruled = { x: new Set<number>(), y: new Set<number>() }
+      if (showGuides)
+        for (const g of rulerGuides) {
+          const at = g.at - (g.axis === 'x' ? hx : hy)
+          ;(g.axis === 'x' ? xs : ys).push(at)
+          ruled[g.axis].add(at)
+        }
       /** The nearest line to any of the given points: how far to move, and where the line is. */
       const snap = (points: number[], lines: number[]) => {
         let best: { d: number; at: number } | null = null
@@ -562,25 +647,76 @@ export function Canvas({
         if (!moved && Math.hypot(dx, dy) < 4) return
         moved = true
         const found: Guide[] = []
+        const marks: Gap[] = []
         // ⌘ or Ctrl: no snapping, for fine placement.
         if (!ev.metaKey && !ev.ctrlKey) {
           const left = ux + dx
           const top = uy + dy
           const sx = snap([left, left + w / 2, left + w], xs)
           const sy = snap([top, top + h / 2, top + h], ys)
+          const limit = SNAP / Math.min(1, scale)
+          // Equal distances to the neighbours, when nearer than any edge.
+          const ex = equalSpacing(
+            left,
+            w,
+            top,
+            top + h,
+            sibs.map((b) => ({ a: b.l, b: b.r, c0: b.t, c1: b.b })),
+            limit,
+          )
+          const ey = equalSpacing(
+            top,
+            h,
+            left,
+            left + w,
+            sibs.map((b) => ({ a: b.t, b: b.b, c0: b.l, c1: b.r })),
+            limit,
+          )
           const base = stage.current?.getBoundingClientRect()
           const hr = host.getBoundingClientRect()
           const ox = base ? hr.left - base.left + host.clientLeft * scale : 0
           const oy = base ? hr.top - base.top + host.clientTop * scale : 0
-          if (sx) {
+          // A ruler guide runs across the whole page; the others across the container.
+          const pageW = width * scale
+          const pageH = height * scale
+          if (ex && (!sx || Math.abs(ex.d) < Math.abs(sx.d))) {
+            dx += ex.d
+            for (const m of ex.marks)
+              marks.push({
+                x1: ox + m.from * scale,
+                x2: ox + m.to * scale,
+                y1: oy + m.cross * scale,
+                y2: oy + m.cross * scale,
+                label: Math.round(m.to - m.from),
+              })
+          } else if (sx) {
             dx += sx.d
-            found.push({ axis: 'x', at: ox + sx.at * scale, from: oy, to: oy + hostH * scale })
+            found.push(
+              ruled.x.has(sx.at)
+                ? { axis: 'x', at: ox + sx.at * scale, from: 0, to: pageH }
+                : { axis: 'x', at: ox + sx.at * scale, from: oy, to: oy + hostH * scale },
+            )
           }
-          if (sy) {
+          if (ey && (!sy || Math.abs(ey.d) < Math.abs(sy.d))) {
+            dy += ey.d
+            for (const m of ey.marks)
+              marks.push({
+                y1: oy + m.from * scale,
+                y2: oy + m.to * scale,
+                x1: ox + m.cross * scale,
+                x2: ox + m.cross * scale,
+                label: Math.round(m.to - m.from),
+              })
+          } else if (sy) {
             dy += sy.d
-            found.push({ axis: 'y', at: oy + sy.at * scale, from: ox, to: ox + hostW * scale })
+            found.push(
+              ruled.y.has(sy.at)
+                ? { axis: 'y', at: oy + sy.at * scale, from: 0, to: pageW }
+                : { axis: 'y', at: oy + sy.at * scale, from: ox, to: ox + hostW * scale },
+            )
           }
         }
+        setSpacing(marks)
         dx = Math.round(dx)
         dy = Math.round(dy)
         setGuides(found)
@@ -596,6 +732,7 @@ export function Canvas({
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
         setGuides([])
+        setSpacing([])
         setBadge(null)
         if (!moved) return
         suppressClick.current = true
@@ -817,6 +954,65 @@ export function Canvas({
         : selectedNode.name || typeLabel(selectedNode)
       : null
 
+  /**
+   * Pulls a guide out of a ruler (index null) or moves one: it follows the pointer in page pixels,
+   * snaps to the selection's edges and center, and dropped back on its ruler it goes away.
+   */
+  const startGuide = (axis: 'x' | 'y', index: number | null, e: React.PointerEvent) => {
+    if (e.button !== 0 || !onRulerGuides) return
+    e.preventDefault()
+    e.stopPropagation()
+    const list = rulerGuides
+    // What it can snap to, in page pixels: the page's edges and center, and every element's.
+    const lines: { at: number; box: Box | null }[] = [0, width / 2, width].map((at) => ({ at, box: null }))
+    const s0 = stage.current?.getBoundingClientRect()
+    if (s0 && root.current)
+      for (const el of root.current.querySelectorAll<HTMLElement>('[data-mz-id]')) {
+        const r = el.getBoundingClientRect()
+        if (!r.width || !r.height || el.offsetParent === null) continue
+        const box = { id: el.dataset.mzId as string, x: r.left - s0.left, y: r.top - s0.top, w: r.width, h: r.height }
+        const [a, size] = axis === 'x' ? [box.x, box.w] : [box.y, box.h]
+        for (const at of [a, a + size / 2, a + size]) lines.push({ at: at / scale, box })
+      }
+    const place = (ev: PointerEvent | React.PointerEvent) => {
+      const s = stage.current?.getBoundingClientRect()
+      const frame = scroller.current?.getBoundingClientRect()
+      if (!s || !frame) return null
+      let at = (axis === 'x' ? ev.clientX - s.left : ev.clientY - s.top) / scale
+      let box: Box | null = null
+      if (!ev.metaKey && !ev.ctrlKey) {
+        let best: { at: number; box: Box | null } | null = null
+        for (const l of lines)
+          if (Math.abs(l.at - at) <= SNAP / scale && (!best || Math.abs(l.at - at) < Math.abs(best.at - at))) best = l
+        if (best) {
+          at = best.at
+          box = best.box
+        }
+      }
+      // Over its own ruler: letting go there removes the guide.
+      const off = axis === 'x' ? ev.clientX < frame.left + 20 : ev.clientY < frame.top + 20
+      return { index, axis, at: Math.round(at), off, box }
+    }
+    setPulling(place(e))
+    const move = (ev: PointerEvent) => setPulling(place(ev))
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      const p = place(ev)
+      setPulling(null)
+      if (!p) return
+      const rest = list.filter((_, i) => i !== index)
+      onRulerGuides(p.off ? rest : [...rest, { axis, at: p.at }])
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  // The guides as drawn: the one being moved follows the pointer.
+  const drawnGuides = [
+    ...rulerGuides.map((g, i) => ({ ...g, index: i as number | null })).filter((g) => g.index !== pulling?.index),
+    ...(pulling && !pulling.off ? [{ axis: pulling.axis, at: pulling.at, index: pulling.index }] : []),
+  ]
+
   /** The empty canvas around the page: a click clears the selection, a drag draws a selection box. */
   const isBackground = (e: React.SyntheticEvent) =>
     e.target === e.currentTarget || (e.target as HTMLElement).dataset.mzBg !== undefined
@@ -824,7 +1020,14 @@ export function Canvas({
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {rulers && !preview && (
-        <Rulers scroller={scroller} stage={stage} scale={scale} marks={[boxes.sel, ...boxes.others]} />
+        <Rulers
+          scroller={scroller}
+          stage={stage}
+          scale={scale}
+          marks={[boxes.sel, ...boxes.others]}
+          guides={drawnGuides}
+          onPull={onRulerGuides ? (axis, e) => startGuide(axis, null, e) : undefined}
+        />
       )}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: clicking the empty canvas clears the selection */}
       <div
@@ -943,6 +1146,72 @@ export function Canvas({
                   className="absolute rounded-[2px] border-2 border-accent"
                   style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2 }}
                 />
+              ))}
+              {showGuides &&
+                drawnGuides.map((g) => {
+                  const active = pulling && g.index === pulling.index && g.at === pulling.at
+                  const pos = g.at * scale
+                  return (
+                    // biome-ignore lint/a11y/noStaticElementInteractions: a guide is dragged with the pointer, an editing aid only
+                    <div
+                      key={`r${g.axis}${g.index}`}
+                      title="Trascina per spostare, sul righello per togliere · doppio clic toglie"
+                      className={cx(
+                        'group/guide pointer-events-auto absolute',
+                        g.axis === 'x' ? 'cursor-col-resize' : 'cursor-row-resize',
+                      )}
+                      style={
+                        g.axis === 'x'
+                          ? { left: pos - 3, top: 0, width: 7, height: height * scale }
+                          : { top: pos - 3, left: 0, height: 7, width: width * scale }
+                      }
+                      onPointerDown={(e) => startGuide(g.axis, g.index, e)}
+                      onDoubleClick={() =>
+                        g.index !== null && onRulerGuides?.(rulerGuides.filter((_, i) => i !== g.index))
+                      }
+                    >
+                      <div
+                        className={cx(
+                          'absolute bg-[#06b6d4]',
+                          g.axis === 'x' ? 'top-0 bottom-0 left-[3px] w-px' : 'right-0 left-0 top-[3px] h-px',
+                        )}
+                      />
+                      <span
+                        className={cx(
+                          'absolute rounded-[3px] bg-[#06b6d4] px-1 font-mono text-[10px] whitespace-nowrap text-white',
+                          active ? 'block' : 'hidden group-hover/guide:block',
+                        )}
+                        style={g.axis === 'x' ? { left: 6, top: 4 } : { top: 6, left: 4 }}
+                      >
+                        {g.at}
+                      </span>
+                    </div>
+                  )
+                })}
+              {pulling?.box && !pulling.off && (
+                <div
+                  className="absolute rounded-[2px] border border-dashed border-[#06b6d4]"
+                  style={{ left: pulling.box.x, top: pulling.box.y, width: pulling.box.w, height: pulling.box.h }}
+                />
+              )}
+              {spacing.map((g) => (
+                <div key={`s${g.x1},${g.y1},${g.x2},${g.y2}`}>
+                  <div
+                    className="absolute bg-[#f43f5e]"
+                    style={{
+                      left: Math.min(g.x1, g.x2),
+                      top: Math.min(g.y1, g.y2),
+                      width: Math.max(1, Math.abs(g.x2 - g.x1)),
+                      height: Math.max(1, Math.abs(g.y2 - g.y1)),
+                    }}
+                  />
+                  <span
+                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[10.5px] text-white"
+                    style={{ left: (g.x1 + g.x2) / 2, top: (g.y1 + g.y2) / 2 }}
+                  >
+                    {g.label}
+                  </span>
+                </div>
               ))}
               {guides.map((g) => (
                 <div
@@ -1072,11 +1341,17 @@ function Rulers({
   stage,
   scale,
   marks,
+  guides,
+  onPull,
 }: {
   scroller: React.RefObject<HTMLDivElement | null>
   stage: React.RefObject<HTMLDivElement | null>
   scale: number
   marks: (Box | null)[]
+  /** Guides on the page, marked on their ruler. */
+  guides: RulerGuide[]
+  /** Pressing on a ruler pulls out a guide: vertical (x) from the left one, horizontal (y) from the top. */
+  onPull?: (axis: 'x' | 'y', e: React.PointerEvent) => void
 }) {
   const top = useRef<HTMLCanvasElement>(null)
   const left = useRef<HTMLCanvasElement>(null)
@@ -1141,8 +1416,16 @@ function Rulers({
         }
       }
       ctx.stroke()
+      // Each guide as a short accent line on the ruler that runs along it.
+      ctx.fillStyle = '#06b6d4'
+      for (const g of guides) {
+        if ((g.axis === 'x') !== horizontal) continue
+        const at = Math.round(origin + g.at * scale)
+        if (horizontal) ctx.fillRect(at - 1, 0, 2, 20)
+        else ctx.fillRect(0, at - 1, 20, 2)
+      }
     }
-  }, [stage, scale, marks])
+  }, [stage, scale, marks, guides])
 
   useEffect(() => {
     draw()
@@ -1161,11 +1444,21 @@ function Rulers({
     <>
       <canvas
         ref={top}
-        className="pointer-events-none absolute top-0 left-5 z-10 h-5 w-[calc(100%-20px)] border-b border-line bg-panel text-fg3"
+        title={onPull ? 'Trascina verso la pagina per una guida orizzontale' : undefined}
+        onPointerDown={onPull && ((e) => onPull('y', e))}
+        className={cx(
+          'absolute top-0 left-5 z-10 h-5 w-[calc(100%-20px)] border-b border-line bg-panel text-fg3',
+          onPull ? 'cursor-row-resize' : 'pointer-events-none',
+        )}
       />
       <canvas
         ref={left}
-        className="pointer-events-none absolute top-5 left-0 z-10 h-[calc(100%-20px)] w-5 border-r border-line bg-panel text-fg3"
+        title={onPull ? 'Trascina verso la pagina per una guida verticale' : undefined}
+        onPointerDown={onPull && ((e) => onPull('x', e))}
+        className={cx(
+          'absolute top-5 left-0 z-10 h-[calc(100%-20px)] w-5 border-r border-line bg-panel text-fg3',
+          onPull ? 'cursor-col-resize' : 'pointer-events-none',
+        )}
       />
       <div className="pointer-events-none absolute top-0 left-0 z-10 size-5 border-r border-b border-line bg-panel" />
     </>
