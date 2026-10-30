@@ -4,6 +4,7 @@ import {
   Code,
   Image as ImageIcon,
   MousePointerClick,
+  Pencil,
   Rows3,
   Search,
   Shapes,
@@ -40,7 +41,11 @@ export function Library({
   onAddElement,
   onAddSection,
   globals,
+  globalUsage,
+  usedHere,
   onAddGlobal,
+  onRenameGlobal,
+  onRemoveGlobal,
   components,
   onAddComponent,
   onRemoveComponent,
@@ -48,7 +53,14 @@ export function Library({
   theme: Theme
   brand: string
   globals: Record<string, PageNode>
+  /** Titles of the pages using each global section, as the server last counted them. */
+  globalUsage: Record<string, string[]>
+  /** Global sections on the page being edited (it may not be saved yet). */
+  usedHere: Set<string>
   onAddGlobal: (id: string) => void
+  onRenameGlobal: (id: string, name: string) => void
+  /** Deletes a global section no page uses. */
+  onRemoveGlobal: (id: string) => void
   components: Record<string, Component>
   onAddComponent: (id: string) => void
   /** Takes a component out of the library; copies already on pages stay as they are. */
@@ -214,16 +226,48 @@ export function Library({
               <span className="font-normal text-fg3">condivise da tutte le pagine</span>
             </h3>
             <div className="space-y-2.5">
-              {globalPreviews.map((g) => (
-                <Tile
-                  key={g.id}
-                  id={`global:${g.id}`}
-                  label={g.label}
-                  html={g.html}
-                  root={pageRootStyle(theme)}
-                  onAdd={() => onAddGlobal(g.id)}
-                />
-              ))}
+              {globalPreviews.map((g) => {
+                const pages = globalUsage[g.id] ?? []
+                const used = pages.length > 0 || usedHere.has(g.id)
+                const where = usedHere.has(g.id) ? 'in questa pagina' : `in ${pages.map((t) => `“${t}”`).join(', ')}`
+                return (
+                  <div key={g.id} className="group/c relative">
+                    <Tile
+                      id={`global:${g.id}`}
+                      label={`${g.label} · ${used ? (pages.length > 1 ? `${pages.length} pagine` : 'in uso') : 'non usata'}`}
+                      html={g.html}
+                      root={pageRootStyle(theme)}
+                      onAdd={() => onAddGlobal(g.id)}
+                    />
+                    <div className="absolute right-1.5 bottom-1 flex gap-0.5 opacity-0 group-hover/c:opacity-100 focus-within:opacity-100">
+                      <button
+                        type="button"
+                        title="Rinomina"
+                        aria-label={`Rinomina “${g.label}”`}
+                        onClick={() => {
+                          const name = prompt('Nome della sezione globale', g.label)?.trim()
+                          if (name && name !== g.label) onRenameGlobal(g.id, name)
+                        }}
+                        className="flex size-6 items-center justify-center rounded-md text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+                      >
+                        <Pencil />
+                      </button>
+                      <button
+                        type="button"
+                        title={used ? `Usata ${where}: toglila prima dalle pagine` : 'Elimina la sezione globale'}
+                        aria-label={`Elimina “${g.label}”`}
+                        disabled={used}
+                        onClick={() => {
+                          if (confirm(`Eliminare “${g.label}”? Nessuna pagina la usa.`)) onRemoveGlobal(g.id)
+                        }}
+                        className="flex size-6 items-center justify-center rounded-md text-fg3 hover:bg-hover hover:text-danger disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg3 [&_svg]:size-3.5"
+                      >
+                        <Trash2 />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </section>
         )}
@@ -270,7 +314,7 @@ const Tile = memo(function Tile({
   root: string
   onAdd: () => void
 }) {
-  const box = useRef<HTMLButtonElement>(null)
+  const box = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(0)
   const [visible, setVisible] = useState(false)
   const [h, setH] = useState(0)
@@ -299,24 +343,19 @@ const Tile = memo(function Tile({
   const height = Math.min(Math.max(content, 64), 200)
   const bg = /background:([^;]+)/.exec(root)?.[1]
 
+  // The preview is a picture of the section: its own buttons and links stay out of reach (inert), and
+  // a transparent button on top adds it, so no control sits inside another.
   return (
-    <button
+    <div
       ref={box}
-      type="button"
-      title={`Aggiungi “${label}”: clicca o trascina sulla pagina`}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData(DRAG_SECTION, id)
-        e.dataTransfer.effectAllowed = 'copy'
-      }}
-      onClick={onAdd}
-      className="group block w-full overflow-hidden rounded-lg border border-line bg-panel text-left shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-[border-color,box-shadow] hover:border-accent hover:shadow-[0_0_0_1px_var(--accent)]"
+      className="group relative block w-full overflow-hidden rounded-lg border border-line bg-panel text-left shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-[border-color,box-shadow] hover:border-accent hover:shadow-[0_0_0_1px_var(--accent)]"
     >
       <div className="relative overflow-hidden bg-panel2" style={{ height: visible ? height : 120, background: bg }}>
         {visible && (
           <div
             ref={inner}
             aria-hidden="true"
+            inert
             className="mz-page pointer-events-none absolute left-0"
             style={{
               width: TILE_W,
@@ -329,7 +368,7 @@ const Tile = memo(function Tile({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         )}
-        <span className="absolute inset-0 flex items-center justify-center bg-accent/0 opacity-0 transition group-hover:bg-accent/10 group-hover:opacity-100">
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent/0 opacity-0 transition group-hover:bg-accent/10 group-hover:opacity-100">
           <span className="rounded-full bg-accent px-3 py-1 text-[12px] font-medium text-white shadow-sm">
             Aggiungi
           </span>
@@ -338,7 +377,19 @@ const Tile = memo(function Tile({
       <div className="border-t border-line px-2.5 py-1.5 text-[12px] font-medium text-fg2 group-hover:text-fg">
         {label}
       </div>
-    </button>
+      <button
+        type="button"
+        title={`Aggiungi “${label}”: clicca o trascina sulla pagina`}
+        aria-label={`Aggiungi “${label}”`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DRAG_SECTION, id)
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
+        onClick={onAdd}
+        className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+      />
+    </div>
   )
 })
 

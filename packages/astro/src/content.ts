@@ -18,6 +18,26 @@ export interface Entry<T extends Data = Data> {
   title: string
   data: T
   publishedAt: Date | null
+  /** Readable values where the data holds a code: a choice's label, a related entry's title. */
+  labels: Record<string, string>
+}
+
+function labelsOf(collection: Collection, data: Data): Record<string, string> {
+  const labels: Record<string, string> = {}
+  for (const [name, f] of Object.entries(collection.fields)) {
+    const v = data[name]
+    if (f.kind === 'select' && typeof v === 'string') {
+      const opts = (f.options as { options?: (string | { value: string; label?: string })[] }).options ?? []
+      const hit = opts.find((o) => (typeof o === 'string' ? o : o.value) === v)
+      if (hit && typeof hit !== 'string' && hit.label) labels[name] = hit.label
+    }
+    // Relations are already the related entries here.
+    if (f.kind === 'relation' && v) {
+      const titles = (Array.isArray(v) ? v : [v]).map((e: { title?: string }) => e?.title).filter(Boolean)
+      if (titles.length) labels[name] = titles.join(', ')
+    }
+  }
+  return labels
 }
 
 type Mode = 'published' | 'draft'
@@ -46,6 +66,7 @@ function toEntry(config: MaterializeConfig, doc: StoredDocument, data: Data): En
     title: doc.title,
     data,
     publishedAt: doc.publishedAt,
+    labels: labelsOf(collection, data),
   }
 }
 
@@ -118,6 +139,28 @@ export async function getTemplate(collection: string): Promise<PageNode[] | null
   return null
 }
 
+/** Pages used as a collection's template: they lay out other entries and have no address of their own. */
+async function templateIds(): Promise<Set<string>> {
+  const { settings } = await getRuntime()
+  return new Set(
+    Object.values(((settings ? await settings.get('templates') : null) as Record<string, string> | null) ?? {}),
+  )
+}
+
+/**
+ * The entry's own summary, its first multi-line text (an excerpt, a description): what search
+ * engines show when the SEO panel has no description.
+ */
+export async function summaryOf(entry: Entry): Promise<string | undefined> {
+  const { config } = await getRuntime()
+  const def = collectionOf(config(), entry.collection)
+  for (const [name, f] of Object.entries(def.fields)) {
+    const v = entry.data[name]
+    if (f.kind === 'text' && f.options.multiline && typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return undefined
+}
+
 /** Reusable components, by id. */
 export async function getComponents(): Promise<Record<string, Component>> {
   const { settings } = await getRuntime()
@@ -161,11 +204,12 @@ export async function getSingleton<T extends Data = Data>(
  */
 export async function getRoutes(): Promise<{ params: { path: string | undefined }; props: { entry: Entry } }[]> {
   const { config } = await getRuntime()
+  const templates = await templateIds()
   const routes = []
   for (const collection of config().collections) {
     if (!collection.url) continue
     for (const entry of await published(collection.name)) {
-      if (!entry.url) continue
+      if (!entry.url || templates.has(entry.id)) continue
       routes.push({ params: { path: entry.url.replace(/^\/+|\/+$/g, '') || undefined }, props: { entry } })
     }
   }
@@ -188,6 +232,7 @@ export async function previewEntry(collection: string, locale: string, data: Dat
     title,
     data: resolved,
     publishedAt: null,
+    labels: labelsOf(def, resolved),
   }
 }
 
@@ -232,11 +277,12 @@ export async function getAlternates(entry: Entry): Promise<{ locale: string; url
 /** Every published page search engines may index, for sitemap.xml. */
 export async function getSitemapPages(): Promise<SitemapPage[]> {
   const { config } = await getRuntime()
+  const templates = await templateIds()
   const pages: SitemapPage[] = []
   for (const collection of config().collections) {
     if (!collection.url) continue
     for (const entry of await published(collection.name)) {
-      if (!entry.url || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
+      if (!entry.url || templates.has(entry.id) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
       const alternates = await getAlternates(entry)
       pages.push({ url: entry.url, updatedAt: entry.publishedAt, alternates })
     }

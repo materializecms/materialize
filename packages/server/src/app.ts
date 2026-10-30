@@ -528,12 +528,50 @@ export function createApp(ctx: ServerContext) {
   })
 
   // Sections shared by several pages (menu, footer): edited once, live everywhere.
-  app.get('/api/globals', requireUser, async (c) => c.json({ globals: (await settings.get('globals')) ?? {} }))
+  /** Where each global section appears: the titles of the pages that use it, draft or published. */
+  const globalUsage = async (): Promise<Record<string, string[]>> => {
+    const out: Record<string, string[]> = {}
+    const { collections, locales } = ctx.config()
+    for (const def of collections) {
+      const pageFields = Object.entries(def.fields).filter(([, f]) => f.kind === 'page')
+      if (!pageFields.length) continue
+      for (const lang of locales.available) {
+        const { items } = await content.list(def.name, { locale: lang, limit: 200 })
+        for (const doc of await content.getMany(items.map((i) => i.id)))
+          for (const [name] of pageFields)
+            for (const data of [doc.data, doc.publishedData ?? {}]) {
+              const nodes = data[name]
+              if (!Array.isArray(nodes)) continue
+              for (const n of nodes as PageNode[]) {
+                if (!n.global) continue
+                const titles = out[n.global] ?? []
+                if (!titles.includes(doc.title)) out[n.global] = [...titles, doc.title]
+              }
+            }
+      }
+    }
+    return out
+  }
+
+  app.get('/api/globals', requireUser, async (c) =>
+    c.json({ globals: (await settings.get('globals')) ?? {}, usage: await globalUsage() }),
+  )
 
   app.put('/api/globals', requireUser, async (c) => {
     const input = await body(c, z.object({ globals: z.record(z.string(), z.record(z.string(), z.unknown())) }))
     const before = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
     guardEmbeds(c.get('user'), before, input.globals)
+    const removed = Object.keys(before).filter((id) => !input.globals[id])
+    if (removed.length) {
+      const usage = await globalUsage()
+      const inUse = removed.find((id) => usage[id]?.length)
+      if (inUse)
+        throw new ApiError(
+          409,
+          'global_in_use',
+          `La sezione è ancora in ${usage[inUse]?.map((t) => `“${t}”`).join(', ')}: toglila prima dalle pagine`,
+        )
+    }
     const ids = [...new Set([...Object.keys(before), ...Object.keys(input.globals)])].sort()
     await guardDesign(
       c.get('user'),
@@ -791,11 +829,47 @@ export function createApp(ctx: ServerContext) {
     })
     const docs = await content.getMany(items.map((i) => i.id))
     const byId = new Map(docs.map((d) => [d.id, d]))
+    // Readable values for the canvas: a choice's label, a related entry's title.
+    const relationIds = docs.flatMap((d) =>
+      Object.entries(def.fields).flatMap(([name, f]) => {
+        if (f.kind !== 'relation') return []
+        const v = d.data[name]
+        return (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string')
+      }),
+    )
+    const related = new Map((await content.getMany([...new Set(relationIds)])).map((d) => [d.id, d.title]))
+    const labelsOf = (data: Record<string, unknown>) => {
+      const labels: Record<string, string> = {}
+      for (const [name, f] of Object.entries(def.fields)) {
+        const v = data[name]
+        if (f.kind === 'select' && typeof v === 'string') {
+          const opts = (f.options as { options?: (string | { value: string; label?: string })[] }).options ?? []
+          const hit = opts.find((o) => (typeof o === 'string' ? o : o.value) === v)
+          if (hit && typeof hit !== 'string' && hit.label) labels[name] = hit.label
+        }
+        if (f.kind === 'relation') {
+          const ids = (Array.isArray(v) ? v : [v]).filter((x): x is string => typeof x === 'string')
+          const titles = ids.map((id) => related.get(id)).filter(Boolean)
+          if (titles.length) labels[name] = titles.join(', ')
+        }
+      }
+      return labels
+    }
+    const entryLocale = locale(c.req.query('locale'))
     return c.json({
       items: items.flatMap((i) => {
         const doc = byId.get(i.id)
         return doc
-          ? [{ id: doc.id, title: doc.title, url: def.url ? def.url(doc.data as never) : null, data: doc.data }]
+          ? [
+              {
+                id: doc.id,
+                title: doc.title,
+                url: def.url ? def.url(doc.data as never) : null,
+                data: doc.data,
+                labels: labelsOf(doc.data),
+                locale: entryLocale,
+              },
+            ]
           : []
       }),
     })

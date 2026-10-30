@@ -4,6 +4,7 @@ import {
   Check,
   CircleAlert,
   Copy,
+  CopyPlus,
   EyeOff,
   FileText,
   History as HistoryIcon,
@@ -250,6 +251,22 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
     }
   }
 
+  /** A new draft with the same contents: the title says it is a copy, the address follows the title. */
+  const duplicate = async () => {
+    if (!doc) return
+    try {
+      const data: Data = { ...latest.current.value }
+      if (titleDef) data[titleDef.name] = `${title} (copia)`
+      if (collection.slugField) data[collection.slugField] = ''
+      const created = await api.create(collection.name, data, doc.locale)
+      queryClient.invalidateQueries({ queryKey: ['list', collection.name] })
+      toast('Copia creata come bozza')
+      navigate({ name: 'document', collection: collection.name, id: created.id })
+    } catch (error) {
+      handleError(error)
+    }
+  }
+
   const remove = async () => {
     if (!doc) return
     try {
@@ -467,6 +484,18 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                   >
                     Copia ID
                   </MenuItem>
+                  {!collection.singleton && (
+                    <MenuItem
+                      icon={<CopyPlus />}
+                      disabled={!doc}
+                      onClick={() => {
+                        close()
+                        void duplicate()
+                      }}
+                    >
+                      Duplica
+                    </MenuItem>
+                  )}
                   {user.role === 'admin' && (
                     <>
                       <MenuSeparator />

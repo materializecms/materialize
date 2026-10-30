@@ -214,7 +214,8 @@ export const api = {
   components: () => request<{ components: Record<string, Component> }>('GET', '/components'),
   saveComponents: (components: Record<string, Component>) =>
     request<{ components: Record<string, Component> }>('PUT', '/components', { components }),
-  globals: () => request<{ globals: Record<string, PageNode> }>('GET', '/globals'),
+  /** Global sections, and the titles of the pages that use each one. */
+  globals: () => request<{ globals: Record<string, PageNode>; usage?: Record<string, string[]> }>('GET', '/globals'),
   comments: (docId: string) => request<{ items: PageComment[] }>('GET', `/documents/${docId}/comments`),
   addComment: (docId: string, input: { nodeId: string | null; body: string }) =>
     request<{ comment: PageComment }>('POST', `/documents/${docId}/comments`, input),

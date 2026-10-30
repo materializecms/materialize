@@ -196,6 +196,8 @@ export interface NodeProps {
   text?: string
   runs?: Run[] | null
   style?: TextStyle
+  /** Rich text from a bound field (an article's body), set while rendering: never saved. */
+  rich?: string
   /** The HTML element, when it should differ from what the style suggests: a big number is not a heading. */
   tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | null
   color?: ColorToken | string
@@ -792,6 +794,61 @@ export interface BoundEntry {
   title: string
   url: string | null
   data: Record<string, unknown>
+  /** Readable values where the data holds a code: a choice's label, a related entry's title. */
+  labels?: Record<string, string>
+  /** For dates in the entry's language. */
+  locale?: string
+}
+
+/** Rich text as HTML: paragraphs, headings, quotes, lists, with bold, italic and links. */
+export function richTextHtml(blocks: unknown): string {
+  if (!Array.isArray(blocks)) return ''
+  const run = (r: { text?: string; bold?: boolean; italic?: boolean; href?: string }) => {
+    let h = esc(r.text ?? '').replace(/\n/g, '<br>')
+    if (r.bold) h = `<strong>${h}</strong>`
+    if (r.italic) h = `<em>${h}</em>`
+    if (r.href) h = `<a href="${esc(safeHref(r.href))}">${h}</a>`
+    return h
+  }
+  const inline = (b: { children?: unknown[] }) => (b.children ?? []).map((r) => run(r as never)).join('')
+  let html = ''
+  let list = false
+  for (const b of blocks as { type?: string; level?: number; children?: unknown[] }[]) {
+    if (b.type === 'listItem') {
+      html += `${list ? '' : '<ul>'}<li>${inline(b)}</li>`
+      list = true
+      continue
+    }
+    if (list) html += '</ul>'
+    list = false
+    if (b.type === 'quote') html += `<blockquote>${inline(b)}</blockquote>`
+    else if (b.type === 'heading')
+      html += `<h${b.level === 3 || b.level === 4 ? b.level : 2}>${inline(b)}</h${b.level === 3 || b.level === 4 ? b.level : 2}>`
+    else html += `<p>${inline(b)}</p>`
+  }
+  return list ? `${html}</ul>` : html
+}
+
+const isRichText = (v: unknown) =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every((b) => b && typeof b === 'object' && Array.isArray((b as { children?: unknown }).children))
+
+/** A field's value as text on the page: dates in words, related entries by their title. */
+export function displayValue(v: unknown, locale = 'it'): string {
+  if (v == null) return ''
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/.test(v)) {
+    const d = new Date(v.length === 10 ? `${v}T12:00:00Z` : v)
+    if (!Number.isNaN(d.getTime()))
+      return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+  }
+  if (typeof v === 'object') {
+    const o = v as { title?: unknown; name?: unknown }
+    if (typeof o.title === 'string') return o.title
+    if (typeof o.name === 'string') return o.name
+    return ''
+  }
+  return String(v)
 }
 
 /** A value of an entry for a bound element: "title" and "url" first, then the entry's own fields. */
@@ -1143,6 +1200,14 @@ const BASE_CSS = `
 .mz-page .mz-open>.mz-burger span:first-child{transform:translateY(3.75px) rotate(45deg)}
 .mz-page .mz-open>.mz-burger span:last-child{transform:translateY(-3.75px) rotate(-45deg)}
 .mz-page [id]{scroll-margin-top:var(--mz-anchor-offset,0px)}
+.mz-page [data-mz-prose]{white-space:normal}
+.mz-page [data-mz-prose]>*{margin:0}
+.mz-page [data-mz-prose]>*+*{margin-top:1em}
+.mz-page [data-mz-prose] h2,.mz-page [data-mz-prose] h3,.mz-page [data-mz-prose] h4{font-family:var(--mz-display,inherit);line-height:1.2;margin-top:1.6em}
+.mz-page [data-mz-prose] h2{font-size:1.5em}.mz-page [data-mz-prose] h3{font-size:1.25em}
+.mz-page [data-mz-prose] blockquote{padding-left:1em;border-left:2px solid currentColor;font-style:italic;opacity:.9}
+.mz-page [data-mz-prose] ul{padding-left:1.2em}.mz-page [data-mz-prose] li+li{margin-top:.4em}
+.mz-page [data-mz-prose] a{text-decoration:underline}
 .mz-page [data-mz-sticky~="glass"].mz-scrolled{background:color-mix(in srgb,var(--mz-sticky-bg) 72%,transparent)!important;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 1px 0 color-mix(in srgb,currentColor 10%,transparent)}
 @keyframes mzMarquee{to{transform:translateX(calc(-50% - var(--mz-gap, 0px) / 2))}}
 @media (prefers-reduced-motion:reduce){.mz-page .mz-track{animation:none!important}}
@@ -1744,6 +1809,7 @@ export function renderSections(
         if (h1Used) tag = 'h2'
         h1Used = true
       }
+      if (p.rich) return `<div ${attrs.join(' ')} data-mz-prose>${p.rich}</div>`
       // A linked text: the whole text is the link, in its own color.
       const inner = p.href
         ? `<a href="${esc(safeHref(p.href))}"${p.newTab ? ' target="_blank" rel="noopener"' : ''} style="color:inherit;text-decoration:none">${runsHtml(p)}</a>`
@@ -1835,8 +1901,14 @@ function bindTo(n: PageNode, entry: BoundEntry): PageNode {
   const out: PageNode = { ...n }
   if (n.field) {
     const v = entryValue(entry, n.field)
-    if (n.type === 'text' || (n.type === 'button' && n.field !== 'url')) {
-      out.text = v == null ? '' : typeof v === 'object' ? '' : String(v)
+    const label = entry.labels?.[n.field]
+    if (n.type === 'text' && isRichText(v)) {
+      // The body of an article: whole blocks, not one line.
+      out.rich = richTextHtml(v)
+      out.text = ''
+      out.runs = null
+    } else if (n.type === 'text' || (n.type === 'button' && n.field !== 'url')) {
+      out.text = label ?? displayValue(v, entry.locale)
       out.runs = null
     } else if (n.type === 'image') {
       const m = v as { src?: string; alt?: string; focal?: { x: number; y: number } } | null
@@ -1899,7 +1971,7 @@ export function librarySrcset(src: string): string | undefined {
 /** The page's root styles: background, text color and body font. */
 export function pageRootStyle(theme: Theme = DEFAULT_THEME): string {
   const C = palette(theme)
-  return `background:${C.bg};color:${C.text};font-family:${fontStack(theme.body, theme.bodyCategory)}`
+  return `background:${C.bg};color:${C.text};font-family:${fontStack(theme.body, theme.bodyCategory)};--mz-display:${fontStack(theme.display, theme.displayCategory)}`
 }
 
 /** A complete page fragment: root element, HTML and CSS. */

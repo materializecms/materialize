@@ -64,6 +64,7 @@ import { api, type CollectionDescription, type Data, type FieldDescription } fro
 import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { type AlignHow, alignPatches } from './align.ts'
+import { autoBind } from './autobind.ts'
 import { Canvas, type DropTarget, type Mode } from './Canvas.tsx'
 import { CommentsPanel } from './CommentsPanel.tsx'
 import { ContentPanel, SectionsIndex } from './ContentPanel.tsx'
@@ -358,7 +359,10 @@ export function PageEditor({
   const [sampleIndex, setSampleIndex] = useState(0)
   const sample = samples.data?.items[sampleIndex] ?? samples.data?.items[0]
   const sampleEntry = useMemo(
-    () => (templateOf && sample ? { title: sample.title, url: sample.url, data: sample.data } : undefined),
+    () =>
+      templateOf && sample
+        ? { title: sample.title, url: sample.url, data: sample.data, labels: sample.labels, locale: sample.locale }
+        : undefined,
     [templateOf, sample],
   )
   const setTemplateOf = (name: string | null) => {
@@ -516,7 +520,7 @@ export function PageEditor({
       const collapsed = collapseGlobals(withRefs.nodes)
       const merged = { ...globalsRef.current, ...collapsed.globals }
       if (JSON.stringify(merged) !== JSON.stringify(globalsRef.current)) {
-        queryClient.setQueryData(['globals'], { globals: merged })
+        queryClient.setQueryData(['globals'], (old: typeof globalsQuery.data) => ({ ...old, globals: merged }))
         clearTimeout(globalsTimer.current)
         globalsTimer.current = setTimeout(() => {
           api.saveGlobals(merged).catch((e: Error) => toast(e.message, 'error'))
@@ -1195,7 +1199,9 @@ export function PageEditor({
       { value: 'title', label: 'Titolo' },
       { value: 'url', label: 'Indirizzo della pagina' },
       ...def.fields
-        .filter((f) => ['text', 'number', 'date', 'select', 'slug', 'media', 'color'].includes(f.kind))
+        .filter((f) =>
+          ['text', 'number', 'date', 'select', 'slug', 'media', 'color', 'richText', 'relation'].includes(f.kind),
+        )
         .filter((f) => f.name !== def.titleField)
         .map((f) => ({ value: f.name, label: f.label ?? f.name })),
     ]
@@ -1337,6 +1343,20 @@ export function PageEditor({
                 onAddElement={(kind) => insertAfterSelection(newElement(kind))}
                 onAddSection={addSection}
                 globals={globals}
+                globalUsage={globalsQuery.data?.usage ?? {}}
+                usedHere={new Set(nodes.flatMap((n) => (n.global ? [n.global] : [])))}
+                onRenameGlobal={(gid, name) => {
+                  const next = { ...globalsRef.current, [gid]: { ...(globalsRef.current[gid] as PageNode), name } }
+                  queryClient.setQueryData(['globals'], (old: typeof globalsQuery.data) => ({ ...old, globals: next }))
+                  api.saveGlobals(next).catch((e: Error) => toast(e.message, 'error'))
+                }}
+                onRemoveGlobal={(gid) => {
+                  const { [gid]: _, ...next } = globalsRef.current
+                  api
+                    .saveGlobals(next)
+                    .then(() => queryClient.invalidateQueries({ queryKey: ['globals'] }))
+                    .catch((e: Error) => toast(e.message, 'error'))
+                }}
                 components={components}
                 onAddComponent={componentActions.insert}
                 onRemoveComponent={(cid) => {
@@ -1670,7 +1690,24 @@ export function PageEditor({
               depth={info.depth}
               device={device}
               onProps={setSelectionProps}
-              onContent={(patch, group) => setProps(selectedNode.id, patch, group)}
+              onContent={(patch, group) => {
+                // A list just bound to a collection: its first element takes the likely fields.
+                const def = patch.bind?.collection
+                  ? schema.collections.find((c) => c.name === patch.bind?.collection)
+                  : undefined
+                if (def && patch.bind?.collection !== selectedNode.bind?.collection && selectedNode.children?.[0]) {
+                  const id = selectedNode.id
+                  setNodes(
+                    updateNode(nodesRef.current, id, (n) => ({
+                      ...n,
+                      ...patch,
+                      children: n.children?.map((c, i) => (i === 0 ? autoBind(c, def) : c)),
+                    })),
+                  )
+                  return
+                }
+                setProps(selectedNode.id, patch, group)
+              }}
               onReset={(keys) => resetProps(selectedNode.id, keys)}
               onPickImage={(target) => setPicking({ id: selectedNode.id, target })}
               onPlay={play}

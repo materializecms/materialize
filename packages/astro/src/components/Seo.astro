@@ -5,7 +5,7 @@ import { expandComponents, expandGlobals, type PageNode } from '@materializecms/
  * canonical, robots, sharing cards, other languages and structured data. Put it inside <head>.
  */
 import { headHtml, pageHead } from '@materializecms/core/seo'
-import { type Entry, firstImage, getAlternates, getComponents, getGlobals, getSiteSeo } from '../content.ts'
+import { type Entry, firstImage, getAlternates, getComponents, getGlobals, getSiteSeo, summaryOf } from '../content.ts'
 import { getRuntime } from '../runtime.ts'
 
 interface Props {
@@ -36,7 +36,7 @@ const html = headHtml(
     alternates: entry ? await getAlternates(entry) : [],
     defaultLocale: config().locales.default,
     publishedAt: entry?.publishedAt,
-    description,
+    description: description ?? (entry ? await summaryOf(entry) : undefined),
     image: entry ? firstImage(page ?? entry.data) : undefined,
   }),
 )
