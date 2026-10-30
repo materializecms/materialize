@@ -4,6 +4,13 @@
   "description": "Create a new Materialize site with one command: npm create materialize@latest",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/create-materialize"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "bin": {
     "create-materialize": "./src/index.ts"
   },

@@ -4,6 +4,13 @@
   "description": "Schema-as-code for Materialize: collections, blocks, fields, types and validation.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "exports": {
     ".": "./src/index.ts",
     "./slug": "./src/slug.ts",

@@ -4,6 +4,13 @@
   "description": "Storage for Materialize: documents with drafts, publishing and revisions, users and sessions.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/db"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "exports": {
     ".": "./src/index.ts"
   },

@@ -4,6 +4,13 @@
   "description": "Astro integration for Materialize: build the site from published content and preview drafts on the editor canvas.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/astro"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "exports": {
     ".": "./src/index.ts",
     "./content": "./src/content.ts",

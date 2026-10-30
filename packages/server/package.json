@@ -4,6 +4,13 @@
   "description": "HTTP API for Materialize: authentication, content management and the public delivery API.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "exports": {
     ".": "./src/index.ts"
   },

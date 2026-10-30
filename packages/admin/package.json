@@ -4,6 +4,13 @@
   "description": "Materialize admin panel: content and design editing in the browser.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/admin"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json"

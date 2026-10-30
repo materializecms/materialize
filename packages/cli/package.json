@@ -4,6 +4,13 @@
   "description": "The materialize command: run the CMS locally with live schema reload.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/materializecms/materialize.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/materializecms/materialize#readme",
+  "bugs": "https://github.com/materializecms/materialize/issues",
   "bin": {
     "materialize": "./src/cli.ts"
   },
