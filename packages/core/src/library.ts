@@ -252,12 +252,16 @@ const F = (name: string, p: P, children: PageNode[] = []): PageNode => ({
   ...p,
   children,
 })
-const T = (_role: string, name: string, text: string, style: TextStyle, p: P = {}): PageNode => ({
+/** Big numbers, prices, marquee words and logos look like headings but are not: plain paragraphs. */
+const DECORATIVE = new Set(['v', 'n', 'price', 'word', 'logo'])
+
+const T = (role: string, name: string, text: string, style: TextStyle, p: P = {}): PageNode => ({
   id: newId(),
   type: 'text',
   name,
   text,
   style,
+  ...(DECORATIVE.has(role) && style !== 'body' && style !== 'small' ? { tag: 'p' as const } : {}),
   color: 'text',
   talign: 'left',
   width: 'fill',
@@ -298,7 +302,7 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
   if (key === 'nav.classic')
     return S(
       'Navigazione',
-      { layout: 'row', justify: 'between', align: 'center', size: 'xs', gap: 24, divider: true },
+      { layout: 'row', justify: 'between', align: 'center', size: 'xs', gap: 24, divider: true, mobileMenu: true },
       [
         T('logo', 'Logo', brand, 'logo', { width: 'hug' }),
         F('Link', { layout: 'row', gap: 28, width: 'hug', align: 'center', over: { mobile: { hidden: true } } }, [
@@ -1462,7 +1466,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
       const word = (t: string, italic = false) =>
         T('word', 'Parola', t, 'display', { width: 'hug', fontSize: '8vw', leading: 1, italic })
       const star = () => T('star', 'Separatore', '✦', 'h2', { width: 'hug', color: 'accent', fontSize: '3vw' })
-      return S('Nastro', { size: 's', gap: 0, topline: true, divider: true, overflow: 'hidden' }, [
+      return S('Nastro di parole', { size: 's', gap: 0, topline: true, divider: true, overflow: 'hidden' }, [
         F('Nastro', { layout: 'row', gap: '4vw', align: 'center', marquee: { duration: 40 } }, [
           word('Architettura'),
           star(),
@@ -1476,7 +1480,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
       ])
     }
     case 'logos.marquee-logos':
-      return S('Nastro', { size: 's', gap: 24, align: 'center', overflow: 'hidden' }, [
+      return S('Nastro di loghi', { size: 's', gap: 24, align: 'center', overflow: 'hidden' }, [
         T('label', 'Etichetta', 'Hanno lavorato con noi', 'eyebrow', { color: 'muted', talign: 'center' }),
         F(
           'Nastro',

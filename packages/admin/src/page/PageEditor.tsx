@@ -98,9 +98,12 @@ const CONTENT_KEYS = new Set<string>([
   'svg',
   'hoverVariant',
   'textStyle',
+  'tag',
   'stickyHide',
   'stickyGlass',
   'stickyOverlay',
+  'mobileMenu',
+  'navShape',
   'anchor',
   'scene',
   'bind',
@@ -423,15 +426,17 @@ export function PageEditor({
   const [tab, setTab] = usePref<Tab>('mz-page-tab', 'layers')
   const [contentTab, setContentTab] = usePref<'sections' | 'seo'>('mz-content-tab', 'sections')
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [startBlank, setStartBlank] = useState(false)
   const [tourPref, setTourPref] = usePref<'todo' | 'done'>('mz-tour', 'todo')
   const [rulerPref, setRulerPref] = usePref<'on' | 'off'>('mz-rulers', 'on')
   const rulers = rulerPref === 'on'
   const setRulers = (on: boolean) => setRulerPref(on ? 'on' : 'off')
   const [playing, setPlaying] = useState(0)
   const [previewing, setPreviewing] = useState(false)
-  const [picking, setPicking] = useState<{ id: string; target: 'src' | 'bgImage' | 'poster' | 'sceneImage' } | null>(
-    null,
-  )
+  const [picking, setPicking] = useState<{
+    id: string
+    target: 'src' | 'bgImage' | 'poster' | 'sceneImage' | 'sceneImage2'
+  } | null>(null)
   const clipboard = useRef<PageNode | null>(null)
   const typeAhead = useRef('')
   const styleClipboard = useRef<StyleCopy | null>(null)
@@ -1508,35 +1513,48 @@ export function PageEditor({
           </div>
           {nodes.length === 0 ? (
             <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px] p-8">
-              <div className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-center shadow-pop">
-                <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                  <LayersIcon className="size-5" />
+              {startBlank ? (
+                <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-line2 p-8 text-center text-fg2">
+                  <LayersIcon className="mx-auto size-6 text-fg3" />
+                  <p className="mt-3 text-[13.5px] font-medium text-fg">Pagina vuota</p>
+                  <p className="mt-1 text-[12.5px] leading-relaxed">
+                    Scegli una sezione nella libreria a sinistra: un clic la aggiunge qui.
+                  </p>
                 </div>
-                <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">Da dove vuoi partire?</h2>
-                <p className="mt-1 text-[13px] text-fg2">
-                  Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della
-                  libreria.
-                </p>
-                <div className="mt-5 grid gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNodes(STARTER.map((k) => buildSection(k, schema.site.name)))
-                      setTimeout(play, 60)
-                    }}
-                    className="h-10 rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110"
-                  >
-                    Pagina pronta: menu, apertura, servizi, invito e piè di pagina
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTab('add')}
-                    className="h-10 rounded-lg border border-line2 text-[13px] font-medium hover:bg-hover"
-                  >
-                    Pagina vuota: scelgo io le sezioni
-                  </button>
+              ) : (
+                <div className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 text-center shadow-pop">
+                  <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                    <LayersIcon className="size-5" />
+                  </div>
+                  <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">Da dove vuoi partire?</h2>
+                  <p className="mt-1 text-[13px] text-fg2">
+                    Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della
+                    libreria.
+                  </p>
+                  <div className="mt-5 grid gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNodes(STARTER.map((k) => buildSection(k, schema.site.name)))
+                        setTimeout(play, 60)
+                      }}
+                      className="h-10 rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110"
+                    >
+                      Pagina pronta: menu, apertura, servizi, invito e piè di pagina
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTab('add')
+                        setStartBlank(true)
+                      }}
+                      className="h-10 rounded-lg border border-line2 text-[13px] font-medium hover:bg-hover"
+                    >
+                      Pagina vuota: scelgo io le sezioni
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : sideBySide ? (
             <DevicesView
@@ -1757,7 +1775,10 @@ export function PageEditor({
             if (!picking) return
             if (picking.target === 'bgImage') setProps(picking.id, { bgImage: { src: asset.url, alt: asset.alt } })
             else if (picking.target === 'poster') setProps(picking.id, { poster: asset.url })
-            else if (picking.target === 'sceneImage') {
+            else if (picking.target === 'sceneImage2') {
+              const current = findNode(nodesRef.current, picking.id)?.node
+              setProps(picking.id, { scene: { preset: 'transition', ...current?.scene, image2: asset.url } })
+            } else if (picking.target === 'sceneImage') {
               const current = findNode(nodesRef.current, picking.id)?.node
               const scene = current?.scene ?? { preset: 'distort' as const }
               if (asset.url.endsWith('.glb'))

@@ -98,6 +98,10 @@ export interface NodeProps {
   stickyHide?: boolean
   /** Fixed section: frosted glass once the page has scrolled. */
   stickyGlass?: boolean
+  /** A menu section: on mobile, what is hidden there opens from a ☰ button. */
+  mobileMenu?: boolean
+  /** The shape of a menu section (see NAV_SHAPES): a bar by default. */
+  navShape?: 'bar' | 'floating' | 'island' | 'transparent' | null
   /** Fixed section: lies over the section below instead of pushing it down. */
   stickyOverlay?: boolean
   stickyTop?: Length
@@ -191,6 +195,8 @@ export interface NodeProps {
   text?: string
   runs?: Run[] | null
   style?: TextStyle
+  /** The HTML element, when it should differ from what the style suggests: a big number is not a heading. */
+  tag?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | null
   color?: ColorToken | string
   talign?: 'left' | 'center' | 'right'
   fontSize?: Length | null
@@ -276,6 +282,12 @@ export interface SceneConfig {
     | 'cells'
     | 'silk'
     | 'prism'
+    | 'gradient'
+    | 'globe'
+    | 'metaballs'
+    | 'ribbons'
+    | 'lens'
+    | 'transition'
     | 'distort'
     | 'halftone'
     | 'glitch'
@@ -292,13 +304,19 @@ export interface SceneConfig {
   scroll?: number
   /** distort: the picture to bend. */
   image?: string | null
+  /** transition: the picture that appears on hover. */
+  image2?: string | null
   /** custom: the body of a GLSL fragment shader (void main(){…}). */
   code?: string
   /** model: a .glb file; shapes: which generated shape. */
   model?: string | null
-  shape?: 'blob' | 'knot' | 'torus' | 'cube' | 'spheres' | 'rings'
+  shape?: 'blob' | 'knot' | 'torus' | 'cube' | 'spheres' | 'rings' | 'gem' | 'capsule' | 'sphere' | 'logo'
+  /** logo: the SVG extruded into a solid (a brand mark, an icon). */
+  svg?: string | null
+  /** 3D lighting mood. */
+  lighting?: 'studio' | 'neon' | 'soft'
   /** 3D surfaces; "original" keeps the model's own. */
-  material?: 'chrome' | 'glass' | 'clay' | 'iridescent' | 'wire' | 'original'
+  material?: 'chrome' | 'glass' | 'clay' | 'iridescent' | 'wire' | 'gold' | 'pearl' | 'neon' | 'original'
   /** 3D: turning speed and camera distance. */
   rotate?: number
   zoom?: number
@@ -1119,6 +1137,11 @@ const BASE_CSS = `
 .mz-page .mz-more{display:flex;justify-content:center;width:100%;padding-top:32px}
 .mz-page [data-mz-sticky]{transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .3s,backdrop-filter .3s,box-shadow .3s}
 .mz-page [data-mz-sticky].mz-away{transform:translateY(-100%)}
+.mz-page .mz-burger{display:none;flex-direction:column;justify-content:center;gap:6px;width:40px;height:40px;padding:0 9px;margin-left:4px;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer}
+.mz-page .mz-burger span{display:block;height:1.5px;width:100%;background:currentColor;transition:transform .3s}
+.mz-page .mz-open>.mz-burger span:first-child{transform:translateY(3.75px) rotate(45deg)}
+.mz-page .mz-open>.mz-burger span:last-child{transform:translateY(-3.75px) rotate(-45deg)}
+.mz-page [id]{scroll-margin-top:var(--mz-anchor-offset,0px)}
 .mz-page [data-mz-sticky~="glass"].mz-scrolled{background:color-mix(in srgb,var(--mz-sticky-bg) 72%,transparent)!important;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 1px 0 color-mix(in srgb,currentColor 10%,transparent)}
 @keyframes mzMarquee{to{transform:translateX(calc(-50% - var(--mz-gap, 0px) / 2))}}
 @media (prefers-reduced-motion:reduce){.mz-page .mz-track{animation:none!important}}
@@ -1193,6 +1216,8 @@ interface Ctx {
   idx: number
   /** A repeated copy (marquee): not editable, hidden from assistive technology. */
   ghost?: boolean
+  /** Inside a section with a mobile menu: its children hidden on mobile open from ☰. */
+  menu?: boolean
 }
 
 /** The CSS of one node at one breakpoint. */
@@ -1304,7 +1329,12 @@ function nodeStyle(
     const jm = { start: 'flex-start', center: 'center', end: 'flex-end', between: 'space-between' }
     s.alignItems = al[p.align ?? 'start'] ?? 'flex-start'
     s.justifyContent = jm[p.justify ?? 'start'] ?? 'flex-start'
-    if (p.bgImage?.src || p.marquee || p.scene) s.overflow = 'hidden'
+    if (p.bgImage?.src || p.scene) s.overflow = 'hidden'
+    // A marquee cuts only at the sides: letters with descenders (g, y) stay whole below.
+    else if (p.marquee) {
+      s.overflowX = 'clip'
+      s.overflowY = 'visible'
+    }
   } else if (n.type === 'input') {
     s.display = 'flex'
     s.flexDirection = p.inputKind === 'checkbox' ? 'row' : 'column'
@@ -1403,6 +1433,10 @@ function nodeStyle(
       s.WebkitBackgroundClip = 'text'
       s.backgroundClip = 'text'
       s.WebkitTextFillColor = 'transparent'
+      // The gradient is painted only inside the box: with tight leading, descenders (g, p, y) fall
+      // outside it and vanish. Room below, given back with a negative margin, keeps the layout.
+      s.paddingBottom = `calc(${cssLength(p.padY ?? 0)} + .2em)`
+      s.marginBottom = '-0.2em'
     }
     s.textAlign = isT ? (p.talign ?? 'left') : 'center'
     if (isT) {
@@ -1433,7 +1467,51 @@ function nodeStyle(
     const ease = A === 'pop' ? 'cubic-bezier(.34,1.56,.64,1)' : 'cubic-bezier(.2,.8,.2,1)'
     anim = { kf, dur: `${dur}s`, delay: `${delay.toFixed(2)}s`, ease, trig: TR }
   }
+  if (isSec && p.navShape && p.navShape !== 'bar')
+    navShapeStyle(s, p.navShape, c.bp, color(C, 'bg', scheme), !!p.sticky)
   return { style: s, scheme, anim }
+}
+
+/** The shapes a menu section can take: a full bar, a floating card, a centered island, or nothing. */
+export const NAV_SHAPES = [
+  { value: 'bar', label: 'Barra' },
+  { value: 'floating', label: 'Sospesa' },
+  { value: 'island', label: 'Isola' },
+  { value: 'transparent', label: 'Trasparente' },
+] as const
+
+function navShapeStyle(
+  s: Style,
+  shape: NonNullable<NodeProps['navShape']>,
+  bp: Breakpoint,
+  bg: string,
+  sticky: boolean,
+) {
+  s.boxShadow = 'none'
+  if (shape === 'transparent') {
+    s.background = 'transparent'
+    return
+  }
+  const inset = bp === 'mobile' ? 10 : 16
+  // Frosted, detached from the edges: the page shows through around and behind it.
+  s.background = `color-mix(in srgb,${bg} 78%,transparent)`
+  s.backdropFilter = 'blur(18px) saturate(1.4)'
+  s.WebkitBackdropFilter = 'blur(18px) saturate(1.4)'
+  s.border = '1px solid color-mix(in srgb,currentColor 12%,transparent)'
+  s.boxShadow = '0 10px 30px rgba(0,0,0,.16)'
+  s.marginTop = `${inset}px`
+  s.marginLeft = 'auto'
+  s.marginRight = 'auto'
+  if (sticky) s.top = `${inset}px`
+  if (shape === 'floating') {
+    s.width = `calc(100% - ${inset * 2}px)`
+    s.borderRadius = bp === 'mobile' ? '18px' : '20px'
+    s.padding = bp === 'mobile' ? '10px 16px' : '12px 24px'
+  } else {
+    s.width = bp === 'mobile' ? `calc(100% - ${inset * 2}px)` : `min(960px,calc(100% - ${inset * 2}px))`
+    s.borderRadius = bp === 'mobile' ? '28px' : '999px'
+    s.padding = bp === 'mobile' ? '8px 8px 8px 18px' : '8px 8px 8px 28px'
+  }
 }
 
 function diff(base: Style, next: Style): Style {
@@ -1444,6 +1522,14 @@ function diff(base: Style, next: Style): Style {
 }
 
 const TAGS: Record<string, string> = { display: 'h1', h1: 'h1', h2: 'h2', h3: 'h3' }
+
+/** The HTML element of a text: its own choice, else the one its style suggests. */
+export function textTag(p: Pick<NodeProps, 'tag' | 'style' | 'text' | 'runs'>): string {
+  const tag = p.tag ?? TAGS[p.style ?? 'body'] ?? 'p'
+  // A separator (✦, —, •) is never a heading, whatever its size.
+  const words = p.runs ? p.runs.map((r) => r.t).join('') : (p.text ?? '')
+  return /^h/.test(tag) && (p.text !== undefined || p.runs) && !/[\p{L}\p{N}]/u.test(words) ? 'p' : tag
+}
 
 /**
  * Renders sections to HTML and the CSS that styles them. Wrap the HTML in an element with the
@@ -1498,6 +1584,7 @@ export function renderSections(
         `data-mz-sticky="${[p.stickyHide && 'hide', p.stickyGlass && 'glass', p.stickyOverlay && 'overlay'].filter(Boolean).join(' ')}"`,
       )
     if (c.depth === 0 && p.anchor && /^[a-z][a-z0-9-]*$/.test(p.anchor)) attrs.push(`id="${p.anchor}"`)
+    if (c.menu && n.over?.mobile?.hidden && !n.hidden) attrs.push('data-mz-menu')
     if (p.interactions?.length) attrs.push(`data-mz-motion="${esc(JSON.stringify(p.interactions))}"`)
     if (p.hover && p.hover !== 'none') attrs.push(`data-hover="${p.hover}"`)
     // A container that reacts to the pointer is a "card": elements inside can change with it.
@@ -1560,6 +1647,7 @@ export function renderSections(
               inherit,
               idx: i,
               ghost: ghost || c.ghost,
+              menu: c.depth === 0 && !!p.mobileMenu,
             }),
           )
           .join('')
@@ -1609,9 +1697,21 @@ export function renderSections(
         desktop.push(
           `.mz-page .${cls}>.mz-track{--mz-gap:${gap};display:flex;gap:${gap};width:max-content;align-items:center;animation:mzMarquee ${p.marquee.duration}s linear infinite ${dir}}` +
             `.mz-page .${cls}>.mz-track>div{display:flex;gap:${gap};align-items:center;flex:none}` +
-            `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none;width:auto}`,
+            // No growing in the endless track; a child's own fixed width (a logo, an icon) still applies.
+            `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none}:where(.mz-page .${cls}>.mz-track>div>.mz-n){width:auto}`,
         )
+        // In the editor it stops under the pointer, so what is inside can be clicked.
+        if (options.editor) desktop.push(`.mz-page .${cls}:hover>.mz-track{animation-play-state:paused}`)
         kids = `<div class="mz-track"><div>${kids}</div><div aria-hidden="true">${renderKids(true)}</div></div>`
+      }
+      if (c.depth === 0 && p.mobileMenu) {
+        // ☰ on mobile: it opens the parts of the menu that are hidden there, below the bar.
+        kids += `<button type="button" class="mz-burger" data-mz-burger aria-expanded="false" aria-label="Apri il menu"><span></span><span></span></button>`
+        mobile.push(
+          `.mz-page .${cls}{flex-wrap:wrap}.mz-page .${cls}>.mz-burger{display:flex}` +
+            `.mz-page .${cls}.mz-open>[data-mz-menu]{display:flex!important;flex-direction:column;align-items:flex-start;order:10;flex:1 0 100%;width:100%;gap:18px;padding:18px 0 8px}` +
+            `.mz-page .${cls}.mz-open>[data-mz-menu] .mz-n{font-size:22px}.mz-page .${cls}.mz-open{border-radius:24px}`,
+        )
       }
       const content = bgImg ? `${bgImg}<div style="display:contents">${kids}</div>` : kids
       // Children above the background photo; :where keeps a child's own position (absolute) and layer.
@@ -1628,13 +1728,17 @@ export function renderSections(
       return `<${tag} ${attrs.join(' ')}>${content}</${tag}>${more}`
     }
     if (n.type === 'text') {
-      const style = p.style ?? 'body'
-      let tag = TAGS[style] ?? 'p'
+      // The repeated copy of a marquee repeats no headings.
+      let tag = c.ghost ? 'p' : textTag(p)
       if (tag === 'h1') {
         if (h1Used) tag = 'h2'
         h1Used = true
       }
-      return `<${tag} ${attrs.join(' ')}>${runsHtml(p)}</${tag}>`
+      // A linked text: the whole text is the link, in its own color.
+      const inner = p.href
+        ? `<a href="${esc(safeHref(p.href))}"${p.newTab ? ' target="_blank" rel="noopener"' : ''} style="color:inherit;text-decoration:none">${runsHtml(p)}</a>`
+        : runsHtml(p)
+      return `<${tag} ${attrs.join(' ')}>${inner}</${tag}>`
     }
     if (n.type === 'button' && p.submit) {
       return `<button type="submit" ${attrs.join(' ')}>${esc(p.text ?? '')}</button>`
@@ -1763,12 +1867,14 @@ function srcsetAttr(src: string, options: RenderOptions): string {
 
 function runsHtml(p: PageNode): string {
   const runs = p.runs?.length ? p.runs : [{ t: p.text ?? '' }]
+  // A text that is entirely one link (a menu item) is not underlined; a link inside a sentence is.
+  const whole = runs.length === 1 && !!runs[0]?.href
   return runs
     .map((r) => {
       let h = esc(r.t).replace(/\n/g, '<br>')
       if (r.b) h = `<strong>${h}</strong>`
       if (r.i) h = `<em>${h}</em>`
-      if (r.href) h = `<a href="${esc(safeHref(r.href))}">${h}</a>`
+      if (r.href) h = `<a href="${esc(safeHref(r.href))}"${whole ? ' style="text-decoration:none"' : ''}>${h}</a>`
       return h
     })
     .join('')
@@ -1828,7 +1934,19 @@ export function normalizeTheme(value: unknown): Theme {
 }
 
 /** What content mode may change: words, links and pictures, never layout or style. */
-export const CONTENT_ONLY_KEYS = ['text', 'runs', 'src', 'alt', 'href', 'newTab', 'focal', 'poster', 'bgImage']
+export const CONTENT_ONLY_KEYS = [
+  'text',
+  'runs',
+  'src',
+  'alt',
+  'href',
+  'newTab',
+  'focal',
+  'poster',
+  'bgImage',
+  'placeholder',
+  'options',
+]
 
 /** True when two versions of a page differ only in their contents (texts, links, images). */
 export function sameDesign(a: PageNode[], b: PageNode[]): boolean {

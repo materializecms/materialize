@@ -70,7 +70,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
   return (
     <div className="mx-auto max-w-xl space-y-10 px-5 py-8">
       <form onSubmit={save} className="space-y-10">
-        <fieldset disabled={!editable} className="space-y-10">
+        <fieldset disabled={!editable} className="min-w-0 space-y-10">
           <Group
             title="Il sito sui motori di ricerca"
             text="Valori di partenza per tutte le pagine: ognuna può cambiarli nel pannello Motori di ricerca."

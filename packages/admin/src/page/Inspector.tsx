@@ -3,6 +3,7 @@ import {
   type Breakpoint,
   type Component,
   type ListBinding,
+  NAV_SHAPES,
   type NodeProps,
   type PageNode,
   plainText,
@@ -11,6 +12,7 @@ import {
   TEXT_STYLE_KEYS,
   TEXT_STYLES,
   type TextStyle,
+  textTag,
 } from '@materializecms/core/page'
 import {
   AlignCenter,
@@ -153,7 +155,7 @@ export function Inspector({
   /** Content and names: the same on every device. */
   onContent: (patch: Partial<PageNode>, group?: string) => void
   onReset: (keys: Key[]) => void
-  onPickImage: (target: 'src' | 'bgImage' | 'poster' | 'sceneImage') => void
+  onPickImage: (target: 'src' | 'bgImage' | 'poster' | 'sceneImage' | 'sceneImage2') => void
   onPlay: () => void
   /** Opens the interactive preview, where scroll and mouse interactions play. */
   onPreview: () => void
@@ -484,7 +486,13 @@ export function Inspector({
         </Section>
       )}
 
-      <SceneSection node={node} palette={palette} onContent={onContent} onPickImage={() => onPickImage('sceneImage')} />
+      <SceneSection
+        node={node}
+        palette={palette}
+        onContent={onContent}
+        onPickImage={() => onPickImage('sceneImage')}
+        onPickImage2={() => onPickImage('sceneImage2')}
+      />
 
       <MediaContent node={node} onContent={onContent} onPickPoster={() => onPickImage('poster')} canCode={canCode} />
 
@@ -768,6 +776,30 @@ export function Inspector({
           </Row>
           {isT && (
             <>
+              <Row label="Tag" hint="Per Google e i lettori di schermo: l’aspetto resta quello dello stile">
+                <Select
+                  label="Elemento HTML"
+                  value={node.tag ?? ''}
+                  onChange={(v) => onContent({ tag: (v || null) as NodeProps['tag'] })}
+                  options={[
+                    { value: '', label: `Dallo stile (${textTag({ style: p.style }).toUpperCase()})` },
+                    { value: 'h1', label: 'H1 · titolo della pagina' },
+                    { value: 'h2', label: 'H2 · titolo di sezione' },
+                    { value: 'h3', label: 'H3' },
+                    { value: 'h4', label: 'H4' },
+                    { value: 'p', label: 'Paragrafo (non un titolo)' },
+                  ]}
+                />
+              </Row>
+              <Row label="Collegamento">
+                <input
+                  aria-label="Collegamento del testo"
+                  value={node.href ?? ''}
+                  placeholder="nessuno, /pagina o #sezione"
+                  onChange={(e) => onContent({ href: e.target.value || undefined }, `href:${node.id}`)}
+                  className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+                />
+              </Row>
               <Row label="Colore">
                 <ColorField
                   value={p.color ?? 'text'}
@@ -1071,6 +1103,24 @@ export function Inspector({
               checked={!!node.sticky}
               onChange={(v) => onContent({ sticky: v || undefined })}
             />
+            <Row label="Forma" hint="Per i menu: barra a tutta larghezza, sospesa, a isola centrale o trasparente">
+              <Select
+                label="Forma del menu"
+                value={node.navShape ?? 'bar'}
+                onChange={(v) => onContent({ navShape: v === 'bar' ? null : (v as NodeProps['navShape']) })}
+                options={NAV_SHAPES.map((o) => ({ value: o.value, label: o.label }))}
+              />
+            </Row>
+            <Toggle
+              label="Menu a scomparsa su mobile (☰)"
+              checked={!!node.mobileMenu}
+              onChange={(v) => onContent({ mobileMenu: v || undefined })}
+            />
+            {node.mobileMenu && (
+              <p className="text-[11px] leading-relaxed text-fg3">
+                Su mobile gli elementi nascosti di questa sezione (per esempio i link) si aprono dal pulsante ☰.
+              </p>
+            )}
             {node.sticky && (
               <>
                 <Toggle

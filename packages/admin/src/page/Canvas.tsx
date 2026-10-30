@@ -337,7 +337,13 @@ export function Canvas({
 
   /** The element under the pointer that can be picked: locked ones pass the click to their container. */
   const idAt = (target: EventTarget | null) => {
-    let el = (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mz-id]') ?? null
+    // The repeated copy of a marquee: the element it copies (same class, n-<id>).
+    const ghost = (target as HTMLElement | null)?.closest?.('.mz-track > [aria-hidden="true"] .mz-n')
+    const copied = ghost && [...ghost.classList].find((c) => c.startsWith('n-'))?.slice(2)
+    let el =
+      (copied ? root.current?.querySelector<HTMLElement>(`[data-mz-id="${CSS.escape(copied)}"]`) : null) ??
+      (target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mz-id]') ??
+      null
     while (el && findNode(nodes, el.dataset.mzId)?.node.locked)
       el = el.parentElement?.closest<HTMLElement>('[data-mz-id]') ?? null
     return el?.dataset.mzId ?? null
@@ -549,6 +555,8 @@ export function Canvas({
       let dx = 0
       let dy = 0
       const move = (ev: PointerEvent) => {
+        // No button held: the press ended somewhere this canvas did not hear; never move on a hover.
+        if (!(ev.buttons & 1)) return up()
         dx = (ev.clientX - start.x) / scale
         dy = (ev.clientY - start.y) / scale
         if (!moved && Math.hypot(dx, dy) < 4) return
@@ -602,6 +610,11 @@ export function Canvas({
     let active = false
     let last: { target: DropTarget } | null = null
     const move = (ev: PointerEvent) => {
+      // No button held: the press ended somewhere this canvas did not hear; never move on a hover.
+      if (!(ev.buttons & 1)) {
+        last = null
+        return up()
+      }
       if (!active) {
         if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5) return
         active = true

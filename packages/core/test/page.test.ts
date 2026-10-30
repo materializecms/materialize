@@ -323,3 +323,50 @@ describe('icons, template pages, named colors, breakpoints', () => {
     expect(css).toContain('max-width:699px')
   })
 })
+
+describe('menus and headings', () => {
+  const nav = (p: Partial<PageNode>): PageNode[] => [
+    {
+      id: 'nav',
+      type: 'frame',
+      sticky: true,
+      ...p,
+      children: [
+        { id: 'logo', type: 'text', text: 'Logo', style: 'logo' },
+        { id: 'links', type: 'frame', over: { mobile: { hidden: true } }, children: [] },
+      ],
+    },
+  ]
+
+  it('adds ☰ and marks what it opens on mobile', () => {
+    const { html, css } = renderSections(nav({ mobileMenu: true }))
+    expect(html).toContain('data-mz-burger')
+    expect(html).toMatch(/n-links[^>]*data-mz-menu/)
+    expect(css).toContain('.mz-open>[data-mz-menu]')
+  })
+
+  it('shapes the menu as a floating island', () => {
+    const { css } = renderSections(nav({ navShape: 'island' }))
+    expect(css).toMatch(/\.n-nav\{[^}]*border-radius:999px/)
+    expect(css).toMatch(/\.n-nav\{[^}]*backdrop-filter/)
+  })
+
+  it('keeps one h1 and never makes symbols or marked texts headings', () => {
+    const { html } = renderSections([
+      {
+        id: 's',
+        type: 'frame',
+        children: [
+          { id: 'a', type: 'text', text: 'Titolo', style: 'display' },
+          { id: 'b', type: 'text', text: '✦', style: 'h2' },
+          { id: 'c', type: 'text', text: '3×', style: 'h1', tag: 'p' },
+          { id: 'd', type: 'text', text: 'Link', style: 'small', href: '#x' },
+        ],
+      },
+    ])
+    expect(html.match(/<h1/g)?.length).toBe(1)
+    expect(html).not.toContain('<h2')
+    expect(html).toMatch(/<p [^>]*>3×<\/p>/)
+    expect(html).toContain('href="#x"')
+  })
+})

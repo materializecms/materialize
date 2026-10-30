@@ -1,4 +1,6 @@
 import type { Gradient, NodeProps, PageNode, SceneConfig } from '@materializecms/core/page'
+import { IMAGE_SCENES, startScenes, THREE_D } from '@materializecms/core/scene'
+import { useEffect, useRef } from 'react'
 import { Textarea } from '../components/ui.tsx'
 import { ColorField, LenField, NumField, Row, Section, Seg, Select, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
@@ -436,6 +438,7 @@ const SCENE_GROUPS: { label: string; items: { value: SceneConfig['preset']; labe
       { value: 'smoke', label: 'Fumo' },
       { value: 'plasma', label: 'Plasma' },
       { value: 'prism', label: 'Luce prismatica' },
+      { value: 'gradient', label: 'Gradiente a maglie' },
     ],
   },
   {
@@ -450,6 +453,9 @@ const SCENE_GROUPS: { label: string; items: { value: SceneConfig['preset']; labe
       { value: 'stars', label: 'Campo stellare' },
       { value: 'tunnel', label: 'Tunnel' },
       { value: 'liquid', label: 'Forme liquide' },
+      { value: 'metaballs', label: 'Gocce che si fondono' },
+      { value: 'ribbons', label: 'Nastri fluidi' },
+      { value: 'globe', label: 'Globo a punti' },
     ],
   },
   {
@@ -459,6 +465,8 @@ const SCENE_GROUPS: { label: string; items: { value: SceneConfig['preset']; labe
       { value: 'halftone', label: 'Mezzatinta' },
       { value: 'glitch', label: 'Glitch RGB' },
       { value: 'pixel', label: 'Mosaico al mouse' },
+      { value: 'lens', label: 'Lente al mouse' },
+      { value: 'transition', label: 'Cambio al passaggio' },
     ],
   },
   {
@@ -470,7 +478,7 @@ const SCENE_GROUPS: { label: string; items: { value: SceneConfig['preset']; labe
   },
   { label: 'Avanzato', items: [{ value: 'custom', label: 'Shader personalizzato' }] },
 ]
-const IMAGE_PRESETS = new Set(['distort', 'halftone', 'glitch', 'pixel'])
+const IMAGE_PRESETS = new Set(['distort', 'halftone', 'glitch', 'pixel', 'lens', 'transition'])
 
 const CUSTOM_TEMPLATE = `void main(){
   vec2 uv = gl_FragCoord.xy / u_res;
@@ -514,18 +522,32 @@ export function SceneSection({
   palette,
   onContent,
   onPickImage,
+  onPickImage2,
 }: {
   node: PageNode
   palette: Record<string, string>
   onContent: (patch: Partial<PageNode>, group?: string) => void
   onPickImage: () => void
+  onPickImage2: () => void
 }) {
   const isScene = node.type === 'scene'
-  if (!isScene && node.type !== 'frame') return null
   const cfg = node.scene
   const set = (patch: Partial<SceneConfig>, group?: string) =>
     onContent({ scene: { preset: 'mesh', ...cfg, ...patch } }, group && `${group}:${node.id}`)
   const colors = cfg?.colors ?? ['inverse', 'accent', 'surface']
+  // Live previews of the presets, in the colors chosen: one shared WebGL context draws them all.
+  const previews = useRef<HTMLDivElement>(null)
+  const resolved = colors.map((c) => palette[c] ?? c) as [string, string, string]
+  const previewKey = cfg ? `${resolved.join()}|${cfg.image ?? ''}|${cfg.image2 ?? ''}` : ''
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart only when the colors or pictures change
+  useEffect(() => (previews.current ? startScenes(previews.current) : undefined), [previewKey])
+  const previewOf = (preset: SceneConfig['preset']) => {
+    if (THREE_D.has(preset) || preset === 'custom') return null
+    if (IMAGE_SCENES.has(preset) && !cfg?.image) return null
+    const data: SceneConfig = { preset, colors: resolved, image: cfg?.image, image2: cfg?.image2, mouse: 0.6 }
+    return JSON.stringify(data)
+  }
+  if (!isScene && node.type !== 'frame') return null
   return (
     <Section title={isScene ? 'Scena WebGL' : 'Sfondo animato (WebGL)'}>
       {!isScene && (
@@ -538,34 +560,45 @@ export function SceneSection({
       )}
       {cfg && (
         <>
-          {SCENE_GROUPS.map((g) => (
-            <div key={g.label} className="space-y-1">
-              <div className="text-[10.5px] font-medium text-fg3">{g.label}</div>
-              <div className="grid grid-cols-2 gap-1">
-                {g.items.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    aria-pressed={cfg.preset === p.value}
-                    onClick={() =>
-                      set(
-                        p.value === 'custom' && !cfg.code
-                          ? { preset: p.value, code: CUSTOM_TEMPLATE }
-                          : { preset: p.value },
-                      )
-                    }
-                    className={
-                      cfg.preset === p.value
-                        ? 'h-7 truncate rounded-md border border-accent bg-accent/10 px-1 text-[11.5px] font-medium text-accent'
-                        : 'h-7 truncate rounded-md border border-line2 px-1 text-[11.5px] font-medium text-fg2 hover:text-fg'
-                    }
-                  >
-                    {p.label}
-                  </button>
-                ))}
+          <div ref={previews} className="space-y-2.5">
+            {SCENE_GROUPS.map((g) => (
+              <div key={g.label} className="space-y-1">
+                <div className="text-[10.5px] font-medium text-fg3">{g.label}</div>
+                <div className="grid grid-cols-2 gap-1">
+                  {g.items.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      aria-pressed={cfg.preset === p.value}
+                      onClick={() =>
+                        set(
+                          p.value === 'custom' && !cfg.code
+                            ? { preset: p.value, code: CUSTOM_TEMPLATE }
+                            : { preset: p.value },
+                        )
+                      }
+                      className={
+                        cfg.preset === p.value
+                          ? 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-accent bg-panel2 text-left text-[11px] font-medium text-white'
+                          : 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-transparent bg-panel2 text-left text-[11px] font-medium text-white hover:border-line2'
+                      }
+                    >
+                      {previewOf(p.value) ? (
+                        <canvas
+                          key={previewKey}
+                          data-mz-scene={previewOf(p.value) ?? ''}
+                          className="pointer-events-none absolute inset-0 size-full"
+                        />
+                      ) : null}
+                      <span className="relative w-full truncate bg-gradient-to-t from-black/70 to-transparent px-1.5 pt-3 pb-1">
+                        {p.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {(['Colore 1', 'Colore 2', 'Colore 3'] as const).map((label, i) => (
             <Row key={label} label={label}>
               <ColorField
@@ -603,9 +636,28 @@ export function SceneSection({
                       { value: 'cube', label: 'Cubo arrotondato' },
                       { value: 'spheres', label: 'Sfere sospese' },
                       { value: 'rings', label: 'Anelli intrecciati' },
+                      { value: 'gem', label: 'Gemma sfaccettata' },
+                      { value: 'capsule', label: 'Capsula' },
+                      { value: 'sphere', label: 'Sfera' },
+                      { value: 'logo', label: 'Logo in 3D (da SVG)' },
                     ]}
                   />
                 </Row>
+              )}
+              {cfg.preset === 'shapes' && cfg.shape === 'logo' && (
+                <>
+                  <Textarea
+                    aria-label="SVG del logo"
+                    value={cfg.svg ?? ''}
+                    placeholder="<svg viewBox=…>…</svg>"
+                    onChange={(e) => set({ svg: e.target.value || null }, 'svg')}
+                    className="min-h-24 font-mono text-[11px]"
+                  />
+                  <p className="text-[11px] leading-relaxed text-fg3">
+                    Incolla l’SVG del marchio (da Figma o Illustrator): ogni forma piena diventa un solido con i bordi
+                    smussati.
+                  </p>
+                </>
               )}
               {cfg.preset === 'model' && (
                 <>
@@ -635,6 +687,21 @@ export function SceneSection({
                     { value: 'iridescent', label: 'Iridescente' },
                     { value: 'clay', label: 'Argilla' },
                     { value: 'wire', label: 'Fil di ferro' },
+                    { value: 'gold', label: 'Metallo satinato' },
+                    { value: 'pearl', label: 'Perla' },
+                    { value: 'neon', label: 'Neon luminoso' },
+                  ]}
+                />
+              </Row>
+              <Row label="Luce">
+                <Select
+                  label="Luce della scena"
+                  value={cfg.lighting ?? 'studio'}
+                  onChange={(lighting) => set({ lighting })}
+                  options={[
+                    { value: 'studio', label: 'Studio' },
+                    { value: 'neon', label: 'Neon, bordi colorati' },
+                    { value: 'soft', label: 'Morbida' },
                   ]}
                 />
               </Row>
@@ -667,6 +734,22 @@ export function SceneSection({
                 {cfg.image ? 'Cambia immagine' : 'Scegli un’immagine'}
               </button>
             </Row>
+          )}
+          {cfg.preset === 'transition' && (
+            <>
+              <Row label="Al passaggio">
+                <button
+                  type="button"
+                  onClick={onPickImage2}
+                  className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12px] hover:border-fg3/50"
+                >
+                  {cfg.image2 ? 'Cambia la seconda' : 'Scegli la seconda immagine'}
+                </button>
+              </Row>
+              <p className="text-[11px] leading-relaxed text-fg3">
+                Passando il mouse sulla scheda (o sul contenitore), la prima immagine si scioglie nella seconda.
+              </p>
+            </>
           )}
           {cfg.preset === 'custom' && (
             <>

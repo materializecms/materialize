@@ -3,7 +3,7 @@
  * robots.txt, redirects and the checks shown in the editor. Pure functions, shared by the site and the admin.
  */
 import type { Media, Seo } from './fields.ts'
-import type { PageNode } from './page.ts'
+import { type PageNode, textTag } from './page.ts'
 
 /** Kinds of business for structured data: what Google shows next to the site's name. */
 export const BUSINESS_TYPES = [
@@ -460,7 +460,7 @@ export interface CheckInput {
   knownUrls?: string[]
 }
 
-const HEADINGS: Record<string, number> = { display: 1, h1: 1, h2: 2, h3: 3 }
+const HEADINGS: Record<string, number> = { h1: 1, h2: 2, h3: 3, h4: 4 }
 
 /** What a page still lacks for search engines and sharing, worst first: shown in the editor. */
 export function pageChecks(input: CheckInput): SeoCheck[] {
@@ -504,6 +504,7 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
     let h1 = 0
     let lastLevel = 0
     let skipped: PageNode | null = null
+    let extraH1: PageNode | null = null
     let words = 0
     let firstImage = false
     const known = input.knownUrls ? new Set(input.knownUrls.map(normalizePath)) : null
@@ -519,10 +520,13 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
       for (const n of list) {
         if (n.hidden) continue
         if (n.type === 'text') {
-          const level = HEADINGS[n.style ?? 'body'] ?? 0
+          const level = HEADINGS[textTag(n)] ?? 0
           const text = n.runs?.map((r) => r.t).join('') ?? n.text ?? ''
           words += text.split(/\s+/).filter(Boolean).length
-          if (level === 1) h1++
+          if (level === 1) {
+            h1++
+            if (h1 === 2) extraH1 = n
+          }
           if (level) {
             if (lastLevel && level > lastLevel + 1 && !skipped) skipped = n
             lastLevel = level
@@ -542,7 +546,7 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
         }
         if (n.type === 'button' && !n.text?.trim() && !n.submit)
           add(`btn:${n.id}`, 'warning', 'Pulsante senza testo', undefined, n.id)
-        checkLink(n.href, n)
+        if (!n.submit) checkLink(n.href, n)
         if (n.children) walk(n.children)
       }
     }
@@ -558,7 +562,13 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
     if (h1 === 0)
       add('h1', 'error', 'Manca il titolo principale (H1)', 'Dai lo stile “Titolo 1” al titolo della pagina.')
     else if (h1 > 1)
-      add('h1', 'warning', `${h1} titoli principali (H1)`, 'Nel sito dal secondo diventano H2: meglio uno solo.')
+      add(
+        'h1',
+        'warning',
+        `${h1} titoli principali (H1)`,
+        'Clicca per selezionare il secondo: se non è il titolo della pagina, in Testo scegli Tag → Paragrafo o H2.',
+        (extraH1 as PageNode | null)?.id,
+      )
     else add('h1', 'ok', 'Un solo titolo principale (H1)')
     const skip = skipped as PageNode | null
     if (skip)

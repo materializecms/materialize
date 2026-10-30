@@ -822,7 +822,16 @@ export function createApp(ctx: ServerContext) {
       limit: Number(c.req.query('limit') ?? 50),
       offset: Number(c.req.query('offset') ?? 0),
     })
-    return c.json(result)
+    // The public address of each row (the home page is "/", not "/home"), when the slug is enough.
+    const loc = locale(c.req.query('locale'))
+    const urlOf = (slug: string | null) => {
+      try {
+        return publicUrl(def, loc, { slug })
+      } catch {
+        return null
+      }
+    }
+    return c.json({ ...result, items: result.items.map((i) => ({ ...i, url: urlOf(i.slug) })) })
   })
 
   app.post('/api/collections/:name', requireUser, async (c) => {

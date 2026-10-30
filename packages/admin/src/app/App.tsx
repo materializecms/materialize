@@ -12,7 +12,7 @@ import { AuthScreen } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
 import { type Session, SessionContext } from './context.ts'
-import { DocumentScreen } from './DocumentScreen.tsx'
+import { DocumentScreen, openedAsNew } from './DocumentScreen.tsx'
 import { Overview } from './Overview.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
@@ -116,7 +116,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
             <CollectionView key={collection.name} collection={collection} />
           ) : (
             <DocumentScreen
-              key={`${collection.name}/${route.name === 'document' ? route.id : 'new'}/${activeLocale}`}
+              key={`${collection.name}/${route.name === 'document' && !openedAsNew.has(route.id) ? route.id : 'new'}/${activeLocale}`}
               collection={collection}
               id={route.name === 'document' ? route.id : null}
             />

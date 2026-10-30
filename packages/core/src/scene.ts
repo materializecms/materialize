@@ -17,7 +17,9 @@ uniform vec3 u_c2;
 uniform vec3 u_c3;
 uniform float u_intensity;
 uniform sampler2D u_tex;
+uniform sampler2D u_tex2;
 uniform vec2 u_texSize;
+uniform float u_hover;
 float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),u.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);}
 float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.;a*=.5;}return v;}
@@ -90,12 +92,58 @@ export const SCENES: Record<Exclude<SceneConfig['preset'], 'custom' | 'model' | 
   float w2=sin(p.y*4.-t*1.2+w*3.+u_scroll*3.)*.5+.5;
   float v=mix(w,w2,.5);vec3 col=mix(u_c1,u_c2,v);col+=u_c3*pow(v,6.)*u_intensity*.8;
   gl_FragColor=vec4(col+grain(),1.);}`,
+  gradient: `void main(){
+  vec2 uv=gl_FragCoord.xy/u_res;float t=u_time*.15;
+  vec2 q=uv+.18*vec2(fbm(uv*2.+t),fbm(uv*2.-t+4.))+(u_mouse-.5)*.12*u_intensity;
+  float a=smoothstep(0.,1.,q.x+.25*sin(q.y*3.+t*2.));
+  float b=smoothstep(.2,1.,q.y+.25*cos(q.x*2.5-t*1.5)+u_scroll*.3);
+  vec3 col=mix(mix(u_c1,u_c2,a),u_c3,b*.85);
+  gl_FragColor=vec4(col+grain()*.6,1.);}`,
+  globe: `void main(){
+  vec2 p=(gl_FragCoord.xy-.5*u_res)/u_res.y;float R=.42;vec3 col=u_c1;float r=length(p);
+  if(r<R){float z=sqrt(R*R-r*r);vec3 n=vec3(p,z)/R;
+    float rot=u_time*.2+(u_mouse.x-.5)*2.+u_scroll*3.;float c=cos(rot),s=sin(rot);
+    vec3 q=vec3(c*n.x+s*n.z,n.y,-s*n.x+c*n.z);float lat=asin(q.y),lon=atan(q.x,q.z);
+    vec2 g=vec2(lon,lat)*24./3.1416;vec2 f=fract(g)-.5;
+    float land=step(.5,noise(vec2(lon,lat)*2.2+3.));float pt=smoothstep(.24,.12,length(f))*(.3+.7*land);
+    vec3 dc=u_c2*(.3+.9*land)+u_c3*land*.2;
+    col=mix(u_c1,dc,clamp(pt*(.45+.75*n.z)*u_intensity,0.,1.));col+=u_c2*pow(1.-n.z,3.)*.4;
+  }else col+=u_c2*smoothstep(R+.08,R,r)*.25;
+  gl_FragColor=vec4(col,1.);}`,
+  metaballs: `void main(){
+  vec2 p=(gl_FragCoord.xy-.5*u_res)/u_res.y;float t=u_time*.5;float v=0.;
+  for(int i=0;i<6;i++){float fi=float(i);vec2 c=.32*vec2(sin(t*.7+fi*1.7),cos(t*.9+fi*2.3+u_scroll*2.));v+=.012/dot(p-c,p-c);}
+  vec2 m=(u_mouse-.5)*vec2(u_res.x/u_res.y,1.);v+=.02*u_intensity/max(dot(p-m,p-m),.0001);
+  float e=smoothstep(.9,1.,v);float rim=smoothstep(.75,.9,v)-e;
+  vec3 col=mix(u_c1,u_c2,e);col=mix(col,u_c3,clamp(rim*.8+e*smoothstep(1.,3.,v)*.5,0.,1.));
+  gl_FragColor=vec4(col+grain(),1.);}`,
+  ribbons: `void main(){
+  vec2 uv=gl_FragCoord.xy/u_res;float t=u_time*.3;vec3 col=u_c1;
+  for(int i=0;i<5;i++){float fi=float(i);
+    float y=.5+.18*sin(uv.x*3.+t+fi*1.3)+.08*sin(uv.x*7.-t*1.7+fi)+(u_mouse.y-.5)*.2+(u_scroll-.5)*.2;
+    float w=.012+.03*(.5+.5*sin(uv.x*4.+fi+t));float d=abs(uv.y-y-(fi-2.)*.05);
+    vec3 k=mix(u_c2,u_c3,fi/4.);col=mix(col,k,smoothstep(w,0.,d)*.85*u_intensity);col+=k*smoothstep(w*6.,0.,d)*.08;}
+  gl_FragColor=vec4(col+grain(),1.);}`,
+  lens: `void main(){
+  vec2 uv=gl_FragCoord.xy/u_res;float ra=u_res.x/u_res.y;float r=length((uv-u_mouse)*vec2(ra,1.));
+  float R=.18*(.6+u_intensity*.4);float k=smoothstep(R,0.,r);
+  vec3 col=texture2D(u_tex,cover(u_mouse+(uv-u_mouse)*(1.-.45*k))).rgb;
+  float edge=smoothstep(R,R-.012,r)-smoothstep(R-.012,R-.03,r);
+  col=mix(col*(1.+.12*k),u_c3,edge*.6);
+  gl_FragColor=vec4(col,1.);}`,
+  transition: `void main(){
+  vec2 uv=gl_FragCoord.xy/u_res;float n=fbm(uv*4.+u_time*.1);
+  float pr=u_hover*1.3-.15;float m=smoothstep(pr-.1,pr+.1,n*.6+uv.y*.4);
+  vec2 off=vec2(0.,(1.-m)*m*.15*u_intensity);
+  vec3 a=texture2D(u_tex,cover(uv+off)).rgb;vec3 b=texture2D(u_tex2,cover(uv-off)).rgb;
+  gl_FragColor=vec4(mix(b,a,m),1.);}`,
   prism: `void main(){
-  vec2 p=gl_FragCoord.xy/u_res.y*4.+u_mouse;float t=u_time*.4+u_scroll*2.;vec2 i=p;float c=1.;
+  vec2 p=gl_FragCoord.xy/u_res.y*4.+u_mouse-250.;float t=u_time*.4+u_scroll*2.;vec2 i=p;float c=1.;
   for(int n=0;n<4;n++){float tt=t*(1.-3.5/float(n+1));i=p+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));
     c+=1./length(vec2(p.x/(sin(i.x+tt)/.005),p.y/(cos(i.y+tt)/.005)));}
   c/=4.;c=1.17-pow(c,1.4);float v=pow(abs(c),8.)*u_intensity;
-  gl_FragColor=vec4(clamp(u_c1+u_c2*v+u_c3*v*v*.5,0.,1.),1.);}`,
+  vec3 col=mix(u_c1,u_c2,clamp(v*1.4,0.,1.));col=mix(col,u_c3,smoothstep(1.,2.5,v)*.6);
+  gl_FragColor=vec4(col,1.);}`,
   halftone: `void main(){
   vec2 uv=gl_FragCoord.xy/u_res;float ra=u_res.x/u_res.y;
   float cell=mix(14.,5.,smoothstep(.4,0.,length((uv-u_mouse)*vec2(ra,1.))))*(2.-u_intensity*.5);
@@ -173,8 +221,18 @@ export const SCENES: Record<Exclude<SceneConfig['preset'], 'custom' | 'model' | 
   gl_FragColor=vec4(col,1.);}`,
 }
 
+/** Scenes drawn with three.js. */
+export const THREE_D = new Set<SceneConfig['preset']>(['model', 'shapes'])
+
 /** Scenes that work on a picture. */
-export const IMAGE_SCENES = new Set<SceneConfig['preset']>(['distort', 'halftone', 'glitch', 'pixel'])
+export const IMAGE_SCENES = new Set<SceneConfig['preset']>([
+  'distort',
+  'halftone',
+  'glitch',
+  'pixel',
+  'lens',
+  'transition',
+])
 
 /** "#rrggbb", "#rgb" or "rgb(a)(…)" to 0–1 components. */
 function rgb(color: string | undefined, fallback: [number, number, number]): [number, number, number] {
@@ -200,8 +258,15 @@ function rgb(color: string | undefined, fallback: [number, number, number]): [nu
 
 interface Running {
   canvas: HTMLCanvasElement
-  gl: WebGLRenderingContext
-  u: Record<string, WebGLUniformLocation | null>
+  /** Where the shared WebGL output is copied: the scene's own canvas is a plain 2D one. */
+  ctx: CanvasRenderingContext2D
+  program: Program
+  colors: [number, number, number][]
+  tex: WebGLTexture | null
+  /** transition: the picture shown on hover. */
+  tex2: WebGLTexture | null
+  hover: number
+  hoverGoal: number
   cfg: SceneConfig
   visible: boolean
   mouse: [number, number]
@@ -210,6 +275,26 @@ interface Running {
   start: number
   texSize: [number, number]
 }
+
+interface Program {
+  program: WebGLProgram
+  u: Record<string, WebGLUniformLocation | null>
+}
+
+const UNIFORMS = [
+  'u_res',
+  'u_time',
+  'u_mouse',
+  'u_scroll',
+  'u_c1',
+  'u_c2',
+  'u_c3',
+  'u_intensity',
+  'u_tex',
+  'u_tex2',
+  'u_texSize',
+  'u_hover',
+]
 
 function compile(gl: WebGLRenderingContext, fragment: string): WebGLProgram | null {
   const shader = (type: number, src: string) => {
@@ -230,8 +315,66 @@ function compile(gl: WebGLRenderingContext, fragment: string): WebGLProgram | nu
   if (!program) return null
   gl.attachShader(program, vs)
   gl.attachShader(program, fs)
+  gl.bindAttribLocation(program, 0, 'p')
   gl.linkProgram(program)
   return gl.getProgramParameter(program, gl.LINK_STATUS) ? program : null
+}
+
+/**
+ * One WebGL context for every scene on the page: browsers allow only about sixteen, and a page
+ * with many scenes would lose the oldest. Each scene is drawn here in turn and copied to its own
+ * (2D) canvas. Programs are compiled once per shader and shared.
+ */
+interface Shared {
+  canvas: HTMLCanvasElement
+  gl: WebGLRenderingContext
+  programs: Map<string, Program | null>
+  users: number
+}
+let shared: Shared | null = null
+
+function acquire(): Shared | null {
+  if (shared && !shared.gl.isContextLost()) {
+    shared.users++
+    return shared
+  }
+  const canvas = document.createElement('canvas')
+  const gl = canvas.getContext('webgl', {
+    antialias: false,
+    premultipliedAlpha: false,
+    preserveDrawingBuffer: true,
+    powerPreference: 'low-power',
+  })
+  if (!gl) return null
+  const buffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+  gl.enableVertexAttribArray(0)
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+  shared = { canvas, gl, programs: new Map(), users: 1 }
+  return shared
+}
+
+function release() {
+  if (!shared) return
+  shared.users--
+  if (shared.users <= 0) {
+    shared.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    shared = null
+  }
+}
+
+function programFor(sh: Shared, source: string): Program | null {
+  if (!sh.programs.has(source)) {
+    const program = compile(sh.gl, source)
+    sh.programs.set(
+      source,
+      program
+        ? { program, u: Object.fromEntries(UNIFORMS.map((n) => [n, sh.gl.getUniformLocation(program, n)])) }
+        : null,
+    )
+  }
+  return sh.programs.get(source) ?? null
 }
 
 export interface SceneOptions {
@@ -244,6 +387,7 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   const scenes: Running[] = []
   const cleanups: (() => void)[] = []
+  let sh: Shared | null = null
 
   for (const canvas of root.querySelectorAll<HTMLCanvasElement>('canvas[data-mz-scene]')) {
     let cfg: SceneConfig
@@ -253,7 +397,7 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
       continue
     }
     // 3D scenes use three.js, loaded only when a page has one.
-    if (cfg.preset === 'model' || cfg.preset === 'shapes') {
+    if (THREE_D.has(cfg.preset)) {
       let stop: (() => void) | null = null
       let cancelled = false
       import('./scene3d.ts')
@@ -267,45 +411,29 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
       })
       continue
     }
-    const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: false, powerPreference: 'low-power' })
-    if (!gl) continue
+    const ctx = canvas.getContext('2d')
+    if (!ctx) continue
+    sh ??= acquire()
+    if (!sh) break
+    const gl = sh.gl
     const source =
       cfg.preset === 'custom'
         ? (cfg.code ?? '')
         : IMAGE_SCENES.has(cfg.preset) && !cfg.image
           ? SCENES.mesh
           : (SCENES[cfg.preset as keyof typeof SCENES] ?? SCENES.mesh)
-    const program = compile(gl, source) ?? compile(gl, SCENES.mesh)
+    const program = programFor(sh, source) ?? programFor(sh, SCENES.mesh)
     if (!program) continue
-    gl.useProgram(program)
-    const buffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-    const loc = gl.getAttribLocation(program, 'p')
-    gl.enableVertexAttribArray(loc)
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-    const names = [
-      'u_res',
-      'u_time',
-      'u_mouse',
-      'u_scroll',
-      'u_c1',
-      'u_c2',
-      'u_c3',
-      'u_intensity',
-      'u_tex',
-      'u_texSize',
-    ]
-    const u = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(program, n)]))
     const [c1, c2, c3] = cfg.colors ?? []
-    gl.uniform3fv(u.u_c1 ?? null, rgb(c1, [0.07, 0.07, 0.09]))
-    gl.uniform3fv(u.u_c2 ?? null, rgb(c2, [0.24, 0.35, 1]))
-    gl.uniform3fv(u.u_c3 ?? null, rgb(c3, [0.9, 0.5, 0.35]))
-    gl.uniform1f(u.u_intensity ?? null, cfg.intensity ?? 1)
     const scene: Running = {
       canvas,
-      gl,
-      u,
+      ctx,
+      program,
+      colors: [rgb(c1, [0.07, 0.07, 0.09]), rgb(c2, [0.24, 0.35, 1]), rgb(c3, [0.9, 0.5, 0.35])],
+      tex: null,
+      tex2: null,
+      hover: 0,
+      hoverGoal: 0,
       cfg,
       visible: false,
       mouse: [0.5, 0.5],
@@ -314,13 +442,15 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
       start: performance.now(),
       texSize: [1, 1],
     }
-    if (IMAGE_SCENES.has(cfg.preset) && cfg.image) {
+    const loadTexture = (src: string, first: boolean) => {
       const tex = gl.createTexture()
       gl.bindTexture(gl.TEXTURE_2D, tex)
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([20, 20, 20, 255]))
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
       const img = new Image()
       img.crossOrigin = 'anonymous'
       img.onload = () => {
+        if (!sh || sh.gl !== gl) return
         gl.bindTexture(gl.TEXTURE_2D, tex)
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
@@ -328,47 +458,96 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-        scene.texSize = [img.naturalWidth, img.naturalHeight]
+        if (first) scene.texSize = [img.naturalWidth, img.naturalHeight]
         draw(scene, performance.now())
       }
-      img.src = cfg.image.startsWith('/media/') ? `${cfg.image}@1280.webp` : cfg.image
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-      gl.uniform1i(u.u_tex ?? null, 0)
+      img.src = src.startsWith('/media/') ? `${src}@1280.webp` : src
+      return tex
+    }
+    if (IMAGE_SCENES.has(cfg.preset) && cfg.image) {
+      scene.tex = loadTexture(cfg.image, true)
+      if (cfg.preset === 'transition') {
+        scene.tex2 = loadTexture(cfg.image2 || cfg.image, false)
+        // The card it sits in (or its container) turns the picture on hover.
+        const host = canvas.closest<HTMLElement>('[data-mz-group]') ?? canvas.parentElement
+        if (host) {
+          const on = () => {
+            scene.hoverGoal = 1
+            wake()
+          }
+          const off = () => {
+            scene.hoverGoal = 0
+            wake()
+          }
+          host.addEventListener('pointerenter', on)
+          host.addEventListener('pointerleave', off)
+          cleanups.push(() => {
+            host.removeEventListener('pointerenter', on)
+            host.removeEventListener('pointerleave', off)
+          })
+        }
+      }
     }
     canvas.dataset.mzReady = ''
     scenes.push(scene)
   }
-  if (!scenes.length)
-    return () => {
-      for (const c of cleanups) c()
-    }
+  const finish = () => {
+    for (const c of cleanups) c()
+    for (const s of scenes)
+      for (const t of [s.tex, s.tex2]) if (t && sh && !sh.gl.isContextLost()) sh.gl.deleteTexture(t)
+    if (sh) release()
+  }
+  if (!scenes.length) return finish
 
-  function size(s: Running) {
+  function draw(s: Running, now: number) {
+    if (!sh || sh.gl.isContextLost()) return
+    const { gl, canvas: out } = sh
     const dpr = Math.min(1.5, devicePixelRatio || 1)
     const w = Math.max(1, Math.round(s.canvas.clientWidth * dpr))
     const h = Math.max(1, Math.round(s.canvas.clientHeight * dpr))
     if (s.canvas.width !== w || s.canvas.height !== h) {
       s.canvas.width = w
       s.canvas.height = h
-      s.gl.viewport(0, 0, w, h)
     }
-  }
-
-  function draw(s: Running, now: number) {
-    size(s)
-    const { gl, u } = s
+    // The shared canvas grows to the largest scene; each draws in its corner and is copied out.
+    if (out.width < w || out.height < h) {
+      out.width = Math.max(out.width, w)
+      out.height = Math.max(out.height, h)
+    }
+    gl.viewport(0, 0, w, h)
+    const { program, u } = s.program
+    gl.useProgram(program)
     s.mouse[0] += (s.goal[0] - s.mouse[0]) * 0.06
     s.mouse[1] += (s.goal[1] - s.mouse[1]) * 0.06
     const r = s.canvas.getBoundingClientRect()
     const vh = options.scroller ? options.scroller.getBoundingClientRect() : { top: 0, height: innerHeight }
     s.scroll = Math.min(1, Math.max(0, (vh.top + vh.height - r.top) / (vh.height + r.height)))
     const speed = s.cfg.speed ?? 1
-    gl.uniform2f(u.u_res ?? null, s.canvas.width, s.canvas.height)
+    gl.uniform2f(u.u_res ?? null, w, h)
     gl.uniform1f(u.u_time ?? null, reduced ? 6 : ((now - s.start) / 1000) * speed)
     gl.uniform2f(u.u_mouse ?? null, s.mouse[0], s.mouse[1])
     gl.uniform1f(u.u_scroll ?? null, s.scroll * (s.cfg.scroll ?? 1))
+    gl.uniform3fv(u.u_c1 ?? null, s.colors[0] as number[])
+    gl.uniform3fv(u.u_c2 ?? null, s.colors[1] as number[])
+    gl.uniform3fv(u.u_c3 ?? null, s.colors[2] as number[])
+    gl.uniform1f(u.u_intensity ?? null, s.cfg.intensity ?? 1)
     gl.uniform2f(u.u_texSize ?? null, s.texSize[0], s.texSize[1])
+    if (s.tex) {
+      gl.activeTexture(gl.TEXTURE0)
+      gl.bindTexture(gl.TEXTURE_2D, s.tex)
+      gl.uniform1i(u.u_tex ?? null, 0)
+    }
+    if (s.tex2) {
+      gl.activeTexture(gl.TEXTURE1)
+      gl.bindTexture(gl.TEXTURE_2D, s.tex2)
+      gl.uniform1i(u.u_tex2 ?? null, 1)
+      gl.activeTexture(gl.TEXTURE0)
+    }
+    s.hover += (s.hoverGoal - s.hover) * (reduced ? 1 : 0.07)
+    gl.uniform1f(u.u_hover ?? null, s.hover)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
+    // WebGL draws from the bottom-left corner of its canvas.
+    s.ctx.drawImage(out, 0, out.height - h, w, h, 0, 0, w, h)
   }
 
   const io = new IntersectionObserver(
@@ -405,7 +584,8 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
         draw(s, now)
         any = true
       }
-    if (any && !reduced) frame = requestAnimationFrame(tick)
+    const moving = scenes.some((s) => s.visible && Math.abs(s.hoverGoal - s.hover) > 0.002)
+    if (any && (!reduced || moving)) frame = requestAnimationFrame(tick)
   }
   function wake() {
     if (!frame) frame = requestAnimationFrame(tick)
@@ -416,7 +596,6 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
 
   return () => {
     cancelAnimationFrame(frame)
-    for (const c of cleanups) c()
-    for (const s of scenes) s.gl.getExtension('WEBGL_lose_context')?.loseContext()
+    finish()
   }
 }

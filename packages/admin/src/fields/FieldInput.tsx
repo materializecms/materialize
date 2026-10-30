@@ -71,7 +71,7 @@ export function Field(props: FieldProps) {
 
   if (field.kind === 'group' || field.kind === 'seo') {
     return (
-      <fieldset data-path={pathKey(path)} className="rounded-lg border border-line p-4">
+      <fieldset data-path={pathKey(path)} className="min-w-0 rounded-lg border border-line p-4">
         <legend className="-ml-1 px-1 text-[12px] font-medium text-fg2">{field.label}</legend>
         {field.description && <p className="-mt-1 mb-3 text-[12px] text-fg3">{field.description}</p>}
         <FieldControl {...props} />

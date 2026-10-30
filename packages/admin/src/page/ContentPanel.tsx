@@ -1,3 +1,4 @@
+import { iconSvg } from '@materializecms/core/icons'
 import type { NodeProps, PageNode, Run } from '@materializecms/core/page'
 import { Globe, ImagePlus, Link2, ListTree } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
@@ -141,7 +142,7 @@ function itemsOf(section: PageNode): Item[] {
     for (const n of list) {
       if (n.hidden) continue
       const from = n.field ? `dal campo “${n.field}”` : bound
-      if (n.type === 'text' || n.type === 'button' || n.type === 'image') out.push({ node: n, bound: from })
+      if (['text', 'button', 'image', 'icon', 'input'].includes(n.type)) out.push({ node: n, bound: from })
       // A list fed by a collection: its first child is a template, the entries fill it.
       if (n.children) walk(n.bind ? n.children.slice(0, 1) : n.children, n.bind ? 'da una raccolta' : from)
     }
@@ -222,7 +223,11 @@ export function ContentPanel({
                       ? 'Immagine'
                       : n.type === 'button'
                         ? 'Pulsante'
-                        : (STYLE_LABEL[n.style ?? ''] ?? 'Testo')}
+                        : n.type === 'icon'
+                          ? 'Icona'
+                          : n.type === 'input'
+                            ? 'Campo del modulo'
+                            : (STYLE_LABEL[n.style ?? ''] ?? 'Testo')}
                     {bound && <span> · {bound}</span>}
                   </div>
                   {bound ? (
@@ -230,11 +235,69 @@ export function ContentPanel({
                       {n.type === 'image' ? 'Immagine della voce' : plain(n) || '—'}
                     </p>
                   ) : n.type === 'text' ? (
-                    <RunsField
-                      node={n}
-                      label={STYLE_LABEL[n.style ?? ''] ?? 'Testo'}
-                      onCommit={(r) => onText(n.id, r)}
-                    />
+                    <div className="space-y-1">
+                      <RunsField
+                        node={n}
+                        label={STYLE_LABEL[n.style ?? ''] ?? 'Testo'}
+                        onCommit={(r) => onText(n.id, r)}
+                      />
+                      {n.href !== undefined && (
+                        <LinkInput
+                          label="Collegamento del testo"
+                          value={n.href}
+                          onChange={(href) => onContent(n.id, { href }, `href:${n.id}`)}
+                        />
+                      )}
+                    </div>
+                  ) : n.type === 'icon' ? (
+                    <div className="flex gap-2">
+                      <span
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md border border-line2 bg-panel2 p-1.5 [&_svg]:size-full"
+                        // biome-ignore lint/security/noDangerouslySetInnerHtml: the page's own icon, sanitized when rendered
+                        dangerouslySetInnerHTML={{ __html: iconSvg(n) }}
+                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <input
+                          aria-label="Descrizione dell’icona"
+                          value={n.alt ?? ''}
+                          placeholder="Descrizione (vuota se è solo decorativa)"
+                          onChange={(e) => onContent(n.id, { alt: e.target.value }, `alt:${n.id}`)}
+                          className={input}
+                        />
+                        <LinkInput
+                          label="Collegamento dell’icona"
+                          value={n.href ?? ''}
+                          onChange={(href) => onContent(n.id, { href: href || undefined }, `href:${n.id}`)}
+                        />
+                      </div>
+                    </div>
+                  ) : n.type === 'input' ? (
+                    <div className="space-y-1">
+                      <input
+                        aria-label="Etichetta del campo"
+                        value={n.text ?? ''}
+                        placeholder="Etichetta"
+                        onChange={(e) => onContent(n.id, { text: e.target.value }, `text:${n.id}`)}
+                        className={cx(input, 'h-8 text-[13px] font-medium')}
+                      />
+                      {n.inputKind !== 'checkbox' && n.inputKind !== 'select' && (
+                        <input
+                          aria-label="Testo di esempio del campo"
+                          value={n.placeholder ?? ''}
+                          placeholder="Testo di esempio dentro il campo"
+                          onChange={(e) => onContent(n.id, { placeholder: e.target.value }, `ph:${n.id}`)}
+                          className={input}
+                        />
+                      )}
+                      {n.inputKind === 'select' && (
+                        <textarea
+                          aria-label="Scelte del campo, una per riga"
+                          value={(n.options ?? []).join('\n')}
+                          onChange={(e) => onContent(n.id, { options: e.target.value.split('\n') }, `opt:${n.id}`)}
+                          className="min-h-16 w-full resize-y rounded-md border border-line2 bg-input px-2 py-1 text-[12px] leading-snug outline-none focus:border-accent"
+                        />
+                      )}
+                    </div>
                   ) : n.type === 'button' ? (
                     <div className="space-y-1">
                       <input
@@ -244,16 +307,11 @@ export function ContentPanel({
                         className={cx(input, 'h-8 text-[13px] font-medium')}
                       />
                       {!n.submit && (
-                        <div className="flex items-center gap-1.5">
-                          <Link2 className="size-3.5 shrink-0 text-fg3" />
-                          <input
-                            aria-label="Collegamento del pulsante"
-                            value={n.href ?? ''}
-                            placeholder="/contatti o https://…"
-                            onChange={(e) => onContent(n.id, { href: e.target.value }, `href:${n.id}`)}
-                            className={cx(input, 'font-mono')}
-                          />
-                        </div>
+                        <LinkInput
+                          label="Collegamento del pulsante"
+                          value={n.href ?? ''}
+                          onChange={(href) => onContent(n.id, { href }, `href:${n.id}`)}
+                        />
                       )}
                     </div>
                   ) : (
@@ -285,6 +343,21 @@ export function ContentPanel({
         )
       })}
       {footer && <div className="px-3.5 py-4">{footer}</div>}
+    </div>
+  )
+}
+
+function LinkInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Link2 className="size-3.5 shrink-0 text-fg3" />
+      <input
+        aria-label={label}
+        value={value}
+        placeholder="/pagina, #sezione o https://…"
+        onChange={(e) => onChange(e.target.value)}
+        className={cx(input, 'font-mono')}
+      />
     </div>
   )
 }

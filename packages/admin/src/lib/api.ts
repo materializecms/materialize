@@ -46,6 +46,8 @@ export interface DocumentSummary {
   publishedAt: string | null
   /** First image in the document, for thumbnails. */
   image?: string | null
+  /** Public address, when the collection has pages ("/" for the home page). */
+  url?: string | null
 }
 
 export interface FontInfo {

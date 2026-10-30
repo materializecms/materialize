@@ -122,7 +122,8 @@ export function Library({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="space-y-3 border-b border-line p-3">
-        <div className="grid grid-cols-2 gap-1.5">
+        {/* Elements as a compact row of icons: the sections below get the room. */}
+        <div className="grid grid-cols-5 gap-1">
           {ELEMENTS.map((e) => (
             <button
               key={e.kind}
@@ -134,10 +135,11 @@ export function Library({
                 ev.dataTransfer.effectAllowed = 'copy'
               }}
               onClick={() => onAddElement(e.kind)}
-              className="flex h-9 min-w-0 items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-[12px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
+              aria-label={`Aggiungi ${e.label}`}
+              className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-line bg-panel text-[9.5px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
             >
               {e.icon}
-              <span className="truncate">{e.label}</span>
+              <span className="max-w-full truncate px-0.5">{e.label}</span>
             </button>
           ))}
         </div>
@@ -151,14 +153,15 @@ export function Library({
             className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[12.5px] outline-none focus:border-accent"
           />
         </div>
-        <div className="-mx-1 flex flex-wrap gap-1">
+        {/* One scrolling row of categories instead of seven wrapped lines. */}
+        <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:thin]">
           {[{ key: 'all', label: 'Tutte' }, ...LIBRARY].map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => setCat(c.key)}
               className={cx(
-                'h-6 rounded-full px-2.5 text-[11.5px] font-medium transition-colors',
+                'h-6 shrink-0 rounded-full px-2.5 text-[11.5px] font-medium whitespace-nowrap transition-colors',
                 cat === c.key ? 'bg-fg text-bg' : 'bg-seg text-fg2 hover:text-fg',
               )}
             >

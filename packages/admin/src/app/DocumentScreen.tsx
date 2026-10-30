@@ -51,6 +51,12 @@ import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { localeName } from './Sidebar.tsx'
 
+/**
+ * Documents created by the editor still open: their screen keeps the key it had while new, so the
+ * first save changes the address without remounting the editor (selection and undo survive).
+ */
+export const openedAsNew = new Set<string>()
+
 export function DocumentScreen({ collection, id }: { collection: CollectionDescription; id: string | null }) {
   const doc = useQuery({
     queryKey: ['doc', id],
@@ -98,6 +104,15 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   const fields = collection.fields
   const history = useHistory<Data>(initial?.data ?? initialData(collection))
   const [doc, setDoc] = useState(initial)
+  const docId = useRef<string | null>(null)
+  docId.current = doc?.id ?? null
+  // Leaving the editor: next time this document opens with its own key.
+  useEffect(
+    () => () => {
+      if (docId.current) openedAsNew.delete(docId.current)
+    },
+    [],
+  )
   // Compared with the current data to detect changes; a new document starts from its empty defaults.
   const [saved, setSaved] = useState(() => JSON.stringify(clean(fields, initial?.data ?? initialData(collection))))
   const [saving, setSaving] = useState(false)
@@ -116,7 +131,13 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   const contentOnly =
     useQuery({ queryKey: ['editorial'], queryFn: api.editorial, staleTime: 60_000 }).data?.editorial
       .editorsContentOnly === true && user.role !== 'admin'
-  const mode: Mode = (blocksField || pageField) && !contentOnly ? modePref : 'content'
+  // A new page is empty: there is nothing to write yet, so it opens in design.
+  const [fresh, setFresh] = useState(!initial && !!pageField)
+  const mode: Mode = (blocksField || pageField) && !contentOnly ? (fresh ? 'design' : modePref) : 'content'
+  const chooseMode = (m: Mode) => {
+    setFresh(false)
+    setMode(m)
+  }
 
   const cleaned = useMemo(() => clean(fields, history.value), [fields, history.value])
   const current = JSON.stringify(cleaned)
@@ -172,6 +193,9 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
       if (!existing) {
         const created = await api.create(collection.name, data, locale)
         applyServer(created, sent)
+        // Already known: the address changes but the editor stays as it is (selection, undo).
+        queryClient.setQueryData(['doc', created.id], created)
+        openedAsNew.add(created.id)
         setNavigationGuard(null)
         navigate({ name: 'document', collection: collection.name, id: created.id }, { replace: true })
         return created
@@ -185,7 +209,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
     } finally {
       setSaving(false)
     }
-  }, [collection.name, locale, applyServer, handleError])
+  }, [collection.name, locale, applyServer, handleError, queryClient])
 
   // Autosave drafts of existing documents shortly after the last change.
   useEffect(() => {
@@ -366,7 +390,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             <div className="absolute left-1/2 -translate-x-1/2">
               <Segmented
                 value={mode}
-                onChange={setMode}
+                onChange={chooseMode}
                 options={[
                   {
                     value: 'content',

@@ -5,9 +5,12 @@
  */
 import {
   ACESFilmicToneMapping,
+  AmbientLight,
   Box3,
+  CapsuleGeometry,
   Color,
   DirectionalLight,
+  ExtrudeGeometry,
   Group,
   IcosahedronGeometry,
   type Material,
@@ -18,6 +21,7 @@ import {
   type Object3D,
   PerspectiveCamera,
   PMREMGenerator,
+  PointLight,
   Scene,
   SphereGeometry,
   SRGBColorSpace,
@@ -29,6 +33,7 @@ import {
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { SceneConfig } from './page.ts'
 
@@ -58,13 +63,69 @@ function makeMaterial(kind: SceneConfig['material'], c2: Color, c3: Color): Mate
       })
     case 'wire':
       return new MeshBasicMaterial({ color: c3, wireframe: true, transparent: true, opacity: 0.85 })
+    case 'gold':
+      return new MeshStandardMaterial({ color: c2, metalness: 1, roughness: 0.32 })
+    case 'pearl':
+      return new MeshPhysicalMaterial({
+        color: c2,
+        roughness: 0.35,
+        metalness: 0,
+        sheen: 1,
+        sheenColor: c3,
+        sheenRoughness: 0.4,
+        clearcoat: 1,
+        clearcoatRoughness: 0.1,
+      })
+    case 'neon':
+      return new MeshStandardMaterial({ color: c2, emissive: c2, emissiveIntensity: 1.6, roughness: 0.4 })
     default:
       return new MeshStandardMaterial({ color: c2, metalness: 1, roughness: 0.14 })
   }
 }
 
-function makeShape(shape: SceneConfig['shape'], material: Material): Object3D {
+/** A logo or icon (SVG markup) as a solid: each filled path extruded and bevelled. */
+function makeLogo(svg: string, material: Material): Object3D | null {
+  let data: ReturnType<SVGLoader['parse']>
+  try {
+    data = new SVGLoader().parse(svg)
+  } catch {
+    return null
+  }
+  const group = new Group()
+  for (const path of data.paths) {
+    for (const shape of SVGLoader.createShapes(path)) {
+      const geometry = new ExtrudeGeometry(shape, {
+        depth: 18,
+        bevelEnabled: true,
+        bevelThickness: 3,
+        bevelSize: 1.5,
+        bevelSegments: 6,
+        curveSegments: 24,
+      })
+      group.add(new Mesh(geometry, material))
+    }
+  }
+  if (!group.children.length) return null
+  // SVG's y axis points down.
+  group.scale.y = -1
+  return group
+}
+
+function makeShape(shape: SceneConfig['shape'], material: Material, svg?: string): Object3D {
   switch (shape) {
+    case 'logo': {
+      const logo = svg ? makeLogo(svg, material) : null
+      if (logo) return fit(logo)
+      return new Mesh(new TorusKnotGeometry(0.85, 0.28, 320, 40), material)
+    }
+    case 'gem': {
+      const geometry = new IcosahedronGeometry(1.25, 0)
+      return new Mesh(geometry, material)
+    }
+    case 'capsule':
+      return new Mesh(new CapsuleGeometry(0.62, 1.2, 16, 48), material)
+    case 'sphere':
+      return new Mesh(new SphereGeometry(1.2, 96, 64), material)
     case 'knot':
       return new Mesh(new TorusKnotGeometry(0.85, 0.28, 320, 40), material)
     case 'torus':
@@ -117,31 +178,80 @@ function fit(object: Object3D) {
   return wrap
 }
 
+/**
+ * One three.js renderer for every 3D scene on the page (each WebGL context counts toward the
+ * browser's limit): it grows to the largest scene, draws each in its corner, and the picture is
+ * copied to the scene's own 2D canvas.
+ */
+interface SharedRenderer {
+  renderer: WebGLRenderer
+  environment: ReturnType<PMREMGenerator['fromScene']>['texture']
+  pmrem: PMREMGenerator
+  users: number
+}
+let sharedRenderer: SharedRenderer | null = null
+
+function acquireRenderer(): SharedRenderer {
+  if (sharedRenderer) {
+    sharedRenderer.users++
+    return sharedRenderer
+  }
+  const renderer = new WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
+  })
+  renderer.setPixelRatio(1)
+  renderer.outputColorSpace = SRGBColorSpace
+  renderer.toneMapping = ACESFilmicToneMapping
+  renderer.setScissorTest(true)
+  const pmrem = new PMREMGenerator(renderer)
+  const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+  sharedRenderer = { renderer, environment, pmrem, users: 1 }
+  return sharedRenderer
+}
+
+function releaseRenderer() {
+  if (!sharedRenderer) return
+  sharedRenderer.users--
+  if (sharedRenderer.users > 0) return
+  sharedRenderer.environment.dispose()
+  sharedRenderer.pmrem.dispose()
+  sharedRenderer.renderer.dispose()
+  sharedRenderer = null
+}
+
 export function start3D(
   canvas: HTMLCanvasElement,
   cfg: SceneConfig,
   options: { scroller?: HTMLElement; reduced: boolean },
 ): () => void {
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(Math.min(1.75, devicePixelRatio || 1))
-  renderer.outputColorSpace = SRGBColorSpace
-  renderer.toneMapping = ACESFilmicToneMapping
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return () => {}
+  const shared = acquireRenderer()
+  const { renderer } = shared
   const [a, b, c] = cfg.colors ?? []
   const c1 = new Color(a ?? '#0b0a09')
   const c2 = new Color(b ?? '#e2a768')
   const c3 = new Color(c ?? '#f2ede4')
-  if (cfg.transparent) renderer.setClearColor(0x000000, 0)
-  else renderer.setClearColor(c1, 1)
 
   const scene = new Scene()
-  const pmrem = new PMREMGenerator(renderer)
-  const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-  scene.environment = environment
-  const key = new DirectionalLight(c3, 2.2)
+  scene.environment = shared.environment
+  // Lighting moods: a soft studio, strong colored neon edges, or a gentle even light.
+  const lighting = cfg.lighting ?? 'studio'
+  scene.environmentIntensity = lighting === 'neon' ? 0.25 : lighting === 'soft' ? 1.2 : 1
+  const key = new DirectionalLight(c3, lighting === 'soft' ? 1.2 : 2.2)
   key.position.set(3, 4, 5)
-  const rim = new DirectionalLight(c2, 3)
+  const rim = new DirectionalLight(c2, lighting === 'neon' ? 6 : 3)
   rim.position.set(-4, -1, -3)
   scene.add(key, rim)
+  if (lighting === 'neon') {
+    const glow = new PointLight(c3, 40, 12)
+    glow.position.set(2.5, -2, 2)
+    scene.add(glow)
+  }
+  if (lighting === 'soft') scene.add(new AmbientLight(c3, 0.8))
 
   const camera = new PerspectiveCamera(35, 1, 0.1, 100)
   camera.position.set(0, 0, 5.6 / Math.max(0.4, cfg.zoom ?? 1))
@@ -167,7 +277,7 @@ export function start3D(
       (error) => console.warn('Materialize: modello 3D non caricato', error),
     )
   } else {
-    const shape = makeShape(cfg.shape, material)
+    const shape = makeShape(cfg.shape, material, cfg.svg ?? undefined)
     pivot.add(shape)
     if (!cfg.shape || cfg.shape === 'blob') {
       const mesh = shape as Mesh
@@ -181,17 +291,24 @@ export function start3D(
   let frame = 0
   const start = performance.now()
 
+  /** The scene's size in device pixels; the shared canvas grows to hold it. */
   const size = () => {
-    const w = canvas.clientWidth || 1
-    const h = canvas.clientHeight || 1
-    const ratio = renderer.getPixelRatio()
-    if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) renderer.setSize(w, h, false)
+    const dpr = Math.min(1.75, devicePixelRatio || 1)
+    const w = Math.max(1, Math.round((canvas.clientWidth || 1) * dpr))
+    const h = Math.max(1, Math.round((canvas.clientHeight || 1) * dpr))
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w
+      canvas.height = h
+    }
+    const out = renderer.domElement
+    if (out.width < w || out.height < h) renderer.setSize(Math.max(out.width, w), Math.max(out.height, h), false)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
+    return { w, h }
   }
 
   function render(now: number) {
-    size()
+    const { w, h } = size()
     const t = options.reduced ? 2 : ((now - start) / 1000) * (cfg.speed ?? 1)
     mouse = { x: mouse.x + (goal.x - mouse.x) * 0.06, y: mouse.y + (goal.y - mouse.y) * 0.06 }
     const r = canvas.getBoundingClientRect()
@@ -218,7 +335,15 @@ export function start3D(
         blob.mesh.geometry.computeVertexNormals()
       }
     }
+    const out = renderer.domElement
+    renderer.setViewport(0, 0, w, h)
+    renderer.setScissor(0, 0, w, h)
+    if (cfg.transparent) renderer.setClearColor(0x000000, 0)
+    else renderer.setClearColor(c1, 1)
     renderer.render(scene, camera)
+    ctx?.clearRect(0, 0, w, h)
+    // WebGL draws from the bottom-left corner of its canvas.
+    ctx?.drawImage(out, 0, out.height - h, w, h, 0, 0, w, h)
   }
 
   const tick = (now: number) => {
@@ -251,8 +376,6 @@ export function start3D(
       if (m.isMesh) m.geometry.dispose()
     })
     material.dispose()
-    environment.dispose()
-    pmrem.dispose()
-    renderer.dispose()
+    releaseRenderer()
   }
 }

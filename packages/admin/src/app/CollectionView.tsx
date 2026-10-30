@@ -158,7 +158,11 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                   <Thumb doc={doc} fallback={icon} className="size-10" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium text-fg">{doc.title}</span>
-                    {doc.slug && <span className="block truncate font-mono text-[11.5px] text-fg3">/{doc.slug}</span>}
+                    {(doc.url || doc.slug) && (
+                      <span className="block truncate font-mono text-[11.5px] text-fg3">
+                        {doc.url ?? `/${doc.slug}`}
+                      </span>
+                    )}
                   </span>
                   <StatusBadge status={doc.status} short />
                   <span
@@ -230,7 +234,7 @@ function Card({
       <div className="px-3.5 py-3">
         <div className="truncate font-medium">{doc.title}</div>
         <div className="mt-0.5 flex justify-between gap-2 text-[12px] text-fg3">
-          <span className="truncate font-mono">{doc.slug ? `/${doc.slug}` : ''}</span>
+          <span className="truncate font-mono">{doc.url ?? (doc.slug ? `/${doc.slug}` : '')}</span>
           <span className="shrink-0" title={fullDate(doc.updatedAt)}>
             {relativeTime(doc.updatedAt)}
           </span>

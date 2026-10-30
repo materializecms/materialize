@@ -63,8 +63,12 @@ export function SeoPanel({
           {errors ? `${errors} da sistemare` : warnings ? 'Quasi a posto' : 'Tutto a posto'}
         </div>
         <div className="text-[11.5px] text-fg3">
-          {[errors && `${errors} errori`, warnings && `${warnings} consigli`].filter(Boolean).join(' · ') ||
-            'La pagina è pronta per i motori di ricerca.'}
+          {[
+            errors && `${errors} ${errors === 1 ? 'errore' : 'errori'}`,
+            warnings && `${warnings} ${warnings === 1 ? 'consiglio' : 'consigli'}`,
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'La pagina è pronta per i motori di ricerca.'}
         </div>
       </div>
       <ul className="space-y-0.5 p-1.5">

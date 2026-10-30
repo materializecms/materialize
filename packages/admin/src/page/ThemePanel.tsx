@@ -7,6 +7,7 @@ import {
   type ThemeColors,
 } from '@materializecms/core/page'
 import { Moon, Plus, Sun, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { NumField, Row, Section, Seg, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
 
@@ -44,7 +45,7 @@ export function ThemePanel({
           ? 'Lo stile vale per tutto il sito: ogni pagina usa questi colori e caratteri.'
           : 'Lo stile del sito lo cambia un amministratore.'}
       </p>
-      <fieldset disabled={!canEdit} className="disabled:opacity-60">
+      <fieldset disabled={!canEdit} className="min-w-0 disabled:opacity-60">
         <Section title="Tema">
           <Seg
             value={theme.mode}
@@ -72,22 +73,23 @@ export function ThemePanel({
         <Section title="Colori">
           <div className="grid grid-cols-2 gap-1.5">
             {COLOR_LABELS.map((c) => (
-              <label
+              <div
                 key={c.key}
                 title={c.hint}
-                className="flex h-9 cursor-pointer items-center gap-2 rounded-md border border-line px-1.5 hover:border-line2"
+                className="flex h-9 items-center gap-2 rounded-md border border-line px-1.5 hover:border-line2"
               >
                 <input
                   type="color"
+                  aria-label={c.label}
                   value={colors[c.key]}
                   onChange={(e) => setColor(c.key, e.target.value)}
                   className="size-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[5px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-[11.5px] font-medium">{c.label}</span>
-                  <span className="block font-mono text-[10.5px] text-fg3 uppercase">{colors[c.key]}</span>
+                  <HexInput label={`${c.label}: codice`} value={colors[c.key]} onChange={(v) => setColor(c.key, v)} />
                 </span>
-              </label>
+              </div>
             ))}
           </div>
         </Section>
@@ -127,7 +129,7 @@ export function ThemePanel({
             const update = (patch: Partial<Swatch>) =>
               set({ swatches: swatches.map((x) => (x.id === sw.id ? { ...x, ...patch } : x)) })
             return (
-              <div key={sw.id} className="group/sw flex items-center gap-1.5">
+              <div key={sw.id} className="group/sw flex flex-wrap items-center gap-1.5">
                 {(['light', 'dark'] as const).map((m) => (
                   <input
                     key={m}
@@ -155,6 +157,18 @@ export function ThemePanel({
                 >
                   <Trash2 className="size-3.5" />
                 </button>
+                <div className="flex basis-full gap-3 pl-1">
+                  {(['light', 'dark'] as const).map((m) => (
+                    <span key={m} className="flex items-center gap-1 text-[10.5px] text-fg3">
+                      {m === 'light' ? 'Chiaro' : 'Scuro'}
+                      <HexInput
+                        label={`${sw.name}: codice ${m === 'light' ? 'tema chiaro' : 'tema scuro'}`}
+                        value={sw[m]}
+                        onChange={(v) => update({ [m]: v })}
+                      />
+                    </span>
+                  ))}
+                </div>
               </div>
             )
           })}
@@ -321,5 +335,36 @@ export function ThemePanel({
         </Section>
       </fieldset>
     </div>
+  )
+}
+
+/** A color as a code: type or paste #7c5cff (or 7c5cff, #fff); applied on Enter or leaving the field. */
+function HexInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [text, setText] = useState(value)
+  useEffect(() => setText(value), [value])
+  const commit = () => {
+    let v = text.trim().replace(/^#?/, '#').toLowerCase()
+    if (/^#[0-9a-f]{3}$/.test(v)) v = `#${[...v.slice(1)].map((c) => c + c).join('')}`
+    if (/^#[0-9a-f]{6}$/.test(v)) {
+      if (v !== value) onChange(v)
+      setText(v)
+    } else setText(value)
+  }
+  return (
+    <input
+      aria-label={label}
+      value={text.toUpperCase()}
+      spellCheck={false}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') {
+          setText(value)
+          e.currentTarget.blur()
+        }
+      }}
+      className="block w-[68px] rounded border border-transparent bg-transparent font-mono text-[10.5px] text-fg3 outline-none hover:border-line2 focus:border-accent focus:text-fg"
+    />
   )
 }

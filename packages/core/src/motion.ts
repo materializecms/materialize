@@ -107,8 +107,49 @@ interface Player {
 export function layoutSticky(root: ParentNode = document) {
   for (const el of root.querySelectorAll<HTMLElement>('[data-mz-sticky~="overlay"]')) {
     // With nothing below to lie over, it keeps its place (a page with only the menu stays visible).
-    el.style.marginBottom = el.nextElementSibling ? `${-el.offsetHeight}px` : ''
+    // A floating menu has a gap above it: the next section goes under that too.
+    const above = Number.parseFloat(getComputedStyle(el).marginTop) || 0
+    el.style.marginBottom = el.nextElementSibling ? `${-(el.offsetHeight + above)}px` : ''
   }
+  // A link to a section (#servizi) stops below the fixed menu, not under it.
+  const menu = root.querySelector<HTMLElement>('[data-mz-sticky]')
+  const page = menu?.closest<HTMLElement>('.mz-page')
+  if (menu && page) {
+    const above = Number.parseFloat(getComputedStyle(menu).marginTop) || 0
+    page.style.setProperty('--mz-anchor-offset', `${menu.offsetHeight + above * 2}px`)
+  }
+}
+
+/** ☰ on mobile: opens and closes the menu; choosing a link closes it. */
+function mobileMenus(root: ParentNode): () => void {
+  const onClick = (e: Event) => {
+    const target = e.target as HTMLElement
+    const burger = target.closest<HTMLElement>('[data-mz-burger]')
+    const section = burger?.parentElement ?? target.closest<HTMLElement>('.mz-open')
+    if (!section) return
+    if (burger) {
+      const open = section.classList.toggle('mz-open')
+      burger.setAttribute('aria-expanded', String(open))
+      burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu')
+    } else if (target.closest('a')) {
+      section.classList.remove('mz-open')
+      section.querySelector('[data-mz-burger]')?.setAttribute('aria-expanded', 'false')
+    } else return
+    // A menu lying over the page opens over it too, instead of pushing the page down.
+    if (section.matches('[data-mz-sticky~="overlay"]')) {
+      const closedHeight = section.dataset.mzClosed ? Number(section.dataset.mzClosed) : section.offsetHeight
+      if (section.classList.contains('mz-open')) {
+        if (!section.dataset.mzClosed) section.dataset.mzClosed = String(closedHeight)
+        const above = Number.parseFloat(getComputedStyle(section).marginTop) || 0
+        section.style.marginBottom = `${-(section.offsetHeight + above)}px`
+      } else {
+        delete section.dataset.mzClosed
+        layoutSticky(root)
+      }
+    }
+  }
+  root.addEventListener('click', onClick)
+  return () => root.removeEventListener('click', onClick)
 }
 
 /** Fixed menus: hidden while scrolling down, glass once scrolled. */
@@ -221,7 +262,12 @@ function moreButtons(root: ParentNode): () => void {
 export function startMotion(root: ParentNode = document, options: MotionOptions = {}): () => void {
   if (typeof window === 'undefined') return () => {}
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const cleanups: (() => void)[] = [stickyMenus(root, options.scroller), moreButtons(root), forms(root)]
+  const cleanups: (() => void)[] = [
+    stickyMenus(root, options.scroller),
+    mobileMenus(root),
+    moreButtons(root),
+    forms(root),
+  ]
   const targets = new Map<HTMLElement, Target>()
   const players: Player[] = []
   const scroller = options.scroller
@@ -462,7 +508,12 @@ export function startMotion(root: ParentNode = document, options: MotionOptions 
       const ix = p.ix
       if (ix.trigger === 'scroll') {
         const r = p.host.getBoundingClientRect()
-        const raw = (v.top + v.height - r.top) / (v.height + r.height)
+        let raw = (v.top + v.height - r.top) / (v.height + r.height)
+        // Already on screen when the page opens (a hero): the effect starts from the top of the
+        // page, not halfway through, so nothing looks faded or shifted before anyone scrolls.
+        const scrolled = scroller ? scroller.scrollTop : scrollY
+        const atTop = (v.height - (r.top - v.top + scrolled)) / (v.height + r.height)
+        if (atTop > 0) raw = (raw - atTop) / Math.max(0.001, 1 - atTop)
         const [a, b] = ix.range ?? [0, 1]
         const progress = Math.min(1, Math.max(0, (raw - a) / Math.max(0.001, b - a)))
         // A little inertia makes scrubbing feel smooth.
