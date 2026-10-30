@@ -40,10 +40,10 @@ export function Overview() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[1080px] px-8 pt-12 pb-20">
+      <div className="mx-auto max-w-[1080px] px-4 pt-8 pb-20 sm:px-8 sm:pt-12">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="text-[12.5px] font-medium text-fg3">{schema.site.name}</p>
+            <p className="text-[13px] font-medium text-fg3">{schema.site.name}</p>
             <h1 className="mt-1 text-[30px] leading-tight font-semibold tracking-[-0.03em]">{greeting(user.name)}</h1>
             <p className="mt-1.5 text-[14px] text-fg2">
               {overview.isPending
@@ -91,11 +91,11 @@ export function Overview() {
                   <TintIcon color={tint(c.name)}>{collectionIcon(c)}</TintIcon>
                   <ArrowRight className="size-4 -translate-x-1 text-fg3 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
                 </div>
-                <div className="mt-4 text-[13px] font-medium text-fg2">{c.label}</div>
+                <div className="mt-4 text-[14px] font-medium text-fg2">{c.label}</div>
                 <div className="mt-0.5 text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
                   {overview.isPending ? '–' : total}
                 </div>
-                <div className="mt-2.5 flex flex-wrap gap-x-3 text-[12px] text-fg3">
+                <div className="mt-2.5 flex flex-wrap gap-x-3 text-[13px] text-fg3">
                   <span>{published} online</span>
                   {!!row?.drafts && <span>{row.drafts} in bozza</span>}
                   {!!row?.changed && <span className="text-warn">{row.changed} da pubblicare</span>}
@@ -113,17 +113,17 @@ export function Overview() {
               </TintIcon>
               <ArrowRight className="size-4 -translate-x-1 text-fg3 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
             </div>
-            <div className="mt-4 text-[13px] font-medium text-fg2">Media</div>
+            <div className="mt-4 text-[14px] font-medium text-fg2">Media</div>
             <div className="mt-0.5 text-[28px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
               {overview.data?.media ?? '–'}
             </div>
-            <div className="mt-2.5 text-[12px] text-fg3">immagini nella libreria</div>
+            <div className="mt-2.5 text-[13px] text-fg3">immagini nella libreria</div>
           </a>
         </section>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <section className="rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
-            <h2 className="flex h-12 items-center border-b border-line px-4 text-[13px] font-semibold">
+            <h2 className="flex h-12 items-center border-b border-line px-4 text-[14px] font-semibold">
               Modifiche recenti
             </h2>
             {overview.isPending ? (
@@ -146,14 +146,14 @@ export function Overview() {
                         <Thumb doc={doc} fallback={<TintIcon color={tint(c.name)}>{collectionIcon(c)}</TintIcon>} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{c.singleton ? c.label : doc.title}</span>
-                          <span className="block truncate text-[12px] text-fg3">
+                          <span className="block truncate text-[13px] text-fg3">
                             {c.label}
                             {doc.updatedBy && ` · ${doc.updatedBy}`}
                           </span>
                         </span>
                         <StatusBadge status={doc.status} short />
                         <span
-                          className="w-24 shrink-0 text-right text-[12px] text-fg3 tabular-nums"
+                          className="hidden w-24 shrink-0 text-right text-[13px] text-fg3 tabular-nums sm:block"
                           title={fullDate(doc.updatedAt)}
                         >
                           {relativeTime(doc.updatedAt)}
@@ -167,7 +167,7 @@ export function Overview() {
           </section>
 
           <aside className="space-y-3">
-            <h2 className="px-1 text-[13px] font-semibold">Azioni rapide</h2>
+            <h2 className="px-1 text-[14px] font-semibold">Azioni rapide</h2>
             {lists.map((c) => (
               <Action
                 key={c.name}

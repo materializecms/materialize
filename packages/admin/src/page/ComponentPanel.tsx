@@ -34,7 +34,7 @@ function properties(node: PageNode): PageNode[] {
 }
 
 const btn =
-  'flex h-7 items-center justify-center gap-1.5 rounded-md border border-line2 px-2 text-[11.5px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5'
+  'flex h-7 items-center justify-center gap-1.5 rounded-md border border-line2 px-2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5'
 
 /** A copy of a component: its variant, its own content, or a way back to a plain element. */
 export function ComponentPanel({
@@ -55,7 +55,7 @@ export function ComponentPanel({
     if (owner)
       return (
         <div className="border-b border-line px-3.5 py-2.5">
-          <p className="flex items-start gap-2 rounded-lg bg-[#8b5cf6]/10 px-2.5 py-2 text-[11.5px] leading-relaxed text-[#8b5cf6]">
+          <p className="flex items-start gap-2 rounded-lg bg-[#8b5cf6]/10 px-2.5 py-2 text-[12px] leading-relaxed text-[#8b5cf6]">
             <ComponentIcon className="mt-0.5 size-3.5 shrink-0" />
             Fa parte di un componente: testi, immagini e link valgono solo qui, il design per tutte le copie.
           </p>
@@ -79,7 +79,7 @@ export function ComponentPanel({
         aria-label="Nome del componente"
         value={def.name}
         onChange={(e) => actions.rename(def.id, e.target.value)}
-        className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[12.5px] font-medium outline-none focus:border-accent"
+        className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[13px] font-medium outline-none focus:border-accent"
       />
       <Row label="Variante">
         <Select
@@ -95,7 +95,7 @@ export function ComponentPanel({
             aria-label="Nome della variante"
             value={variant.name}
             onChange={(e) => actions.renameVariant(def.id, variant.id, e.target.value)}
-            className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+            className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
           />
         </Row>
       )}
@@ -122,7 +122,7 @@ export function ComponentPanel({
             value={naming}
             onChange={(e) => setNaming(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
-            className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12px] outline-none"
+            className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12.5px] outline-none"
           />
           <button type="submit" className={btn}>
             Crea
@@ -143,7 +143,7 @@ export function ComponentPanel({
         </Row>
       )}
       <div className="space-y-1.5 rounded-lg border border-line p-2">
-        <div className="text-[11px] font-medium text-fg2">Proprietà di questa copia</div>
+        <div className="text-[11.5px] font-medium text-fg2">Proprietà di questa copia</div>
         {properties(node).map((c) => (
           <div key={c.id} className="flex items-center gap-1.5">
             <button
@@ -161,13 +161,13 @@ export function ComponentPanel({
                 title={c.name}
                 value={c.type === 'text' ? plainText(c) : (c.text ?? '')}
                 onChange={(e) => actions.setChild(c.id, { text: e.target.value, runs: null })}
-                className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+                className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
               />
             ) : (
               <button
                 type="button"
                 onClick={() => (c.type === 'image' ? actions.pickChildImage(c.id) : actions.select(c.id))}
-                className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line2 px-2 text-left text-[12px] text-fg2 hover:text-fg [&_svg]:size-3.5"
+                className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line2 px-2 text-left text-[12.5px] text-fg2 hover:text-fg [&_svg]:size-3.5"
               >
                 <ImagePlus className="shrink-0" />
                 <span className="truncate">{c.name || (c.type === 'image' ? 'Immagine' : 'Icona')}</span>
@@ -176,7 +176,7 @@ export function ComponentPanel({
           </div>
         ))}
       </div>
-      <p className="text-[11px] leading-relaxed text-fg3">
+      <p className="text-[11.5px] leading-relaxed text-fg3">
         Il design vale per tutte le copie di questa variante; testi, immagini e link restano di questa copia
         {own ? ` (${own} ${own === 1 ? 'elemento modificato' : 'elementi modificati'})` : ''}.
       </p>

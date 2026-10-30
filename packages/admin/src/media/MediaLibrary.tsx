@@ -205,7 +205,7 @@ export function MediaLibrary() {
         {checked.size > 0 ? (
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-5">
             <SelectBox checked label="Deseleziona tutti" onToggle={() => setChecked(new Map())} />
-            <span className="ml-1 text-[13px] font-medium">
+            <span className="ml-1 text-[14px] font-medium">
               {checked.size === 1 ? '1 file selezionato' : `${checked.size} file selezionati`}
             </span>
             <div className="flex-1" />
@@ -323,10 +323,10 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
       </div>
       <div className="space-y-4 p-4">
         <div>
-          <div className="truncate text-[13px] font-semibold" title={asset.filename}>
+          <div className="truncate text-[14px] font-semibold" title={asset.filename}>
             {asset.filename}
           </div>
-          <div className="mt-2 text-[12.5px]">
+          <div className="mt-2 text-[13px]">
             {asset.width && (
               <div className={row}>
                 <span className="text-fg2">Dimensioni</span>
@@ -358,7 +358,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
           </div>
         </div>
         <label className="block">
-          <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-fg2">
+          <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-fg2">
             Testo alternativo
             {saved && <Check className="size-3.5 text-ok" />}
             {asset.mime.startsWith('image/') && (
@@ -381,7 +381,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
             onBlur={() => saveAlt()}
             placeholder="Descrivi l’immagine a chi non può vederla"
           />
-          <span className="mt-1 block text-[12px] text-fg3">Proposto quando scegli l’immagine in un documento.</span>
+          <span className="mt-1 block text-[13px] text-fg3">Proposto quando scegli l’immagine in un documento.</span>
         </label>
         <div className="flex gap-1.5">
           <Button size="sm" icon={<Copy className="size-3.5" />} onClick={() => void copyUrl(asset)}>

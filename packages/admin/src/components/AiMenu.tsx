@@ -22,7 +22,7 @@ export function useAiReady(): boolean {
 
 const trigger = (busy: boolean, label: string) =>
   cx(
-    'inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3.5',
+    'inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3.5',
     busy && 'pointer-events-none',
     !label && 'w-6 justify-center px-0',
   )
@@ -92,7 +92,7 @@ export function AiTextMenu({
             </MenuItem>
           ))}
           <MenuSeparator />
-          <div className="px-2 pt-1 pb-0.5 text-[11px] font-medium text-fg3">Traduci in</div>
+          <div className="px-2 pt-1 pb-0.5 text-[12px] font-medium text-fg3">Traduci in</div>
           <div className="flex flex-wrap gap-1 px-2 pb-1.5">
             {LANGUAGES.map((l) => (
               <button
@@ -102,7 +102,7 @@ export function AiTextMenu({
                   close()
                   void run('translate', l)
                 }}
-                className="rounded-md border border-line px-1.5 py-0.5 text-[11.5px] text-fg2 hover:border-accent hover:text-fg"
+                className="rounded-md border border-line px-1.5 py-0.5 text-[12px] text-fg2 hover:border-accent hover:text-fg"
               >
                 {l}
               </button>
@@ -124,7 +124,7 @@ export function AiTextMenu({
               value={ask}
               onChange={(e) => setAsk(e.target.value)}
               placeholder="Chiedi: “più ironico”, “3 punti”…"
-              className="h-7 min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-fg3"
+              className="h-7 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-fg3"
             />
           </form>
         </div>

@@ -69,10 +69,10 @@ export function BlocksInput({
                   className={cx('size-3.5 shrink-0 text-fg3 transition-transform', expanded && 'rotate-90')}
                 />
                 <span className="text-fg2 [&_svg]:size-4">{blockIcon(block._type)}</span>
-                <span className="shrink-0 text-[13px] font-medium">{def?.label ?? block._type}</span>
-                {title && <span className="truncate text-[12.5px] text-fg3">{title}</span>}
+                <span className="shrink-0 text-[14px] font-medium">{def?.label ?? block._type}</span>
+                {title && <span className="truncate text-[13px] text-fg3">{title}</span>}
                 {errors > 0 && (
-                  <span className="ml-auto shrink-0 rounded-full bg-danger/12 px-1.5 text-[11px] font-medium text-danger">
+                  <span className="ml-auto shrink-0 rounded-full bg-danger/12 px-1.5 text-[12px] font-medium text-danger">
                     {errors}
                   </span>
                 )}
@@ -118,7 +118,7 @@ export function BlocksInput({
                     }}
                   />
                 ) : (
-                  <p className="text-[12px] text-warn">
+                  <p className="text-[13px] text-warn">
                     Il blocco “{block._type}” non esiste più nello schema. Puoi eliminarlo.
                   </p>
                 )}

@@ -62,7 +62,7 @@ export function SectionsIndex({
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-      <div className="px-2 pt-1.5 pb-2 text-[11px] font-medium tracking-wide text-fg3 uppercase">Sezioni</div>
+      <div className="px-2 pt-1.5 pb-2 text-[11.5px] font-medium tracking-wide text-fg3 uppercase">Sezioni</div>
       <ol className="space-y-0.5">
         {nodes.map((n, i) => (
           <li key={n.id}>
@@ -70,12 +70,12 @@ export function SectionsIndex({
               type="button"
               onClick={() => onSelect(n.id)}
               className={cx(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px]',
+                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px]',
                 current === n.id ? 'bg-accent/10 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
                 n.hidden && 'opacity-50',
               )}
             >
-              <span className="w-4 shrink-0 text-right font-mono text-[10.5px] text-fg3">{i + 1}</span>
+              <span className="w-4 shrink-0 text-right font-mono text-[11px] text-fg3">{i + 1}</span>
               <span className="min-w-0 flex-1 truncate">{sectionLabel(n, i)}</span>
               {n.global && <Globe className="size-3 shrink-0 text-fg3" aria-label="Condivisa con le altre pagine" />}
             </button>
@@ -128,7 +128,7 @@ function RunsField({ node, label, onCommit }: { node: PageNode; label: string; o
 }
 
 const input =
-  'h-7 w-full min-w-0 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent'
+  'h-7 w-full min-w-0 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent'
 
 interface Item {
   node: PageNode
@@ -189,7 +189,7 @@ export function ContentPanel({
         <ListTree className="size-4 text-fg3" />
         <div>
           <div className="text-[13px] font-semibold">Contenuti della pagina</div>
-          <div className="text-[11.5px] text-fg3">In ordine di lettura. Il layout resta com’è.</div>
+          <div className="text-[12px] text-fg3">In ordine di lettura. Il layout resta com’è.</div>
         </div>
       </div>
       {nodes.map((section, i) => {
@@ -200,7 +200,7 @@ export function ContentPanel({
             <button
               type="button"
               onClick={() => onSelect(section.id)}
-              className="mb-2 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold tracking-wide text-fg3 uppercase hover:text-fg"
+              className="mb-2 flex w-full items-center gap-1.5 text-left text-[11.5px] font-semibold tracking-wide text-fg3 uppercase hover:text-fg"
             >
               <span className="font-mono">{i + 1}</span>
               <span className="truncate">{sectionLabel(section, i)}</span>
@@ -219,7 +219,7 @@ export function ContentPanel({
                     selected === n.id && 'ring-2 ring-accent/40 ring-offset-4 ring-offset-panel',
                   )}
                 >
-                  <div className="flex min-h-6 items-center gap-1 text-[11px] text-fg3">
+                  <div className="flex min-h-6 items-center gap-1 text-[11.5px] text-fg3">
                     <span className="min-w-0 flex-1 truncate">
                       {n.type === 'image'
                         ? 'Immagine'
@@ -255,7 +255,7 @@ export function ContentPanel({
                     )}
                   </div>
                   {bound ? (
-                    <p className="truncate text-[12.5px] text-fg3 italic">
+                    <p className="truncate text-[13px] text-fg3 italic">
                       {n.type === 'image' ? 'Immagine della voce' : plain(n) || '—'}
                     </p>
                   ) : n.type === 'text' ? (
@@ -318,7 +318,7 @@ export function ContentPanel({
                           aria-label="Scelte del campo, una per riga"
                           value={(n.options ?? []).join('\n')}
                           onChange={(e) => onContent(n.id, { options: e.target.value.split('\n') }, `opt:${n.id}`)}
-                          className="min-h-16 w-full resize-y rounded-md border border-line2 bg-input px-2 py-1 text-[12px] leading-snug outline-none focus:border-accent"
+                          className="min-h-16 w-full resize-y rounded-md border border-line2 bg-input px-2 py-1 text-[12.5px] leading-snug outline-none focus:border-accent"
                         />
                       )}
                     </div>
@@ -356,7 +356,7 @@ export function ContentPanel({
                         value={n.alt ?? ''}
                         placeholder="Descrizione per chi non vede e per Google"
                         onChange={(e) => onContent(n.id, { alt: e.target.value }, `alt:${n.id}`)}
-                        className="h-16 min-w-0 flex-1 resize-none rounded-md border border-line2 bg-input px-2 py-1 text-[12px] leading-snug outline-none focus:border-accent"
+                        className="h-16 min-w-0 flex-1 resize-none rounded-md border border-line2 bg-input px-2 py-1 text-[12.5px] leading-snug outline-none focus:border-accent"
                       />
                     </div>
                   )}

@@ -59,7 +59,16 @@ import { localeName } from './Sidebar.tsx'
  */
 export const openedAsNew = new Set<string>()
 
-export function DocumentScreen({ collection, id }: { collection: CollectionDescription; id: string | null }) {
+export function DocumentScreen({
+  collection,
+  id,
+  embedded,
+}: {
+  collection: CollectionDescription
+  id: string | null
+  /** Inside another screen (a single document in Impostazioni): no title of its own in the header. */
+  embedded?: boolean
+}) {
   const doc = useQuery({
     queryKey: ['doc', id],
     queryFn: () => api.get(id as string),
@@ -92,7 +101,7 @@ export function DocumentScreen({ collection, id }: { collection: CollectionDescr
       </EmptyState>
     )
   }
-  return <Editor collection={collection} initial={doc.data ?? null} />
+  return <Editor collection={collection} initial={doc.data ?? null} embedded={embedded} />
 }
 
 function initialData(collection: CollectionDescription): Data {
@@ -106,7 +115,15 @@ function initialData(collection: CollectionDescription): Data {
 
 type Mode = 'content' | 'design'
 
-function Editor({ collection, initial }: { collection: CollectionDescription; initial: StoredDocument | null }) {
+function Editor({
+  collection,
+  initial,
+  embedded,
+}: {
+  collection: CollectionDescription
+  initial: StoredDocument | null
+  embedded?: boolean
+}) {
   const { locale, user, schema } = useSession()
   const queryClient = useQueryClient()
   const fields = collection.fields
@@ -378,7 +395,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
   return (
     <FormContext.Provider value={formState}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <header className="relative flex h-[52px] shrink-0 items-center gap-2 border-b border-line bg-panel pr-3 pl-3">
+        <header className="relative flex h-[52px] shrink-0 items-center gap-1 border-b border-line bg-panel px-2 sm:gap-2 sm:px-3">
           {/* A singleton has no list to go back to: it stays in the sidebar like any section. */}
           {!collection.singleton && (
             <button
@@ -392,19 +409,19 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
               <ArrowLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           )}
-          <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
+          <div className={cx('flex min-w-0 items-center gap-1.5 text-[14px]', embedded && 'hidden')}>
             {!collection.singleton && (
               <>
                 <span className="hidden shrink-0 font-semibold xl:inline">{schema.site.name}</span>
                 <span className="hidden text-fg3 xl:inline">/</span>
                 <button
                   type="button"
-                  className="shrink-0 text-fg2 hover:text-fg"
+                  className="shrink-0 text-fg2 hover:text-fg max-sm:hidden"
                   onClick={() => navigate({ name: 'collection', collection: collection.name })}
                 >
                   {collection.label}
                 </button>
-                <span className="text-fg3">/</span>
+                <span className="text-fg3 max-sm:hidden">/</span>
               </>
             )}
             <span className="truncate font-medium">{collection.singleton ? collection.label : title}</span>
@@ -419,7 +436,11 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
               }}
             />
           )}
-          {doc && <StatusBadge status={dirty && status === 'published' ? 'changed' : status} short />}
+          {doc && (
+            <span className="max-sm:hidden">
+              <StatusBadge status={dirty && status === 'published' ? 'changed' : status} short />
+            </span>
+          )}
           <SaveState
             saving={saving}
             dirty={dirty}
@@ -430,7 +451,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
           />
 
           {(blocksField || pageField) && !contentOnly && (
-            <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="lg:absolute lg:left-1/2 lg:-translate-x-1/2 max-lg:ml-auto max-lg:shrink-0">
               <Segmented
                 value={mode}
                 onChange={chooseMode}
@@ -439,7 +460,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                     value: 'content',
                     label: (
                       <>
-                        <FileText /> Contenuto
+                        <FileText /> <span className="max-sm:hidden">Contenuto</span>
                       </>
                     ),
                     title: pageField ? 'Scrivi testi e cambia immagini sulla pagina' : 'Modifica i campi',
@@ -448,7 +469,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                     value: 'design',
                     label: (
                       <>
-                        <LayoutTemplate /> Design
+                        <LayoutTemplate /> <span className="max-sm:hidden">Design</span>
                       </>
                     ),
                     title: 'Componi la pagina sulla tela',
@@ -458,15 +479,17 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             </div>
           )}
 
-          <div className="ml-auto flex items-center gap-1">
-            <IconButton label="Annulla (⌘Z)" disabled={!history.canUndo} onClick={history.undo}>
-              <Undo2 />
-            </IconButton>
-            <IconButton label="Ripristina (⇧⌘Z)" disabled={!history.canRedo} onClick={history.redo}>
-              <Redo2 />
-            </IconButton>
-            <div className="mx-1 h-5 w-px bg-line" />
-            <ThemeSwitch compact />
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <div className="flex items-center gap-1 max-sm:hidden">
+              <IconButton label="Annulla (⌘Z)" disabled={!history.canUndo} onClick={history.undo}>
+                <Undo2 />
+              </IconButton>
+              <IconButton label="Ripristina (⇧⌘Z)" disabled={!history.canRedo} onClick={history.redo}>
+                <Redo2 />
+              </IconButton>
+              <div className="mx-1 h-5 w-px bg-line" />
+              <ThemeSwitch compact />
+            </div>
             {mode === 'content' && !pageField && (
               <IconButton
                 label="Pannello documento"
@@ -496,7 +519,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
                     }}
                   >
                     <span className="block">Togli dal sito</span>
-                    <span className="block text-[11.5px] font-normal text-fg3">
+                    <span className="block text-[12px] font-normal text-fg3">
                       {doc?.publishedAt ? 'Torna bozza, non più visibile online' : 'Non è pubblicato'}
                     </span>
                   </MenuItem>
@@ -573,6 +596,7 @@ function Editor({ collection, initial }: { collection: CollectionDescription; in
             onChange={set}
             mode={mode}
             docId={doc?.id}
+            onContentMode={() => chooseMode('content')}
           />
         ) : mode === 'design' && blocksField ? (
           <DesignMode
@@ -687,8 +711,13 @@ function SaveState({
 }) {
   const text = saving ? 'Salvataggio…' : isNew ? 'Non ancora salvato' : dirty ? 'Modifiche in corso' : 'Salvato'
   return (
-    <span className="ml-1 inline-flex items-center gap-2 text-[12px] whitespace-nowrap text-fg3">
-      {text}
+    <span
+      className={cx(
+        'ml-1 inline-flex items-center gap-2 text-[13px] whitespace-nowrap text-fg3',
+        !issues && 'max-md:hidden',
+      )}
+    >
+      <span className="max-md:hidden">{text}</span>
       {issues > 0 && (
         <button
           type="button"
@@ -700,7 +729,10 @@ function SaveState({
           )}
         >
           <CircleAlert className="size-3.5" />
-          {issues === 1 ? '1 campo da completare' : `${issues} campi da completare`}
+          <span className="max-sm:hidden">
+            {issues === 1 ? '1 campo da completare' : `${issues} campi da completare`}
+          </span>
+          <span className="sm:hidden">{issues}</span>
         </button>
       )}
     </span>
@@ -732,7 +764,7 @@ function TitleInput({
         }}
         className="block w-full resize-none bg-transparent text-[28px] leading-tight font-semibold tracking-tight placeholder:text-fg3/60 focus:outline-none"
       />
-      {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
+      {error && <p className="mt-1 text-[13px] text-danger">{error}</p>}
     </div>
   )
 }
@@ -757,7 +789,7 @@ function InfoPanel({
   return (
     <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel">
       <section className="border-b border-line px-4 py-3.5">
-        <h2 className="mb-1.5 text-[12px] font-medium text-fg3">Documento</h2>
+        <h2 className="mb-1.5 text-[13px] font-medium text-fg3">Documento</h2>
         <div className={row}>
           <span className="text-fg2">Stato</span>
           <StatusBadge status={status} short />
@@ -770,12 +802,12 @@ function InfoPanel({
                 href={publicUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="truncate font-mono text-[12px] text-accent hover:underline"
+                className="truncate font-mono text-[13px] text-accent hover:underline"
               >
                 {doc.url}
               </a>
             ) : (
-              <span className="truncate font-mono text-[12px]">{doc.url}</span>
+              <span className="truncate font-mono text-[13px]">{doc.url}</span>
             )}
           </div>
         )}
@@ -797,7 +829,7 @@ function InfoPanel({
         )}
       </section>
       <section className="px-4 py-3.5">
-        <h2 className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-fg3">
+        <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-fg3">
           <HistoryIcon className="size-3.5" /> Cronologia
         </h2>
         {revisions.isPending ? (
@@ -816,8 +848,8 @@ function InfoPanel({
                   )}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px]">{kindLabel[r.kind]}</span>
-                  <span className="block text-[11.5px] text-fg3" title={fullDate(r.createdAt)}>
+                  <span className="block text-[13px]">{kindLabel[r.kind]}</span>
+                  <span className="block text-[12px] text-fg3" title={fullDate(r.createdAt)}>
                     {relativeTime(r.createdAt)}
                   </span>
                 </span>

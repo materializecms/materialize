@@ -283,7 +283,7 @@ export function BulkBar({
   const toPublish = docs.filter((d) => d.status !== 'published').map((d) => d.id)
   const live = docs.filter((d) => d.status !== 'draft').map((d) => d.id)
   const btn =
-    'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium text-fg2 transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-3.5'
+    'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-fg2 transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-3.5'
   return (
     <div className="flex min-h-7 flex-1 flex-wrap items-center gap-1">
       <SelectBox
@@ -293,7 +293,7 @@ export function BulkBar({
         onToggle={() => (count === total ? onClear() : onSelectAll())}
         className="mr-1.5"
       />
-      <span className="mr-2 text-[12.5px] font-medium">{count === 1 ? '1 selezionato' : `${count} selezionati`}</span>
+      <span className="mr-2 text-[13px] font-medium">{count === 1 ? '1 selezionato' : `${count} selezionati`}</span>
       <button
         type="button"
         className={btn}

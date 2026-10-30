@@ -3,7 +3,7 @@ import { Inbox, Mail, Send, Settings, Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { DocumentScreen } from '../app/DocumentScreen.tsx'
-import { Button, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
+import { Button, cx, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { ApiError, api, type CollectionDescription, type MailSettings } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
@@ -37,52 +37,98 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   const active = tab ?? singletons[0]?.name ?? 'mail'
   const single = singletons.find((c) => c.name === active)
   const [profile, setProfile] = useState(false)
+  // Grouped, so the list can grow: the site's own data, how it talks to people, safety, tools.
+  const groups: { title: string; items: { value: string; label: string; badge?: number }[] }[] = [
+    {
+      title: 'Sito',
+      items: [
+        ...singletons.map((c) => ({ value: c.name, label: settingsLabel(c) })),
+        { value: 'languages', label: 'Lingue' },
+        { value: 'seo', label: 'SEO' },
+      ],
+    },
+    {
+      title: 'Comunicazione',
+      items: [
+        { value: 'mail', label: 'Email' },
+        { value: 'messages', label: 'Messaggi', badge: unread },
+      ],
+    },
+    { title: 'Protezione', items: [{ value: 'security', label: 'Sicurezza' }] },
+    {
+      title: 'Strumenti',
+      items: [
+        { value: 'ai', label: 'AI e MCP' },
+        { value: 'import', label: 'Importa' },
+      ],
+    },
+  ]
+  const item = (it: { value: string; label: string; badge?: number }) => (
+    <button
+      key={it.value}
+      type="button"
+      aria-current={active === it.value ? 'page' : undefined}
+      // On phones the list scrolls sideways: the open section stays in view.
+      ref={active === it.value ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
+      onClick={() => navigate({ name: 'settings', tab: it.value })}
+      className={cx(
+        'flex h-8 shrink-0 items-center gap-2 rounded-lg px-2.5 text-left text-[14px] transition-colors max-md:border max-md:border-line',
+        active === it.value ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+      )}
+    >
+      <span className="flex-1 whitespace-nowrap">{it.label}</span>
+      {!!it.badge && (
+        <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white tabular-nums">
+          {it.badge}
+        </span>
+      )}
+    </button>
+  )
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
         <Settings className="size-4 text-fg3" />
-        <h1 className="text-[14px] font-semibold">Impostazioni</h1>
-        <div className="flex-1" />
-        <Segmented
-          size="sm"
-          value={active}
-          onChange={(t) => navigate({ name: 'settings', tab: t })}
-          options={[
-            ...singletons.map((c) => ({ value: c.name, label: settingsLabel(c) })),
-            { value: 'mail', label: 'Email' },
-            { value: 'seo', label: 'SEO' },
-            { value: 'languages', label: 'Lingue' },
-            { value: 'security', label: 'Sicurezza' },
-            { value: 'ai', label: 'AI e MCP' },
-            { value: 'import', label: 'Importa' },
-            { value: 'messages', label: unread ? `Messaggi · ${unread}` : 'Messaggi' },
-          ]}
-        />
+        <h1 className="text-[15px] font-semibold">Impostazioni</h1>
       </header>
-      {single ? (
-        <SingleDocument collection={single} />
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {active === 'ai' ? (
-            <AiScreen />
-          ) : active === 'import' ? (
-            <ImportWordPress />
-          ) : active === 'security' ? (
-            <SecuritySettings onOpenProfile={() => setProfile(true)} />
-          ) : active === 'languages' ? (
-            <LanguagesSettings />
-          ) : active === 'messages' ? (
-            <Messages canDelete={user.role === 'admin'} />
-          ) : active === 'seo' ? (
-            <SeoSettings editable={user.role === 'admin'} />
-          ) : user.role === 'admin' ? (
-            <MailForm />
+      <div className="flex min-h-0 flex-1 max-md:flex-col">
+        <nav
+          aria-label="Sezioni delle impostazioni"
+          className="shrink-0 border-line md:w-52 md:overflow-y-auto md:border-r md:p-3 max-md:flex max-md:gap-1.5 max-md:overflow-x-auto max-md:border-b max-md:px-4 max-md:py-2.5 max-md:[scrollbar-width:none]"
+        >
+          {groups.map((g) => (
+            <div key={g.title} className="md:mb-4 max-md:contents">
+              <div className="px-2.5 pb-1 text-[12px] font-medium text-fg3 max-md:hidden">{g.title}</div>
+              <div className="flex flex-col gap-0.5 max-md:contents">{g.items.map(item)}</div>
+            </div>
+          ))}
+        </nav>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {single ? (
+            <SingleDocument collection={single} />
           ) : (
-            <EmptyState icon={<Mail />} title="L’invio delle email lo configura un amministratore" />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {active === 'ai' ? (
+                <AiScreen />
+              ) : active === 'import' ? (
+                <ImportWordPress />
+              ) : active === 'security' ? (
+                <SecuritySettings onOpenProfile={() => setProfile(true)} />
+              ) : active === 'languages' ? (
+                <LanguagesSettings />
+              ) : active === 'messages' ? (
+                <Messages canDelete={user.role === 'admin'} />
+              ) : active === 'seo' ? (
+                <SeoSettings editable={user.role === 'admin'} />
+              ) : user.role === 'admin' ? (
+                <MailForm />
+              ) : (
+                <EmptyState icon={<Mail />} title="L’invio delle email lo configura un amministratore" />
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -101,7 +147,12 @@ function SingleDocument({ collection }: { collection: CollectionDescription }) {
       </div>
     )
   return (
-    <DocumentScreen key={`${collection.name}/${locale}`} collection={collection} id={list.data?.items[0]?.id ?? null} />
+    <DocumentScreen
+      key={`${collection.name}/${locale}`}
+      collection={collection}
+      id={list.data?.items[0]?.id ?? null}
+      embedded
+    />
   )
 }
 
@@ -109,9 +160,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
     <label className="block space-y-1.5">
-      <span className="text-[12.5px] font-medium">{label}</span>
+      <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[11.5px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -164,7 +215,7 @@ function MailForm() {
     <form onSubmit={save} className="mx-auto max-w-xl space-y-6 px-5 py-8">
       <div>
         <h2 className="text-[16px] font-semibold">Invio delle email</h2>
-        <p className="mt-1 text-[13px] leading-relaxed text-fg2">
+        <p className="mt-1 text-[14px] leading-relaxed text-fg2">
           Con un server SMTP (quello della tua casella, o servizi come Postmark, Brevo, Amazon SES) i messaggi dei
           moduli del sito arrivano anche per email. Senza, restano comunque in Messaggi.
         </p>
@@ -263,13 +314,13 @@ function Messages({ canDelete }: { canDelete: boolean }) {
                 }}
               >
                 <div className="flex items-baseline gap-2">
-                  <span className={`truncate text-[13.5px] ${m.read ? '' : 'font-semibold'}`}>{from}</span>
-                  <span className="shrink-0 text-[11.5px] text-fg3" title={fullDate(m.createdAt)}>
+                  <span className={`truncate text-[14px] ${m.read ? '' : 'font-semibold'}`}>{from}</span>
+                  <span className="shrink-0 text-[12px] text-fg3" title={fullDate(m.createdAt)}>
                     {relativeTime(m.createdAt)}
                   </span>
-                  {m.mailed && <span className="shrink-0 text-[11px] text-fg3">· inviato per email</span>}
+                  {m.mailed && <span className="shrink-0 text-[12px] text-fg3">· inviato per email</span>}
                 </div>
-                {!expanded && <p className="truncate text-[12.5px] text-fg2">{preview}</p>}
+                {!expanded && <p className="truncate text-[13px] text-fg2">{preview}</p>}
               </button>
               {canDelete && (
                 <IconButton
@@ -285,14 +336,14 @@ function Messages({ canDelete }: { canDelete: boolean }) {
               )}
             </div>
             {expanded && (
-              <dl className="mt-2 ml-5 space-y-2 rounded-lg border border-line bg-panel2 p-3 text-[13px]">
+              <dl className="mt-2 ml-5 space-y-2 rounded-lg border border-line bg-panel2 p-3 text-[14px]">
                 {Object.entries(m.data).map(([k, v]) => (
                   <div key={k}>
-                    <dt className="text-[11.5px] font-medium text-fg3">{k}</dt>
+                    <dt className="text-[12px] font-medium text-fg3">{k}</dt>
                     <dd className="whitespace-pre-wrap">{v}</dd>
                   </div>
                 ))}
-                {m.page && <div className="text-[11.5px] text-fg3">Dalla pagina {m.page}</div>}
+                {m.page && <div className="text-[12px] text-fg3">Dalla pagina {m.page}</div>}
               </dl>
             )}
           </li>

@@ -73,8 +73,8 @@ export function Field(props: FieldProps) {
   if (field.kind === 'group' || field.kind === 'seo') {
     return (
       <fieldset data-path={pathKey(path)} className="min-w-0 rounded-lg border border-line p-4">
-        <legend className="-ml-1 px-1 text-[12px] font-medium text-fg2">{field.label}</legend>
-        {field.description && <p className="-mt-1 mb-3 text-[12px] text-fg3">{field.description}</p>}
+        <legend className="-ml-1 px-1 text-[13px] font-medium text-fg2">{field.label}</legend>
+        {field.description && <p className="-mt-1 mb-3 text-[13px] text-fg3">{field.description}</p>}
         <FieldControl {...props} />
       </fieldset>
     )
@@ -83,7 +83,7 @@ export function Field(props: FieldProps) {
   return (
     <div data-path={pathKey(path)} className={cx(inline && 'flex items-center justify-between gap-4')}>
       <div className={cx('flex items-baseline gap-2', !inline && 'mb-1.5')}>
-        <label htmlFor={id} className="text-[12px] font-medium text-fg2">
+        <label htmlFor={id} className="text-[13px] font-medium text-fg2">
           {field.label}
           {field.required && <span className="ml-0.5 text-fg3">*</span>}
         </label>
@@ -100,9 +100,9 @@ export function Field(props: FieldProps) {
         )}
       </div>
       <FieldControl {...props} />
-      {field.description && !inline && <p className="mt-1.5 text-[12px] text-fg3">{field.description}</p>}
+      {field.description && !inline && <p className="mt-1.5 text-[13px] text-fg3">{field.description}</p>}
       {errors.map((e) => (
-        <p key={e} className="mt-1.5 text-[12px] text-danger">
+        <p key={e} className="mt-1.5 text-[13px] text-danger">
           {e}
         </p>
       ))}
@@ -115,7 +115,7 @@ function Counter({ field, value }: { field: FieldDescription; value: unknown }) 
   if (field.kind !== 'text' || typeof max !== 'number') return null
   const length = typeof value === 'string' ? value.length : 0
   return (
-    <span className={cx('ml-auto text-[11px] tabular-nums', length > max ? 'text-danger' : 'text-fg3')}>
+    <span className={cx('ml-auto text-[12px] tabular-nums', length > max ? 'text-danger' : 'text-fg3')}>
       {length}/{max}
     </span>
   )
@@ -192,7 +192,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
           value={current}
           onChange={(e) => onChange(e.target.value || undefined)}
           aria-invalid={invalid || undefined}
-          className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[13px] focus:border-accent focus:outline-none"
+          className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] focus:border-accent focus:outline-none"
         >
           {!field.required || !current ? <option value="">—</option> : null}
           {options.map((o) => (
@@ -210,12 +210,12 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
       return (
         <div className="flex gap-1.5">
           <div className="relative flex-1">
-            <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 font-mono text-[12px] text-fg3">
+            <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 font-mono text-[13px] text-fg3">
               /
             </span>
             <Input
               id={id}
-              className="pl-5 font-mono text-[12.5px]"
+              className="pl-5 font-mono text-[13px]"
               value={typeof value === 'string' ? value : ''}
               placeholder={suggestion || 'indirizzo-della-pagina'}
               aria-invalid={invalid || undefined}
@@ -300,7 +300,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
           </label>
           <Input
             id={id}
-            className="w-32 font-mono text-[12.5px] uppercase"
+            className="w-32 font-mono text-[13px] uppercase"
             value={hex}
             placeholder="#000000"
             maxLength={7}
@@ -336,12 +336,12 @@ function LinkInput({
         />
         <Input
           placeholder="https://… o /pagina"
-          className="font-mono text-[12.5px]"
+          className="font-mono text-[13px]"
           value={v.href}
           onChange={(e) => onChange({ ...v, href: e.target.value }, 'href')}
         />
       </div>
-      <div className="flex items-center gap-2 text-[12px] text-fg2">
+      <div className="flex items-center gap-2 text-[13px] text-fg2">
         <Switch
           checked={!!v.newTab}
           onChange={(newTab) => onChange({ ...v, newTab }, 'tab')}
@@ -453,7 +453,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-[11.5px] text-fg3">Anteprima</span>
+        <span className="text-[12px] text-fg3">Anteprima</span>
         <Segmented
           size="sm"
           value={preview}
@@ -466,7 +466,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
       </div>
       {preview === 'google' ? (
         <div className="rounded-md bg-panel2 px-3.5 py-3">
-          <div className="truncate text-[12px] text-fg3">
+          <div className="truncate text-[13px] text-fg3">
             {host}
             {docUrl && docUrl !== '/'
               ? docUrl
@@ -477,16 +477,16 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               : ''}
           </div>
           <div className="mt-0.5 truncate text-[16px] leading-snug text-[#1a0dab] dark:text-[#8ab4f8]">{title}</div>
-          <div className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-fg2">
+          <div className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-fg2">
             {description || 'Aggiungi una descrizione: è il testo che appare sotto al titolo nei risultati di ricerca.'}
           </div>
           {value.noindex && (
-            <div className="mt-2 text-[11.5px] font-medium text-danger">Nascosta: non comparirà su Google.</div>
+            <div className="mt-2 text-[12px] font-medium text-danger">Nascosta: non comparirà su Google.</div>
           )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-line bg-panel2">
-          <div className="flex aspect-[1.91/1] items-center justify-center bg-line/40 text-[11.5px] text-fg3">
+          <div className="flex aspect-[1.91/1] items-center justify-center bg-line/40 text-[12px] text-fg3">
             {image?.src ? (
               <img src={image.src} alt="" className="size-full object-cover" />
             ) : (
@@ -494,9 +494,9 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
             )}
           </div>
           <div className="space-y-0.5 px-3 py-2.5">
-            <div className="text-[10.5px] tracking-wide text-fg3 uppercase">{host}</div>
-            <div className="line-clamp-2 text-[13.5px] font-semibold leading-snug">{value.socialTitle || title}</div>
-            <div className="line-clamp-2 text-[12px] leading-snug text-fg2">
+            <div className="text-[11px] tracking-wide text-fg3 uppercase">{host}</div>
+            <div className="line-clamp-2 text-[14px] font-semibold leading-snug">{value.socialTitle || title}</div>
+            <div className="line-clamp-2 text-[13px] leading-snug text-fg2">
               {value.socialDescription || description || ''}
             </div>
           </div>
@@ -531,7 +531,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
       )}
       {field('image', seoField('image', 'media', 'Immagine per la condivisione', { focalPoint: false }, false))}
       {!value.image && (
-        <p className="-mt-2 text-[11.5px] text-fg3">
+        <p className="-mt-2 text-[12px] text-fg3">
           Consigliata 1200 × 630. Senza, si usa la prima immagine della pagina.
         </p>
       )}
@@ -540,7 +540,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
         type="button"
         aria-expanded={advanced}
         onClick={() => setAdvanced(!advanced)}
-        className="flex w-full items-center gap-1.5 text-[12.5px] font-medium text-fg2 hover:text-fg"
+        className="flex w-full items-center gap-1.5 text-[13px] font-medium text-fg2 hover:text-fg"
       >
         <ChevronRight className={cx('size-3.5 transition-transform', advanced && 'rotate-90')} />
         Avanzate: social, canonico, dati strutturati
@@ -569,17 +569,17 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               false,
             ),
           )}
-          <p className="-mt-3 text-[11.5px] leading-relaxed text-fg3">
+          <p className="-mt-3 text-[12px] leading-relaxed text-fg3">
             Solo se questa pagina ripete un’altra: indica quella originale e Google mostrerà quella.
           </p>
           {field('nofollow', seoField('nofollow', 'boolean', 'Non seguire i collegamenti di questa pagina', {}, false))}
           <div className="space-y-1.5">
-            <div className="text-[12.5px] font-medium">Tipo di pagina (dati strutturati)</div>
+            <div className="text-[13px] font-medium">Tipo di pagina (dati strutturati)</div>
             <select
               aria-label="Tipo di pagina"
               value={value.schema ?? ''}
               onChange={(e) => set('schema', e.target.value || undefined)}
-              className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
+              className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
               {SCHEMA_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -587,7 +587,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
                 </option>
               ))}
             </select>
-            {value.schema && <p className="text-[11.5px] leading-relaxed text-fg3">{SCHEMA_HINTS[value.schema]}</p>}
+            {value.schema && <p className="text-[12px] leading-relaxed text-fg3">{SCHEMA_HINTS[value.schema]}</p>}
           </div>
           {value.schema === 'event' && <EventFields value={value.event ?? {}} onChange={(e) => set('event', e)} />}
           {value.schema === 'faq' && <FaqFields value={value.faq ?? []} onChange={(f) => set('faq', f, 'faq')} />}
@@ -601,15 +601,15 @@ function EventFields({ value, onChange }: { value: NonNullable<Seo['event']>; on
   const set = (patch: Partial<NonNullable<Seo['event']>>) => onChange({ ...value, ...patch })
   return (
     <div className="grid grid-cols-2 gap-2">
-      <label className="space-y-1 text-[12px] text-fg2">
+      <label className="space-y-1 text-[13px] text-fg2">
         Inizio
         <Input type="datetime-local" value={value.start ?? ''} onChange={(e) => set({ start: e.target.value })} />
       </label>
-      <label className="space-y-1 text-[12px] text-fg2">
+      <label className="space-y-1 text-[13px] text-fg2">
         Fine
         <Input type="datetime-local" value={value.end ?? ''} onChange={(e) => set({ end: e.target.value })} />
       </label>
-      <label className="col-span-2 space-y-1 text-[12px] text-fg2">
+      <label className="col-span-2 space-y-1 text-[13px] text-fg2">
         Luogo
         <Input
           value={value.place ?? ''}
@@ -618,7 +618,7 @@ function EventFields({ value, onChange }: { value: NonNullable<Seo['event']>; on
           onChange={(e) => set({ place: e.target.value })}
         />
       </label>
-      <label className="col-span-2 space-y-1 text-[12px] text-fg2">
+      <label className="col-span-2 space-y-1 text-[13px] text-fg2">
         Indirizzo
         <Input
           value={value.address ?? ''}
@@ -627,11 +627,11 @@ function EventFields({ value, onChange }: { value: NonNullable<Seo['event']>; on
           onChange={(e) => set({ address: e.target.value })}
         />
       </label>
-      <label className="space-y-1 text-[12px] text-fg2">
+      <label className="space-y-1 text-[13px] text-fg2">
         Prezzo (€)
         <Input value={value.price ?? ''} placeholder="0 se gratuito" onChange={(e) => set({ price: e.target.value })} />
       </label>
-      <div className="flex items-end gap-2 pb-1.5 text-[12px] text-fg2">
+      <div className="flex items-end gap-2 pb-1.5 text-[13px] text-fg2">
         <Switch checked={!!value.online} onChange={(online) => set({ online })} label="Evento online" />
         Online
       </div>
@@ -675,7 +675,7 @@ function FaqFields({
       <Button size="sm" variant="ghost" onClick={() => onChange([...value, { q: '', a: '' }])}>
         <Plus className="size-3.5" /> Aggiungi una domanda
       </Button>
-      <p className="text-[11.5px] leading-relaxed text-fg3">Scrivi le stesse domande che si leggono nella pagina.</p>
+      <p className="text-[12px] leading-relaxed text-fg3">Scrivi le stesse domande che si leggono nella pagina.</p>
     </div>
   )
 }
@@ -689,7 +689,7 @@ function JsonInput({ id, value, onChange }: { id: string; value: unknown; onChan
   return (
     <Textarea
       id={id}
-      className="font-mono text-[12px]"
+      className="font-mono text-[13px]"
       value={text}
       aria-invalid={error || undefined}
       onChange={(e) => setText(e.target.value)}

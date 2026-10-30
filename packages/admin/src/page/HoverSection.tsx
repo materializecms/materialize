@@ -22,7 +22,7 @@ export function HoverSection({
     <Section title="Al passaggio del mouse">
       {!h ? (
         <>
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Come cambia quando il puntatore ci passa sopra: colori, dimensione, ombra. Può reagire anche alla scheda che
             lo contiene, per esempio il titolo che cambia colore quando passi sulla scheda.
           </p>
@@ -36,7 +36,7 @@ export function HoverSection({
                 },
               })
             }
-            className="h-7 w-full rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg"
+            className="h-7 w-full rounded-md border border-line2 text-[12.5px] font-medium text-fg2 hover:bg-hover hover:text-fg"
           >
             Aggiungi uno stato al passaggio
           </button>
@@ -110,11 +110,11 @@ export function HoverSection({
           <button
             type="button"
             onClick={() => onProps({ hoverStyle: null })}
-            className="text-left text-[11.5px] text-fg2 hover:text-danger"
+            className="text-left text-[12px] text-fg2 hover:text-danger"
           >
             Togli lo stato al passaggio
           </button>
-          <p className="text-[11px] leading-relaxed text-fg3">Si vede nell’anteprima e sul sito, con il mouse.</p>
+          <p className="text-[11.5px] leading-relaxed text-fg3">Si vede nell’anteprima e sul sito, con il mouse.</p>
         </>
       )}
     </Section>

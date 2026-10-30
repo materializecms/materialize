@@ -57,7 +57,7 @@ export function RelationInput({
         return (
           <span
             key={id}
-            className="inline-flex h-6 items-center gap-1 rounded bg-seg pr-0.5 pl-2 text-[12px] font-medium"
+            className="inline-flex h-6 items-center gap-1 rounded bg-seg pr-0.5 pl-2 text-[13px] font-medium"
           >
             {doc ? doc.title : docs[i]?.isError ? <span className="text-fg3">Eliminato</span> : '…'}
             <button
@@ -80,7 +80,7 @@ export function RelationInput({
             ref={ref}
             type="button"
             onClick={t}
-            className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[12px] text-fg3 hover:bg-hover hover:text-fg"
+            className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[13px] text-fg3 hover:bg-hover hover:text-fg"
           >
             <Plus className="size-3.5" />
             {ids.length && !many ? 'Cambia' : `Scegli da ${target?.label ?? to}`}
@@ -112,13 +112,13 @@ export function RelationInput({
                 onClick={() => toggle(doc.id)}
                 className="flex h-9 w-full items-center gap-2 rounded-md px-2 text-left hover:bg-hover"
               >
-                <span className="flex-1 truncate text-[13px]">{doc.title}</span>
+                <span className="flex-1 truncate text-[14px]">{doc.title}</span>
                 <StatusBadge status={doc.status} short />
                 <Check className={cx('size-4 text-accent', !ids.includes(doc.id) && 'invisible')} />
               </button>
             ))
           ) : (
-            <div className="px-2 py-4 text-center text-[12px] text-fg3">Nessun elemento</div>
+            <div className="px-2 py-4 text-center text-[13px] text-fg3">Nessun elemento</div>
           )}
         </div>
       </Popover>

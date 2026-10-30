@@ -11,9 +11,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
     <label className="block space-y-1.5">
-      <span className="text-[12.5px] font-medium">{label}</span>
+      <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[11.5px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -23,7 +23,7 @@ function Group({ title, text, children }: { title: string; text?: string; childr
     <section className="space-y-4">
       <div>
         <h2 className="text-[15px] font-semibold">{title}</h2>
-        {text && <p className="mt-1 text-[13px] leading-relaxed text-fg2">{text}</p>}
+        {text && <p className="mt-1 text-[14px] leading-relaxed text-fg2">{text}</p>}
       </div>
       {children}
     </section>
@@ -120,7 +120,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                 <select
                   value={business.type ?? 'Organization'}
                   onChange={(e) => setBusiness({ type: e.target.value as NonNullable<SiteSeo['business']>['type'] })}
-                  className="h-9 w-full rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
+                  className="h-9 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
                 >
                   {BUSINESS_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
@@ -198,7 +198,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
             text="La mappa del sito e robots.txt si aggiornano da soli a ogni pubblicazione."
           >
             {siteUrl && (
-              <div className="flex gap-4 text-[12.5px]">
+              <div className="flex gap-4 text-[13px]">
                 {['sitemap.xml', 'robots.txt'].map((f) => (
                   <a
                     key={f}
@@ -218,9 +218,9 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                 onChange={(blockAi) => set({ blockAi })}
                 label="Blocca i crawler che addestrano modelli AI"
               />
-              <div className="text-[13px]">
+              <div className="text-[14px]">
                 Blocca i crawler che addestrano modelli AI
-                <p className="text-[11.5px] leading-relaxed text-fg3">
+                <p className="text-[12px] leading-relaxed text-fg3">
                   GPTBot, ClaudeBot, Google-Extended, CCBot e simili. Google e Bing continuano a indicizzare il sito.
                 </p>
               </div>
@@ -230,7 +230,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                 value={(seo.disallow ?? []).join('\n')}
                 onChange={(e) => set({ disallow: e.target.value.split('\n') })}
                 onBlur={(e) => set({ disallow: lines(e.target.value) })}
-                className="font-mono text-[12px]"
+                className="font-mono text-[13px]"
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
@@ -295,7 +295,7 @@ function Redirects({ editable }: { editable: boolean }) {
             value={from}
             placeholder="/vecchia-pagina"
             onChange={(e) => setFrom(e.target.value)}
-            className="font-mono text-[12.5px]"
+            className="font-mono text-[13px]"
           />
           <ArrowRight className="size-4 shrink-0 text-fg3" />
           <Input
@@ -303,7 +303,7 @@ function Redirects({ editable }: { editable: boolean }) {
             value={to}
             placeholder="/nuova-pagina o https://…"
             onChange={(e) => setTo(e.target.value)}
-            className="font-mono text-[12.5px]"
+            className="font-mono text-[13px]"
           />
           <Button type="submit" icon={<Plus className="size-3.5" />} disabled={!from.trim() || !to.trim()}>
             Aggiungi
@@ -313,15 +313,15 @@ function Redirects({ editable }: { editable: boolean }) {
       {saved.isLoading ? (
         <Spinner />
       ) : list.length === 0 ? (
-        <p className="text-[12.5px] text-fg3">Nessun reindirizzamento.</p>
+        <p className="text-[13px] text-fg3">Nessun reindirizzamento.</p>
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line">
           {list.map((r) => (
-            <li key={r.from} className="flex items-center gap-2 px-3 py-2 font-mono text-[12px]">
+            <li key={r.from} className="flex items-center gap-2 px-3 py-2 font-mono text-[13px]">
               <span className="min-w-0 flex-1 truncate">{r.from}</span>
               <ArrowRight className="size-3.5 shrink-0 text-fg3" />
               <span className="min-w-0 flex-1 truncate">{r.to}</span>
-              {r.auto && <span className="shrink-0 font-sans text-[11px] text-fg3">automatico</span>}
+              {r.auto && <span className="shrink-0 font-sans text-[12px] text-fg3">automatico</span>}
               {editable && (
                 <IconButton
                   label="Togli il reindirizzamento"

@@ -100,14 +100,14 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="shrink-0 px-8 pt-8">
+      <header className="shrink-0 px-4 pt-6 sm:px-8 sm:pt-8">
         <div className="flex flex-wrap items-center gap-3">
           <TintIcon color={tint} size="lg">
             {collectionIcon(collection)}
           </TintIcon>
           <div className="min-w-0 flex-1">
             <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.025em]">{collection.label}</h1>
-            <p className="text-[12.5px] text-fg3">
+            <p className="text-[13px] text-fg3">
               {list.data ? (list.data.total === 1 ? '1 documento' : `${list.data.total} documenti`) : ' '}
             </p>
           </div>
@@ -145,7 +145,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                     aria-selected={filter === value}
                     onClick={() => setFilter(value)}
                     className={cx(
-                      'inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium transition-colors',
+                      'inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors',
                       filter === value ? 'bg-fg text-bg' : 'text-fg2 hover:bg-hover hover:text-fg',
                     )}
                   >
@@ -155,7 +155,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                 ))}
               </div>
               <div className="flex-1" />
-              <div className="relative w-60">
+              <div className="relative w-full sm:w-60">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
                 <Input
                   value={search}
@@ -179,7 +179,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
       </header>
       <ConfirmDelete docs={deleting} onCancel={() => setDeleting(null)} onConfirm={() => void confirmDelete()} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 pt-2 pb-10">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-10 sm:px-8">
         {list.isPending || collection.singleton ? (
           <div className="flex justify-center py-20">
             <Spinner />
@@ -244,15 +244,13 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium text-fg">{doc.title}</span>
                     {(doc.url || doc.slug) && (
-                      <span className="block truncate font-mono text-[11.5px] text-fg3">
-                        {doc.url ?? `/${doc.slug}`}
-                      </span>
+                      <span className="block truncate font-mono text-[12px] text-fg3">{doc.url ?? `/${doc.slug}`}</span>
                     )}
                   </span>
                   <OtherLanguages doc={doc} />
                   <StatusBadge status={doc.status} short />
                   <span
-                    className="w-28 shrink-0 text-right text-[12px] text-fg3 tabular-nums"
+                    className="hidden w-28 shrink-0 text-right text-[13px] text-fg3 tabular-nums sm:block"
                     title={fullDate(doc.updatedAt)}
                   >
                     {relativeTime(doc.updatedAt)}
@@ -335,7 +333,7 @@ function Card({
         </div>
         <div className="px-3.5 py-3">
           <div className="truncate font-medium">{doc.title}</div>
-          <div className="mt-0.5 flex justify-between gap-2 text-[12px] text-fg3">
+          <div className="mt-0.5 flex justify-between gap-2 text-[13px] text-fg3">
             <span className="truncate font-mono">{doc.url ?? (doc.slug ? `/${doc.slug}` : '')}</span>
             <span className="shrink-0" title={fullDate(doc.updatedAt)}>
               {relativeTime(doc.updatedAt)}
@@ -374,7 +372,7 @@ function OtherLanguages({ doc }: { doc: DocumentSummary }) {
       title={others.length ? `Anche in: ${others.join(', ')}` : 'Solo in questa lingua'}
     >
       {others.map((l) => (
-        <span key={l} className="rounded border border-line px-1 font-mono text-[10px] leading-4 text-fg3 uppercase">
+        <span key={l} className="rounded border border-line px-1 font-mono text-[11px] leading-4 text-fg3 uppercase">
           {l}
         </span>
       ))}

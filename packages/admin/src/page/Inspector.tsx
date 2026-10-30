@@ -242,7 +242,7 @@ export function Inspector({
             onChange={(e) => onContent({ name: e.target.value }, `name:${node.id}`)}
             className="h-6 w-full rounded border border-transparent bg-transparent px-1 text-[13px] font-semibold outline-none hover:border-line2 focus:border-accent"
           />
-          <div className="px-1 text-[11px] text-fg3">
+          <div className="px-1 text-[11.5px] text-fg3">
             {isSec ? 'Sezione' : typeLabel(node)}
             {device !== 'desktop' && ` · modifiche solo per ${device === 'tablet' ? 'tablet' : 'mobile'}`}
           </div>
@@ -298,7 +298,7 @@ export function Inspector({
         </div>
       )}
       {count > 1 && (
-        <p className="border-b border-line bg-accent/5 px-3.5 py-2 text-[11.5px] leading-relaxed text-fg2">
+        <p className="border-b border-line bg-accent/5 px-3.5 py-2 text-[12px] leading-relaxed text-fg2">
           <strong className="font-semibold text-fg">{count} elementi selezionati.</strong> Le modifiche di stile valgono
           per tutti; testi e immagini restano di ciascuno. ⇧ clic per aggiungere o togliere.
         </p>
@@ -319,11 +319,11 @@ export function Inspector({
                   `anchor:${node.id}`,
                 )
               }
-              className="mb-2 h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+              className="mb-2 h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
             />
           </Row>
           {node.global ? (
-            <div className="flex items-center gap-2 rounded-lg bg-accent/10 px-2.5 py-2 text-[11.5px] text-accent">
+            <div className="flex items-center gap-2 rounded-lg bg-accent/10 px-2.5 py-2 text-[12px] text-accent">
               <span className="min-w-0 flex-1">
                 Sezione globale: le modifiche valgono su tutte le pagine che la usano.
                 {locale !== schema.locales.default &&
@@ -337,7 +337,7 @@ export function Inspector({
             <button
               type="button"
               onClick={onMakeGlobal}
-              className="h-7 w-full rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg"
+              className="h-7 w-full rounded-md border border-line2 text-[12.5px] font-medium text-fg2 hover:bg-hover hover:text-fg"
             >
               Rendi globale (es. menu e piè di pagina)
             </button>
@@ -355,7 +355,7 @@ export function Inspector({
               options={[{ value: '', label: 'Contenuto fisso' }, ...boundFields]}
             />
           </Row>
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Ogni copia dell’elenco mostra il valore della sua voce. Su un contenitore, “Indirizzo” lo rende un link alla
             pagina.
           </p>
@@ -422,7 +422,7 @@ export function Inspector({
                     value={bind.filter.value}
                     placeholder="valore"
                     onChange={(e) => bind.filter && setBind({ filter: { ...bind.filter, value: e.target.value } })}
-                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
                   />
                 </div>
               )}
@@ -438,11 +438,11 @@ export function Inspector({
                     value={bind.moreLabel ?? ''}
                     placeholder="Mostra altri"
                     onChange={(e) => setBind({ moreLabel: e.target.value || undefined })}
-                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
                   />
                 </Row>
               )}
-              <p className="text-[11px] leading-relaxed text-fg3">
+              <p className="text-[11.5px] leading-relaxed text-fg3">
                 Il primo elemento interno si ripete per ogni voce: selezionane i testi e le immagini per scegliere quale
                 campo mostrano.
               </p>
@@ -463,7 +463,7 @@ export function Inspector({
               ]}
             />
           </Row>
-          <p className="text-[11.5px] leading-relaxed text-fg3">
+          <p className="text-[12px] leading-relaxed text-fg3">
             Porta alla stessa pagina nelle altre lingue in cui è pubblicata. Le lingue si scelgono in Impostazioni →
             Lingue.
           </p>
@@ -492,7 +492,7 @@ export function Inspector({
               }
             />
             {isT && !!node.runs?.length && (
-              <p className="text-[11px] text-fg3">Grassetti e link si modificano sulla tela, con un doppio clic.</p>
+              <p className="text-[11.5px] text-fg3">Grassetti e link si modificano sulla tela, con un doppio clic.</p>
             )}
             {isB && (
               <>
@@ -502,7 +502,7 @@ export function Inspector({
                     value={node.href ?? ''}
                     placeholder="/contatti"
                     onChange={(e) => onContent({ href: e.target.value }, `href:${node.id}`)}
-                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+                    className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
                   />
                 </Row>
                 <Toggle
@@ -548,12 +548,12 @@ export function Inspector({
             {node.src ? (
               <img src={thumb(node.src, 640)} alt="" className="size-full object-cover" />
             ) : (
-              <span className="flex flex-col items-center gap-1 text-[12px]">
+              <span className="flex flex-col items-center gap-1 text-[12.5px]">
                 <ImagePlus className="size-5" /> Scegli un’immagine
               </span>
             )}
             {node.src && (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-[12px] font-medium text-white opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-[12.5px] font-medium text-white opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
                 Cambia immagine
               </span>
             )}
@@ -564,7 +564,7 @@ export function Inspector({
               value={node.alt ?? ''}
               placeholder="Descrivi l’immagine a chi non la vede"
               onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
-              className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+              className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
             />
             <AiButton
               action="alt"
@@ -783,15 +783,15 @@ export function Inspector({
                 placeholder="es. Titolo di sezione"
                 onChange={(e) => setNaming(e.target.value)}
                 onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
-                className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12px] outline-none"
+                className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12.5px] outline-none"
               />
-              <button type="submit" className="h-7 rounded-md bg-accent px-2.5 text-[12px] font-medium text-white">
+              <button type="submit" className="h-7 rounded-md bg-accent px-2.5 text-[12.5px] font-medium text-white">
                 Crea
               </button>
             </form>
           ) : (
             textStyles.canEdit && (
-              <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px]">
+              <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
                 {linkedStyle && styleChanged && (
                   <>
                     <button type="button" onClick={textStyles.update} className="text-accent hover:underline">
@@ -841,7 +841,7 @@ export function Inspector({
                   value={node.href ?? ''}
                   placeholder="nessuno, /pagina o #sezione"
                   onChange={(e) => onContent({ href: e.target.value || undefined }, `href:${node.id}`)}
-                  className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+                  className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
                 />
               </Row>
               <Row label="Colore">
@@ -932,7 +932,7 @@ export function Inspector({
             <button
               type="button"
               onClick={() => onPickImage('bgImage')}
-              className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-line2 bg-input px-1.5 text-left text-[12px] hover:border-fg3/50"
+              className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-line2 bg-input px-1.5 text-left text-[12.5px] hover:border-fg3/50"
             >
               {node.bgImage?.src ? (
                 <img src={thumb(node.bgImage.src, 320)} alt="" className="size-5 rounded object-cover" />
@@ -1007,8 +1007,8 @@ export function Inspector({
               onClick={() => onProp(k, !p[k])}
               className={
                 p[k]
-                  ? 'h-7 rounded-md border border-accent bg-accent/10 text-[11.5px] font-medium text-accent'
-                  : 'h-7 rounded-md border border-line2 text-[11.5px] font-medium text-fg2 hover:text-fg'
+                  ? 'h-7 rounded-md border border-accent bg-accent/10 text-[12px] font-medium text-accent'
+                  : 'h-7 rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:text-fg'
               }
             >
               {label}
@@ -1042,11 +1042,11 @@ export function Inspector({
           </IconButton>
         }
       >
-        <p className="text-[11px] leading-relaxed text-fg3">
+        <p className="text-[11.5px] leading-relaxed text-fg3">
           Un effetto pronto quando l’elemento compare. Per linee temporali, scroll e mouse usa Interazioni, qui sotto.
         </p>
         {hasEntrance && p.anim && p.anim !== 'none' && (
-          <div className="flex items-center gap-2 rounded-lg bg-warn/10 px-2.5 py-2 text-[11.5px] text-fg2">
+          <div className="flex items-center gap-2 rounded-lg bg-warn/10 px-2.5 py-2 text-[12px] text-fg2">
             <span className="min-w-0 flex-1">
               Si somma a un’interazione di entrata: i due effetti si sovrappongono.
             </span>
@@ -1161,7 +1161,7 @@ export function Inspector({
               onChange={(v) => onContent({ mobileMenu: v || undefined })}
             />
             {node.mobileMenu && (
-              <p className="text-[11px] leading-relaxed text-fg3">
+              <p className="text-[11.5px] leading-relaxed text-fg3">
                 Su mobile gli elementi nascosti di questa sezione (per esempio i link) si aprono dal pulsante ☰.
               </p>
             )}
@@ -1182,7 +1182,7 @@ export function Inspector({
                   checked={!!node.stickyOverlay}
                   onChange={(v) => onContent({ stickyOverlay: v || undefined })}
                 />
-                <p className="text-[11px] leading-relaxed text-fg3">
+                <p className="text-[11.5px] leading-relaxed text-fg3">
                   Nascondi e vetro si vedono nell’anteprima e sul sito. Se la sezione è globale, il menu è fisso su
                   tutte le pagine.
                 </p>
@@ -1207,7 +1207,7 @@ export function Inspector({
               </Row>
             )}
             {p.sticky && (
-              <p className="text-[11px] leading-relaxed text-fg3">
+              <p className="text-[11.5px] leading-relaxed text-fg3">
                 Resta fermo finché il suo contenitore è visibile: dai al contenitore un’altezza maggiore (per esempio
                 200%).
               </p>
@@ -1258,7 +1258,7 @@ export function Inspector({
                   <button
                     type="button"
                     onClick={() => onProp('layout', 'row')}
-                    className="text-left text-[11.5px] text-accent hover:underline"
+                    className="text-left text-[12px] text-accent hover:underline"
                   >
                     Il nastro funziona in riga: imposta la direzione in riga
                   </button>

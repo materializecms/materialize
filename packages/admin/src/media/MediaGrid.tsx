@@ -57,7 +57,7 @@ export function DropZone({
       {children}
       {over && (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent/8 backdrop-blur-[1px]">
-          <span className="flex items-center gap-2 rounded-full bg-panel px-4 py-2 text-[13px] font-medium text-accent shadow-pop">
+          <span className="flex items-center gap-2 rounded-full bg-panel px-4 py-2 text-[14px] font-medium text-accent shadow-pop">
             <ImageUp className="size-4" /> Rilascia per caricare
           </span>
         </div>
@@ -126,7 +126,7 @@ export function MediaGrid({
             <img src={u.preview} alt="" className="aspect-square w-full object-cover opacity-50" />
             <figcaption className="absolute inset-x-2 bottom-2">
               {u.error ? (
-                <span className="flex items-start gap-1 rounded-md bg-panel/95 p-1.5 text-[11px] leading-snug text-danger">
+                <span className="flex items-start gap-1 rounded-md bg-panel/95 p-1.5 text-[12px] leading-snug text-danger">
                   <CircleAlert className="mt-px size-3.5 shrink-0" />
                   <span className="flex-1">{u.error}</span>
                   <button type="button" aria-label="Chiudi" onClick={() => onDismiss(u.id)}>
@@ -163,7 +163,7 @@ export function MediaGrid({
                 {asset.url.endsWith('.glb') ? (
                   <span className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:12px_12px] text-fg3">
                     <Box className="size-8" />
-                    <span className="font-mono text-[10.5px]">Modello 3D</span>
+                    <span className="font-mono text-[11px]">Modello 3D</span>
                   </span>
                 ) : (
                   <img
@@ -173,7 +173,7 @@ export function MediaGrid({
                     className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 )}
-                <span className="block truncate border-t border-line bg-panel px-2 py-1.5 text-[11.5px] text-fg2">
+                <span className="block truncate border-t border-line bg-panel px-2 py-1.5 text-[12px] text-fg2">
                   {asset.filename}
                 </span>
               </button>

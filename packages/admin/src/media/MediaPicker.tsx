@@ -43,7 +43,7 @@ export function MediaPicker({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cerca"
-              className="pl-8 text-[13px] font-normal"
+              className="pl-8 text-[14px] font-normal"
               aria-label="Cerca"
             />
           </div>
@@ -55,7 +55,7 @@ export function MediaPicker({
       }
       footer={
         <>
-          <span className="mr-auto self-center truncate text-[12px] text-fg3">
+          <span className="mr-auto self-center truncate text-[13px] text-fg3">
             {selected ? selected.filename : 'Trascina qui le immagini per caricarle'}
           </span>
           <Button onClick={onClose}>Annulla</Button>

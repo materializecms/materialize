@@ -58,7 +58,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { cx, IconButton, Segmented, toast } from '../components/ui.tsx'
+import { Button, cx, IconButton, Segmented, toast } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
@@ -309,6 +309,7 @@ export function PageEditor({
   onChange,
   mode,
   docId,
+  onContentMode,
 }: {
   collection: CollectionDescription
   pageField: FieldDescription
@@ -317,6 +318,8 @@ export function PageEditor({
   mode: Mode
   /** The document being edited, once saved: it can be the template of a collection. */
   docId?: string
+  /** Switches the document to Content mode (offered on small screens, where design does not fit). */
+  onContentMode?: () => void
 }) {
   const { user, schema, locale } = useSession()
   const queryClient = useQueryClient()
@@ -1288,7 +1291,7 @@ export function PageEditor({
       <div className="flex min-h-0 flex-1">
         {/* left: layers, library, styles */}
         {mode === 'content' ? (
-          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel">
+          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel max-md:hidden">
             <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
               {(
                 [
@@ -1301,7 +1304,7 @@ export function PageEditor({
                   type="button"
                   onClick={() => setContentTab(value)}
                   className={cx(
-                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
                     contentTab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
                   )}
                 >
@@ -1333,7 +1336,7 @@ export function PageEditor({
             )}
           </aside>
         ) : (
-          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel">
+          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel max-md:hidden">
             <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
               {(
                 [
@@ -1348,7 +1351,7 @@ export function PageEditor({
                   type="button"
                   onClick={() => setTab(value)}
                   className={cx(
-                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
                     tab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
                   )}
                 >
@@ -1437,8 +1440,22 @@ export function PageEditor({
           </aside>
         )}
 
+        {/* Small screens: the canvas does not fit; contents can still be changed. */}
+        {mode === 'design' && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:hidden">
+            <p className="text-[15px] font-medium">Il Design si usa da uno schermo più grande</p>
+            <p className="max-w-xs text-[13px] leading-relaxed text-fg2">
+              Da qui puoi cambiare testi, immagini e collegamenti della pagina.
+            </p>
+            {onContentMode && (
+              <Button variant="primary" onClick={onContentMode}>
+                Modifica i contenuti
+              </Button>
+            )}
+          </div>
+        )}
         {/* center: toolbar and canvas */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col max-md:hidden">
           <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line overflow-x-auto bg-panel px-3 [scrollbar-width:none]">
             {mode === 'design' && (
               <div className="flex items-center gap-0.5">
@@ -1468,7 +1485,7 @@ export function PageEditor({
             {mode === 'content' && (
               <span
                 title="Clicca un testo per scriverci, un’immagine per cambiarla."
-                className="min-w-0 truncate text-[12px] text-fg2"
+                className="min-w-0 truncate text-[12.5px] text-fg2"
               >
                 Clicca un testo per scriverci, un’immagine per cambiarla.
               </span>
@@ -1492,7 +1509,7 @@ export function PageEditor({
               title="Larghezza dello schermo su cui provi la pagina"
               value={widths[device]}
               onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
-              className="h-7 rounded-md bg-transparent px-1 font-mono text-[11.5px] text-fg2 outline-none hover:bg-hover"
+              className="h-7 rounded-md bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
             >
               {widthPresets[device].map((w) => (
                 <option key={w} value={w}>
@@ -1519,7 +1536,7 @@ export function PageEditor({
                 type="button"
                 title="Adatta alla finestra"
                 onClick={() => setZoom('fit')}
-                className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[11.5px] text-fg2 hover:bg-hover hover:text-fg"
+                className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
               >
                 {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
               </button>
@@ -1546,7 +1563,7 @@ export function PageEditor({
                   setCommenting(false)
                 }}
                 className={cx(
-                  'flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium transition-colors [&_svg]:size-3.5',
+                  'flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
                   assisting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
                 )}
               >
@@ -1561,7 +1578,7 @@ export function PageEditor({
                   setAssisting(false)
                 }}
                 className={cx(
-                  'relative flex h-7 items-center gap-1 rounded-md px-1.5 text-[11.5px] transition-colors [&_svg]:size-3.5',
+                  'relative flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] transition-colors [&_svg]:size-3.5',
                   commenting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
                 )}
               >
@@ -1576,7 +1593,7 @@ export function PageEditor({
                   {others.map((o, i) => (
                     <span
                       key={o.id}
-                      className="flex size-6 items-center justify-center rounded-full border-2 border-panel text-[10.5px] font-semibold text-white"
+                      className="flex size-6 items-center justify-center rounded-full border-2 border-panel text-[11px] font-semibold text-white"
                       style={{ background: PRESENCE_COLORS[i % PRESENCE_COLORS.length] }}
                     >
                       {o.name.trim().slice(0, 1).toUpperCase()}
@@ -1593,7 +1610,7 @@ export function PageEditor({
                 onClick={() => setPreviewing(!previewing)}
                 title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
                 className={cx(
-                  'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                  'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
                   previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
                 )}
               >
@@ -1608,7 +1625,7 @@ export function PageEditor({
                 <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-line2 p-8 text-center text-fg2">
                   <LayersIcon className="mx-auto size-6 text-fg3" />
                   <p className="mt-3 text-[13.5px] font-medium text-fg">Pagina vuota</p>
-                  <p className="mt-1 text-[12.5px] leading-relaxed">
+                  <p className="mt-1 text-[13px] leading-relaxed">
                     Scegli una sezione nella libreria a sinistra: un clic la aggiunge qui.
                   </p>
                 </div>
@@ -1728,6 +1745,7 @@ export function PageEditor({
           className={cx(
             'shrink-0 border-l border-line bg-panel',
             assisting ? 'w-[340px] overflow-hidden' : 'w-[288px] overflow-y-auto',
+            mode === 'content' ? 'max-md:w-full max-md:flex-1 max-md:border-0' : 'max-md:hidden',
           )}
         >
           {/* Kept mounted while hidden: the conversation survives switching panels. */}
@@ -1826,20 +1844,20 @@ export function PageEditor({
             <div>
               <div className="border-b border-line px-3.5 py-3">
                 <div className="text-[13px] font-semibold">Pagina</div>
-                <p className="mt-0.5 text-[11.5px] text-fg3">
+                <p className="mt-0.5 text-[12px] text-fg3">
                   {nodes.length === 1 ? '1 sezione' : `${nodes.length} sezioni`} · seleziona un elemento sulla tela per
                   modificarlo.
                 </p>
               </div>
               <div className="space-y-2 border-b border-line px-3.5 py-3">
-                <div className="text-[12px] font-semibold">Modello</div>
+                <div className="text-[12.5px] font-semibold">Modello</div>
                 {docId ? (
                   <>
                     <select
                       aria-label="Modello per le voci di una raccolta"
                       value={templateOf ?? ''}
                       onChange={(e) => setTemplateOf(e.target.value || null)}
-                      className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12px] outline-none focus:border-accent"
+                      className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12.5px] outline-none focus:border-accent"
                     >
                       <option value="">Pagina normale</option>
                       {schema.collections
@@ -1852,7 +1870,7 @@ export function PageEditor({
                     </select>
                     {templateOf ? (
                       <>
-                        <p className="text-[11px] leading-relaxed text-fg3">
+                        <p className="text-[11.5px] leading-relaxed text-fg3">
                           Ogni voce usa questa pagina. Seleziona un testo o un’immagine e scegli quale campo mostra, in
                           “Dato collegato”.
                         </p>
@@ -1861,7 +1879,7 @@ export function PageEditor({
                             aria-label="Voce mostrata nell’anteprima"
                             value={sampleIndex}
                             onChange={(e) => setSampleIndex(Number(e.target.value))}
-                            className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12px] outline-none focus:border-accent"
+                            className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12.5px] outline-none focus:border-accent"
                           >
                             {samples.data?.items.map((it, i) => (
                               <option key={it.id} value={i}>
@@ -1872,14 +1890,14 @@ export function PageEditor({
                         )}
                       </>
                     ) : (
-                      <p className="text-[11px] leading-relaxed text-fg3">
+                      <p className="text-[11.5px] leading-relaxed text-fg3">
                         Una pagina può fare da modello per tutte le voci di una raccolta, come la pagina di ogni
                         progetto.
                       </p>
                     )}
                   </>
                 ) : (
-                  <p className="text-[11px] text-fg3">Salva la pagina per usarla come modello.</p>
+                  <p className="text-[11.5px] text-fg3">Salva la pagina per usarla come modello.</p>
                 )}
               </div>
               <div className="px-3.5 py-4">

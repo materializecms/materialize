@@ -28,14 +28,14 @@ export function ImportWordPress() {
   const [analysis, setAnalysis] = useState<WpAnalysis | null>(null)
   const [job, setJob] = useState<string | null>(null)
   if (user.role !== 'admin')
-    return <p className="mx-auto max-w-2xl px-5 py-8 text-[13px] text-fg2">L’importazione la fa un amministratore.</p>
+    return <p className="mx-auto max-w-2xl px-5 py-8 text-[14px] text-fg2">L’importazione la fa un amministratore.</p>
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-5 py-8">
       <header className="space-y-1.5">
         <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
           <Import /> Importa da WordPress
         </h2>
-        <p className="text-[13px] leading-relaxed text-fg2">
+        <p className="text-[14px] leading-relaxed text-fg2">
           Articoli, pagine, immagini, categorie e SEO di un sito WordPress, qualunque editor lo abbia costruito
           (Gutenberg, Elementor, WPBakery, Divi…). I vecchi indirizzi portano ai nuovi, così i motori di ricerca non
           perdono nulla. Le pagine arrivano con i loro contenuti in ordine: l’impaginazione si rifà poi sul canvas.
@@ -93,7 +93,7 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
     <form onSubmit={submit} className="space-y-4 rounded-lg border border-line bg-panel p-5">
       <Segmented
@@ -110,7 +110,7 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             <span className={label}>Indirizzo del sito WordPress</span>
             <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.esempio.it" required />
           </label>
-          <details className="rounded-md border border-line px-3 py-2 text-[12.5px]">
+          <details className="rounded-md border border-line px-3 py-2 text-[13px]">
             <summary className="cursor-pointer font-medium text-fg2">Anche bozze e pagine private</summary>
             <p className="mt-2 leading-relaxed text-fg3">
               In WordPress, Utenti → Profilo → Password per le applicazioni: crea una password per «Materialize» e
@@ -132,12 +132,12 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
               />
             </div>
           </details>
-          <label className="flex items-center gap-2 text-[12.5px] text-fg2">
+          <label className="flex items-center gap-2 text-[13px] text-fg2">
             Leggi
             <select
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
-              className="h-7 rounded-md border border-line2 bg-input px-1.5 text-[12.5px] text-fg outline-none"
+              className="h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
             >
               <option value="all">tutto il sito</option>
               <option value="10">i primi 10 articoli e 10 pagine, per provare</option>
@@ -153,16 +153,16 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             accept=".xml,text/xml,application/xml"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             required
-            className="block w-full text-[12.5px] text-fg2 file:mr-3 file:rounded-md file:border file:border-line2 file:bg-panel file:px-2.5 file:py-1 file:text-[12px] file:font-medium file:text-fg"
+            className="block w-full text-[13px] text-fg2 file:mr-3 file:rounded-md file:border file:border-line2 file:bg-panel file:px-2.5 file:py-1 file:text-[13px] file:font-medium file:text-fg"
           />
-          <span className="mt-1.5 block text-[12px] leading-relaxed text-fg3">
+          <span className="mt-1.5 block text-[13px] leading-relaxed text-fg3">
             In WordPress: Strumenti → Esporta → Tutti i contenuti. Serve quando il sito non è raggiungibile o la sua API
             è chiusa. Le pagine fatte con un page builder arrivano con i testi, senza i suoi codici.
           </span>
         </label>
       )}
       {error && (
-        <p className="flex items-start gap-1.5 text-[13px] text-danger">
+        <p className="flex items-start gap-1.5 text-[14px] text-danger">
           <CircleAlert className="mt-0.5 size-4 shrink-0" /> {error}
         </p>
       )}
@@ -240,8 +240,8 @@ function Plan({
       <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3">
         <CircleCheck className="size-4.5 shrink-0 text-ok" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium">{analysis.site.name}</div>
-          <div className="text-[12px] text-fg3">
+          <div className="truncate text-[14px] font-medium">{analysis.site.name}</div>
+          <div className="text-[13px] text-fg3">
             {analysis.counts.posts} articoli · {analysis.counts.pages} pagine
             {analysis.counts.drafts ? ` · ${analysis.counts.drafts} non pubblicati` : ''} ·{' '}
             <span className="font-mono">{analysis.site.url}</span>
@@ -269,8 +269,8 @@ function Plan({
 
       {choice && analysis.categories.length > 0 && (
         <section className="space-y-2 rounded-lg border border-line bg-panel p-4">
-          <h3 className="text-[13px] font-medium">Categorie → {choice.label}</h3>
-          <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 text-[12.5px]">
+          <h3 className="text-[14px] font-medium">Categorie → {choice.label}</h3>
+          <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 text-[13px]">
             {analysis.categories.map((c) => (
               <div key={c} className="contents">
                 <span className="truncate self-center text-fg2">{c}</span>
@@ -289,7 +289,7 @@ function Plan({
               </div>
             ))}
           </div>
-          <label className="flex items-center gap-2 pt-1 text-[12.5px] text-fg2">
+          <label className="flex items-center gap-2 pt-1 text-[13px] text-fg2">
             Per gli articoli senza una categoria corrispondente:
             <select
               value={fallback}
@@ -310,14 +310,14 @@ function Plan({
       <section className="space-y-3 rounded-lg border border-line bg-panel p-4">
         <label className="flex items-start gap-3">
           <Switch checked={publish} label="Pubblica" onChange={setPublish} />
-          <span className="text-[12.5px] leading-relaxed">
+          <span className="text-[13px] leading-relaxed">
             <span className="block font-medium">Pubblica quello che è pubblicato su WordPress</span>
             <span className="text-fg3">Il resto arriva come bozza. Anche ciò che ha campi da completare.</span>
           </span>
         </label>
         <label className="flex items-start gap-3">
           <Switch checked={redirects} label="Reindirizza" onChange={setRedirects} />
-          <span className="text-[12.5px] leading-relaxed">
+          <span className="text-[13px] leading-relaxed">
             <span className="block font-medium">I vecchi indirizzi portano ai nuovi</span>
             <span className="text-fg3">
               Un reindirizzamento permanente (301) per ogni contenuto pubblicato che cambia indirizzo: Impostazioni →
@@ -354,7 +354,7 @@ function TargetCard({
   fields: WpAnalysis['fields']
   onChange: (t: WpTarget | null) => void
 }) {
-  const select = 'h-7 rounded-md border border-line2 bg-input px-1.5 text-[12.5px] text-fg outline-none'
+  const select = 'h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none'
   const pick = (name: string) =>
     onChange(
       !name
@@ -376,10 +376,10 @@ function TargetCard({
     <section className="space-y-3 rounded-lg border border-line bg-panel p-4">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-medium">{title}</h3>
-          <p className="truncate text-[12px] text-fg3">{samples.join(' · ')}</p>
+          <h3 className="text-[14px] font-medium">{title}</h3>
+          <p className="truncate text-[13px] text-fg3">{samples.join(' · ')}</p>
         </div>
-        <span className="text-[12px] text-fg3">in</span>
+        <span className="text-[13px] text-fg3">in</span>
         <select value={target?.collection ?? ''} onChange={(e) => pick(e.target.value)} className={select}>
           <option value="">Non importare</option>
           {collections.map((c) => (
@@ -390,7 +390,7 @@ function TargetCard({
         </select>
       </div>
       {target && (
-        <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3 text-[12.5px]">
+        <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 border-t border-line pt-3 text-[13px]">
           {Object.entries(own).map(([field, f]) => (
             <div key={field} className="contents">
               <span className="self-center truncate text-fg2">{f.label}</span>
@@ -453,7 +453,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
     <div className="space-y-5">
       {running ? (
         <section className="space-y-2 rounded-lg border border-line bg-panel p-5">
-          <div className="flex justify-between text-[13px]">
+          <div className="flex justify-between text-[14px]">
             <span className="font-medium">{p.phase === 'media' ? 'Scarico le immagini' : 'Creo i contenuti'}</span>
             <span className="tabular-nums text-fg3">
               {p.done} di {p.total}
@@ -462,10 +462,10 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
           <div className="h-1.5 overflow-hidden rounded-full bg-hover">
             <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[12px] text-fg3">Puoi lasciare questa pagina: l’importazione continua sul server.</p>
+          <p className="text-[13px] text-fg3">Puoi lasciare questa pagina: l’importazione continua sul server.</p>
         </section>
       ) : p.phase === 'failed' ? (
-        <p className="flex items-start gap-1.5 text-[13px] text-danger">
+        <p className="flex items-start gap-1.5 text-[14px] text-danger">
           <CircleAlert className="mt-0.5 size-4 shrink-0" /> L’importazione si è fermata: {p.error}
         </p>
       ) : (
@@ -473,7 +473,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
           <div className="flex items-center gap-2 text-[14px] font-medium">
             <CircleCheck className="size-4.5 text-ok" /> Importazione finita
           </div>
-          <p className="text-[12.5px] leading-relaxed text-fg2">
+          <p className="text-[13px] leading-relaxed text-fg2">
             {p.created.length} contenuti importati ({p.created.filter((d) => d.published).length} pubblicati),{' '}
             {p.media.downloaded} immagini nella libreria
             {p.media.failed ? ` (${p.media.failed} non scaricabili)` : ''}, {p.redirects} reindirizzamenti.
@@ -482,14 +482,14 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       )}
       {p.created.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[12px] font-medium text-fg2">Importati</h3>
+          <h3 className="text-[13px] font-medium text-fg2">Importati</h3>
           <ul className="max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line bg-panel">
             {p.created.map((d) => (
               <li key={d.id}>
                 <button
                   type="button"
                   onClick={() => navigate({ name: 'document', collection: d.collection, id: d.id })}
-                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-[12.5px] hover:bg-hover"
+                  className="flex w-full items-center gap-3 px-4 py-2 text-left text-[13px] hover:bg-hover"
                 >
                   <span className="min-w-0 flex-1 truncate">{d.title}</span>
                   <span className="text-fg3">{labelOf(d.collection)}</span>
@@ -502,8 +502,8 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       )}
       {Object.keys(p.media.reasons ?? {}).length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[12px] font-medium text-fg2">Immagini non importate</h3>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[12.5px]">
+          <h3 className="text-[13px] font-medium text-fg2">Immagini non importate</h3>
+          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
             {Object.entries(p.media.reasons).map(([reason, n]) => (
               <li key={reason} className="flex gap-3 px-4 py-2">
                 <span className="tabular-nums text-fg2">{n}</span>
@@ -511,15 +511,15 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
               </li>
             ))}
           </ul>
-          <p className="text-[12px] text-fg3">
+          <p className="text-[13px] text-fg3">
             Nei testi quelle immagini mancano: si rimettono a mano, oppure con le icone del canvas.
           </p>
         </section>
       )}
       {[...p.problems, ...p.skipped].length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[12px] font-medium text-fg2">Da guardare</h3>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[12.5px]">
+          <h3 className="text-[13px] font-medium text-fg2">Da guardare</h3>
+          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
             {[...p.problems, ...p.skipped].map((x, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list, shown once
               <li key={i} className="flex gap-3 px-4 py-2">

@@ -91,9 +91,9 @@ export function LanguagesSettings() {
           <Languages />
           Lingue del sito
         </h2>
-        <p className="text-[13px] leading-relaxed text-fg2">
+        <p className="text-[14px] leading-relaxed text-fg2">
           La lingua principale ha gli indirizzi senza prefisso; le altre stanno sotto{' '}
-          <span className="font-mono text-[12px]">/en/</span>, <span className="font-mono text-[12px]">/fr/</span>… Ogni
+          <span className="font-mono text-[13px]">/en/</span>, <span className="font-mono text-[13px]">/fr/</span>… Ogni
           pagina si traduce dall’editor, dal menu della lingua in alto: menu e piè di pagina condivisi si traducono una
           volta per tutte le pagine.
         </p>
@@ -103,19 +103,19 @@ export function LanguagesSettings() {
             const count = documents[code] ?? 0
             return (
               <li key={code} className="flex items-center gap-3 px-3 py-2.5">
-                <span className="flex size-7 items-center justify-center rounded-md bg-hover font-mono text-[11px] font-medium uppercase text-fg2">
+                <span className="flex size-7 items-center justify-center rounded-md bg-hover font-mono text-[12px] font-medium uppercase text-fg2">
                   {code}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-[13px] font-medium">
+                  <div className="flex items-center gap-2 text-[14px] font-medium">
                     {localeName(code)}
                     {main && (
-                      <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[11px] font-medium text-accent">
+                      <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[12px] font-medium text-accent">
                         Principale
                       </span>
                     )}
                   </div>
-                  <div className="text-[11.5px] text-fg3">
+                  <div className="text-[12px] text-fg3">
                     {count ? `${count} ${count === 1 ? 'contenuto' : 'contenuti'}` : 'Nessun contenuto ancora'}
                     {!main && <span className="font-mono"> · /{code}/</span>}
                   </div>
@@ -163,7 +163,7 @@ export function LanguagesSettings() {
             <select
               value={adding}
               onChange={(e) => setAdding(e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
+              className="h-8 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
               <option value="">Scegli una lingua da aggiungere…</option>
               {choices.map((c) => (
@@ -183,7 +183,7 @@ export function LanguagesSettings() {
             </Button>
           </form>
         ) : (
-          <p className="text-[12.5px] text-fg3">Le lingue le sceglie un amministratore.</p>
+          <p className="text-[13px] text-fg3">Le lingue le sceglie un amministratore.</p>
         )}
       </section>
     </div>

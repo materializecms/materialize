@@ -86,10 +86,10 @@ export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () 
         <div className="grid gap-6 sm:grid-cols-2">
           {GROUPS.map((g) => (
             <section key={g.title}>
-              <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-fg3 uppercase">{g.title}</h3>
+              <h3 className="mb-2 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">{g.title}</h3>
               <ul className="space-y-1.5">
                 {g.keys.map(([k, label]) => (
-                  <li key={k + label} className="flex items-center justify-between gap-3 text-[12.5px]">
+                  <li key={k + label} className="flex items-center justify-between gap-3 text-[13px]">
                     <span className="text-fg2">{label}</span>
                     <Kbd>{k}</Kbd>
                   </li>
@@ -144,19 +144,19 @@ export function Tour({ onDone }: { onDone: () => void }) {
       aria-label="Introduzione all’editor"
       className={`fixed z-40 w-80 rounded-xl border border-accent/40 bg-panel p-4 shadow-pop ${POS[step.where]}`}
     >
-      <div className="text-[11px] font-medium text-accent">
+      <div className="text-[11.5px] font-medium text-accent">
         {i + 1} di {STEPS.length}
       </div>
       <h3 className="mt-1 text-[14px] font-semibold">{step.title}</h3>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-fg2">{step.text}</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-fg2">{step.text}</p>
       <div className="mt-3 flex items-center justify-between">
-        <button type="button" onClick={onDone} className="text-[12px] text-fg3 hover:text-fg">
+        <button type="button" onClick={onDone} className="text-[12.5px] text-fg3 hover:text-fg">
           Salta
         </button>
         <button
           type="button"
           onClick={() => (i + 1 < STEPS.length ? setI(i + 1) : onDone())}
-          className="h-7 rounded-md bg-accent px-3 text-[12px] font-medium text-white"
+          className="h-7 rounded-md bg-accent px-3 text-[12.5px] font-medium text-white"
         >
           {i + 1 < STEPS.length ? 'Avanti' : 'Inizia'}
         </button>

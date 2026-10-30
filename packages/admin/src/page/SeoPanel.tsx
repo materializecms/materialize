@@ -59,10 +59,10 @@ export function SeoPanel({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="border-b border-line px-3.5 py-3">
-        <div className="text-[12.5px] font-semibold">
+        <div className="text-[13px] font-semibold">
           {errors ? `${errors} da sistemare` : warnings ? 'Quasi a posto' : 'Tutto a posto'}
         </div>
-        <div className="text-[11.5px] text-fg3">
+        <div className="text-[12px] text-fg3">
           {[
             errors && `${errors} ${errors === 1 ? 'errore' : 'errori'}`,
             warnings && `${warnings} ${warnings === 1 ? 'consiglio' : 'consigli'}`,
@@ -85,9 +85,11 @@ export function SeoPanel({
             >
               <span className="mt-0.5 shrink-0">{ICON[c.level]}</span>
               <span className="min-w-0">
-                <span className={cx('block text-[12px] leading-snug', c.level === 'ok' && 'text-fg2')}>{c.label}</span>
+                <span className={cx('block text-[12.5px] leading-snug', c.level === 'ok' && 'text-fg2')}>
+                  {c.label}
+                </span>
                 {c.detail && c.level !== 'ok' && (
-                  <span className="block text-[11px] leading-snug text-fg3">{c.detail}</span>
+                  <span className="block text-[11.5px] leading-snug text-fg3">{c.detail}</span>
                 )}
               </span>
             </button>

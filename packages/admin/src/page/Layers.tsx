@@ -166,7 +166,7 @@ export function Layers({
                   if (e.key === 'Enter') e.currentTarget.blur()
                   if (e.key === 'Escape') setRenaming(null)
                 }}
-                className="h-6 min-w-0 flex-1 rounded border border-accent bg-input px-1.5 text-[12.5px] outline-none"
+                className="h-6 min-w-0 flex-1 rounded border border-accent bg-input px-1.5 text-[13px] outline-none"
               />
             </div>
           ) : (
@@ -194,7 +194,7 @@ export function Layers({
                 }
               }}
               className={cx(
-                'flex h-7 w-full items-center gap-1.5 rounded-md pr-14 text-left text-[12.5px] transition-colors',
+                'flex h-7 w-full items-center gap-1.5 rounded-md pr-14 text-left text-[13px] transition-colors',
                 isSel ? 'bg-accent/10 text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
                 drop?.id === n.id && drop.where === 'inside' && 'ring-2 ring-accent ring-inset',
                 drag === n.id && 'opacity-40',
@@ -234,7 +234,7 @@ export function Layers({
                 title="Rinomina"
                 aria-label={`Rinomina ${name}`}
                 onClick={() => setRenaming(n.id)}
-                className="flex size-6 items-center justify-center rounded text-[10px] font-semibold text-fg3 hover:bg-hover hover:text-fg"
+                className="flex size-6 items-center justify-center rounded text-[11px] font-semibold text-fg3 hover:bg-hover hover:text-fg"
               >
                 Aa
               </button>
@@ -266,7 +266,7 @@ export function Layers({
         type="button"
         onClick={() => onSelect(null)}
         className={cx(
-          'mb-0.5 flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[12.5px] [&_svg]:size-3.5',
+          'mb-0.5 flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] [&_svg]:size-3.5',
           selected === null ? 'bg-accent/10 font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
         )}
       >
@@ -275,7 +275,7 @@ export function Layers({
       </button>
       {rows}
       {nodes.length === 0 && (
-        <p className="px-2 py-3 text-[12px] leading-relaxed text-fg3">
+        <p className="px-2 py-3 text-[12.5px] leading-relaxed text-fg3">
           La pagina è vuota. Aggiungi una sezione dalla scheda Aggiungi.
         </p>
       )}

@@ -38,9 +38,9 @@ function Field({ label, hint, children }: { label: string; hint?: React.ReactNod
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
     <label className="block space-y-1.5">
-      <span className="text-[12.5px] font-medium">{label}</span>
+      <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[11.5px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -50,8 +50,8 @@ function Ready({ ready }: { ready: boolean }) {
     <span
       className={
         ready
-          ? 'rounded-full bg-ok/12 px-2 py-0.5 text-[11.5px] font-medium text-ok'
-          : 'rounded-full bg-hover px-2 py-0.5 text-[11.5px] font-medium text-fg3'
+          ? 'rounded-full bg-ok/12 px-2 py-0.5 text-[12px] font-medium text-ok'
+          : 'rounded-full bg-hover px-2 py-0.5 text-[12px] font-medium text-fg3'
       }
     >
       {ready ? 'Attiva' : 'Da configurare'}
@@ -63,7 +63,7 @@ function ModelStatus() {
   const ai = useQuery({ queryKey: ['ai'], queryFn: api.ai }).data?.ai
   return (
     <Section icon={<Sparkles />} title="Assistente AI">
-      <p className="flex items-center gap-2 text-[13px] text-fg2">
+      <p className="flex items-center gap-2 text-[14px] text-fg2">
         Il modello lo sceglie un amministratore. {ai && <Ready ready={ai.ready} />}
       </p>
     </Section>
@@ -124,7 +124,7 @@ function ModelForm() {
   return (
     <Section icon={<Sparkles />} title="Modello AI">
       <form onSubmit={save} className="space-y-5">
-        <p className="flex flex-wrap items-center gap-2 text-[13px] leading-relaxed text-fg2">
+        <p className="flex flex-wrap items-center gap-2 text-[14px] leading-relaxed text-fg2">
           Scrive e modifica pagine con l’assistente dell’editor, e riscrive, traduce e descrive testi e immagini.
           <Ready ready={!!saved.data?.ai.ready} />
         </p>
@@ -241,7 +241,7 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
 
   return (
     <Section icon={<KeyRound />} title="Token di accesso">
-      <p className="text-[13px] leading-relaxed text-fg2">
+      <p className="text-[14px] leading-relaxed text-fg2">
         Un client AI collegato con un tuo token agisce come te: può fare quello che puoi fare tu nel pannello, nulla di
         più. Creane uno per ogni client, così puoi revocarlo da solo.
       </p>
@@ -258,9 +258,9 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
       </form>
       {fresh && (
         <div className="space-y-2 rounded-lg border border-accent/40 bg-accent/6 p-3">
-          <p className="text-[12.5px] font-medium">Copialo ora: non lo vedrai più.</p>
+          <p className="text-[13px] font-medium">Copialo ora: non lo vedrai più.</p>
           <div className="flex items-center gap-1">
-            <code className="min-w-0 flex-1 truncate rounded-md bg-input px-2 py-1.5 font-mono text-[12px]">
+            <code className="min-w-0 flex-1 truncate rounded-md bg-input px-2 py-1.5 font-mono text-[13px]">
               {fresh}
             </code>
             <CopyButton text={fresh} label="Copia il token" />
@@ -272,8 +272,8 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
           {list.data.tokens.map((t) => (
             <li key={t.id} className="flex items-center gap-3 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium">{t.name}</div>
-                <div className="text-[11.5px] text-fg3">
+                <div className="truncate text-[14px] font-medium">{t.name}</div>
+                <div className="text-[12px] text-fg3">
                   <span className="font-mono">…{t.hint}</span> · creato {relativeTime(t.createdAt)} ·{' '}
                   {t.lastUsedAt ? `usato ${relativeTime(t.lastUsedAt)}` : 'mai usato'}
                 </div>
@@ -293,13 +293,13 @@ function Snippet({ title, hint, code }: { title: string; hint?: string; code: st
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-medium">{title}</span>
+        <span className="text-[13px] font-medium">{title}</span>
         <CopyButton text={code} />
       </div>
-      <pre className="overflow-x-auto rounded-lg bg-panel2 p-3 font-mono text-[11.5px] leading-relaxed whitespace-pre text-fg2">
+      <pre className="overflow-x-auto rounded-lg bg-panel2 p-3 font-mono text-[12px] leading-relaxed whitespace-pre text-fg2">
         {code}
       </pre>
-      {hint && <p className="text-[11.5px] leading-relaxed text-fg3">{hint}</p>}
+      {hint && <p className="text-[12px] leading-relaxed text-fg3">{hint}</p>}
     </div>
   )
 }
@@ -322,7 +322,7 @@ function Connect({ token }: { token: string | null }) {
   )
   return (
     <Section icon={<Plug />} title="Collegare un client AI (MCP)">
-      <p className="text-[13px] leading-relaxed text-fg2">
+      <p className="text-[14px] leading-relaxed text-fg2">
         Con il protocollo MCP, Claude e altri assistenti leggono e modificano il sito: contenuti, pagine, tema e
         immagini. Le modifiche restano bozze finché non chiedi di pubblicarle.
         {!token && ' Crea un token qui sopra: comparirà già negli esempi.'}

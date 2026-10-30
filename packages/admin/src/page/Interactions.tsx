@@ -156,7 +156,7 @@ export function InteractionsSection({
                 {groups.map((g, gi) => (
                   <div key={g}>
                     {gi > 0 && <MenuSeparator />}
-                    <div className="px-2 pt-1.5 pb-1 text-[11px] font-medium text-fg3">{g}</div>
+                    <div className="px-2 pt-1.5 pb-1 text-[11.5px] font-medium text-fg3">{g}</div>
                     {PRESETS.filter((p) => p.group === g)
                       .filter((p) => !(p.label.startsWith('Testo') || p.label === 'Contatore') || node.type === 'text')
                       .map((p) => (
@@ -181,7 +181,7 @@ export function InteractionsSection({
       }
     >
       {list.length === 0 && (
-        <p className="text-[11.5px] leading-relaxed text-fg3">
+        <p className="text-[12px] leading-relaxed text-fg3">
           Fai muovere l’elemento con lo scroll, il mouse o un clic. Aggiungi un’interazione con +.
         </p>
       )}
@@ -190,7 +190,7 @@ export function InteractionsSection({
           <button
             type="button"
             onClick={() => setOpen(open === ix.id ? null : ix.id)}
-            className="flex h-8 w-full items-center gap-2 px-2.5 text-left text-[12px] font-medium"
+            className="flex h-8 w-full items-center gap-2 px-2.5 text-left text-[12.5px] font-medium"
           >
             <span className="size-1.5 shrink-0 rounded-full bg-accent" />
             <span className="min-w-0 flex-1 truncate">{summary(ix)}</span>
@@ -259,7 +259,7 @@ function InteractionEditor({
           onChange={(trigger) => onChange({ trigger })}
         />
       </Row>
-      <p className="-mt-1 text-[11px] text-fg3">{TRIGGERS.find((t) => t.value === ix.trigger)?.hint}</p>
+      <p className="-mt-1 text-[11.5px] text-fg3">{TRIGGERS.find((t) => t.value === ix.trigger)?.hint}</p>
 
       {!ix.count && !mouse && ix.keys && ix.keys.length >= 2 && (
         <>
@@ -267,7 +267,7 @@ function InteractionEditor({
           <button
             type="button"
             onClick={() => onChange({ keys: null })}
-            className="text-left text-[11.5px] text-fg3 hover:text-fg"
+            className="text-left text-[12px] text-fg3 hover:text-fg"
           >
             Torna a uno stato iniziale e uno finale
           </button>
@@ -277,14 +277,14 @@ function InteractionEditor({
         <button
           type="button"
           onClick={() => onChange({ keys: toKeys(ix) })}
-          className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-accent/50 text-[11.5px] font-medium text-accent hover:bg-accent/8"
+          className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-accent/50 text-[12px] font-medium text-accent hover:bg-accent/8"
         >
           ◆ Usa una linea temporale con fotogrammi chiave
         </button>
       )}
       {!ix.count && !(ix.keys && ix.keys.length >= 2 && !mouse) && (
         <div className="space-y-1.5">
-          <div className="grid grid-cols-[72px_1fr_1fr_20px] gap-1.5 text-[10.5px] font-medium text-fg3">
+          <div className="grid grid-cols-[72px_1fr_1fr_20px] gap-1.5 text-[11px] font-medium text-fg3">
             <span />
             <span>{mouse ? '' : 'Da'}</span>
             <span>{mouse ? 'Massimo' : 'A'}</span>
@@ -292,7 +292,7 @@ function InteractionEditor({
           </div>
           {used.map((p) => (
             <div key={p.key} className="grid grid-cols-[72px_1fr_1fr_20px] items-center gap-1.5">
-              <span className="truncate text-[11.5px] text-fg2">{p.label}</span>
+              <span className="truncate text-[12px] text-fg2">{p.label}</span>
               {mouse ? (
                 <span />
               ) : (
@@ -456,7 +456,7 @@ function InteractionEditor({
       <button
         type="button"
         onClick={onDelete}
-        className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md text-[11.5px] font-medium text-fg3 hover:bg-danger/10 hover:text-danger"
+        className="flex h-7 w-full items-center justify-center gap-1.5 rounded-md text-[12px] font-medium text-fg3 hover:bg-danger/10 hover:text-danger"
       >
         <Trash2 className="size-3" /> Elimina interazione
       </button>

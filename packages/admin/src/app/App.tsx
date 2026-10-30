@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Menu } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { cx, Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
-import { useRoute } from '../lib/router.ts'
+import { href, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
@@ -57,7 +58,13 @@ function SignedIn() {
 function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
   const [locale, setLocale] = usePref('mz-locale', schema.locales.default)
   const [palette, setPalette] = useState(false)
+  // On phones and small tablets the sidebar is a drawer, opened from the top bar.
+  const [drawer, setDrawer] = useState(false)
   const route = useRoute()
+  // Closed when the page changes (the route object is new at every render: compare its address).
+  const address = href(route)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer when the address changes
+  useEffect(() => setDrawer(false), [address])
   const queryClient = useQueryClient()
   const activeLocale = schema.locales.available.includes(locale) ? locale : schema.locales.default
 
@@ -70,6 +77,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawer(false)
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPalette((v) => !v)
@@ -98,13 +106,45 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
 
   return (
     <SessionContext.Provider value={session}>
-      <div className="flex h-full min-h-0 bg-bg">
-        {!fullscreen && <Sidebar />}
+      <div className="flex h-full min-h-0 flex-col bg-bg md:flex-row">
+        {!fullscreen && (
+          <>
+            <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-2 md:hidden">
+              <button
+                type="button"
+                aria-label="Menu"
+                aria-expanded={drawer}
+                onClick={() => setDrawer(true)}
+                className="flex size-9 items-center justify-center rounded-lg hover:bg-hover"
+              >
+                <Menu className="size-5" />
+              </button>
+              <Logo className="size-6" />
+              <span className="truncate text-[14px] font-semibold">{schema.site.name}</span>
+            </header>
+            {drawer && (
+              <button
+                type="button"
+                aria-label="Chiudi il menu"
+                onClick={() => setDrawer(false)}
+                className="fixed inset-0 z-40 bg-black/40 md:hidden"
+              />
+            )}
+            <div
+              className={cx(
+                'flex max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:bg-bg max-md:shadow-pop max-md:transition-transform max-md:duration-200',
+                !drawer && 'max-md:-translate-x-full max-md:invisible',
+              )}
+            >
+              <Sidebar />
+            </div>
+          </>
+        )}
         <main
           className={cx(
-            'flex min-w-0 flex-1 flex-col',
+            'flex min-h-0 min-w-0 flex-1 flex-col',
             !fullscreen &&
-              'my-2 mr-2 overflow-hidden rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04),0_8px_24px_rgb(10_10_11/0.04)]',
+              'overflow-hidden bg-panel md:my-2 md:mr-2 md:rounded-xl md:border md:border-line md:shadow-[0_1px_2px_rgb(10_10_11/0.04),0_8px_24px_rgb(10_10_11/0.04)]',
           )}
         >
           {route.name === 'home' ? (
@@ -171,7 +211,7 @@ function RequiredTwoFactor() {
         <TwoFactorSetup onDone={() => void queryClient.invalidateQueries()} />
         <button
           type="button"
-          className="mt-6 text-[12.5px] text-fg2 hover:text-fg"
+          className="mt-6 text-[13px] text-fg2 hover:text-fg"
           onClick={async () => {
             await api.logout().catch(() => {})
             queryClient.clear()

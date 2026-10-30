@@ -37,11 +37,11 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
   const text = `Codici di riserva per il pannello di ${location.host}\nOgni codice si usa una volta sola, al posto del codice dell'app.\n\n${codes.join('\n')}\n`
   return (
     <div className="space-y-3">
-      <p className="text-[12.5px] leading-relaxed text-fg2">
+      <p className="text-[13px] leading-relaxed text-fg2">
         Se perdi il telefono, entri con uno di questi codici: ognuno vale una volta. Conservali in un posto sicuro, come
         un gestore di password. <strong className="font-medium text-fg">Non li vedrai più.</strong>
       </p>
-      <ol className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-line bg-panel2 px-4 py-3 font-mono text-[13px]">
+      <ol className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-line bg-panel2 px-4 py-3 font-mono text-[14px]">
         {codes.map((c) => (
           <li key={c}>{c}</li>
         ))}
@@ -89,7 +89,7 @@ export function TwoFactorSetup({ onDone, onCancel }: { onDone: () => void; onCan
 
   if (codes) return <RecoveryCodes codes={codes} onDone={onDone} />
   if (setup.isPending) return <Spinner />
-  if (setup.error || !setup.data) return <p className="text-[13px] text-danger">{setup.error?.message}</p>
+  if (setup.error || !setup.data) return <p className="text-[14px] text-danger">{setup.error?.message}</p>
 
   const confirm = async (e: FormEvent) => {
     e.preventDefault()
@@ -106,7 +106,7 @@ export function TwoFactorSetup({ onDone, onCancel }: { onDone: () => void; onCan
 
   return (
     <form onSubmit={confirm} className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-4 text-[12.5px] leading-relaxed text-fg2">
+      <ol className="list-decimal space-y-1 pl-4 text-[13px] leading-relaxed text-fg2">
         <li>Apri un’app di autenticazione: Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden…</li>
         <li>Inquadra il codice, oppure scrivi la chiave a mano.</li>
         <li>Inserisci il codice di 6 cifre che l’app mostra.</li>
@@ -114,13 +114,13 @@ export function TwoFactorSetup({ onDone, onCancel }: { onDone: () => void; onCan
       <div className="flex items-center gap-4">
         <QrCode value={setup.data.uri} />
         <div className="min-w-0 space-y-1.5">
-          <span className="block text-[11.5px] font-medium text-fg3">Chiave</span>
-          <code className="block font-mono text-[12px] leading-relaxed break-all text-fg2">
+          <span className="block text-[12px] font-medium text-fg3">Chiave</span>
+          <code className="block font-mono text-[13px] leading-relaxed break-all text-fg2">
             {setup.data.secret.replace(/(.{4})/g, '$1 ').trim()}
           </code>
           <button
             type="button"
-            className="text-[12px] font-medium text-accent hover:underline"
+            className="text-[13px] font-medium text-accent hover:underline"
             onClick={() => navigator.clipboard?.writeText(setup.data.secret).then(() => toast('Chiave copiata'))}
           >
             Copia la chiave
@@ -128,7 +128,7 @@ export function TwoFactorSetup({ onDone, onCancel }: { onDone: () => void; onCan
         </div>
       </div>
       <label className="block">
-        <span className="mb-1.5 block text-[12px] font-medium text-fg2">Codice dall’app</span>
+        <span className="mb-1.5 block text-[13px] font-medium text-fg2">Codice dall’app</span>
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
@@ -139,7 +139,7 @@ export function TwoFactorSetup({ onDone, onCancel }: { onDone: () => void; onCan
           className="font-mono tracking-[0.3em]"
         />
       </label>
-      {error && <p className="text-[13px] text-danger">{error}</p>}
+      {error && <p className="text-[14px] text-danger">{error}</p>}
       <div className="flex justify-end gap-2">
         {onCancel && <Button onClick={onCancel}>Annulla</Button>}
         <Button type="submit" variant="primary" loading={busy} disabled={code.length < 6}>
@@ -220,7 +220,7 @@ function PasswordStep({
           required
           autoFocus
         />
-        {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
+        {error && <p className="mt-1 text-[13px] text-danger">{error}</p>}
       </div>
       <Button onClick={onCancel}>Annulla</Button>
       <Button type="submit" variant={danger ? 'danger' : 'primary'} loading={busy}>
@@ -251,8 +251,8 @@ export function SecurityPanel() {
         <div className="flex items-center gap-2.5">
           <ShieldCheck className={cx('size-4.5 shrink-0', data.twoFactor.enabled ? 'text-ok' : 'text-fg3')} />
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium">Verifica in due passaggi</div>
-            <div className="text-[12px] text-fg3">
+            <div className="text-[14px] font-medium">Verifica in due passaggi</div>
+            <div className="text-[13px] text-fg3">
               {data.twoFactor.enabled
                 ? `Attiva · ${data.twoFactor.recoveryLeft} codici di riserva rimasti`
                 : 'Oltre alla password, un codice dall’app del telefono.'}
@@ -308,7 +308,7 @@ export function SecurityPanel() {
                 Nuovi codici di riserva
               </Button>
               {data.required ? (
-                <span className="self-center text-[12px] text-fg3">Il sito la richiede a tutti.</span>
+                <span className="self-center text-[13px] text-fg3">Il sito la richiede a tutti.</span>
               ) : (
                 <Button size="sm" className="hover:text-danger" onClick={() => setMode('disable')}>
                   Disattiva
@@ -321,11 +321,11 @@ export function SecurityPanel() {
 
       <section>
         <div className="mb-2 flex items-center">
-          <h3 className="flex-1 text-[12px] font-medium text-fg2">Dispositivi collegati</h3>
+          <h3 className="flex-1 text-[13px] font-medium text-fg2">Dispositivi collegati</h3>
           {others > 0 && (
             <button
               type="button"
-              className="text-[12px] font-medium text-accent hover:underline"
+              className="text-[13px] font-medium text-accent hover:underline"
               onClick={async () => {
                 const { ended } = await api.endOtherSessions()
                 toast(ended === 1 ? 'Un dispositivo disconnesso' : `${ended} dispositivi disconnessi`)
@@ -345,11 +345,11 @@ export function SecurityPanel() {
                   {device.mobile ? <Smartphone /> : s.userAgent ? <Laptop /> : <Monitor />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[12.5px] font-medium">
+                  <div className="truncate text-[13px] font-medium">
                     {device.label}
                     {s.current && <span className="ml-1.5 font-normal text-ok">· questo dispositivo</span>}
                   </div>
-                  <div className="truncate text-[11.5px] text-fg3">
+                  <div className="truncate text-[12px] text-fg3">
                     {s.ip && !/^(local|::1|127\.|::ffff:127\.)/.test(s.ip) ? `${s.ip} · ` : ''}
                     {s.current ? 'attivo ora' : `attivo ${relativeTime(s.lastSeenAt)}`} · entrato{' '}
                     {relativeTime(s.createdAt)}
@@ -371,7 +371,7 @@ export function SecurityPanel() {
             )
           })}
         </ul>
-        <p className="mt-1.5 text-[11.5px] text-fg3">Un accesso inutilizzato per 14 giorni si chiude da solo.</p>
+        <p className="mt-1.5 text-[12px] text-fg3">Un accesso inutilizzato per 14 giorni si chiude da solo.</p>
       </section>
     </div>
   )

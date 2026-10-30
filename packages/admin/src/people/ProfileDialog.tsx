@@ -49,7 +49,7 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
     <Dialog open={open} onClose={onClose} width={tab === 'security' ? 500 : 420} title="Il tuo profilo">
       <Segmented
@@ -70,8 +70,8 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
           <div className="flex items-center gap-3">
             <Avatar name={name || user.name} size={40} />
             <div className="min-w-0">
-              <div className="truncate text-[13px] text-fg">{user.email}</div>
-              <div className="text-[12px] text-fg3">{ROLES[user.role].label}</div>
+              <div className="truncate text-[14px] text-fg">{user.email}</div>
+              <div className="text-[13px] text-fg3">{ROLES[user.role].label}</div>
             </div>
           </div>
           <label className="block">
@@ -87,7 +87,7 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
               required
               autoComplete="email"
             />
-            <span className="mt-1 block text-[12px] text-fg3">È l’indirizzo con cui entri nel pannello.</span>
+            <span className="mt-1 block text-[13px] text-fg3">È l’indirizzo con cui entri nel pannello.</span>
           </label>
           {emailChanged && (
             <label className="block">
@@ -102,7 +102,7 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
             </label>
           )}
           <fieldset className="space-y-3 rounded-lg border border-line p-3">
-            <legend className="-ml-1 px-1 text-[12px] font-medium text-fg2">Cambia password</legend>
+            <legend className="-ml-1 px-1 text-[13px] font-medium text-fg2">Cambia password</legend>
             <Input
               type="password"
               placeholder="Password attuale"
@@ -119,9 +119,9 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
               minLength={10}
               autoComplete="new-password"
             />
-            <p className="text-[12px] text-fg3">Gli altri dispositivi verranno disconnessi.</p>
+            <p className="text-[13px] text-fg3">Gli altri dispositivi verranno disconnessi.</p>
           </fieldset>
-          {error && <p className="text-[13px] text-danger">{error}</p>}
+          {error && <p className="text-[14px] text-danger">{error}</p>}
           <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
             <Button onClick={onClose}>Annulla</Button>
             <Button type="submit" variant="primary" loading={busy}>

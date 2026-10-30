@@ -127,7 +127,7 @@ export function AssistantPanel({
     <div className="flex h-full flex-col">
       <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3.5">
         <Sparkles className="size-4 text-accent" />
-        <span className="flex-1 text-[12.5px] font-semibold">Assistente</span>
+        <span className="flex-1 text-[13px] font-semibold">Assistente</span>
         <IconButton label="Nuova conversazione" onClick={reset} disabled={!items.length}>
           <RotateCcw />
         </IconButton>
@@ -135,7 +135,7 @@ export function AssistantPanel({
       <div ref={list} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3.5">
         {!items.length && (
           <div className="space-y-3">
-            <p className="text-[12.5px] leading-relaxed text-fg2">
+            <p className="text-[13px] leading-relaxed text-fg2">
               Chiedi cosa cambiare in questa pagina: nuove sezioni, testi, colori, immagini.
               {selection.length > 0 && ' Puoi dire “questo” per l’elemento selezionato.'} Le modifiche si annullano con
               ⌘Z e restano in bozza.
@@ -146,7 +146,7 @@ export function AssistantPanel({
                   key={s}
                   type="button"
                   onClick={() => void send(s)}
-                  className="rounded-md border border-line px-2.5 py-1.5 text-left text-[12px] text-fg2 transition-colors hover:border-accent hover:text-fg"
+                  className="rounded-md border border-line px-2.5 py-1.5 text-left text-[12.5px] text-fg2 transition-colors hover:border-accent hover:text-fg"
                 >
                   {s}
                 </button>
@@ -158,30 +158,30 @@ export function AssistantPanel({
           it.kind === 'user' ? (
             <div
               key={it.id}
-              className="ml-6 rounded-lg rounded-br-sm bg-accent/12 px-2.5 py-1.5 text-[12.5px] whitespace-pre-wrap"
+              className="ml-6 rounded-lg rounded-br-sm bg-accent/12 px-2.5 py-1.5 text-[13px] whitespace-pre-wrap"
             >
               {it.text}
             </div>
           ) : it.kind === 'assistant' ? (
-            <div key={it.id} className="text-[12.5px] leading-relaxed whitespace-pre-wrap">
+            <div key={it.id} className="text-[13px] leading-relaxed whitespace-pre-wrap">
               {it.text}
             </div>
           ) : it.kind === 'step' ? (
             <div
               key={it.id}
-              className="flex items-start gap-1.5 text-[11.5px] leading-snug text-fg3 [&_svg]:mt-px [&_svg]:size-3 [&_svg]:shrink-0"
+              className="flex items-start gap-1.5 text-[12px] leading-snug text-fg3 [&_svg]:mt-px [&_svg]:size-3 [&_svg]:shrink-0"
             >
               {it.tool ? <Wrench /> : <Sparkles />}
               <span className="line-clamp-3">{it.text}</span>
             </div>
           ) : (
-            <div key={it.id} className="rounded-md bg-danger/10 px-2.5 py-1.5 text-[12px] text-danger">
+            <div key={it.id} className="rounded-md bg-danger/10 px-2.5 py-1.5 text-[12.5px] text-danger">
               {it.text}
             </div>
           ),
         )}
         {running && (
-          <div className="flex items-center gap-1.5 text-[11.5px] text-fg3">
+          <div className="flex items-center gap-1.5 text-[12px] text-fg3">
             <Loader2 className="size-3 animate-spin" /> Sto lavorando…
           </div>
         )}
@@ -207,7 +207,7 @@ export function AssistantPanel({
                 void send(draft)
               }
             }}
-            className="min-w-0 flex-1 resize-none bg-transparent px-1 py-0.5 text-[12.5px] leading-snug outline-none placeholder:text-fg3"
+            className="min-w-0 flex-1 resize-none bg-transparent px-1 py-0.5 text-[13px] leading-snug outline-none placeholder:text-fg3"
           />
           {running ? (
             <IconButton label="Interrompi" onClick={() => abort.current?.abort()}>

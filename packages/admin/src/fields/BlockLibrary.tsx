@@ -53,7 +53,7 @@ export function BlockLibrary({ blocks, onPick }: { blocks: BlockDef[]; onPick: (
         </div>
       )}
       <div className="max-h-80 overflow-y-auto p-1">
-        <div className="px-2 pt-1.5 pb-1 text-[11px] font-medium text-fg3">Aggiungi un blocco</div>
+        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">Aggiungi un blocco</div>
         {shown.map((b) => (
           <button
             key={b.name}
@@ -65,14 +65,14 @@ export function BlockLibrary({ blocks, onPick }: { blocks: BlockDef[]; onPick: (
               {blockIcon(b.name)}
             </span>
             <span className="min-w-0">
-              <span className="block text-[13px] font-medium">{b.label}</span>
-              <span className="block truncate text-[12px] text-fg3">
+              <span className="block text-[14px] font-medium">{b.label}</span>
+              <span className="block truncate text-[13px] text-fg3">
                 {b.description ?? `${b.fields.length} ${b.fields.length === 1 ? 'campo' : 'campi'}`}
               </span>
             </span>
           </button>
         ))}
-        {!shown.length && <div className="px-2 py-4 text-center text-[12px] text-fg3">Nessun blocco</div>}
+        {!shown.length && <div className="px-2 py-4 text-center text-[13px] text-fg3">Nessun blocco</div>}
       </div>
     </div>
   )

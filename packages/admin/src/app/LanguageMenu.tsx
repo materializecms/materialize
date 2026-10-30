@@ -79,7 +79,7 @@ export function LanguageMenu({
   const translations = query.data?.translations ?? []
   const missing = query.data?.missing ?? []
   const item =
-    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-hover disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0'
+    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-hover disabled:opacity-50 [&_svg]:size-3.5 [&_svg]:shrink-0'
 
   return (
     <Popover
@@ -91,7 +91,7 @@ export function LanguageMenu({
           type="button"
           onClick={toggle}
           title="Lingue"
-          className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-line px-1.5 font-mono text-[11px] font-medium text-fg2 uppercase hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-line px-1.5 font-mono text-[12px] font-medium text-fg2 uppercase hover:bg-hover hover:text-fg [&_svg]:size-3.5"
         >
           {busy ? <Loader2 className="animate-spin" /> : <Languages />}
           {doc.locale}
@@ -101,7 +101,7 @@ export function LanguageMenu({
     >
       {(close) => (
         <div className="p-1">
-          <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-fg3">Lingue di questa pagina</div>
+          <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">Lingue di questa pagina</div>
           {translations.map((t) => (
             <button
               key={t.id}
@@ -123,10 +123,10 @@ export function LanguageMenu({
           {missing.length > 0 && (
             <>
               <MenuSeparator />
-              <div className="px-2 pt-1 pb-1 text-[11px] font-medium text-fg3">Traduci in</div>
+              <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">Traduci in</div>
               {missing.map((l) => (
                 <div key={l} className="flex items-center gap-1 rounded-md pr-1 hover:bg-hover/50">
-                  <span className="flex-1 truncate px-2 py-1.5 text-[12.5px]">{localeName(l)}</span>
+                  <span className="flex-1 truncate px-2 py-1.5 text-[13px]">{localeName(l)}</span>
                   {ai && (
                     <button
                       type="button"
@@ -136,7 +136,7 @@ export function LanguageMenu({
                         close()
                         void create(l, true)
                       }}
-                      className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium text-accent hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3"
+                      className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-accent hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3"
                     >
                       <Sparkles /> AI
                     </button>
@@ -149,7 +149,7 @@ export function LanguageMenu({
                       close()
                       void create(l, false)
                     }}
-                    className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium text-fg2 hover:bg-hover hover:text-fg disabled:opacity-50 [&_svg]:size-3"
+                    className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg disabled:opacity-50 [&_svg]:size-3"
                   >
                     <Copy /> Copia
                   </button>
@@ -172,7 +172,7 @@ export function LanguageMenu({
                 <RefreshCw />
                 <span className="flex-1">
                   Allinea all’originale
-                  <span className="block text-[11px] text-fg3">
+                  <span className="block text-[12px] text-fg3">
                     Struttura e stile dell’originale, testi tradotti tenuti{ai ? ', nuovi testi tradotti' : ''}
                   </span>
                 </span>

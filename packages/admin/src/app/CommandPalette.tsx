@@ -186,20 +186,20 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             lastGroup = c.group
             return (
               <div key={c.id}>
-                {header && <div className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-fg3">{c.group}</div>}
+                {header && <div className="px-2.5 pt-2 pb-1 text-[12px] font-medium text-fg3">{c.group}</div>}
                 <button
                   type="button"
                   data-active={i === active}
                   onMouseMove={() => setActive(i)}
                   onClick={() => run(c)}
                   className={cx(
-                    'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] [&>svg]:size-4 [&_svg]:text-fg2',
+                    'flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[14px] [&>svg]:size-4 [&_svg]:text-fg2',
                     i === active && 'bg-hover',
                   )}
                 >
                   {c.icon}
                   <span className="flex-1 truncate">{c.label}</span>
-                  {c.hint && <span className="text-[12px] text-fg3">{c.hint}</span>}
+                  {c.hint && <span className="text-[13px] text-fg3">{c.hint}</span>}
                 </button>
               </div>
             )

@@ -59,7 +59,7 @@ export const localeName = (code: string) => {
   }
 }
 
-const sectionLabel = 'px-2 pt-5 pb-1.5 text-[11px] font-medium text-fg3'
+const sectionLabel = 'px-2 pt-5 pb-1.5 text-[12px] font-medium text-fg3'
 
 export function Sidebar() {
   const { schema, user, locale, setLocale, openPalette } = useSession()
@@ -82,14 +82,12 @@ export function Sidebar() {
       <div className="flex h-14 items-center gap-2.5 px-4">
         <Logo className="size-7" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13.5px] leading-tight font-semibold tracking-[-0.01em]">
-            {schema.site.name}
-          </div>
+          <div className="truncate text-[14px] leading-tight font-semibold tracking-[-0.01em]">{schema.site.name}</div>
           <a
             href="/"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11.5px] text-fg3 hover:text-accent"
+            className="inline-flex items-center gap-1 text-[12px] text-fg3 hover:text-accent"
           >
             <span className="size-1.5 rounded-full bg-ok" />
             Visita il sito
@@ -169,7 +167,7 @@ export function Sidebar() {
               >
                 <Globe />
                 <span className="flex-1 text-left">{localeName(locale)}</span>
-                <span className="font-mono text-[11px] text-fg3 uppercase">{locale}</span>
+                <span className="font-mono text-[12px] text-fg3 uppercase">{locale}</span>
               </button>
             )}
           >
@@ -204,12 +202,12 @@ export function Sidebar() {
                 onClick={toggle}
                 className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left hover:bg-hover"
               >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#8b5cf6] text-[11px] font-semibold text-white">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#8b5cf6] text-[12px] font-semibold text-white">
                   {user.name.slice(0, 1).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] leading-tight font-medium">{user.name}</span>
-                  <span className="block truncate text-[11px] text-fg3">
+                  <span className="block truncate text-[13px] leading-tight font-medium">{user.name}</span>
+                  <span className="block truncate text-[12px] text-fg3">
                     {user.role === 'admin' ? 'Amministratore' : 'Editor'}
                   </span>
                 </span>
@@ -265,7 +263,7 @@ function NavItem({
         navigate(route)
       }}
       className={cx(
-        'flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-[13px] transition-colors',
+        'flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-[14px] transition-colors',
         active
           ? 'bg-panel font-medium text-fg shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(10_10_11/0.05)]'
           : 'text-fg2 hover:bg-hover hover:text-fg',
@@ -273,7 +271,7 @@ function NavItem({
     >
       {children}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && count > 0 && <span className="text-[11.5px] text-fg3 tabular-nums">{count}</span>}
+      {count !== undefined && count > 0 && <span className="text-[12px] text-fg3 tabular-nums">{count}</span>}
     </a>
   )
 }

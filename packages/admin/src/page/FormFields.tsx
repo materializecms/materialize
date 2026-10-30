@@ -2,7 +2,7 @@ import type { NodeProps, PageNode } from '@materializecms/core/page'
 import { Row, Section, Select, Toggle } from './controls.tsx'
 
 const input =
-  'h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent'
+  'h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent'
 
 const KINDS: { value: NonNullable<PageNode['inputKind']>; label: string }[] = [
   { value: 'text', label: 'Testo breve' },
@@ -51,13 +51,13 @@ export function FormSection({
               className={input}
             />
           </Row>
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Aggiungi dentro i campi (Campo · K) e un pulsante con “Invia il modulo”. I messaggi arrivano in Impostazioni
             → Messaggi e, se l’email è configurata, nella tua casella.
           </p>
         </>
       ) : (
-        <p className="text-[11px] leading-relaxed text-fg3">
+        <p className="text-[11.5px] leading-relaxed text-fg3">
           Trasforma un contenitore in un modulo di contatto, con campi e pulsante di invio.
         </p>
       )}
@@ -115,13 +115,13 @@ export function InputSection({
       )}
       {node.inputKind === 'select' && (
         <label className="block space-y-1">
-          <span className="text-[11.5px] font-medium text-fg2">Scelte, una per riga</span>
+          <span className="text-[12px] font-medium text-fg2">Scelte, una per riga</span>
           <textarea
             aria-label="Scelte dell’elenco"
             value={(node.options ?? []).join('\n')}
             rows={4}
             onChange={(e) => onContent({ options: e.target.value.split('\n') }, `fopt:${node.id}`)}
-            className="w-full rounded-md border border-line2 bg-input px-2 py-1.5 text-[12px] outline-none focus:border-accent"
+            className="w-full rounded-md border border-line2 bg-input px-2 py-1.5 text-[12.5px] outline-none focus:border-accent"
           />
         </label>
       )}

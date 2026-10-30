@@ -50,7 +50,7 @@ export function Button({
       disabled={props.disabled || loading}
       className={cx(
         'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium transition-[background,opacity] select-none disabled:cursor-not-allowed',
-        size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-8 px-3 text-[13px]',
+        size === 'sm' ? 'h-7 px-2.5 text-[13px]' : 'h-8 px-3 text-[14px]',
         variants[variant],
         className,
       )}
@@ -89,7 +89,7 @@ export function IconButton({
 // ---------- inputs ----------
 
 export const inputClass =
-  'w-full rounded-md border border-line2 bg-input px-2.5 text-[13px] text-fg placeholder:text-fg3 transition-colors hover:border-fg3/40 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 aria-invalid:border-danger aria-invalid:focus:ring-danger/15'
+  'w-full rounded-md border border-line2 bg-input px-2.5 text-[14px] text-fg placeholder:text-fg3 transition-colors hover:border-fg3/40 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 aria-invalid:border-danger aria-invalid:focus:ring-danger/15'
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(inputClass, 'h-8', className)} />
@@ -173,7 +173,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cx(
             'inline-flex flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2.5 font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
-            size === 'sm' ? 'h-6 text-[12px]' : 'h-7 text-[13px]',
+            size === 'sm' ? 'h-6 text-[13px]' : 'h-7 text-[14px]',
             value === o.value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
           )}
         >
@@ -197,7 +197,7 @@ export function StatusBadge({ status, short }: { status: DocumentStatus; short?:
   return (
     <span
       className={cx(
-        'inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-[11.5px] font-medium whitespace-nowrap',
+        'inline-flex h-[22px] items-center gap-1.5 rounded-full px-2 text-[12px] font-medium whitespace-nowrap',
         info.pill,
       )}
     >
@@ -296,7 +296,7 @@ export function Spinner({ className }: { className?: string }) {
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line2 bg-panel2 px-1 font-sans text-[11px] text-fg3">
+    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line2 bg-panel2 px-1 font-sans text-[12px] text-fg3">
       {children}
     </kbd>
   )
@@ -416,13 +416,13 @@ export function MenuItem({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 [&>svg]:size-4 [&>svg]:shrink-0',
+        'flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[14px] transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40 [&>svg]:size-4 [&>svg]:shrink-0',
         danger ? 'text-danger' : 'text-fg',
       )}
     >
       {icon}
       <span className={cx('min-w-0 flex-1', typeof children === 'string' && 'truncate')}>{children}</span>
-      {hint && <span className="text-[12px] text-fg3">{hint}</span>}
+      {hint && <span className="text-[13px] text-fg3">{hint}</span>}
       {checked && <Check className="text-accent" />}
     </button>
   )
@@ -450,13 +450,38 @@ export function Dialog({
   const panel = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onClose()
+      // Tab stays inside the dialog: what is behind it cannot be reached until it closes.
+      if (e.key !== 'Tab' || !panel.current) return
+      const items = [
+        ...panel.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => el.offsetParent !== null)
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (!first || !last) return
+      const inside = panel.current.contains(document.activeElement)
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
-  // Focus once when the dialog opens, not on every re-render.
+  // Focus once when the dialog opens, not on every re-render; back where it was when it closes.
   useEffect(() => {
-    if (open) panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus()
+    if (!open) return
+    const before = document.activeElement as HTMLElement | null
+    panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus()
+    return () => {
+      if (before?.isConnected) before.focus()
+    }
   }, [open])
   if (!open) return null
   return createPortal(
@@ -513,7 +538,7 @@ export function Toaster() {
           key={t.id}
           role="status"
           className={cx(
-            'mz-pop-in rounded-lg px-3.5 py-2 text-[13px] font-medium shadow-pop',
+            'mz-pop-in rounded-lg px-3.5 py-2 text-[14px] font-medium shadow-pop',
             t.tone === 'error' ? 'bg-danger text-white' : 'bg-fg text-bg',
           )}
         >

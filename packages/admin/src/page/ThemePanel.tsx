@@ -40,7 +40,7 @@ export function ThemePanel({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <p className="border-b border-line px-3.5 py-3 text-[12px] leading-relaxed text-fg2">
+      <p className="border-b border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-fg2">
         {canEdit
           ? 'Lo stile vale per tutto il sito: ogni pagina usa questi colori e caratteri.'
           : 'Lo stile del sito lo cambia un amministratore.'}
@@ -86,7 +86,7 @@ export function ThemePanel({
                   className="size-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[5px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[11.5px] font-medium">{c.label}</span>
+                  <span className="block truncate text-[12px] font-medium">{c.label}</span>
                   <HexInput label={`${c.label}: codice`} value={colors[c.key]} onChange={(v) => setColor(c.key, v)} />
                 </span>
               </div>
@@ -120,7 +120,7 @@ export function ThemePanel({
           }
         >
           {swatches.length === 0 && (
-            <p className="text-[11.5px] leading-relaxed text-fg3">
+            <p className="text-[12px] leading-relaxed text-fg3">
               Colori del marchio con un nome, da usare in ogni campo colore. Hanno una tinta per il tema chiaro e una
               per quello scuro.
             </p>
@@ -146,7 +146,7 @@ export function ThemePanel({
                   defaultValue={sw.name}
                   onBlur={(e) => e.currentTarget.value.trim() && update({ name: e.currentTarget.value.trim() })}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[12.5px] outline-none hover:border-line2 focus:border-accent"
+                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[13px] outline-none hover:border-line2 focus:border-accent"
                 />
                 <button
                   type="button"
@@ -159,7 +159,7 @@ export function ThemePanel({
                 </button>
                 <div className="flex basis-full gap-3 pl-1">
                   {(['light', 'dark'] as const).map((m) => (
-                    <span key={m} className="flex items-center gap-1 text-[10.5px] text-fg3">
+                    <span key={m} className="flex items-center gap-1 text-[11px] text-fg3">
                       {m === 'light' ? 'Chiaro' : 'Scuro'}
                       <HexInput
                         label={`${sw.name}: codice ${m === 'light' ? 'tema chiaro' : 'tema scuro'}`}
@@ -239,7 +239,7 @@ export function ThemePanel({
           </Row>
         </Section>
         <Section title="Punti di rottura">
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Sotto queste larghezze il sito usa le modifiche fatte per tablet e per mobile.
           </p>
           <Row label="Tablet sotto">
@@ -287,14 +287,14 @@ export function ThemePanel({
               ]}
             />
           </Row>
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Si vedono sul sito pubblicato. Chi ha chiesto meno movimento al proprio dispositivo non li riceve, e su
             telefoni e tablet restano disattivati scorrimento morbido e cursore.
           </p>
         </Section>
         <Section title="Stili di testo">
           {(theme.textStyles ?? []).length === 0 && (
-            <p className="text-[11.5px] leading-relaxed text-fg3">
+            <p className="text-[12px] leading-relaxed text-fg3">
               Nessuno stile ancora. Seleziona un testo e, nella sezione Testo, scegli “Crea uno stile da questo testo”.
             </p>
           )}
@@ -318,7 +318,7 @@ export function ThemePanel({
                       set({ textStyles: (theme.textStyles ?? []).map((x) => (x.id === ts.id ? { ...x, name } : x)) })
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[12.5px] outline-none hover:border-line2 focus:border-accent"
+                  className="h-7 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[13px] outline-none hover:border-line2 focus:border-accent"
                 />
                 <button
                   type="button"
@@ -364,7 +364,7 @@ function HexInput({ label, value, onChange }: { label: string; value: string; on
           e.currentTarget.blur()
         }
       }}
-      className="block w-[68px] rounded border border-transparent bg-transparent font-mono text-[10.5px] text-fg3 outline-none hover:border-line2 focus:border-accent focus:text-fg"
+      className="block w-[68px] rounded border border-transparent bg-transparent font-mono text-[11px] text-fg3 outline-none hover:border-line2 focus:border-accent focus:text-fg"
     />
   )
 }

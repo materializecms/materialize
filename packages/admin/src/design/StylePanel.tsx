@@ -43,7 +43,7 @@ export function StylePanel({
     onChange(Object.keys(next).length ? next : undefined, group)
   }
   const anchorValid = !style.anchor || ANCHOR_PATTERN.test(style.anchor)
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[12.5px] font-medium text-fg2'
 
   return (
     <div className="space-y-4">
@@ -59,7 +59,7 @@ export function StylePanel({
                 aria-pressed={active}
                 onClick={() => set('background', b.value === 'default' ? undefined : b.value)}
                 className={cx(
-                  'flex flex-col items-center gap-1.5 rounded-md border px-1 py-2 text-[11.5px] transition-colors',
+                  'flex flex-col items-center gap-1.5 rounded-md border px-1 py-2 text-[12px] transition-colors',
                   active
                     ? 'border-accent bg-accent/8 text-fg'
                     : 'border-line text-fg2 hover:border-line2 hover:text-fg',
@@ -90,7 +90,7 @@ export function StylePanel({
       </div>
 
       <div>
-        <span className="mb-1.5 flex items-center justify-between text-[12px] font-medium text-fg2">
+        <span className="mb-1.5 flex items-center justify-between text-[12.5px] font-medium text-fg2">
           Animazione all’ingresso
           {onReplay && style.animation && style.animation !== 'none' && (
             <IconButton label="Riproduci l’animazione" className="size-6" onClick={onReplay}>
@@ -111,7 +111,7 @@ export function StylePanel({
                   if (a.value !== 'none') setTimeout(() => onReplay?.(), 600)
                 }}
                 className={cx(
-                  'h-7 rounded-md border px-2.5 text-[12px] transition-colors',
+                  'h-7 rounded-md border px-2.5 text-[12.5px] transition-colors',
                   active
                     ? 'border-accent bg-accent/8 text-fg'
                     : 'border-line text-fg2 hover:border-line2 hover:text-fg',
@@ -122,7 +122,7 @@ export function StylePanel({
             )
           })}
         </div>
-        <p className="mt-1.5 text-[11.5px] text-fg3">
+        <p className="mt-1.5 text-[12px] text-fg3">
           Parte quando il blocco entra nello schermo, mai per chi ha chiesto meno movimento.
         </p>
       </div>
@@ -132,14 +132,14 @@ export function StylePanel({
         <div className="relative">
           <Hash className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
           <Input
-            className="pl-7 font-mono text-[12.5px]"
+            className="pl-7 font-mono text-[13px]"
             placeholder="chi-siamo"
             value={style.anchor ?? ''}
             aria-invalid={!anchorValid || anchorErrors.length > 0 || undefined}
             onChange={(e) => set('anchor', e.target.value.toLowerCase().replace(/\s+/g, '-') || undefined, 'anchor')}
           />
         </div>
-        <span className={cx('mt-1 block text-[11.5px]', anchorValid ? 'text-fg3' : 'text-danger')}>
+        <span className={cx('mt-1 block text-[12px]', anchorValid ? 'text-fg3' : 'text-danger')}>
           {!anchorValid
             ? 'Usa lettere minuscole, numeri e trattini, iniziando con una lettera'
             : style.anchor

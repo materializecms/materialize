@@ -187,7 +187,7 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
       <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
         <ShieldCheck /> Stato della sicurezza
       </h2>
-      <p className="text-[13px] text-fg2">
+      <p className="text-[14px] text-fg2">
         {issues
           ? `${issues === 1 ? 'Un punto da sistemare' : `${issues} punti da sistemare`}, dal più importante.`
           : 'Tutto in ordine.'}
@@ -199,8 +199,8 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
               {STATUS[c.status].icon}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium">{c.title}</div>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">{c.detail}</p>
+              <div className="text-[14px] font-medium">{c.title}</div>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">{c.detail}</p>
             </div>
             {c.action && (
               <Button
@@ -259,17 +259,17 @@ function BackupsSection() {
       </h2>
       <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-medium">Scarica tutto</div>
-          <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+          <div className="text-[14px] font-medium">Scarica tutto</div>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
             Un unico archivio con {data.available ? 'il database, ' : ''}tutte le immagini originali e i caratteri: da
             tenere fuori dal server, o per spostare il sito. Si rimette con{' '}
-            <code className="font-mono text-[11.5px]">npx materialize restore</code>.
+            <code className="font-mono text-[12px]">npx materialize restore</code>.
           </p>
         </div>
         <a
           href="/api/backups/archive"
           download
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line2 px-2.5 text-[12px] font-medium hover:bg-hover [&_svg]:size-3.5"
+          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line2 px-2.5 text-[13px] font-medium hover:bg-hover [&_svg]:size-3.5"
           onClick={() => {
             toast('L’archivio si sta preparando: il download parte tra poco')
             setTimeout(refresh, 3000)
@@ -279,7 +279,7 @@ function BackupsSection() {
         </a>
       </div>
       {!data.available ? (
-        <p className="text-[13px] leading-relaxed text-fg2">
+        <p className="text-[14px] leading-relaxed text-fg2">
           Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano
           attivi nel suo pannello. L’archivio qui sopra contiene comunque immagini e caratteri.
         </p>
@@ -292,14 +292,14 @@ function BackupsSection() {
               onChange={(enabled) => void save({ enabled })}
             />
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium">Una copia del database ogni giorno</div>
-              <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+              <div className="text-[14px] font-medium">Una copia del database ogni giorno</div>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
                 La fa il server mentre è acceso, nella cartella backups accanto al database. Ne tiene
                 <select
                   value={data.keep}
                   onChange={(e) => void save({ keep: Number(e.target.value) })}
                   aria-label="Quante copie tenere"
-                  className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[12px] text-fg outline-none"
+                  className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[13px] text-fg outline-none"
                 >
                   {[7, 14, 30, 90].map((n) => (
                     <option key={n} value={n}>
@@ -336,15 +336,15 @@ function BackupsSection() {
               {data.items.map((b) => (
                 <li key={b.name} className="flex items-center gap-3 px-4 py-2">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-mono text-[12px]">{b.name}</div>
-                    <div className="text-[11.5px] text-fg3" title={fullDate(b.createdAt)}>
+                    <div className="truncate font-mono text-[13px]">{b.name}</div>
+                    <div className="text-[12px] text-fg3" title={fullDate(b.createdAt)}>
                       {relativeTime(b.createdAt)} · {size(b.size)}
                     </div>
                   </div>
                   <a
                     href={`/api/backups/${encodeURIComponent(b.name)}`}
                     download={b.name}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
                   >
                     <Download /> Scarica
                   </a>
@@ -363,7 +363,7 @@ function BackupsSection() {
               ))}
             </ul>
           )}
-          <p className="text-[11.5px] leading-relaxed text-fg3">
+          <p className="text-[12px] leading-relaxed text-fg3">
             {data.media.files > 0 && `Copia delle immagini: ${data.media.files} file, ${size(data.media.size)}. `}
             Per rimettere un backup: ferma il server, poi nella cartella del sito{' '}
             <code className="font-mono">npx materialize restore percorso/del/backup.db</code>. Le immagini che mancano
@@ -396,7 +396,7 @@ function ActivityLog() {
             type="button"
             onClick={() => setGroup(f.value)}
             className={cx(
-              'h-7 rounded-full px-3 text-[12.5px] font-medium transition-colors',
+              'h-7 rounded-full px-3 text-[13px] font-medium transition-colors',
               group === f.value ? 'bg-fg text-bg' : 'text-fg2 hover:bg-hover hover:text-fg',
             )}
           >
@@ -407,7 +407,7 @@ function ActivityLog() {
       {list.isPending ? (
         <Spinner />
       ) : !items.length ? (
-        <p className="py-6 text-center text-[13px] text-fg3">Ancora niente da mostrare.</p>
+        <p className="py-6 text-center text-[14px] text-fg3">Ancora niente da mostrare.</p>
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
           {items.map((e) => {
@@ -418,16 +418,16 @@ function ActivityLog() {
                 <span className={cx('mt-0.5 shrink-0 [&_svg]:size-3.5', failed ? 'text-danger' : 'text-fg3')}>
                   {GROUP_ICON[g]}
                 </span>
-                <div className="min-w-0 flex-1 text-[12.5px] leading-snug">
+                <div className="min-w-0 flex-1 text-[13px] leading-snug">
                   {e.userName && !failed && <span className="font-medium">{e.userName} </span>}
                   <span className={failed ? 'text-danger' : 'text-fg2'}>
                     {failed ? text.charAt(0).toUpperCase() + text.slice(1) : text}
                   </span>
                 </div>
-                <span className="shrink-0 text-right text-[11.5px] text-fg3" title={fullDate(e.at)}>
+                <span className="shrink-0 text-right text-[12px] text-fg3" title={fullDate(e.at)}>
                   {relativeTime(e.at)}
                   {e.ip && !/^(local|::1|127\.|::ffff:127\.)/.test(e.ip) && (
-                    <span className="block font-mono text-[10.5px]">{e.ip}</span>
+                    <span className="block font-mono text-[11px]">{e.ip}</span>
                   )}
                 </span>
               </li>
@@ -442,7 +442,7 @@ function ActivityLog() {
           </Button>
         </div>
       )}
-      <p className="text-[11.5px] text-fg3">Il registro conserva un anno di attività.</p>
+      <p className="text-[12px] text-fg3">Il registro conserva un anno di attività.</p>
     </section>
   )
 }

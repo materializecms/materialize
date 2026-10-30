@@ -172,7 +172,7 @@ export function Timeline({
           ))}
         </div>
       </div>
-      <div className="flex justify-between px-8 font-mono text-[10px] text-fg3">
+      <div className="flex justify-between px-8 font-mono text-[11px] text-fg3">
         <span>0%</span>
         <span>{head !== null ? `${Math.round(head * 100)}%` : ''}</span>
         <span>100%</span>
@@ -181,7 +181,7 @@ export function Timeline({
       {current && (
         <div className="space-y-2 rounded-lg bg-panel2 p-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-[11.5px] font-semibold">Fotogramma</span>
+            <span className="text-[12px] font-semibold">Fotogramma</span>
             {keys.length > 2 && (
               <IconButton
                 label="Elimina il fotogramma"
@@ -248,7 +248,7 @@ export function Timeline({
               }}
             />
           )}
-          <p className="flex items-center gap-1 text-[10.5px] text-fg3">
+          <p className="flex items-center gap-1 text-[11px] text-fg3">
             <Plus className="size-3" /> Clicca sulla linea per aggiungere un fotogramma, trascinalo per spostarlo.
           </p>
         </div>

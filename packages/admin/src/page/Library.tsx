@@ -160,7 +160,7 @@ export function Library({
               }}
               onClick={() => onAddElement(e.kind)}
               aria-label={`Aggiungi ${e.label}`}
-              className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-line bg-panel text-[9.5px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
+              className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-line bg-panel text-[10.5px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
             >
               {e.icon}
               <span className="max-w-full truncate px-0.5">{e.label}</span>
@@ -174,7 +174,7 @@ export function Library({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Cerca sezioni"
             aria-label="Cerca sezioni"
-            className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[12.5px] outline-none focus:border-accent"
+            className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
           />
         </div>
         {/* One scrolling row of categories instead of seven wrapped lines. */}
@@ -185,7 +185,7 @@ export function Library({
               type="button"
               onClick={() => setCat(c.key)}
               className={cx(
-                'h-6 shrink-0 rounded-full px-2.5 text-[11.5px] font-medium whitespace-nowrap transition-colors',
+                'h-6 shrink-0 rounded-full px-2.5 text-[12px] font-medium whitespace-nowrap transition-colors',
                 cat === c.key ? 'bg-fg text-bg' : 'bg-seg text-fg2 hover:text-fg',
               )}
             >
@@ -200,7 +200,7 @@ export function Library({
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3">
         {componentPreviews.length > 0 && !q && cat === 'all' && (
           <section>
-            <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">
+            <h3 className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
               Componenti
               <span className="font-normal text-fg3">riutilizzabili, con varianti</span>
             </h3>
@@ -233,7 +233,7 @@ export function Library({
         )}
         {globalPreviews.length > 0 && !q && cat === 'all' && (
           <section>
-            <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">
+            <h3 className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
               Sezioni globali
               <span className="font-normal text-fg3">condivise da tutte le pagine</span>
             </h3>
@@ -285,7 +285,7 @@ export function Library({
         )}
         {groups.map((c) => (
           <section key={c.key}>
-            <h3 className="mb-2 flex items-center justify-between text-[12px] font-semibold">
+            <h3 className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
               {c.label}
               <span className="font-normal text-fg3">{c.variants.length}</span>
             </h3>
@@ -303,8 +303,8 @@ export function Library({
             </div>
           </section>
         ))}
-        {!groups.length && <p className="py-8 text-center text-[12.5px] text-fg3">Nessuna sezione per “{query}”.</p>}
-        <p className="flex items-center justify-center gap-1.5 pt-2 text-[11.5px] text-fg3">
+        {!groups.length && <p className="py-8 text-center text-[13px] text-fg3">Nessuna sezione per “{query}”.</p>}
+        <p className="flex items-center justify-center gap-1.5 pt-2 text-[12px] text-fg3">
           Scorciatoie: <Kbd>F</Kbd> <Kbd>T</Kbd> <Kbd>I</Kbd> <Kbd>B</Kbd>
         </p>
       </div>
@@ -381,12 +381,12 @@ const Tile = memo(function Tile({
           />
         )}
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent/0 opacity-0 transition group-hover:bg-accent/10 group-hover:opacity-100">
-          <span className="rounded-full bg-accent px-3 py-1 text-[12px] font-medium text-white shadow-sm">
+          <span className="rounded-full bg-accent px-3 py-1 text-[12.5px] font-medium text-white shadow-sm">
             Aggiungi
           </span>
         </span>
       </div>
-      <div className="border-t border-line px-2.5 py-1.5 text-[12px] font-medium text-fg2 group-hover:text-fg">
+      <div className="border-t border-line px-2.5 py-1.5 text-[12.5px] font-medium text-fg2 group-hover:text-fg">
         {label}
       </div>
       <button

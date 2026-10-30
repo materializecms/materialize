@@ -199,17 +199,17 @@ export function DesignMode({
               { value: 'mobile', label: <Smartphone />, title: 'Mobile · 390 px' },
             ]}
           />
-          <span className="text-[11.5px] text-fg3 tabular-nums">{WIDTH[device]} px</span>
+          <span className="text-[12px] text-fg3 tabular-nums">{WIDTH[device]} px</span>
           {live ? (
             <span
-              className="absolute right-3 inline-flex items-center gap-1 text-[11.5px] text-fg3"
+              className="absolute right-3 inline-flex items-center gap-1 text-[12px] text-fg3"
               title="La tela usa il layout e i componenti del sito: è la pagina come la vedranno i visitatori."
             >
               <Globe className="size-3.5" /> Il sito vero
             </span>
           ) : (
             <span
-              className="absolute right-3 inline-flex items-center gap-1 text-[11.5px] text-fg3"
+              className="absolute right-3 inline-flex items-center gap-1 text-[12px] text-fg3"
               title="La tela mostra struttura e contenuti con uno stile neutro. Collega un sito Astro per vedere l’aspetto definitivo."
             >
               <Info className="size-3.5" /> Anteprima neutra
@@ -266,7 +266,7 @@ export function DesignMode({
                     >
                       <span
                         className={cx(
-                          'pointer-events-none absolute top-0 left-0 z-10 inline-flex h-[22px] items-center gap-1 rounded-br-md px-2 font-sans text-[11px] font-medium text-white [&_svg]:size-3',
+                          'pointer-events-none absolute top-0 left-0 z-10 inline-flex h-[22px] items-center gap-1 rounded-br-md px-2 font-sans text-[11.5px] font-medium text-white [&_svg]:size-3',
                           isSelected
                             ? 'bg-[#3d5afe]'
                             : errors
@@ -477,7 +477,7 @@ function AddButton({
           className={cx(
             'inline-flex items-center gap-1.5 font-medium',
             compact
-              ? 'h-7 rounded-md px-2 text-[12px] text-fg2 hover:bg-hover hover:text-fg'
+              ? 'h-7 rounded-md px-2 text-[12.5px] text-fg2 hover:bg-hover hover:text-fg'
               : 'h-9 rounded-full border border-dashed border-neutral-300 px-4 text-[13px] text-neutral-500 hover:border-[#3d5afe] hover:text-[#3d5afe]',
           )}
         >
@@ -731,7 +731,7 @@ function Layers({
           })}
         </div>
         {blocks.length === 0 && (
-          <p className="px-2 py-3 text-[12px] text-fg3">Nessun blocco. Aggiungine uno dalla tela.</p>
+          <p className="px-2 py-3 text-[12.5px] text-fg3">Nessun blocco. Aggiungine uno dalla tela.</p>
         )}
       </div>
     </aside>

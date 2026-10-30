@@ -85,30 +85,30 @@ export function IconSection({
             value={node.svg ?? ''}
             placeholder="<svg viewBox=…>…</svg>"
             onChange={(e) => onContent({ svg: e.target.value || null, icon: null }, `svg:${node.id}`)}
-            className="font-mono text-[11px]"
+            className="font-mono text-[11.5px]"
           />
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Incolla un SVG da Figma o Illustrator. Gli script vengono tolti; usa “currentColor” per prendere il colore
             qui sotto.
           </p>
         </>
       ) : (
         <>
-          {set && <p className="text-[11px] text-fg3">{set.hint}</p>}
+          {set && <p className="text-[11.5px] text-fg3">{set.hint}</p>}
           <div className="flex gap-1.5">
             <input
               aria-label="Cerca un’icona"
               value={query}
               placeholder="Cerca: freccia, email, stella…"
               onChange={(e) => setQuery(e.target.value)}
-              className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+              className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
             />
             {set?.styles && (
               <select
                 aria-label="Stile delle icone"
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
-                className="h-7 rounded-md border border-line2 bg-input px-1 text-[11.5px] outline-none focus:border-accent"
+                className="h-7 rounded-md border border-line2 bg-input px-1 text-[12px] outline-none focus:border-accent"
               >
                 {set.styles.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -120,7 +120,7 @@ export function IconSection({
           </div>
           {set ? (
             !loaded ? (
-              <p className="py-6 text-center text-[12px] text-fg3">Carico {set.label}…</p>
+              <p className="py-6 text-center text-[12.5px] text-fg3">Carico {set.label}…</p>
             ) : (
               <>
                 <div className="grid max-h-72 grid-cols-6 gap-1 overflow-y-auto pr-0.5">
@@ -141,7 +141,7 @@ export function IconSection({
                     )
                   })}
                 </div>
-                <p className="text-[11px] text-fg3">
+                <p className="text-[11.5px] text-fg3">
                   {found.length === 0
                     ? 'Nessuna icona: prova in inglese (arrow, mail…).'
                     : found.length > LIMIT
@@ -157,7 +157,7 @@ export function IconSection({
                 if (!items.length) return null
                 return (
                   <div key={g}>
-                    <div className="mb-1 text-[10.5px] font-medium tracking-wide text-fg3 uppercase">{g}</div>
+                    <div className="mb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">{g}</div>
                     <div className="grid grid-cols-6 gap-1">
                       {items.map((i) => (
                         <button
@@ -201,7 +201,7 @@ export function IconSection({
           value={node.href ?? ''}
           placeholder="nessuno, oppure /contatti"
           onChange={(e) => onContent({ href: e.target.value || undefined }, `href:${node.id}`)}
-          className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+          className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
         />
       </Row>
       <input
@@ -209,7 +209,7 @@ export function IconSection({
         value={node.alt ?? ''}
         placeholder="Descrizione (vuota se è solo decorativa)"
         onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
-        className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[12px] outline-none focus:border-accent"
+        className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
       />
     </Section>
   )

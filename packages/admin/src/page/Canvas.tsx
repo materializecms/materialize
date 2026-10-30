@@ -1057,7 +1057,7 @@ export function Canvas({
           data-mz-bg
           className={cx('flex min-h-full flex-col items-center px-12 pb-24', rulers && !preview ? 'pt-10' : 'pt-8')}
         >
-          <div className="mb-2 flex w-full items-center gap-2 text-[11.5px] text-fg3" style={{ width: width * scale }}>
+          <div className="mb-2 flex w-full items-center gap-2 text-[12px] text-fg3" style={{ width: width * scale }}>
             <span className="font-medium text-fg2">{DEVICE_LABEL[device]}</span>
             <span className="font-mono">{width} px</span>
             <span className="ml-auto font-mono">{Math.round(scale * 100)}%</span>
@@ -1109,7 +1109,7 @@ export function Canvas({
               {/* What a click would select, named before clicking (small texts sit close together). */}
               {boxes.hover && hoverNode && !dragging && !measuring && mode === 'design' && (
                 <div
-                  className="absolute rounded-[3px] bg-accent/85 px-1 font-mono text-[10px] whitespace-nowrap text-white"
+                  className="absolute rounded-[3px] bg-accent/85 px-1 font-mono text-[11px] whitespace-nowrap text-white"
                   style={{ left: boxes.hover.x, top: boxes.hover.y + boxes.hover.h + 2 }}
                 >
                   {hoverNode.name || typeLabel(hoverNode)}
@@ -1125,7 +1125,7 @@ export function Canvas({
                       style={{ left: b.x - 1, top: b.y - 1, width: b.w + 2, height: b.h + 2, borderColor: m.color }}
                     />
                     <div
-                      className="absolute rounded-[4px] px-1.5 py-px text-[11px] font-medium whitespace-nowrap text-white"
+                      className="absolute rounded-[4px] px-1.5 py-px text-[11.5px] font-medium whitespace-nowrap text-white"
                       style={{
                         left: b.x + b.w - 1,
                         top: Math.max(0, b.y - 20),
@@ -1140,7 +1140,7 @@ export function Canvas({
                   <span
                     key={`c${m.id}`}
                     title={`${m.label} ${m.label === '1' ? 'commento aperto' : 'commenti aperti'}`}
-                    className="absolute flex size-5 items-center justify-center rounded-full rounded-bl-none text-[10.5px] font-semibold text-white shadow"
+                    className="absolute flex size-5 items-center justify-center rounded-full rounded-bl-none text-[11px] font-semibold text-white shadow"
                     style={{ left: b.x + b.w - 10, top: b.y - 10, background: m.color }}
                   >
                     {m.label}
@@ -1185,7 +1185,7 @@ export function Canvas({
                       />
                       <span
                         className={cx(
-                          'absolute rounded-[3px] bg-[#06b6d4] px-1 font-mono text-[10px] whitespace-nowrap text-white',
+                          'absolute rounded-[3px] bg-[#06b6d4] px-1 font-mono text-[11px] whitespace-nowrap text-white',
                           active ? 'block' : 'hidden group-hover/guide:block',
                         )}
                         style={g.axis === 'x' ? { left: 6, top: 4 } : { top: 6, left: 4 }}
@@ -1213,7 +1213,7 @@ export function Canvas({
                     }}
                   />
                   <span
-                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[10.5px] text-white"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[11px] text-white"
                     style={{ left: (g.x1 + g.x2) / 2, top: (g.y1 + g.y2) / 2 }}
                   >
                     {g.label}
@@ -1246,7 +1246,7 @@ export function Canvas({
                       }}
                     />
                     <span
-                      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[10.5px] text-white"
+                      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[3px] bg-[#f43f5e] px-1 font-mono text-[11px] text-white"
                       style={{ left: (g.x1 + g.x2) / 2, top: (g.y1 + g.y2) / 2 }}
                     >
                       {g.label}
@@ -1269,7 +1269,7 @@ export function Canvas({
                   />
                   {chip && !editing && !measuring && (
                     <div
-                      className="absolute rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
+                      className="absolute rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11.5px] whitespace-nowrap text-white"
                       style={{ left: boxes.sel.x - 1, top: Math.max(0, boxes.sel.y - 20) }}
                     >
                       {chip}
@@ -1306,7 +1306,7 @@ export function Canvas({
               )}
             {badge && boxes.sel && (
               <div
-                className="pointer-events-none absolute -translate-x-1/2 rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11px] whitespace-nowrap text-white"
+                className="pointer-events-none absolute -translate-x-1/2 rounded-[4px] bg-accent px-1.5 py-px font-mono text-[11.5px] whitespace-nowrap text-white"
                 style={{ left: boxes.sel.x + boxes.sel.w / 2, top: boxes.sel.y + boxes.sel.h + 8 }}
               >
                 {badge}
@@ -1318,7 +1318,7 @@ export function Canvas({
                 className="pointer-events-none absolute flex items-center justify-center"
                 style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
               >
-                <span className="flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[12px] font-medium text-white">
+                <span className="flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[12.5px] font-medium text-white">
                   <ImagePlus className="size-3.5" /> Cambia immagine
                 </span>
               </div>
@@ -1676,7 +1676,7 @@ function FormatBar({ x, y }: { x: number; y: number }) {
               setLink(null)
               restore()
             }}
-            className="h-7 w-48 rounded-md bg-white/10 px-2 font-mono text-[12px] text-white outline-none placeholder:text-white/50"
+            className="h-7 w-48 rounded-md bg-white/10 px-2 font-mono text-[12.5px] text-white outline-none placeholder:text-white/50"
           />
         </form>
       )}

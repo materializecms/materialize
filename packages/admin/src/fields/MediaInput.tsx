@@ -128,7 +128,7 @@ export function MediaInput({
           ) : (
             <>
               {broken && (
-                <span className="flex items-center gap-1.5 text-[12px] text-warn">
+                <span className="flex items-center gap-1.5 text-[13px] text-warn">
                   <ImageOff className="size-4" /> Immagine non raggiungibile
                 </span>
               )}
@@ -140,7 +140,7 @@ export function MediaInput({
                   Libreria
                 </Button>
               </div>
-              <span className="text-[11.5px] text-fg3">oppure trascina qui un’immagine</span>
+              <span className="text-[12px] text-fg3">oppure trascina qui un’immagine</span>
             </>
           )}
         </div>
@@ -149,7 +149,7 @@ export function MediaInput({
         {(byUrl || external) && (
           <Input
             placeholder="https://…/foto.jpg"
-            className="font-mono text-[12px]"
+            className="font-mono text-[13px]"
             value={v.src}
             autoFocus={byUrl && !v.src}
             onChange={(e) => {

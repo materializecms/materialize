@@ -44,7 +44,7 @@ export function InviteScreen({ token }: { token: string }) {
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
 
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-12">
@@ -104,11 +104,11 @@ export function InviteScreen({ token }: { token: string }) {
                   autoComplete="new-password"
                   autoFocus={info.data.kind === 'reset'}
                 />
-                <span className="mt-1 block text-[12px] text-fg3">Almeno 10 caratteri.</span>
+                <span className="mt-1 block text-[13px] text-fg3">Almeno 10 caratteri.</span>
               </label>
             </div>
             {error && (
-              <p role="alert" className="mt-4 text-[13px] text-danger">
+              <p role="alert" className="mt-4 text-[14px] text-danger">
                 {error}
               </p>
             )}

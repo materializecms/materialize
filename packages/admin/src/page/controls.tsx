@@ -19,7 +19,7 @@ export function Section({
 }) {
   return (
     <section className="space-y-2.5 border-b border-line px-3.5 pt-3 pb-3.5">
-      <h3 className="flex min-h-5 items-center justify-between gap-2 text-[12px] font-semibold">
+      <h3 className="flex min-h-5 items-center justify-between gap-2 text-[12.5px] font-semibold">
         <span className="flex items-center gap-1.5">
           {title}
           {overridden && (
@@ -49,7 +49,7 @@ export function Section({
 export function Row({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <div className="grid grid-cols-[84px_minmax(0,1fr)] items-center gap-2" title={hint}>
-      <span className="truncate text-[11.5px] font-medium text-fg2">{label}</span>
+      <span className="truncate text-[12px] font-medium text-fg2">{label}</span>
       <div className="flex min-w-0 items-center gap-1.5">{children}</div>
     </div>
   )
@@ -78,7 +78,7 @@ export function Seg<T extends string | number>({
           aria-label={o.title}
           onClick={() => onChange(o.value)}
           className={cx(
-            'inline-flex h-6 min-w-0 flex-1 items-center justify-center rounded-[5px] px-1.5 text-[11.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
+            'inline-flex h-6 min-w-0 flex-1 items-center justify-center rounded-[5px] px-1.5 text-[12px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
             value === o.value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
           )}
         >
@@ -126,7 +126,7 @@ export function NumField({
     <div className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-line2 bg-input pr-2 focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15">
       {label && (
         <span
-          className="cursor-ew-resize pl-2 font-mono text-[10.5px] text-fg3 select-none"
+          className="cursor-ew-resize pl-2 font-mono text-[11px] text-fg3 select-none"
           onPointerDown={(e) => {
             drag.current = { x: e.clientX, start: value ?? 0 }
             e.currentTarget.setPointerCapture(e.pointerId)
@@ -156,9 +156,9 @@ export function NumField({
             onChange(clamp((value ?? 0) + delta))
           }
         }}
-        className="h-full w-full min-w-0 bg-transparent px-2 font-mono text-[12px] text-fg outline-none placeholder:text-fg3"
+        className="h-full w-full min-w-0 bg-transparent px-2 font-mono text-[12.5px] text-fg outline-none placeholder:text-fg3"
       />
-      {suffix ?? <span className="font-mono text-[10.5px] text-fg3">{unit}</span>}
+      {suffix ?? <span className="font-mono text-[11px] text-fg3">{unit}</span>}
     </div>
   )
 }
@@ -174,7 +174,7 @@ export function Toggle({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[12px] text-fg2">{label}</span>
+      <span className="text-[12.5px] text-fg2">{label}</span>
       <Switch checked={checked} onChange={onChange} label={label} />
     </div>
   )
@@ -196,7 +196,7 @@ export function Select<T extends string>({
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
-      className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-1.5 text-[12px] text-fg outline-none focus:border-accent"
+      className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-1.5 text-[12.5px] text-fg outline-none focus:border-accent"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -226,7 +226,7 @@ export function Chips<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'h-[26px] rounded-md border px-2 text-[11.5px] font-medium transition-colors',
+            'h-[26px] rounded-md border px-2 text-[12px] font-medium transition-colors',
             value === o.value
               ? 'border-accent bg-accent/10 text-accent'
               : 'border-line2 text-fg2 hover:border-fg3/50 hover:text-fg',
@@ -315,10 +315,10 @@ export function ColorField({
           className="absolute inset-0 cursor-pointer opacity-0"
         />
       </label>
-      {custom && <span className="font-mono text-[10.5px] text-fg3 uppercase">{value}</span>}
+      {custom && <span className="font-mono text-[11px] text-fg3 uppercase">{value}</span>}
       {/* The chosen theme color by name: the swatches alone do not say it. */}
       {!custom && (
-        <span className="w-full text-[10.5px] text-fg3">
+        <span className="w-full text-[11px] text-fg3">
           {value ? (tokens.find((t) => t.value === value)?.label ?? value) : (none ?? '')}
         </span>
       )}
@@ -379,7 +379,7 @@ export function LenField({
             setUnit(e.target.value)
             if (parsed.n !== null) emit(parsed.n, e.target.value)
           }}
-          className="-mr-1 shrink-0 cursor-pointer appearance-none bg-transparent font-mono text-[10.5px] text-fg3 outline-none hover:text-accent"
+          className="-mr-1 shrink-0 cursor-pointer appearance-none bg-transparent font-mono text-[11px] text-fg3 outline-none hover:text-accent"
         >
           {LEN_UNITS.map((u) => (
             <option key={u} value={u}>

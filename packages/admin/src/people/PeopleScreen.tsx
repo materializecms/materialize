@@ -72,7 +72,7 @@ function LinkDialog({
     >
       <p className="mb-3">{link?.text}</p>
       <div className="flex gap-1.5">
-        <Input readOnly value={url} className="font-mono text-[12px]" onFocus={(e) => e.target.select()} />
+        <Input readOnly value={url} className="font-mono text-[13px]" onFocus={(e) => e.target.select()} />
         <Button
           data-autofocus
           icon={copied ? <Check className="size-4 text-ok" /> : <Copy className="size-4" />}
@@ -86,7 +86,7 @@ function LinkDialog({
           {copied ? 'Copiato' : 'Copia'}
         </Button>
       </div>
-      <p className="mt-2 text-[12px] text-fg3">
+      <p className="mt-2 text-[13px] text-fg3">
         Chi ha il link può usarlo una sola volta: invialo solo alla persona giusta.
       </p>
     </Dialog>
@@ -128,7 +128,7 @@ function InviteDialog({
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
     <Dialog open={open} onClose={onClose} width={440} title="Invita una persona">
       <form onSubmit={submit} className="space-y-4 pt-2">
@@ -157,9 +157,9 @@ function InviteDialog({
               { value: 'admin', label: ROLES.admin.label },
             ]}
           />
-          <p className="mt-1.5 text-[12px] text-fg3">{ROLES[role].hint}.</p>
+          <p className="mt-1.5 text-[13px] text-fg3">{ROLES[role].hint}.</p>
         </div>
-        {error && <p className="text-[13px] text-danger">{error}</p>}
+        {error && <p className="text-[14px] text-danger">{error}</p>}
         <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
           <Button onClick={onClose}>Annulla</Button>
           <Button type="submit" variant="primary" loading={busy} icon={<Mail className="size-4" />}>
@@ -242,26 +242,26 @@ export function PeopleScreen() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">
                       {person.name}
-                      {person.id === me.id && <span className="ml-1.5 text-[12px] font-normal text-fg3">(tu)</span>}
+                      {person.id === me.id && <span className="ml-1.5 text-[13px] font-normal text-fg3">(tu)</span>}
                     </div>
-                    <div className="truncate text-[12.5px] text-fg3">{person.email}</div>
+                    <div className="truncate text-[13px] text-fg3">{person.email}</div>
                   </div>
                   <span
-                    className="hidden w-36 text-[12.5px] text-fg3 sm:block"
+                    className="hidden w-36 text-[13px] text-fg3 sm:block"
                     title={person.lastSeenAt ? fullDate(person.lastSeenAt) : undefined}
                   >
                     {person.lastSeenAt ? `Accesso ${relativeTime(person.lastSeenAt)}` : 'Mai entrato'}
                   </span>
                   <span
                     className={cx(
-                      'hidden w-16 text-[11.5px] font-medium md:block',
+                      'hidden w-16 text-[12px] font-medium md:block',
                       person.twoFactor ? 'text-ok' : 'text-fg3',
                     )}
                     title={person.twoFactor ? 'Entra con password e codice dall’app' : 'Entra solo con la password'}
                   >
                     {person.twoFactor ? '2 passaggi' : '—'}
                   </span>
-                  <span className="inline-flex w-36 items-center gap-1.5 text-[12.5px]">
+                  <span className="inline-flex w-36 items-center gap-1.5 text-[13px]">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
                     {ROLES[person.role].label}
                   </span>
@@ -276,7 +276,7 @@ export function PeopleScreen() {
                   >
                     {(close) => (
                       <div className="p-1">
-                        <div className="px-2 pt-1.5 pb-1 text-[11px] font-medium text-fg3">Ruolo</div>
+                        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">Ruolo</div>
                         {(['editor', 'admin'] as const).map((role) => (
                           <MenuItem
                             key={role}
@@ -352,7 +352,7 @@ export function PeopleScreen() {
 
             {people.data.invites.length > 0 && (
               <section className="mt-8">
-                <h2 className="mb-2 text-[12px] font-medium text-fg3">Inviti in attesa</h2>
+                <h2 className="mb-2 text-[13px] font-medium text-fg3">Inviti in attesa</h2>
                 <div className="overflow-hidden rounded-lg border border-line bg-panel">
                   {people.data.invites.map((invite) => (
                     <div
@@ -364,7 +364,7 @@ export function PeopleScreen() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{invite.name || invite.email}</div>
-                        <div className="truncate text-[12.5px] text-fg3">
+                        <div className="truncate text-[13px] text-fg3">
                           {ROLES[invite.role].label} · scade {relativeTime(invite.expiresAt)}
                         </div>
                       </div>
@@ -408,7 +408,7 @@ export function PeopleScreen() {
               </section>
             )}
 
-            <p className="mt-6 text-[12.5px] text-fg3">
+            <p className="mt-6 text-[13px] text-fg3">
               <strong className="font-medium text-fg2">Editor</strong>: {ROLES.editor.hint.toLowerCase()}.{' '}
               <strong className="font-medium text-fg2">Amministratori</strong>: {ROLES.admin.hint.toLowerCase()}.
             </p>
@@ -495,8 +495,8 @@ function TwoFactorSetting({ everyone, missing, mine }: { everyone: boolean; miss
         }}
       />
       <div>
-        <div className="text-[13px] font-medium">Richiedi la verifica in due passaggi a tutti</div>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+        <div className="text-[14px] font-medium">Richiedi la verifica in due passaggi a tutti</div>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
           Per entrare servono la password e un codice dall’app del telefono: una password rubata da sola non basta.{' '}
           {!mine
             ? 'Prima attivala per te, dal tuo profilo → Sicurezza.'
@@ -533,8 +533,8 @@ function EditorialSetting() {
         }}
       />
       <div>
-        <div className="text-[13px] font-medium">I redattori modificano solo i contenuti</div>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+        <div className="text-[14px] font-medium">I redattori modificano solo i contenuti</div>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
           Chi ha il ruolo di redattore apre le pagine in modalità Contenuto: scrive testi, cambia immagini e
           collegamenti, ma non può spostare, aggiungere o restilizzare gli elementi. Il design resta agli
           amministratori.
@@ -585,7 +585,7 @@ function EditPersonDialog({
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
     <Dialog open onClose={onClose} width={420} title={`Modifica ${person.name}`}>
       <form onSubmit={submit} className="space-y-4 pt-2">
@@ -596,13 +596,13 @@ function EditPersonDialog({
         <label className="block">
           <span className={label}>Email</span>
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <span className="mt-1 block text-[12px] text-fg3">
+          <span className="mt-1 block text-[13px] text-fg3">
             {changedEmail
               ? 'Da ora entrerà con il nuovo indirizzo; la password non cambia. Se l’email è configurata, il vecchio indirizzo riceve un avviso.'
               : 'È l’indirizzo con cui entra nel pannello.'}
           </span>
         </label>
-        {error && <p className="text-[13px] text-danger">{error}</p>}
+        {error && <p className="text-[14px] text-danger">{error}</p>}
         <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
           <Button onClick={onClose}>Annulla</Button>
           <Button type="submit" variant="primary" loading={busy}>

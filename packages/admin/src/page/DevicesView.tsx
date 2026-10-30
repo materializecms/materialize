@@ -69,7 +69,7 @@ export function DevicesView({
       <div className="flex items-start justify-center" style={{ gap }}>
         {devices.map((d) => (
           <div key={d} style={{ width: widths[d] * scale }} className="shrink-0">
-            <div className="mb-2 flex items-center justify-between text-[11.5px] text-fg3">
+            <div className="mb-2 flex items-center justify-between text-[12px] text-fg3">
               <span className="font-medium text-fg2">{LABEL[d]}</span>
               <span className="font-mono">{widths[d]} px</span>
             </div>

@@ -39,7 +39,7 @@ export function FontPicker({
           type="button"
           aria-label={label}
           onClick={toggle}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-md border border-line2 bg-input px-2 text-left text-[12.5px] hover:border-fg3/50"
+          className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-md border border-line2 bg-input px-2 text-left text-[13px] hover:border-fg3/50"
         >
           <span className="min-w-0 flex-1 truncate" style={{ fontFamily: fontStack(value) }}>
             {value}
@@ -85,7 +85,7 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
             onChange={(e) => setQuery(e.target.value)}
             placeholder={fonts.data ? `Cerca tra ${fonts.data.items.length} caratteri` : 'Cerca'}
             aria-label="Cerca un carattere"
-            className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[12.5px] outline-none focus:border-accent"
+            className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
           />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -95,7 +95,7 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
               type="button"
               onClick={() => setCategory(c.value)}
               className={cx(
-                'h-6 rounded-full px-2 text-[11px] font-medium',
+                'h-6 rounded-full px-2 text-[11.5px] font-medium',
                 category === c.value ? 'bg-fg text-bg' : 'bg-seg text-fg2 hover:text-fg',
               )}
             >
@@ -115,11 +115,13 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
               <FontRow key={f.id} font={f} selected={f.family === value} onPick={() => onPick(f)} />
             ))}
             {matches.length > SHOWN && (
-              <p className="px-2 py-2 text-[11.5px] text-fg3">
+              <p className="px-2 py-2 text-[12px] text-fg3">
                 Altri {matches.length - SHOWN} caratteri: scrivi il nome per trovarli.
               </p>
             )}
-            {!matches.length && <p className="px-2 py-4 text-center text-[12px] text-fg3">Nessun carattere trovato.</p>}
+            {!matches.length && (
+              <p className="px-2 py-4 text-center text-[12.5px] text-fg3">Nessun carattere trovato.</p>
+            )}
           </>
         )}
       </div>
@@ -158,7 +160,7 @@ function FontRow({ font, selected, onPick }: { font: FontInfo; selected: boolean
       >
         {font.family}
       </span>
-      <span className="shrink-0 text-[10.5px] text-fg3">
+      <span className="shrink-0 text-[11px] text-fg3">
         {font.variable ? 'variabile' : `${font.weights.length} pesi`}
       </span>
       {selected && <Check className="size-3.5 shrink-0 text-accent" />}

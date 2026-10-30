@@ -53,7 +53,7 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
     }
   }
 
-  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
 
   if (ticket)
     return (
@@ -109,11 +109,11 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
               minLength={mode === 'setup' ? 10 : undefined}
               autoComplete={mode === 'setup' ? 'new-password' : 'current-password'}
             />
-            {mode === 'setup' && <span className="mt-1 block text-[12px] text-fg3">Almeno 10 caratteri.</span>}
+            {mode === 'setup' && <span className="mt-1 block text-[13px] text-fg3">Almeno 10 caratteri.</span>}
           </label>
         </div>
         {error && (
-          <p role="alert" className="mt-4 text-[13px] text-danger">
+          <p role="alert" className="mt-4 text-[14px] text-danger">
             {error}
           </p>
         )}
@@ -167,14 +167,14 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
         className="font-mono tracking-[0.2em]"
       />
       {error && (
-        <p role="alert" className="mt-4 text-[13px] text-danger">
+        <p role="alert" className="mt-4 text-[14px] text-danger">
           {error}
         </p>
       )}
       <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
         Continua
       </Button>
-      <div className="mt-4 flex justify-between text-[12.5px]">
+      <div className="mt-4 flex justify-between text-[13px]">
         <button type="button" className="text-fg2 hover:text-fg" onClick={onBack}>
           Indietro
         </button>

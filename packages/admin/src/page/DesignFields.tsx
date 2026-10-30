@@ -67,7 +67,7 @@ export function TypographyExtra({ node, p, palette, onProp, onProps }: Props) {
         <button
           type="button"
           onClick={() => onProp('font', null)}
-          className="text-left text-[11.5px] text-accent hover:underline"
+          className="text-left text-[12px] text-accent hover:underline"
         >
           Usa il carattere del tema
         </button>
@@ -108,8 +108,8 @@ export function TypographyExtra({ node, p, palette, onProp, onProps }: Props) {
             onClick={() => onProp(k, !p[k] || undefined)}
             className={
               p[k]
-                ? 'h-7 rounded-md border border-accent bg-accent/10 text-[11.5px] font-medium text-accent'
-                : 'h-7 rounded-md border border-line2 text-[11.5px] font-medium text-fg2 hover:text-fg'
+                ? 'h-7 rounded-md border border-accent bg-accent/10 text-[12px] font-medium text-accent'
+                : 'h-7 rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:text-fg'
             }
           >
             {label}
@@ -204,7 +204,7 @@ export function PositionSection(props: Props) {
       </Row>
       {abs && (
         <>
-          <p className="text-[11px] leading-relaxed text-fg3">
+          <p className="text-[11.5px] leading-relaxed text-fg3">
             Si sovrappone agli altri elementi del contenitore. Trascinalo sulla tela per spostarlo.
           </p>
           <Row label="Dall’alto">
@@ -277,7 +277,7 @@ export function EffectsSection({ node, p, onProp, sect }: Props) {
           className="flex-1 accent-[var(--accent)]"
           aria-label="Opacità"
         />
-        <span className="w-9 text-right font-mono text-[11px] text-fg3">{Math.round((p.opa ?? 1) * 100)}%</span>
+        <span className="w-9 text-right font-mono text-[11.5px] text-fg3">{Math.round((p.opa ?? 1) * 100)}%</span>
       </Row>
       <Row label="Fusione">
         <Select
@@ -384,16 +384,16 @@ export function MediaContent({
           value={node.src ?? ''}
           placeholder="https://…/video.mp4"
           onChange={(e) => onContent({ src: e.target.value || null }, `src:${node.id}`)}
-          className="h-7 w-full rounded-md border border-line2 bg-input px-2 font-mono text-[12px] outline-none focus:border-accent"
+          className="h-7 w-full rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
         />
-        <p className="text-[11px] leading-relaxed text-fg3">
+        <p className="text-[11.5px] leading-relaxed text-fg3">
           Un file MP4 o WebM. Parte da solo, in silenzio e in loop.
         </p>
         <Row label="Copertina">
           <button
             type="button"
             onClick={onPickPoster}
-            className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12px] hover:border-fg3/50"
+            className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12.5px] hover:border-fg3/50"
           >
             {node.poster ? 'Cambia immagine' : 'Scegli un’immagine'}
           </button>
@@ -414,9 +414,9 @@ export function MediaContent({
           disabled={!canCode}
           placeholder="<div>…</div>"
           onChange={(e) => onContent({ html: e.target.value }, `html:${node.id}`)}
-          className="min-h-32 font-mono text-[11.5px]"
+          className="min-h-32 font-mono text-[12px]"
         />
-        <p className="text-[11px] leading-relaxed text-fg3">
+        <p className="text-[11.5px] leading-relaxed text-fg3">
           {canCode
             ? 'HTML, CSS e JavaScript inseriti così come sono nel sito. Nell’editor girano in un riquadro isolato.'
             : 'Il codice personalizzato lo modifica un amministratore.'}
@@ -511,7 +511,7 @@ function Slider({
         className="flex-1 accent-[var(--accent)]"
         aria-label={label}
       />
-      <span className="w-8 text-right font-mono text-[11px] text-fg3">{value.toFixed(2)}</span>
+      <span className="w-8 text-right font-mono text-[11.5px] text-fg3">{value.toFixed(2)}</span>
     </Row>
   )
 }
@@ -563,7 +563,7 @@ export function SceneSection({
           <div ref={previews} className="space-y-2.5">
             {SCENE_GROUPS.map((g) => (
               <div key={g.label} className="space-y-1">
-                <div className="text-[10.5px] font-medium text-fg3">{g.label}</div>
+                <div className="text-[11px] font-medium text-fg3">{g.label}</div>
                 <div className="grid grid-cols-2 gap-1">
                   {g.items.map((p) => (
                     <button
@@ -579,8 +579,8 @@ export function SceneSection({
                       }
                       className={
                         cfg.preset === p.value
-                          ? 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-accent bg-panel2 text-left text-[11px] font-medium text-white'
-                          : 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-transparent bg-panel2 text-left text-[11px] font-medium text-white hover:border-line2'
+                          ? 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-accent bg-panel2 text-left text-[11.5px] font-medium text-white'
+                          : 'relative flex h-12 items-end overflow-hidden rounded-md border-2 border-transparent bg-panel2 text-left text-[11.5px] font-medium text-white hover:border-line2'
                       }
                     >
                       {previewOf(p.value) ? (
@@ -651,9 +651,9 @@ export function SceneSection({
                     value={cfg.svg ?? ''}
                     placeholder="<svg viewBox=…>…</svg>"
                     onChange={(e) => set({ svg: e.target.value || null }, 'svg')}
-                    className="min-h-24 font-mono text-[11px]"
+                    className="min-h-24 font-mono text-[11.5px]"
                   />
-                  <p className="text-[11px] leading-relaxed text-fg3">
+                  <p className="text-[11.5px] leading-relaxed text-fg3">
                     Incolla l’SVG del marchio (da Figma o Illustrator): ogni forma piena diventa un solido con i bordi
                     smussati.
                   </p>
@@ -665,12 +665,12 @@ export function SceneSection({
                     <button
                       type="button"
                       onClick={onPickImage}
-                      className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12px] hover:border-fg3/50"
+                      className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12.5px] hover:border-fg3/50"
                     >
                       {cfg.model ? cfg.model.split('/').pop() : 'Scegli un file .glb'}
                     </button>
                   </Row>
-                  <p className="text-[11px] leading-relaxed text-fg3">
+                  <p className="text-[11.5px] leading-relaxed text-fg3">
                     Carica un modello .glb nella libreria media, poi sceglilo qui.
                   </p>
                 </>
@@ -729,7 +729,7 @@ export function SceneSection({
               <button
                 type="button"
                 onClick={onPickImage}
-                className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12px] hover:border-fg3/50"
+                className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12.5px] hover:border-fg3/50"
               >
                 {cfg.image ? 'Cambia immagine' : 'Scegli un’immagine'}
               </button>
@@ -741,12 +741,12 @@ export function SceneSection({
                 <button
                   type="button"
                   onClick={onPickImage2}
-                  className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12px] hover:border-fg3/50"
+                  className="h-7 flex-1 truncate rounded-md border border-line2 bg-input px-2 text-left text-[12.5px] hover:border-fg3/50"
                 >
                   {cfg.image2 ? 'Cambia la seconda' : 'Scegli la seconda immagine'}
                 </button>
               </Row>
-              <p className="text-[11px] leading-relaxed text-fg3">
+              <p className="text-[11.5px] leading-relaxed text-fg3">
                 Passando il mouse sulla scheda (o sul contenitore), la prima immagine si scioglie nella seconda.
               </p>
             </>
@@ -757,9 +757,9 @@ export function SceneSection({
                 aria-label="Shader GLSL"
                 value={cfg.code ?? ''}
                 onChange={(e) => set({ code: e.target.value }, 'code')}
-                className="min-h-40 font-mono text-[11px]"
+                className="min-h-40 font-mono text-[11.5px]"
               />
-              <p className="text-[11px] leading-relaxed text-fg3">
+              <p className="text-[11.5px] leading-relaxed text-fg3">
                 GLSL: u_time, u_res, u_mouse, u_scroll, u_c1…u_c3, u_intensity e le funzioni noise e fbm. Se il codice
                 ha un errore, si vede la sfumatura fluida.
               </p>

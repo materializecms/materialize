@@ -412,7 +412,7 @@ export function SiteCanvas(props: SiteCanvasProps) {
       )}
       {error && (
         <div className="absolute inset-x-0 top-4 flex justify-center">
-          <div className="flex items-center gap-2 rounded-lg bg-panel px-3 py-2 text-[12.5px] text-warn shadow-pop">
+          <div className="flex items-center gap-2 rounded-lg bg-panel px-3 py-2 text-[13px] text-warn shadow-pop">
             <TriangleAlert className="size-4" /> Anteprima non aggiornata: {error}
           </div>
         </div>
