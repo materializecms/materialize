@@ -443,6 +443,34 @@ export function createApp(base: ServerContext) {
     return c.json({ user: await auth.updateUser(c.get('user').id, input) })
   })
 
+  /** A changed sign-in address: the old one is told, in case it was not its owner who changed it. */
+  const emailChanged = async (before: string, after: string, by: string) => {
+    await mailNotice(before, 'Il tuo indirizzo email è cambiato', [
+      `${by === 'self' ? 'Hai cambiato' : `${by} ha cambiato`} l’indirizzo con cui entri nel pannello del sito: da ${before} a ${after}.`,
+      'Se non te lo aspettavi, rispondi a questa email o avvisa un amministratore del sito.',
+    ])
+  }
+
+  // Changing one's own email needs the password: a session left open is not enough.
+  app.post('/api/auth/email', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ email: z.email(), password: z.string().min(1) }))
+    const user = c.get('user')
+    const hash = await auth.getPasswordHash(user.id)
+    if (!hash || !(await verifyPassword(input.password, hash))) {
+      throw new ApiError(422, 'wrong_password', 'The password is not correct', [
+        { path: 'password', message: 'La password non è corretta' },
+      ])
+    }
+    try {
+      const updated = await auth.updateUser(user.id, { email: input.email })
+      if (updated && updated.email !== user.email) await emailChanged(user.email, updated.email, 'self')
+      return c.json({ user: updated })
+    } catch (error) {
+      if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
+      throw error
+    }
+  })
+
   app.post('/api/auth/password', requireUser, requireSession, async (c) => {
     const input = await body(c, z.object({ current: z.string().min(1), next: z.string().min(10) }))
     const user = c.get('user')
@@ -508,12 +536,23 @@ export function createApp(base: ServerContext) {
     const target = await loadUser(c.req.param('id'))
     const input = await body(
       c,
-      z.object({ role: roleSchema.optional(), name: z.string().trim().min(1).max(80).optional() }),
+      z.object({
+        role: roleSchema.optional(),
+        name: z.string().trim().min(1).max(80).optional(),
+        email: z.email().optional(),
+      }),
     )
     if (target.role === 'admin' && input.role === 'editor' && (await auth.countAdmins()) === 1) {
       throw new ApiError(409, 'last_admin', 'The site needs at least one administrator')
     }
-    return c.json({ user: await auth.updateUser(target.id, input) })
+    try {
+      const updated = await auth.updateUser(target.id, input)
+      if (updated && updated.email !== target.email) await emailChanged(target.email, updated.email, c.get('user').name)
+      return c.json({ user: updated })
+    } catch (error) {
+      if (error instanceof EmailTakenError) throw new ApiError(409, 'email_taken', error.message)
+      throw error
+    }
   })
 
   app.delete('/api/users/:id', requireUser, requireSession, requireAdmin, async (c) => {
@@ -755,6 +794,19 @@ export function createApp(base: ServerContext) {
   // ---------- email and forms ----------
 
   /** Sends a one-time link by email when email is set up; false when it is not (the link is shown instead). */
+  /** Sends a notice by email when email is set up; false when it is not. */
+  const mailNotice = async (to: string, subject: string, lines: string[]) => {
+    const mail = await settings.get<MailSettings>('mail')
+    if (!isConfigured(mail)) return false
+    try {
+      await sendMail(mail, { to, subject, text: `${lines.join('\n\n')}\n` })
+      return true
+    } catch (error) {
+      console.error('Materialize: email not sent', error)
+      return false
+    }
+  }
+
   const mailLink = async (c: Context<Env>, to: string, subject: string, lines: string[], path: string) => {
     const mail = await settings.get<MailSettings>('mail')
     if (!isConfigured(mail)) return false

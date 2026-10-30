@@ -138,4 +138,37 @@ describe('people', () => {
     expect(ok.status).toBe(200)
     expect((await admin('GET', '/api/auth/me')).status).toBe(200)
   })
+
+  it('lets people change their own email, confirmed with the password', async () => {
+    const { marco } = await addEditor()
+    const wrong = await marco('POST', '/api/auth/email', { email: 'marco@studio.it', password: 'sbagliata' })
+    expect(wrong.status).toBe(422)
+    const taken = await marco('POST', '/api/auth/email', {
+      email: 'Elena@StudioRossi.it',
+      password: 'password-di-marco',
+    })
+    expect(taken.status).toBe(409)
+    const ok = await marco('POST', '/api/auth/email', { email: 'Marco@Studio.it', password: 'password-di-marco' })
+    expect(ok.body.user.email).toBe('marco@studio.it')
+    // The new address signs in, the old one no longer does.
+    const fresh = client()
+    expect(
+      (await fresh('POST', '/api/auth/login', { email: 'marco@studiorossi.it', password: 'password-di-marco' })).status,
+    ).toBe(401)
+    expect(
+      (await fresh('POST', '/api/auth/login', { email: 'marco@studio.it', password: 'password-di-marco' })).status,
+    ).toBe(200)
+  })
+
+  it('lets administrators correct someone else’s email', async () => {
+    const { marco, id } = await addEditor()
+    expect((await admin('PATCH', `/api/users/${id}`, { email: 'marco@studio.it' })).body.user.email).toBe(
+      'marco@studio.it',
+    )
+    expect((await admin('PATCH', `/api/users/${id}`, { email: 'elena@studiorossi.it' })).status).toBe(409)
+    expect((await admin('PATCH', `/api/users/${id}`, { email: 'non-una-email' })).status).toBe(422)
+    // An editor cannot change other people.
+    const me = (await admin('GET', '/api/auth/me')).body.user
+    expect((await marco('PATCH', `/api/users/${me.id}`, { email: 'x@y.it' })).status).toBe(403)
+  })
 })

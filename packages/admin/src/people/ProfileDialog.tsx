@@ -9,6 +9,9 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
   const { user } = useSession()
   const queryClient = useQueryClient()
   const [name, setName] = useState(user.name)
+  const [email, setEmail] = useState(user.email)
+  const [confirm, setConfirm] = useState('')
+  const emailChanged = email.trim().toLowerCase() !== user.email
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -20,18 +23,24 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
     setError(null)
     try {
       if (name.trim() && name.trim() !== user.name) await api.updateMe({ name: name.trim() })
+      if (emailChanged) await api.changeEmail({ email: email.trim(), password: confirm })
       if (next) await api.changePassword({ current, next })
       await queryClient.invalidateQueries({ queryKey: ['me'] })
       toast(next ? 'Profilo e password aggiornati' : 'Profilo aggiornato')
       setCurrent('')
       setNext('')
+      setConfirm('')
       onClose()
     } catch (err) {
       const issues = err instanceof ApiError ? err.issues : []
       setError(
         issues.some((i) => i.path === 'next')
           ? 'La nuova password deve avere almeno 10 caratteri'
-          : (err as Error).message,
+          : issues.some((i) => i.path === 'password')
+            ? 'La password per confermare l’email non è corretta'
+            : issues.some((i) => i.path === 'email')
+              ? 'Scrivi un indirizzo email valido'
+              : (err as Error).message,
       )
     } finally {
       setBusy(false)
@@ -53,6 +62,23 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
           <span className={label}>Nome</span>
           <Input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
         </label>
+        <label className="block">
+          <span className={label}>Email</span>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+          <span className="mt-1 block text-[12px] text-fg3">È l’indirizzo con cui entri nel pannello.</span>
+        </label>
+        {emailChanged && (
+          <label className="block">
+            <span className={label}>Conferma con la tua password</span>
+            <Input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </label>
+        )}
         <fieldset className="space-y-3 rounded-lg border border-line p-3">
           <legend className="-ml-1 px-1 text-[12px] font-medium text-fg2">Cambia password</legend>
           <Input

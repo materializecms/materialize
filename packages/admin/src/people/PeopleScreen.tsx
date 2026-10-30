@@ -1,5 +1,16 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, KeyRound, Mail, MoreHorizontal, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  KeyRound,
+  Mail,
+  MoreHorizontal,
+  PencilLine,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  Users,
+} from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import {
@@ -165,6 +176,7 @@ export function PeopleScreen() {
   const [inviting, setInviting] = useState(false)
   const [link, setLink] = useState<{ url: string; title: string; text: string } | null>(null)
   const [removing, setRemoving] = useState<Member | null>(null)
+  const [editing, setEditing] = useState<Member | null>(null)
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['people'] })
 
   const run = async (action: () => Promise<unknown>, done?: string) => {
@@ -269,6 +281,15 @@ export function PeopleScreen() {
                           </MenuItem>
                         ))}
                         <MenuSeparator />
+                        <MenuItem
+                          icon={<PencilLine />}
+                          onClick={() => {
+                            close()
+                            setEditing(person)
+                          }}
+                        >
+                          Modifica nome ed email
+                        </MenuItem>
                         <MenuItem
                           icon={<KeyRound />}
                           onClick={() => {
@@ -381,6 +402,16 @@ export function PeopleScreen() {
         }}
       />
       <LinkDialog link={link} onClose={() => setLink(null)} />
+      <EditPersonDialog
+        key={editing?.id}
+        person={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null)
+          void refresh()
+          void queryClient.invalidateQueries({ queryKey: ['me'] })
+        }}
+      />
       <Dialog
         open={!!removing}
         onClose={() => setRemoving(null)}
@@ -442,5 +473,75 @@ function EditorialSetting() {
         </p>
       </div>
     </section>
+  )
+}
+
+/** An administrator corrects someone's name or sign-in email (a typo, a new address). */
+function EditPersonDialog({
+  person,
+  onClose,
+  onSaved,
+}: {
+  person: Member | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(person?.name ?? '')
+  const [email, setEmail] = useState(person?.email ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (!person) return null
+  const changedEmail = email.trim().toLowerCase() !== person.email
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api.updateUser(person.id, {
+        ...(name.trim() !== person.name ? { name: name.trim() } : {}),
+        ...(changedEmail ? { email: email.trim() } : {}),
+      })
+      toast(
+        changedEmail ? `${name.trim() || person.name} ora entra con ${email.trim().toLowerCase()}` : 'Nome aggiornato',
+      )
+      onSaved()
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.issues.some((i) => i.path === 'email')
+          ? 'Controlla l’indirizzo email'
+          : (err as Error).message,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+  return (
+    <Dialog open onClose={onClose} width={420} title={`Modifica ${person.name}`}>
+      <form onSubmit={submit} className="space-y-4 pt-2">
+        <label className="block">
+          <span className={label}>Nome</span>
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </label>
+        <label className="block">
+          <span className={label}>Email</span>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <span className="mt-1 block text-[12px] text-fg3">
+            {changedEmail
+              ? 'Da ora entrerà con il nuovo indirizzo; la password non cambia. Se l’email è configurata, il vecchio indirizzo riceve un avviso.'
+              : 'È l’indirizzo con cui entra nel pannello.'}
+          </span>
+        </label>
+        {error && <p className="text-[13px] text-danger">{error}</p>}
+        <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
+          <Button onClick={onClose}>Annulla</Button>
+          <Button type="submit" variant="primary" loading={busy}>
+            Salva
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   )
 }

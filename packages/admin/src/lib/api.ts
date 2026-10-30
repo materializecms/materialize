@@ -404,7 +404,7 @@ export const api = {
   invite: (input: { email: string; name?: string; role: User['role'] }) =>
     request<{ invite: Invite; link: string; mailed?: boolean }>('POST', '/users/invites', input),
   revokeInvite: (id: string) => request<void>('DELETE', `/users/invites/${encodeURIComponent(id)}`),
-  updateUser: (id: string, input: { role?: User['role']; name?: string }) =>
+  updateUser: (id: string, input: { role?: User['role']; name?: string; email?: string }) =>
     request<{ user: User }>('PATCH', `/users/${id}`, input),
   removeUser: (id: string) => request<void>('DELETE', `/users/${id}`),
   resetLink: (id: string) => request<{ invite: Invite; link: string; mailed?: boolean }>('POST', `/users/${id}/reset`),
@@ -416,6 +416,7 @@ export const api = {
   acceptInvite: (token: string, input: { name?: string; password: string }) =>
     request<{ user: User }>('POST', `/invites/${token}/accept`, input),
   updateMe: (input: { name: string }) => request<{ user: User }>('PATCH', '/auth/me', input),
+  changeEmail: (input: { email: string; password: string }) => request<{ user: User }>('POST', '/auth/email', input),
   changePassword: (input: { current: string; next: string }) => request<{ ok: true }>('POST', '/auth/password', input),
   media: (params: { search?: string; limit?: number; offset?: number }) =>
     request<{ items: MediaAsset[]; total: number }>('GET', `/media${q(params)}`),

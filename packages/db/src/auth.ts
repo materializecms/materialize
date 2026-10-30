@@ -180,10 +180,17 @@ export function createAuthStore(db: Db) {
       return row?.n ?? 0
     },
 
-    async updateUser(id: string, input: { name?: string; role?: Role }): Promise<User | null> {
-      const change: { name?: string; role?: Role } = {}
+    /** Changes name, role or email; an email someone else already uses raises EmailTakenError. */
+    async updateUser(id: string, input: { name?: string; role?: Role; email?: string }): Promise<User | null> {
+      const change: { name?: string; role?: Role; email?: string } = {}
       if (input.name !== undefined) change.name = input.name.trim()
       if (input.role !== undefined) change.role = input.role
+      if (input.email !== undefined) {
+        const email = input.email.trim().toLowerCase()
+        const owner = await db.query.users.findFirst({ where: eq(users.email, email) })
+        if (owner && owner.id !== id) throw new EmailTakenError(email)
+        change.email = email
+      }
       if (Object.keys(change).length) await db.update(users).set(change).where(eq(users.id, id))
       return this.getUser(id)
     },
