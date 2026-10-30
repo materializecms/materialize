@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Box, CircleAlert, ImageUp, X } from 'lucide-react'
 import { type DragEvent, type ReactNode, useState } from 'react'
+import { SelectBox } from '../app/ListActions.tsx'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
 import type { Upload } from './uploads.ts'
@@ -73,6 +74,9 @@ export function MediaGrid({
   onOpen,
   onDismiss,
   onUploadClick,
+  checked,
+  onCheck,
+  menu,
 }: {
   search: string
   uploads: Upload[]
@@ -82,6 +86,10 @@ export function MediaGrid({
   onOpen?: (asset: MediaAsset) => void
   onDismiss: (id: string) => void
   onUploadClick: () => void
+  /** The media library: files ticked for acting on several at once, and each file's own menu. */
+  checked?: Set<string>
+  onCheck?: (asset: MediaAsset, e: React.MouseEvent, all: MediaAsset[]) => void
+  menu?: (asset: MediaAsset) => ReactNode
 }) {
   const list = useMediaList(search)
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
@@ -136,35 +144,54 @@ export function MediaGrid({
             </figcaption>
           </figure>
         ))}
-        {items.map((asset) => (
-          <button
-            key={asset.id}
-            type="button"
-            onClick={() => onSelect(asset)}
-            onDoubleClick={() => onOpen?.(asset)}
-            className={cx(
-              'group overflow-hidden rounded-lg border bg-panel2 text-left transition-shadow',
-              selected === asset.id ? 'border-accent ring-3 ring-accent/25' : 'border-line hover:border-line2',
-            )}
-          >
-            {asset.url.endsWith('.glb') ? (
-              <span className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:12px_12px] text-fg3">
-                <Box className="size-8" />
-                <span className="font-mono text-[10.5px]">Modello 3D</span>
-              </span>
-            ) : (
-              <img
-                src={thumb(asset.url, 320)}
-                alt={asset.alt}
-                loading="lazy"
-                className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-            )}
-            <span className="block truncate border-t border-line bg-panel px-2 py-1.5 text-[11.5px] text-fg2">
-              {asset.filename}
-            </span>
-          </button>
-        ))}
+        {items.map((asset) => {
+          const ticked = !!checked?.has(asset.id)
+          const selecting = !!checked?.size
+          return (
+            <div key={asset.id} className="group relative">
+              <button
+                type="button"
+                onClick={(e) => (selecting && onCheck ? onCheck(asset, e, items) : onSelect(asset))}
+                onDoubleClick={() => onOpen?.(asset)}
+                className={cx(
+                  'w-full overflow-hidden rounded-lg border bg-panel2 text-left transition-shadow',
+                  selected === asset.id || ticked
+                    ? 'border-accent ring-3 ring-accent/25'
+                    : 'border-line hover:border-line2',
+                )}
+              >
+                {asset.url.endsWith('.glb') ? (
+                  <span className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:12px_12px] text-fg3">
+                    <Box className="size-8" />
+                    <span className="font-mono text-[10.5px]">Modello 3D</span>
+                  </span>
+                ) : (
+                  <img
+                    src={thumb(asset.url, 320)}
+                    alt={asset.alt}
+                    loading="lazy"
+                    className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                )}
+                <span className="block truncate border-t border-line bg-panel px-2 py-1.5 text-[11.5px] text-fg2">
+                  {asset.filename}
+                </span>
+              </button>
+              {onCheck && (
+                <SelectBox
+                  checked={ticked}
+                  label={`Seleziona ${asset.filename}`}
+                  onToggle={(e) => onCheck(asset, e, items)}
+                  className={cx(
+                    'absolute top-2 left-2 shadow-sm',
+                    !selecting && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                  )}
+                />
+              )}
+              {menu && <div className="absolute top-1.5 right-1.5">{menu(asset)}</div>}
+            </div>
+          )
+        })}
       </div>
       {list.hasNextPage && (
         <div className="flex justify-center pt-4">
