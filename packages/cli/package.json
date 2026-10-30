@@ -22,7 +22,7 @@
     "@materializecms/core": "0.1.0",
     "@materializecms/db": "0.1.0",
     "@materializecms/server": "0.1.0",
-    "@modelcontextprotocol/sdk": "1.32.1"
+    "@modelcontextprotocol/sdk": "1.32.2"
   },
   "peerDependencies": {
     "astro": "^7.0.0"

@@ -20,10 +20,10 @@
     "@materializecms/admin": "0.1.0",
     "@materializecms/core": "0.1.0",
     "@materializecms/db": "0.1.0",
-    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "hono": "4.13.14",
     "htmlparser2": "12.0.0",
-    "nodemailer": "10.1.7",
+    "nodemailer": "10.2.1",
     "sharp": "0.35.5",
     "zod": "4.6.7"
   },
