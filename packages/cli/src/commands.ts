@@ -200,8 +200,10 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     if (setupToken) await rm(join(cwd, INSTALL_CODE), { force: true })
   } else {
     const path = `/admin/${setupToken ? `?installa=${setupToken}` : ''}`
-    console.log(`  ${accent('Installazione')}  apri ${server.url}${path}`)
-    if (setupToken)
+    // The public address when the site knows it (MATERIALIZE_SITE_URL in Docker or on a VPS).
+    const site = mode === 'start' ? config.site.url?.replace(/\/+$/, '') : undefined
+    console.log(`  ${accent('Installazione')}  apri ${site ?? server.url}${path}`)
+    if (setupToken && !site)
       console.log(dim(`                  (online: lo stesso indirizzo dal tuo dominio, https://…${path})`))
     console.log()
   }

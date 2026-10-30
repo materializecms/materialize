@@ -1,0 +1,35 @@
+# Materialize with HTTPS, on a server where Docker is already there:
+#
+#   DOMAIN=esempio.it docker compose up -d
+#   docker compose logs materialize      (the link to finish the installation in the browser)
+#
+# Caddy gets the Let's Encrypt certificate for the domain, which must already point to the server.
+# The site and its content stay in the "site" volume; updates are installed from the panel.
+
+services:
+  materialize:
+    image: ${MATERIALIZE_IMAGE:-ghcr.io/materializecms/materialize:latest}
+    restart: unless-stopped
+    volumes:
+      - site:/site
+    environment:
+      MATERIALIZE_SITE_URL: https://${DOMAIN:?Indica il dominio, per esempio DOMAIN=esempio.it docker compose up -d}
+      MATERIALIZE_TRUST_PROXY: "1"
+      # Other variables for the site go here, for example ANTHROPIC_API_KEY.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${DOMAIN} --to materialize:4321
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy:/data
+    depends_on:
+      - materialize
+
+volumes:
+  site:
+  caddy:

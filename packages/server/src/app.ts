@@ -678,6 +678,15 @@ export function createApp(base: ServerContext) {
     ctx.onPublish?.()
   }
 
+  /** The site's name as set in the panel (the settings singleton, published), else the config's. */
+  const siteName = async (): Promise<string> => {
+    const config = ctx.config()
+    const def = config.collections.find((d) => d.singleton && d.fields.siteName)
+    const found = def && (await content.list(def.name, { locale: config.locales.default, limit: 1 })).items[0]
+    const name = found ? (await content.get(found.id))?.publishedData?.siteName : null
+    return typeof name === 'string' && name.trim() ? name : config.site.name
+  }
+
   /**
    * Sign-in pauses: after repeated failures an email, or an address, waits before trying again
    * (1, 2, 4… minutes). Saved in the database, so restarting the server does not reset them.
@@ -1498,10 +1507,10 @@ export function createApp(base: ServerContext) {
 
   // ---------- schema ----------
 
-  app.get('/api/schema', requireUser, (c) => {
+  app.get('/api/schema', requireUser, async (c) => {
     const config = ctx.config()
     return c.json({
-      site: config.site,
+      site: { ...config.site, name: await siteName() },
       preview: ctx.preview === true,
       locales: config.locales,
       collections: config.collections.map(describeCollection),

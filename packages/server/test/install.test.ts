@@ -61,7 +61,10 @@ describe('installation', () => {
     const settings = await call('GET', '/api/collections/settings?locale=en')
     expect(settings.body.items[0].title).toBe('Studio Rossi')
     expect(settings.body.items[0].status).toBe('published')
-    expect((await call('GET', '/api/schema')).body.locales.default).toBe('en')
+    const schema = (await call('GET', '/api/schema')).body
+    expect(schema.locales.default).toBe('en')
+    // The panel shows the name chosen here, not the one in the config.
+    expect(schema.site.name).toBe('Studio Rossi')
     // Once installed, the setup says nothing more about the server.
     expect((await call('GET', '/api/setup')).body).toEqual({ needsSetup: false })
   })

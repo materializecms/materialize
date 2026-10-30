@@ -259,6 +259,8 @@ function Editor({
       const res = await api.publish(target.id)
       applyServer(res, latest.current.current)
       queryClient.invalidateQueries({ queryKey: ['overview'] })
+      // The site's name in the sidebar comes from the settings singleton.
+      if (collection.singleton) queryClient.invalidateQueries({ queryKey: ['schema'] })
       toast(doc?.publishedAt ? 'Modifiche pubblicate' : 'Pubblicato')
     } catch (error) {
       handleError(error)

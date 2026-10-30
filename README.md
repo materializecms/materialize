@@ -32,6 +32,30 @@ Rilanciato, ripara l'installazione e riscrive il link, senza toccare il sito e i
 
 Il servizio passa al sito dall'ambiente quello che dipende dal server e non dal sito: `MATERIALIZE_SITE_URL`, `MATERIALIZE_PORT`, `MATERIALIZE_HOST` e `MATERIALIZE_TRUST_PROXY`. Valgono anche fuori dallo script, e `materialize.config.ts` resta uguale ovunque.
 
+### Con Docker
+
+Su un server dove c'è già Docker, `docker/compose.yaml` avvia Materialize con Caddy davanti, che gestisce l'HTTPS. Il dominio deve già puntare al server:
+
+```bash
+curl -fsSLO https://cdn.jsdelivr.net/npm/@materializecms/cli/compose.yaml
+DOMAIN=esempio.it docker compose up -d
+docker compose logs materialize
+```
+
+Il registro contiene il link per finire l'installazione nel browser. Da solo, senza Caddy:
+
+```bash
+docker run -d --name materialize -p 4321:4321 -v materialize:/site --restart unless-stopped ghcr.io/materializecms/materialize
+```
+
+**Il volume `/site`:**
+- contiene il sito intero, dai pacchetti ai contenuti;
+- gli aggiornamenti si installano dal pannello e restano nel volume;
+- se ricrei il container, anche da un'immagine più vecchia, il sito riparte dalla versione che aveva;
+- l'immagine serve solo a creare il sito al primo avvio.
+
+Le variabili d'ambiente per il sito (`ANTHROPIC_API_KEY`, `MATERIALIZE_SITE_URL`…) si passano al container.
+
 ### L'installazione nel browser
 
 Al primo avvio il pannello guida l'installazione in tre passi: controlla il server (versione di Node, cartelle scrivibili, sito, HTTPS, aggiornamenti), chiede nome e lingua del sito, crea l'account amministratore, poi apre il pannello.

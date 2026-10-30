@@ -128,6 +128,8 @@ async function assemble(name: string, versions: Map<string, string>) {
     }
   }
   for (const extra of EXTRA[name] ?? []) await cp(join(src, extra), join(dest, extra), { recursive: true })
+  // Downloadable from the registry's CDN, like install.sh, for `docker compose up`.
+  if (name === 'cli') await cp(join(ROOT, 'docker', 'compose.yaml'), join(dest, 'compose.yaml'))
 
   const manifest = releaseManifest(pkg, versions)
   // The panel asks the registry for this field (npm view @materializecms/cli changelog) to show what is new.
