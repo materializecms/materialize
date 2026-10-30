@@ -37,6 +37,12 @@ const inline = (b: RichTextBlock) => b.children.map(run).join('')
     groups.map((g) => {
       if (g.list) return <ul>{g.items.map((item) => <li set:html={inline(item)} />)}</ul>
       const b = g.block
+      if (b.type === 'image')
+        return b.image?.src ? (
+          <figure>
+            <img src={b.image.src} alt={b.image.alt} width={b.image.width} height={b.image.height} loading="lazy" />
+          </figure>
+        ) : null
       if (b.type === 'quote') return <blockquote set:html={inline(b)} />
       if (b.type === 'heading' && b.level === 3) return <h3 set:html={inline(b)} />
       if (b.type === 'heading' && b.level === 4) return <h4 set:html={inline(b)} />

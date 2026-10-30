@@ -131,9 +131,11 @@ export interface RichTextRun {
 }
 
 export interface RichTextBlock {
-  type: 'paragraph' | 'heading' | 'quote' | 'listItem'
+  type: 'paragraph' | 'heading' | 'quote' | 'listItem' | 'image'
   level?: 2 | 3 | 4
   children: RichTextRun[]
+  /** An image between paragraphs (type "image"); its children are empty. */
+  image?: Media
 }
 
 export type RichText = RichTextBlock[]
@@ -162,11 +164,14 @@ const runSchema = z.object({
 })
 
 const richTextSchema = z.array(
-  z.object({
-    type: z.enum(['paragraph', 'heading', 'quote', 'listItem']),
-    level: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
-    children: z.array(runSchema),
-  }),
+  z
+    .object({
+      type: z.enum(['paragraph', 'heading', 'quote', 'listItem', 'image']),
+      level: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+      children: z.array(runSchema),
+      image: mediaSchema.optional(),
+    })
+    .refine((b) => b.type !== 'image' || !!b.image, { message: 'Scegli l’immagine', path: ['image'] }),
 )
 
 // ---------- builders ----------

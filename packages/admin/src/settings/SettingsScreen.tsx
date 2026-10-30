@@ -9,6 +9,7 @@ import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { AiScreen } from './AiSettings.tsx'
+import { ImportWordPress } from './ImportWordPress.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
@@ -54,6 +55,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             { value: 'languages', label: 'Lingue' },
             { value: 'security', label: 'Sicurezza' },
             { value: 'ai', label: 'AI e MCP' },
+            { value: 'import', label: 'Importa' },
             { value: 'messages', label: unread ? `Messaggi · ${unread}` : 'Messaggi' },
           ]}
         />
@@ -64,6 +66,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {active === 'ai' ? (
             <AiScreen />
+          ) : active === 'import' ? (
+            <ImportWordPress />
           ) : active === 'security' ? (
             <SecuritySettings onOpenProfile={() => setProfile(true)} />
           ) : active === 'languages' ? (

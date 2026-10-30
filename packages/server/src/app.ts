@@ -9,6 +9,7 @@ import {
   type Collection,
   describeCollection,
   type MaterializeConfig,
+  type Media,
   prepare,
   SLUG_PATTERN,
   slugify,
@@ -71,10 +72,21 @@ import { isConfigured, type MailSettings, publicMail, sendMail, submissionText }
 import { createMcpServer } from './mcp.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
 import { hashPassword, verifyPassword } from './password.ts'
-import { fetchPublicFile, RemoteError } from './remote.ts'
+import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
 import { statusPage } from './status-page.ts'
 import { apiCaller, assistantTools } from './tools.ts'
 import { newSecret, otpauthUri, recoveryCodes, verifyCode } from './totp.ts'
+import { type Fetcher, readRest, readWxr, WordPressError, type WpSite } from './wordpress.ts'
+import {
+  fold,
+  type ImportDeps,
+  type ImportPlan,
+  type ImportProgress,
+  optionsOf,
+  runImport,
+  sourcesFor,
+  suggest,
+} from './wpimport.ts'
 
 /** The installed version, from this package's package.json (same place in the sources and in the release). */
 export const VERSION: string = createRequire(import.meta.url)('../package.json').version
@@ -2133,6 +2145,249 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     const draft = draftData(def, data)
     const saved = await slugGuard(() => content.update(doc.id, { ...draft, userId: c.get('user').id }))
     return c.json({ document: toJson(saved as StoredDocument), added: fresh.size })
+  })
+
+  // ---------- importing a WordPress site ----------
+
+  /** Some hosts turn away requests that do not say who they are. */
+  const IMPORT_AGENT = `Mozilla/5.0 (compatible; Materialize/${VERSION}; WordPress import)`
+  /** Sites read and waiting for their import plan, by token, for half an hour. */
+  const wpSites = new Map<string, { site: WpSite; at: number }>()
+  const wpJobs = new Map<string, ImportProgress & { at: number }>()
+  const forget = () => {
+    const now = Date.now()
+    for (const [k, v] of wpSites) if (now - v.at > 30 * 60_000) wpSites.delete(k)
+    for (const [k, v] of wpJobs) if (now - v.at > 6 * 60 * 60_000) wpJobs.delete(k)
+  }
+
+  /** A WordPress site is read from its address (REST API) or from its export file. */
+  app.post('/api/import/wordpress/analyze', requireUser, requireSession, requireAdmin, async (c) => {
+    forget()
+    const isForm = (c.req.header('content-type') ?? '').includes('multipart/form-data')
+    let site: WpSite
+    try {
+      if (isForm) {
+        const form = await c.req.parseBody()
+        const file = form.file
+        if (!(file instanceof File)) throw new ApiError(400, 'missing_file', 'Send the export file in the "file" field')
+        site = readWxr(await file.text())
+      } else {
+        const input = await body(
+          c,
+          z.object({
+            url: z.url(),
+            user: z.string().trim().max(200).optional(),
+            password: z.string().trim().max(200).optional(),
+            limit: z.number().int().min(1).max(10_000).optional(),
+          }),
+        )
+        // An application password (WordPress → Utenti → Profilo): drafts and private pages too.
+        const headers: Record<string, string> = { accept: 'application/json', 'user-agent': IMPORT_AGENT }
+        if (input.user && input.password)
+          headers.authorization = `Basic ${Buffer.from(`${input.user}:${input.password.replace(/\s+/g, '')}`).toString('base64')}`
+        const fetcher: Fetcher = async (url) => {
+          const res = await remoteFetch(url, { max: 50 * 1024 * 1024, headers, allowPrivate: true, timeout: 30_000 })
+          return { status: res.status, headers: res.headers, text: res.bytes.toString('utf8') }
+        }
+        site = await readRest(input.url, fetcher, { limit: input.limit })
+      }
+    } catch (error) {
+      if (error instanceof WordPressError) throw new ApiError(422, 'wordpress_unreadable', error.message)
+      if (error instanceof RemoteError)
+        throw new ApiError(422, 'wordpress_unreadable', `Il sito non risponde: ${error.message}`)
+      throw error
+    }
+    const token = randomBytes(16).toString('hex')
+    wpSites.set(token, { site, at: Date.now() })
+    const collections = ctx.config().collections
+    const count = (kind: 'post' | 'page') => site.items.filter((i) => i.kind === kind)
+    return c.json({
+      token,
+      site: { name: site.name, url: site.url },
+      counts: {
+        posts: count('post').length,
+        pages: count('page').length,
+        drafts: site.items.filter((i) => i.status !== 'publish').length,
+      },
+      samples: {
+        posts: count('post')
+          .slice(0, 5)
+          .map((i) => i.title),
+        pages: count('page')
+          .slice(0, 5)
+          .map((i) => i.title),
+      },
+      categories: [...new Set(site.items.flatMap((i) => i.categories))].sort(),
+      suggestions: { posts: suggest(collections, 'post'), pages: suggest(collections, 'page') },
+      // For each collection, which sources each field can take, and the choices of choice fields.
+      fields: Object.fromEntries(
+        collections
+          .filter((def) => !def.singleton)
+          .map((def) => [
+            def.name,
+            Object.fromEntries(
+              Object.entries(def.fields)
+                .filter(([, f]) => sourcesFor(f).length)
+                .map(([name, f]) => [
+                  name,
+                  {
+                    label: f.label ?? name,
+                    kind: f.kind,
+                    sources: sourcesFor(f),
+                    options: f.kind === 'select' ? optionsOf(f) : undefined,
+                  },
+                ]),
+            ),
+          ]),
+      ),
+    })
+  })
+
+  app.post('/api/import/wordpress/run', requireUser, requireSession, requireAdmin, async (c) => {
+    const target = z.object({ collection: z.string(), fields: z.record(z.string(), z.string()) }).nullable()
+    const input = await body(
+      c,
+      z.object({
+        token: z.string(),
+        plan: z.object({
+          posts: target,
+          pages: target,
+          publish: z.boolean(),
+          redirects: z.boolean(),
+          locale: z.string().optional(),
+          categories: z.record(z.string(), z.string()).optional(),
+          fallbackCategory: z.string().optional(),
+        }),
+      }),
+    )
+    const held = wpSites.get(input.token)
+    if (!held) throw new ApiError(409, 'import_expired', 'Read the site again')
+    const lang = locale(input.plan.locale)
+    const plan = { ...input.plan, locale: lang } as ImportPlan
+    for (const t of [plan.posts, plan.pages]) if (t) collection(t.collection)
+    const user = c.get('user')
+    const id = randomBytes(8).toString('hex')
+    const job: ImportProgress & { at: number } = {
+      phase: 'media',
+      done: 0,
+      total: 0,
+      created: [],
+      skipped: [],
+      problems: [],
+      media: { downloaded: 0, failed: 0, reasons: {} },
+      redirects: 0,
+      at: Date.now(),
+    }
+    wpJobs.set(id, job)
+    const known = (await settings.get<Record<string, Media>>('imports:media')) ?? {}
+    const deps: ImportDeps = {
+      collections: ctx.config().collections,
+      saveImage: async (url, alt) => {
+        if (known[url]) return { ...known[url], alt: alt || known[url].alt }
+        let res: Awaited<ReturnType<typeof remoteFetch>>
+        try {
+          res = await remoteFetch(url, {
+            max: MAX_UPLOAD,
+            allowPrivate: true,
+            timeout: 30_000,
+            headers: { 'user-agent': IMPORT_AGENT },
+          })
+        } catch (error) {
+          return {
+            error:
+              error instanceof RemoteError && /too large/.test(error.message)
+                ? 'troppo grandi (oltre 25 MB)'
+                : 'non raggiungibili',
+          }
+        }
+        if (res.status !== 200) return { error: `non trovate sul sito (${res.status})` }
+        if (/svg/.test(res.type) || /\.svg$/i.test(res.name))
+          return { error: 'SVG: la libreria non li accetta, perché possono contenere codice' }
+        try {
+          const saved = await files.save(res.name, res.bytes)
+          const asset = await mediaStore.create({ ...saved, filename: res.name.slice(0, 200), alt, createdBy: user.id })
+          const media: Media = {
+            src: mediaUrl(asset),
+            alt,
+            ...(asset.width ? { width: asset.width } : {}),
+            ...(asset.height ? { height: asset.height } : {}),
+          }
+          known[url] = media
+          return media
+        } catch {
+          return { error: 'in un formato che la libreria non legge' }
+        }
+      },
+      fetchPage: async (url) => {
+        try {
+          const res = await remoteFetch(url, {
+            max: 20 * 1024 * 1024,
+            allowPrivate: true,
+            timeout: 30_000,
+            headers: { 'user-agent': IMPORT_AGENT, accept: 'text/html' },
+          })
+          return res.status === 200 ? res.bytes.toString('utf8') : null
+        } catch {
+          return null
+        }
+      },
+      exists: async (name, slug) => !!(await content.getBySlug(name, slug, lang)),
+      titles: async (name) => {
+        const { items } = await content.list(name, { locale: lang, limit: 200 })
+        return new Map(items.map((d) => [fold(d.title), d.id]))
+      },
+      create: async (def, data) => {
+        const draft = draftData(def, data)
+        const doc = await slugGuard(() =>
+          content.create({ collection: def.name, locale: lang, ...draft, userId: user.id }),
+        )
+        return { id: doc.id, title: doc.title, url: publicUrl(def, lang, doc.data) }
+      },
+      publish: async (docId) => {
+        const doc = await loadDocument(docId)
+        await content.publish(doc.id, user.id, publishableData(collection(doc.collection), doc.data))
+      },
+      urlOf: (def, data) => {
+        try {
+          return publicUrl(def, lang, data)
+        } catch {
+          return null
+        }
+      },
+      addRedirects: async (moves) => {
+        let list = (await settings.get<Redirect[]>('redirects')) ?? []
+        const before = list.length
+        for (const m of moves) list = addMove(list, m.from, m.to)
+        await settings.set('redirects', list, user.id)
+        return list.length - before
+      },
+      onProgress: (p) => Object.assign(job, p),
+    }
+    void runImport(held.site, plan, deps)
+      .then(async (result) => {
+        await settings.set('imports:media', known, user.id)
+        if (result.created.some((d) => d.published) || result.redirects) ctx.onPublish?.()
+        await activityLog.record({
+          userId: user.id,
+          userName: user.name,
+          action: 'import.wordpress',
+          target: held.site.name,
+          detail: { created: result.created.length, media: result.media.downloaded, redirects: result.redirects },
+          ip: null,
+        })
+      })
+      .catch((error) => {
+        console.error('Materialize: import failed', error)
+        Object.assign(job, { phase: 'failed', error: (error as Error).message })
+      })
+    return c.json({ job: id }, 202)
+  })
+
+  app.get('/api/import/jobs/:id', requireUser, requireAdmin, (c) => {
+    const job = wpJobs.get(c.req.param('id'))
+    if (!job) throw new ApiError(404, 'not_found', 'There is no such import')
+    const { at: _, ...progress } = job
+    return c.json(progress)
   })
 
   // ---------- media ----------

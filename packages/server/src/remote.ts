@@ -24,6 +24,61 @@ function isPrivate(address: string): boolean {
   )
 }
 
+export interface RemoteResponse {
+  status: number
+  headers: Headers
+  bytes: Buffer
+  type: string
+  /** The file name at the final address (after redirects). */
+  name: string
+  url: string
+}
+
+/**
+ * Fetches from the web: http(s) only, redirects checked one by one, at most `max` bytes. Addresses
+ * on this machine or its network are refused, unless `allowPrivate` (an administrator importing
+ * from a WordPress on their own network). Headers are sent to the first host only.
+ */
+export async function remoteFetch(
+  url: string,
+  options: { max: number; headers?: Record<string, string>; allowPrivate?: boolean; timeout?: number },
+): Promise<RemoteResponse> {
+  let current = new URL(url)
+  const origin = current.origin
+  for (let hop = 0; hop < 5; hop++) {
+    if (current.protocol !== 'https:' && current.protocol !== 'http:')
+      throw new RemoteError('Only http and https addresses')
+    if (!options.allowPrivate) {
+      const host = current.hostname.replace(/^\[|\]$/g, '')
+      const addresses = isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address)
+      if (!addresses.length || addresses.some(isPrivate)) throw new RemoteError('This address is not public')
+    }
+    const res = await fetch(current, {
+      redirect: 'manual',
+      headers: current.origin === origin ? options.headers : undefined,
+      signal: AbortSignal.timeout(options.timeout ?? 15_000),
+    })
+    if (res.status >= 300 && res.status < 400) {
+      const to = res.headers.get('location')
+      if (!to) throw new RemoteError(`Redirect without a destination (${res.status})`)
+      current = new URL(to, current)
+      continue
+    }
+    const type = (res.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? ''
+    if (Number(res.headers.get('content-length') ?? 0) > options.max) throw new RemoteError('The file is too large')
+    const chunks: Buffer[] = []
+    let size = 0
+    for await (const chunk of res.body ?? []) {
+      size += chunk.length
+      if (size > options.max) throw new RemoteError('The file is too large')
+      chunks.push(Buffer.from(chunk))
+    }
+    const name = decodeURIComponent(current.pathname.split('/').pop() || 'immagine')
+    return { status: res.status, headers: res.headers, bytes: Buffer.concat(chunks), type, name, url: current.href }
+  }
+  throw new RemoteError('Too many redirects')
+}
+
 /**
  * Downloads a public file (an image an AI found on the web): http(s) only, never to an address on
  * this machine or its network, redirects checked one by one, at most `max` bytes.
@@ -32,32 +87,7 @@ export async function fetchPublicFile(
   url: string,
   max: number,
 ): Promise<{ bytes: Buffer; type: string; name: string }> {
-  let current = new URL(url)
-  for (let hop = 0; hop < 4; hop++) {
-    if (current.protocol !== 'https:' && current.protocol !== 'http:')
-      throw new RemoteError('Only http and https addresses')
-    const host = current.hostname.replace(/^\[|\]$/g, '')
-    const addresses = isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address)
-    if (!addresses.length || addresses.some(isPrivate)) throw new RemoteError('This address is not public')
-    const res = await fetch(current, { redirect: 'manual', signal: AbortSignal.timeout(15_000) })
-    if (res.status >= 300 && res.status < 400) {
-      const to = res.headers.get('location')
-      if (!to) throw new RemoteError(`Redirect without a destination (${res.status})`)
-      current = new URL(to, current)
-      continue
-    }
-    if (!res.ok) throw new RemoteError(`The server answered ${res.status}`)
-    const type = (res.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? ''
-    if (Number(res.headers.get('content-length') ?? 0) > max) throw new RemoteError('The file is too large')
-    const chunks: Buffer[] = []
-    let size = 0
-    for await (const chunk of res.body ?? []) {
-      size += chunk.length
-      if (size > max) throw new RemoteError('The file is too large')
-      chunks.push(Buffer.from(chunk))
-    }
-    const name = decodeURIComponent(current.pathname.split('/').pop() || 'immagine')
-    return { bytes: Buffer.concat(chunks), type, name }
-  }
-  throw new RemoteError('Too many redirects')
+  const res = await remoteFetch(url, { max })
+  if (res.status < 200 || res.status >= 300) throw new RemoteError(`The server answered ${res.status}`)
+  return { bytes: res.bytes, type: res.type, name: res.name }
 }

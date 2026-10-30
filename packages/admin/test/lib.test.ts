@@ -36,6 +36,22 @@ describe('rich text', () => {
   })
 })
 
+describe('rich text images', () => {
+  it('survive the editor round trip, between paragraphs', () => {
+    const value: RichText = [
+      { type: 'paragraph', children: [{ text: 'Prima' }] },
+      { type: 'image', children: [], image: { src: '/media/foto.jpg', alt: 'Una foto', width: 800, height: 600 } },
+      { type: 'paragraph', children: [{ text: 'Dopo' }] },
+    ]
+    const doc = toTiptap(value)
+    expect(doc.content?.[1]).toEqual({
+      type: 'image',
+      attrs: { src: '/media/foto.jpg', alt: 'Una foto', width: 800, height: 600 },
+    })
+    expect(fromTiptap(doc)).toEqual(value)
+  })
+})
+
 describe('document helpers', () => {
   it('sets nested values immutably', () => {
     const data = { blocks: [{ _key: 'a', title: 'Uno' }] }

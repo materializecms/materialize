@@ -38,6 +38,17 @@ export function toTiptap(value: RichText | undefined): PMNode {
     } else if (block.type === 'quote') {
       if (last?.type === 'blockquote') last.content?.push(paragraph(block.children))
       else content.push({ type: 'blockquote', content: [paragraph(block.children)] })
+    } else if (block.type === 'image') {
+      if (block.image?.src)
+        content.push({
+          type: 'image',
+          attrs: {
+            src: block.image.src,
+            alt: block.image.alt ?? '',
+            width: block.image.width ?? null,
+            height: block.image.height ?? null,
+          },
+        })
     } else if (block.type === 'heading') {
       const inline = runsToInline(block.children)
       content.push({
@@ -96,6 +107,21 @@ export function fromTiptap(doc: PMNode): RichText {
         case 'blockquote':
           walk(node.content, 'quote')
           break
+        case 'image': {
+          const a = node.attrs ?? {}
+          if (typeof a.src !== 'string' || !a.src) break
+          out.push({
+            type: 'image',
+            children: [],
+            image: {
+              src: a.src,
+              alt: typeof a.alt === 'string' ? a.alt : '',
+              ...(typeof a.width === 'number' && a.width > 0 ? { width: a.width } : {}),
+              ...(typeof a.height === 'number' && a.height > 0 ? { height: a.height } : {}),
+            },
+          })
+          break
+        }
         case 'bulletList':
         case 'orderedList':
           walk(node.content)

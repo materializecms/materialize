@@ -128,6 +128,59 @@ export interface BackupState {
   media: { files: number; size: number }
 }
 
+export type WpSource =
+  | 'title'
+  | 'slug'
+  | 'content'
+  | 'excerpt'
+  | 'date'
+  | 'featured'
+  | 'categories'
+  | 'tags'
+  | 'author'
+  | 'seo'
+
+export interface WpTarget {
+  collection: string
+  fields: Record<string, WpSource>
+}
+
+/** A WordPress site read, waiting for where its items go. */
+export interface WpAnalysis {
+  token: string
+  site: { name: string; url: string }
+  counts: { posts: number; pages: number; drafts: number }
+  samples: { posts: string[]; pages: string[] }
+  categories: string[]
+  suggestions: { posts: WpTarget | null; pages: WpTarget | null }
+  fields: Record<
+    string,
+    Record<string, { label: string; kind: string; sources: WpSource[]; options?: { value: string; label: string }[] }>
+  >
+}
+
+export interface WpPlan {
+  posts: WpTarget | null
+  pages: WpTarget | null
+  publish: boolean
+  redirects: boolean
+  locale?: string
+  categories?: Record<string, string>
+  fallbackCategory?: string
+}
+
+export interface WpProgress {
+  phase: 'media' | 'content' | 'done' | 'failed'
+  done: number
+  total: number
+  created: { id: string; collection: string; title: string; published: boolean }[]
+  skipped: { title: string; reason: string }[]
+  problems: { title: string; reason: string }[]
+  media: { downloaded: number; failed: number; reasons: Record<string, number> }
+  redirects: number
+  error?: string
+}
+
 export interface Overview {
   counts: { collection: string; total: number; drafts: number; changed: number }[]
   recent: (DocumentSummary & { collection: string; updatedBy: string | null })[]
@@ -282,6 +335,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return json as T
 }
 
+/** A form with a file (an export to read), answered in JSON. */
+async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: form })
+  } catch {
+    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+  }
+  const json = await res.json().catch(() => null)
+  if (!res.ok) throw errorFrom(res.status, json)
+  return json as T
+}
+
 // The API speaks English; the admin speaks to editors in Italian.
 const MESSAGES: Record<string, string> = {
   invalid_credentials: 'Email o password non corretti',
@@ -311,6 +377,7 @@ const MESSAGES: Record<string, string> = {
   two_factor_off: 'Prima attiva la verifica in due passaggi per te',
   no_setup: 'Ricomincia l’attivazione',
   backups_unavailable: 'Il database è ospitato da un fornitore: i backup li fa lui',
+  import_expired: 'È passato troppo tempo: leggi di nuovo il sito',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -348,6 +415,17 @@ export const api = {
   activity: (params: { group?: string; before?: number }) =>
     request<{ items: ActivityEntry[] }>('GET', `/activity${q(params)}`),
   securityOverview: () => request<{ checks: SecurityCheck[] }>('GET', '/security/overview'),
+  readWordPress: (input: { url: string; user?: string; password?: string; limit?: number } | File) => {
+    if (input instanceof File) {
+      const form = new FormData()
+      form.set('file', input)
+      return requestForm<WpAnalysis>('/import/wordpress/analyze', form)
+    }
+    return request<WpAnalysis>('POST', '/import/wordpress/analyze', input)
+  },
+  importWordPress: (token: string, plan: WpPlan) =>
+    request<{ job: string }>('POST', '/import/wordpress/run', { token, plan }),
+  importJob: (id: string) => request<WpProgress>('GET', `/import/jobs/${id}`),
   backups: () => request<BackupState>('GET', '/backups'),
   saveBackups: (input: { enabled: boolean; keep: number }) => request<BackupState>('PUT', '/backups', input),
   createBackup: () => request<{ backup: BackupFile }>('POST', '/backups'),

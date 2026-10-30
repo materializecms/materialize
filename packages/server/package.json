@@ -15,6 +15,7 @@
     "@materializecms/db": "0.1.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "hono": "4.13.14",
+    "htmlparser2": "12.0.0",
     "nodemailer": "10.1.7",
     "sharp": "0.35.5",
     "zod": "4.6.7"

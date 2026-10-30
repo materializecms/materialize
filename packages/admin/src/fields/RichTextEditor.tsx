@@ -1,10 +1,28 @@
 import type { RichText } from '@materializecms/core'
-import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
+import { EditorContent, mergeAttributes, Node, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Bold, Heading2, Heading3, Italic, Link2, List, Quote, Unlink } from 'lucide-react'
+import { Bold, Heading2, Heading3, ImagePlus, Italic, Link2, List, Quote, Unlink } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, cx, IconButton, Input, Popover } from '../components/ui.tsx'
 import { fromTiptap, toTiptap } from '../lib/richtext.ts'
+import { MediaPicker } from '../media/MediaPicker.tsx'
+
+/** An image between paragraphs: a whole block, moved and deleted as one. */
+const ImageBlock = Node.create({
+  name: 'image',
+  group: 'block',
+  atom: true,
+  draggable: true,
+  addAttributes() {
+    return { src: { default: null }, alt: { default: '' }, width: { default: null }, height: { default: null } }
+  },
+  parseHTML() {
+    return [{ tag: 'img[src]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['img', mergeAttributes(HTMLAttributes, { class: 'mz-rich-image' })]
+  },
+})
 
 export function RichTextEditor({
   value,
@@ -17,6 +35,7 @@ export function RichTextEditor({
   invalid?: boolean
   compact?: boolean
 }) {
+  const [picking, setPicking] = useState(false)
   // The last value we emitted: lets us tell our own updates from external ones (undo, restore).
   const emitted = useRef(JSON.stringify(value ?? []))
   const editor = useEditor({
@@ -31,6 +50,7 @@ export function RichTextEditor({
         orderedList: false,
         link: { openOnClick: false, autolink: true, defaultProtocol: 'https' },
       }),
+      ImageBlock,
     ],
     content: toTiptap(value),
     editorProps: { attributes: { class: cx('mz-prose px-3 py-2.5', compact ? 'min-h-16' : 'min-h-28') } },
@@ -68,6 +88,13 @@ export function RichTextEditor({
 
   if (!editor || !state) return null
   const chain = () => editor.chain().focus()
+  const insertImage = (asset: { url: string; alt: string; width: number | null; height: number | null }) =>
+    chain()
+      .insertContent({
+        type: 'image',
+        attrs: { src: asset.url, alt: asset.alt, width: asset.width, height: asset.height },
+      })
+      .run()
 
   return (
     <div
@@ -105,7 +132,12 @@ export function RichTextEditor({
         <IconButton label="Elenco puntato" active={state.list} onClick={() => chain().toggleBulletList().run()}>
           <List />
         </IconButton>
+        <span className="mx-1 h-4 w-px bg-line" />
+        <IconButton label="Immagine" onClick={() => setPicking(true)}>
+          <ImagePlus />
+        </IconButton>
       </div>
+      {picking && <MediaPicker open onClose={() => setPicking(false)} onPick={insertImage} />}
       <EditorContent editor={editor} />
     </div>
   )

@@ -831,9 +831,13 @@ export function richTextHtml(blocks: unknown): string {
     return h
   }
   const inline = (b: { children?: unknown[] }) => (b.children ?? []).map((r) => run(r as never)).join('')
+  const figure = (img?: { src?: string; alt?: string; width?: number; height?: number }) =>
+    img?.src
+      ? `<figure><img src="${esc(img.src)}" alt="${esc(img.alt ?? '')}"${img.width ? ` width="${img.width}"` : ''}${img.height ? ` height="${img.height}"` : ''} loading="lazy" decoding="async"></figure>`
+      : ''
   let html = ''
   let list = false
-  for (const b of blocks as { type?: string; level?: number; children?: unknown[] }[]) {
+  for (const b of blocks as { type?: string; level?: number; children?: unknown[]; image?: { src?: string } }[]) {
     if (b.type === 'listItem') {
       html += `${list ? '' : '<ul>'}<li>${inline(b)}</li>`
       list = true
@@ -841,7 +845,8 @@ export function richTextHtml(blocks: unknown): string {
     }
     if (list) html += '</ul>'
     list = false
-    if (b.type === 'quote') html += `<blockquote>${inline(b)}</blockquote>`
+    if (b.type === 'image') html += figure(b.image)
+    else if (b.type === 'quote') html += `<blockquote>${inline(b)}</blockquote>`
     else if (b.type === 'heading')
       html += `<h${b.level === 3 || b.level === 4 ? b.level : 2}>${inline(b)}</h${b.level === 3 || b.level === 4 ? b.level : 2}>`
     else html += `<p>${inline(b)}</p>`
@@ -1232,6 +1237,7 @@ const BASE_CSS = `
 .mz-page [data-mz-prose] blockquote{padding-left:1em;border-left:2px solid currentColor;font-style:italic;opacity:.9}
 .mz-page [data-mz-prose] ul{padding-left:1.2em}.mz-page [data-mz-prose] li+li{margin-top:.4em}
 .mz-page [data-mz-prose] a{text-decoration:underline}
+.mz-page [data-mz-prose] figure{margin:1.6em 0}.mz-page [data-mz-prose] figure img{display:block;width:auto;max-width:100%;height:auto;margin:0 auto;border-radius:var(--mz-radius-img,0)}
 .mz-page [data-mz-sticky~="glass"].mz-scrolled{background:color-mix(in srgb,var(--mz-sticky-bg) 72%,transparent)!important;backdrop-filter:blur(18px) saturate(1.4);-webkit-backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 1px 0 color-mix(in srgb,currentColor 10%,transparent)}
 @keyframes mzMarquee{to{transform:translateX(calc(-50% - var(--mz-gap, 0px) / 2))}}
 @media (prefers-reduced-motion:reduce){.mz-page .mz-track{animation:none!important}}

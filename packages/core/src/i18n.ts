@@ -181,11 +181,20 @@ export function nodeSlots(nodes: PageNode[]): TextSlot[] {
   return slots
 }
 
-type RichBlock = { children?: { text?: string; bold?: boolean; italic?: boolean; href?: string }[] }
+type RichBlock = {
+  type?: string
+  children?: { text?: string; bold?: boolean; italic?: boolean; href?: string }[]
+  image?: { alt?: string }
+}
 
 function richSlots(blocks: RichBlock[]): TextSlot[] {
   const slots: TextSlot[] = []
   for (const b of blocks) {
+    const image = b.image
+    if (b.type === 'image') {
+      if (image?.alt?.trim()) slots.push({ text: image.alt, set: (v) => (image.alt = v) })
+      continue
+    }
     const runs = (b.children ?? []).map((r) => ({ t: r.text ?? '', b: r.bold, i: r.italic, href: r.href }))
     const { text, links } = encodeRuns(runs)
     if (!text.trim()) continue
