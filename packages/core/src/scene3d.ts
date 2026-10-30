@@ -93,7 +93,7 @@ function makeLogo(svg: string, material: Material): Object3D | null {
   }
   const group = new Group()
   for (const path of data.paths) {
-    for (const shape of SVGLoader.createShapes(path)) {
+    for (const shape of path.toShapes()) {
       const geometry = new ExtrudeGeometry(shape, {
         depth: 18,
         bevelEnabled: true,

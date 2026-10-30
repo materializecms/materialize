@@ -1355,6 +1355,9 @@ function nodeStyle(
     s.position = 'relative'
     s.overflow = 'hidden'
     s.aspectRatio = p.h ? 'auto' : (p.ratio ?? '16/9').replace('/', ' / ')
+    // In a grid an item with an aspect ratio takes its content's width (Safari follows the spec,
+    // Chrome does not), and a scene has no content: it must stretch to its cell.
+    if (pl === 'grid' && p.width !== 'fixed' && p.width !== 'hug') s.justifySelf = 'stretch'
   } else if (isI || isV) {
     s.display = 'block'
     s.aspectRatio = p.h ? 'auto' : (p.ratio ?? (isV ? '16/9' : '4/3')).replace('/', ' / ')
