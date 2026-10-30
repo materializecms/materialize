@@ -1,0 +1,22 @@
+---
+/**
+ * Analytics, tags, pixels and the cookie banner chosen in Impostazioni → Tracciamento e cookie.
+ * Put it inside <head>: code that needs consent starts only after the visitor accepts it.
+ * Nothing is written in the editor's preview.
+ */
+import { normalizeTheme } from '@materializecms/core/page'
+import { trackingHtml } from '@materializecms/core/tracking'
+import { getTheme, getTracking } from '../content.ts'
+
+interface Props {
+  /** The page's language, for the banner's words. */
+  lang?: string
+}
+
+const preview = (Astro.locals as { materializePreview?: boolean }).materializePreview === true
+const tracking = preview ? null : await getTracking()
+const theme = normalizeTheme(await getTheme())
+const html = trackingHtml(tracking, { lang: Astro.props.lang, accent: theme.colors.light.accent })
+---
+
+{html && <Fragment set:html={html} />}

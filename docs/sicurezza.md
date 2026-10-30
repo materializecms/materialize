@@ -161,6 +161,7 @@ Con un database ospitato (Turso, libSQL), i backup del database li fa il fornito
 | Regole del browser (CSP) sul pannello: niente script estranei, dati inviati solo al proprio server     | sempre                       |
 | Protezione CSRF, cookie di sessione `HttpOnly` e `SameSite`                                            | sempre                       |
 | Codice personalizzato solo dagli amministratori, in anteprima isolata                                  | sempre                       |
+| Script di statistica e marketing fermi fino al consenso del visitatore                                 | Impostazioni → Tracciamento  |
 | Immagini ricaricate e riconvertite; indirizzi interni bloccati quando si importa un'immagine da un URL | sempre                       |
 | Registro delle attività, conservato un anno                                                            | Impostazioni → Sicurezza     |
 | Backup giornalieri del database                                                                        | Impostazioni → Sicurezza     |

@@ -338,3 +338,28 @@ describe('media backups and the whole archive', () => {
     }
   })
 })
+
+describe('tracking and cookies', () => {
+  it('saves services and code for admins, refusing wrong ids', async () => {
+    expect((await admin('GET', '/api/tracking')).body.tracking).toEqual({})
+    const wrong = await admin('PUT', '/api/tracking', { tracking: { ga4: 'UA-1234' } })
+    expect(wrong.status).toBe(422)
+    const ok = await admin('PUT', '/api/tracking', {
+      tracking: {
+        ga4: 'G-ABC1234',
+        custom: [{ id: 'hj', name: 'Hotjar', place: 'head', category: 'analytics', code: '<script>hj()</script>' }],
+      },
+    })
+    expect(ok.status).toBe(200)
+    expect((await admin('GET', '/api/tracking')).body.tracking.ga4).toBe('G-ABC1234')
+    const log = (await admin('GET', '/api/activity?group=settings')).body.items.map((e: { action: string }) => e.action)
+    expect(log).toContain('settings.tracking')
+  })
+
+  it('refuses code that would break out of its template', async () => {
+    const res = await admin('PUT', '/api/tracking', {
+      tracking: { custom: [{ id: 'x', name: 'x', place: 'body', category: 'marketing', code: '</template><script>' }] },
+    })
+    expect(res.status).toBe(422)
+  })
+})

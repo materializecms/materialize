@@ -37,6 +37,7 @@ const SETTINGS: Record<string, string> = {
   redirects: 'i reindirizzamenti',
   languages: 'le lingue del sito',
   backups: 'i backup automatici',
+  tracking: 'tracciamento e cookie',
 }
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */

@@ -5,6 +5,7 @@ import '@fontsource-variable/geist-mono'
 import '@fontsource/instrument-serif'
 import '@fontsource-variable/fraunces'
 import '@fontsource-variable/inter'
+import Tracking from '@materializecms/astro/components/Tracking.astro'
 import { type Entry, getSingleton, getTheme } from '@materializecms/astro/content'
 import { pageRootStyle } from '@materializecms/core/page'
 
@@ -36,6 +37,7 @@ const root = pageRootStyle(await getTheme())
     {seo.image?.src && <meta property="og:image" content={seo.image.src} />}
     <meta property="og:title" content={pageTitle} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <Tracking lang={entry?.locale} />
     {Astro.site && entry?.url && <link rel="canonical" href={new URL(entry.url, Astro.site)} />}
   </head>
   <body style={root}>

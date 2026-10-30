@@ -1,6 +1,7 @@
 import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
 import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/core/page'
 import type { Redirect, SiteSeo } from '@materializecms/core/seo'
+import type { TrackingSettings } from '@materializecms/core/tracking'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -415,6 +416,9 @@ export const api = {
   activity: (params: { group?: string; before?: number }) =>
     request<{ items: ActivityEntry[] }>('GET', `/activity${q(params)}`),
   securityOverview: () => request<{ checks: SecurityCheck[] }>('GET', '/security/overview'),
+  tracking: () => request<{ tracking: TrackingSettings }>('GET', '/tracking'),
+  saveTracking: (tracking: TrackingSettings) =>
+    request<{ tracking: TrackingSettings }>('PUT', '/tracking', { tracking }),
   readWordPress: (input: { url: string; user?: string; password?: string; limit?: number } | File) => {
     if (input instanceof File) {
       const form = new FormData()

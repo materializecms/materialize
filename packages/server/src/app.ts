@@ -27,6 +27,7 @@ import {
 } from '@materializecms/core/i18n'
 import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
 import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
+import { TRACKING_PATTERNS, type TrackingSettings, trackingBlocks } from '@materializecms/core/tracking'
 import {
   type AuthStore,
   type ContentStore,
@@ -1749,6 +1750,66 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
     await settings.set('editorial', input.editorial, c.get('user').id)
     await record(c, 'settings.editorial', '', { contentOnly: !!input.editorial.editorsContentOnly })
     return c.json({ editorial: input.editorial })
+  })
+
+  // Analytics, tags and the cookie banner on the published site. Third-party code: admins only.
+  app.get('/api/tracking', requireUser, requireAdmin, async (c) =>
+    c.json({ tracking: (await settings.get<TrackingSettings>('tracking')) ?? {} }),
+  )
+
+  app.put('/api/tracking', requireUser, requireSession, requireAdmin, async (c) => {
+    const id = (pattern: RegExp, message: string) =>
+      z
+        .string()
+        .trim()
+        .optional()
+        .refine((v) => !v || pattern.test(v), message)
+    const category = z.enum(['necessary', 'analytics', 'marketing'])
+    const input = await body(
+      c,
+      z.object({
+        tracking: z.object({
+          ga4: id(TRACKING_PATTERNS.ga4, 'Un ID di Google Analytics 4 inizia con G-'),
+          gtm: id(TRACKING_PATTERNS.gtm, 'Un ID di Tag Manager inizia con GTM-'),
+          gtmCategory: category.optional(),
+          metaPixel: id(TRACKING_PATTERNS.metaPixel, 'L’ID del Pixel è fatto di sole cifre'),
+          plausible: id(TRACKING_PATTERNS.plausible, 'Scrivi il dominio come su Plausible, per esempio esempio.it'),
+          plausibleSrc: id(/^https:\/\/[^"<>\s]+$/, 'Un indirizzo https://'),
+          matomoUrl: id(/^https:\/\/[^"'<>\s]+$/, 'L’indirizzo di Matomo, con https://'),
+          matomoSiteId: id(TRACKING_PATTERNS.matomoSiteId, 'Il numero del sito su Matomo'),
+          custom: z
+            .array(
+              z.object({
+                id: z.string().min(1).max(40),
+                name: z.string().trim().min(1).max(80),
+                place: z.enum(['head', 'body']),
+                category,
+                code: z
+                  .string()
+                  .max(20_000)
+                  .refine((v) => !/<\/template/i.test(v), 'Il codice non può contenere </template>'),
+              }),
+            )
+            .max(30)
+            .optional(),
+          banner: z
+            .object({
+              title: z.string().trim().max(120).optional(),
+              text: z.string().trim().max(600).optional(),
+              policyUrl: id(/^(https?:\/\/|\/)[^"<>\s]*$/, 'Un indirizzo che inizia con / o https://'),
+              position: z.enum(['bottom', 'corner']).optional(),
+              reopenButton: z.boolean().optional(),
+            })
+            .optional(),
+        }),
+      }),
+    )
+    await settings.set('tracking', input.tracking, c.get('user').id)
+    ctx.onPublish?.()
+    await record(c, 'settings.tracking', '', {
+      services: trackingBlocks(input.tracking).map((b) => b.name),
+    })
+    return c.json({ tracking: input.tracking })
   })
 
   // Search engines: site-wide settings and redirects from old addresses.

@@ -7,7 +7,10 @@ export type Route =
   | { name: 'media' }
   | { name: 'people' }
   /** A built-in tab, or the name of a single-document collection (site settings, contacts…). */
-  | { name: 'settings'; tab?: 'mail' | 'messages' | 'seo' | 'ai' | 'languages' | 'security' | 'import' | (string & {}) }
+  | {
+      name: 'settings'
+      tab?: 'mail' | 'messages' | 'seo' | 'ai' | 'languages' | 'security' | 'import' | 'tracking' | (string & {})
+    }
   | { name: 'invite'; token: string }
   | { name: 'collection'; collection: string }
   | { name: 'document'; collection: string; id: string }
@@ -35,6 +38,7 @@ export function parse(pathname: string): Route {
             email: 'mail',
             sicurezza: 'security',
             importa: 'import',
+            tracciamento: 'tracking',
           } as Record<string, string>
         )[id ?? ''] ?? id,
     }
@@ -53,7 +57,7 @@ export function href(route: Route): string {
     case 'people':
       return `${BASE}/_people`
     case 'settings':
-      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', import: 'importa' }[route.tab as string] ?? route.tab}` : ''}`
+      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', import: 'importa', tracking: 'tracciamento' }[route.tab as string] ?? route.tab}` : ''}`
     case 'invite':
       return `${BASE}/_invite/${route.token}`
     case 'collection':

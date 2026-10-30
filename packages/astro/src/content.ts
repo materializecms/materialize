@@ -2,6 +2,7 @@ import type { Collection, Field, Fields, MaterializeConfig, Media } from '@mater
 import { mergeTranslation } from '@materializecms/core/i18n'
 import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
 import type { Redirect, SitemapPage, SiteSeo } from '@materializecms/core/seo'
+import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
 
@@ -355,4 +356,10 @@ export function firstImage(value: unknown, depth = 0): Media | undefined {
 export async function getLocales(): Promise<{ default: string; available: string[] }> {
   const { config } = await getRuntime()
   return config().locales
+}
+
+/** Analytics, tags and the cookie banner (Impostazioni → Tracciamento e cookie). */
+export async function getTracking(): Promise<TrackingSettings | null> {
+  const { settings } = await getRuntime()
+  return ((settings ? await settings.get('tracking') : null) as TrackingSettings | null) ?? null
 }

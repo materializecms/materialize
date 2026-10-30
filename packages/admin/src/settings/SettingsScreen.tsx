@@ -13,6 +13,7 @@ import { ImportWordPress } from './ImportWordPress.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
+import { TrackingSettings } from './TrackingSettings.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
 
@@ -45,6 +46,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         ...singletons.map((c) => ({ value: c.name, label: settingsLabel(c) })),
         { value: 'languages', label: 'Lingue' },
         { value: 'seo', label: 'SEO' },
+        { value: 'tracking', label: 'Tracciamento e cookie' },
       ],
     },
     {
@@ -110,6 +112,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             <div className="min-h-0 flex-1 overflow-y-auto">
               {active === 'ai' ? (
                 <AiScreen />
+              ) : active === 'tracking' ? (
+                <TrackingSettings />
               ) : active === 'import' ? (
                 <ImportWordPress />
               ) : active === 'security' ? (

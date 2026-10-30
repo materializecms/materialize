@@ -73,6 +73,12 @@ Nei template le relazioni arrivano già risolte: un campo `relation` contiene i 
 
 In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si vede subito. In produzione (`materialize start`) il sito è fatto di file statici e si rigenera da solo dopo ogni pubblicazione, di solito in meno di un secondo: la nuova versione sostituisce la precedente solo quando è completa.
 
+### Statistiche, tag e cookie
+
+In **Impostazioni → Tracciamento e cookie** un amministratore aggiunge Google Analytics 4, Google Tag Manager, Meta Pixel, Plausible o Matomo con il solo ID, e qualsiasi altro codice da mettere nell’`<head>` o in fondo al `<body>`, scegliendo a cosa serve: necessario, statistiche o marketing. Il componente `Tracking` (già nel layout dei siti nuovi: `<Tracking lang={entry?.locale} />` nell’`<head>`) lo inserisce in tutte le pagine pubblicate, mai nell’anteprima dell’editor.
+
+Il codice di statistica e marketing resta fermo finché il visitatore non accetta: compare da solo un banner con Rifiuta, Personalizza e Accetta tutti, e Google Consent Mode parte da «negato». La scelta vale un anno; si cambia dal pulsantino in basso a sinistra, da un link a `#preferenze-cookie` (per esempio nel piè di pagina) o da un elemento con `data-mz-consent-open`. Privacy e cookie policy restano da scrivere per il sito.
+
 ## L’editor delle pagine
 
 Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, immagini, pulsanti, video, codice, scene WebGL), partendo da una libreria di oltre 100 sezioni. Ogni elemento ha:
