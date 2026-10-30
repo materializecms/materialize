@@ -7,8 +7,9 @@ import { useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
+import { TwoFactorSetup } from '../people/Security.tsx'
 import { SettingsScreen } from '../settings/SettingsScreen.tsx'
-import { AuthScreen } from './Auth.tsx'
+import { AuthScreen, Logo } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
 import { CommandPalette } from './CommandPalette.tsx'
 import { type Session, SessionContext } from './context.ts'
@@ -29,22 +30,28 @@ function SignedIn() {
     queryKey: ['me'],
     queryFn: async () => {
       try {
-        return (await api.me()).user
+        return await api.me()
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) return null
         throw error
       }
     },
   })
-  const schema = useQuery({ queryKey: ['schema'], queryFn: api.schema, enabled: !!me.data })
+  const schema = useQuery({
+    queryKey: ['schema'],
+    queryFn: api.schema,
+    enabled: !!me.data && !me.data.needsTwoFactor,
+  })
 
   if (setup.error || me.error || schema.error) {
     return <Fatal message={(setup.error ?? me.error ?? schema.error)?.message ?? ''} />
   }
   if (setup.isPending || me.isPending) return <Loading />
   if (setup.data.needsSetup || !me.data) return <AuthScreen mode={setup.data.needsSetup ? 'setup' : 'login'} />
+  // The site requires two-step verification: nothing else until it is on.
+  if (me.data.needsTwoFactor) return <RequiredTwoFactor />
   if (!schema.data) return <Loading />
-  return <Workspace user={me.data} schema={schema.data} />
+  return <Workspace user={me.data.user} schema={schema.data} />
 }
 
 function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
@@ -144,6 +151,34 @@ function Fatal({ message }: { message: string }) {
         <p className="mt-1 text-fg2">{message}</p>
         <button type="button" className="mt-4 text-accent hover:underline" onClick={() => location.assign('/admin/')}>
           Ricarica
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Shown when the site requires two-step verification of everyone and this account has none yet. */
+function RequiredTwoFactor() {
+  const queryClient = useQueryClient()
+  return (
+    <div className="flex min-h-full items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[420px]">
+        <Logo className="mb-6 size-9" />
+        <h1 className="text-[20px] font-semibold tracking-tight">Attiva la verifica in due passaggi</h1>
+        <p className="mt-1 mb-6 text-fg2">
+          Questo sito la richiede a tutti: oltre alla password, per entrare servirà un codice dall’app del telefono.
+        </p>
+        <TwoFactorSetup onDone={() => void queryClient.invalidateQueries()} />
+        <button
+          type="button"
+          className="mt-6 text-[12.5px] text-fg2 hover:text-fg"
+          onClick={async () => {
+            await api.logout().catch(() => {})
+            queryClient.clear()
+            location.assign('/admin/')
+          }}
+        >
+          Esci
         </button>
       </div>
     </div>

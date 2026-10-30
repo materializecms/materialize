@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
+import { getConnInfo } from '@hono/node-server/conninfo'
 import {
   type Collection,
   describeCollection,
@@ -67,11 +69,21 @@ import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError } from './remote.ts'
 import { statusPage } from './status-page.ts'
 import { apiCaller, assistantTools } from './tools.ts'
+import { newSecret, otpauthUri, recoveryCodes, verifyCode } from './totp.ts'
 
 /** The installed version, from this package's package.json (same place in the sources and in the release). */
 export const VERSION: string = createRequire(import.meta.url)('../package.json').version
 const SESSION_COOKIE = 'mz_session'
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000
+/** A session left unused this long ends, whatever its expiry. */
+const SESSION_IDLE = 14 * 24 * 60 * 60 * 1000
+/** Failed sign-ins before a pause: per email (one account), and per address (one attacker, many accounts). */
+const EMAIL_THRESHOLD = 5
+const IP_THRESHOLD = 20
+/** A password accepted, the code still to come: how long the second step may take. */
+const CHALLENGE_TTL = 5 * 60 * 1000
+/** Checked against when an email has no account, so both answers take as long. */
+const dummyHash = hashPassword(randomBytes(16).toString('hex'))
 const INVITE_TTL = 7 * 24 * 60 * 60 * 1000
 const RESET_TTL = 24 * 60 * 60 * 1000
 /** Where people open their one-time link: the admin's welcome screen. */
@@ -201,7 +213,6 @@ export function createApp(base: ServerContext) {
   const ctx: ServerContext = { ...base, config: () => withLocales(base.config(), languages) }
   const content: ContentStore = createContentStore(ctx.database.db)
   const auth: AuthStore = createAuthStore(ctx.database.db)
-  const allowLogin = createLimiter(10, 60_000)
   const mediaStore = createMediaStore(ctx.database.db)
   const settings = createSettingsStore(ctx.database.db)
   const languagesLoaded = settings.get('locales').then((v) => {
@@ -255,8 +266,27 @@ export function createApp(base: ServerContext) {
     return chosen
   }
 
+  /**
+   * Who is connecting: the socket's address, or the proxy's X-Forwarded-For when the config says
+   * the site sits behind one (otherwise anyone could send that header and pretend).
+   */
+  const clientIp = (c: Context): string => {
+    if (ctx.config().server.trustProxy) {
+      const forwarded = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip')
+      if (forwarded) return forwarded
+    }
+    try {
+      return getConnInfo(c).remote.address ?? 'local'
+    } catch {
+      return 'local'
+    }
+  }
+
   const startSession = async (c: Context, userId: string) => {
-    const { token, expiresAt } = await auth.createSession(userId, SESSION_TTL)
+    const { token, expiresAt } = await auth.createSession(userId, SESSION_TTL, {
+      userAgent: c.req.header('user-agent'),
+      ip: clientIp(c),
+    })
     setCookie(c, SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: 'Lax',
@@ -274,16 +304,24 @@ export function createApp(base: ServerContext) {
     if (bearer) {
       const user = await auth.userForToken(bearer)
       if (!user) throw new ApiError(401, 'invalid_token', 'This access token is not valid or was revoked')
+      if (!user.twoFactor && (await twoFactorRequired()))
+        throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
       c.set('user', user)
       c.set('viaToken', true)
       return next()
     }
     const token = getCookie(c, SESSION_COOKIE)
-    const user = token ? await auth.userForSession(token) : null
+    const user = token ? await auth.userForSession(token, SESSION_IDLE) : null
     if (!user) throw new ApiError(401, 'unauthenticated', 'Sign in to continue')
     c.set('user', user)
+    // When the site requires two-step verification, someone without it can only set it up.
+    if (!user.twoFactor && !c.req.path.startsWith('/api/auth/') && (await twoFactorRequired()))
+      throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
     await next()
   }
+
+  const twoFactorRequired = async () =>
+    !!(await settings.get<{ requireTwoFactor?: boolean }>('security'))?.requireTwoFactor
 
   /** Only from the panel: a token cannot make or revoke tokens, nor change who someone is. */
   const requireSession: MiddlewareHandler<Env> = async (c, next) => {
@@ -399,15 +437,101 @@ export function createApp(base: ServerContext) {
     return c.json({ user }, 201)
   })
 
+  /**
+   * Sign-in pauses: after repeated failures an email, or an address, waits before trying again
+   * (1, 2, 4… minutes). Saved in the database, so restarting the server does not reset them.
+   */
+  const checkLocks = async (...keys: string[]) => {
+    for (const key of keys) {
+      const until = await auth.lockedUntil(key)
+      if (until) {
+        const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60_000))
+        throw new ApiError(
+          429,
+          'too_many_attempts',
+          `Troppi tentativi: riprova tra ${minutes === 1 ? 'un minuto' : `${minutes} minuti`}`,
+        )
+      }
+    }
+  }
+
+  /** A failed sign-in: counted for the email and the address; the owner hears when their account pauses. */
+  const signInFailed = async (email: string, ip: string, hasAccount: boolean) => {
+    const byEmail = await auth.recordFailure(`email:${email}`, EMAIL_THRESHOLD)
+    await auth.recordFailure(`ip:${ip}`, IP_THRESHOLD)
+    if (hasAccount && byEmail.failures === EMAIL_THRESHOLD)
+      await mailNotice(email, 'Tentativi di accesso non riusciti', [
+        `Qualcuno ha provato ${EMAIL_THRESHOLD} volte di fila a entrare nel pannello del sito con il tuo indirizzo, senza la password giusta. Per sicurezza gli accessi con il tuo indirizzo sono in pausa per qualche minuto.`,
+        'Se eri tu, aspetta e riprova. Se non eri tu, la tua password è ancora al sicuro: per più protezione attiva la verifica in due passaggi dal tuo profilo.',
+      ])
+  }
+
+  /** Passwords accepted, codes still due: by ticket, in memory for a few minutes. */
+  const challenges = new Map<string, { userId: string; until: number }>()
+  const challenge = (userId: string) => {
+    const now = Date.now()
+    for (const [k, v] of challenges) if (v.until < now) challenges.delete(k)
+    const ticket = randomBytes(24).toString('base64url')
+    challenges.set(ticket, { userId, until: now + CHALLENGE_TTL })
+    return ticket
+  }
+
+  /** Signs in, or asks for the second step when the account has two-step verification. */
+  const signIn = async (c: Context, user: User, status: 200 | 201 = 200) => {
+    if (user.twoFactor) return c.json({ twoFactor: true, ticket: challenge(user.id) }, 200)
+    await startSession(c, user.id)
+    return c.json({ user }, status)
+  }
+
   app.post('/api/auth/login', async (c) => {
     const input = await body(c, credentials)
-    if (!allowLogin(input.email.toLowerCase()))
-      throw new ApiError(429, 'too_many_attempts', 'Too many attempts, wait a minute')
-    const found = await auth.findForLogin(input.email)
-    const ok = found ? await verifyPassword(input.password, found.passwordHash) : false
-    if (!found || !ok) throw new ApiError(401, 'invalid_credentials', 'Email or password is not correct')
-    await startSession(c, found.id)
+    const email = input.email.trim().toLowerCase()
+    const ip = clientIp(c)
+    await checkLocks(`email:${email}`, `ip:${ip}`)
+    const found = await auth.findForLogin(email)
+    // A password is checked even for an unknown email: the answer takes as long either way.
+    const ok = await verifyPassword(input.password, found?.passwordHash ?? (await dummyHash))
+    if (!found || !ok) {
+      await signInFailed(email, ip, !!found)
+      throw new ApiError(401, 'invalid_credentials', 'Email or password is not correct')
+    }
+    await auth.clearFailures(`email:${email}`)
     const { passwordHash: _, ...user } = found
+    return signIn(c, user)
+  })
+
+  /** The second step: a code from the app, or a recovery code. */
+  app.post('/api/auth/login/verify', async (c) => {
+    const input = await body(
+      c,
+      z.object({ ticket: z.string().min(1).max(100), code: z.string().trim().min(6).max(20) }),
+    )
+    const pending = challenges.get(input.ticket)
+    if (!pending || pending.until < Date.now()) {
+      challenges.delete(input.ticket)
+      throw new ApiError(401, 'challenge_expired', 'Sign in again')
+    }
+    const key = `2fa:${pending.userId}`
+    await checkLocks(key, `ip:${clientIp(c)}`)
+    const state = await auth.twoFactorOf(pending.userId)
+    let ok = false
+    if (state?.secret) {
+      const step = verifyCode(state.secret, input.code, state.lastStep)
+      if (step !== null) {
+        await auth.useStep(pending.userId, step)
+        ok = true
+      } else if (input.code.replace(/\s/g, '').length > 6) ok = await auth.useRecoveryCode(pending.userId, input.code)
+    }
+    if (!ok) {
+      await auth.recordFailure(key, EMAIL_THRESHOLD)
+      await auth.recordFailure(`ip:${clientIp(c)}`, IP_THRESHOLD)
+      throw new ApiError(401, 'invalid_code', 'The code is not correct')
+    }
+    challenges.delete(input.ticket)
+    await auth.clearFailures(key)
+    const user = await auth.getUser(pending.userId)
+    if (!user) throw new ApiError(401, 'unauthenticated', 'Sign in to continue')
+    await startSession(c, user.id)
     return c.json({ user })
   })
 
@@ -418,7 +542,96 @@ export function createApp(base: ServerContext) {
     return c.json({ ok: true })
   })
 
-  app.get('/api/auth/me', requireUser, (c) => c.json({ user: c.get('user') }))
+  app.get('/api/auth/me', requireUser, async (c) =>
+    c.json({ user: c.get('user'), needsTwoFactor: !c.get('user').twoFactor && (await twoFactorRequired()) }),
+  )
+
+  // ---------- account security: two-step verification and devices ----------
+
+  const checkPassword = async (userId: string, password: string, path = 'password') => {
+    const hash = await auth.getPasswordHash(userId)
+    if (!hash || !(await verifyPassword(password, hash)))
+      throw new ApiError(422, 'wrong_password', 'The password is not correct', [
+        { path, message: 'La password non è corretta' },
+      ])
+  }
+
+  app.get('/api/auth/security', requireUser, requireSession, async (c) => {
+    const user = c.get('user')
+    const state = await auth.twoFactorOf(user.id)
+    const current = auth.sessionId(getCookie(c, SESSION_COOKIE) ?? '')
+    return c.json({
+      twoFactor: { enabled: !!state?.secret, recoveryLeft: state?.recoveryLeft ?? 0 },
+      required: await twoFactorRequired(),
+      sessions: (await auth.listSessions(user.id)).map((s) => ({ ...s, current: s.id === current })),
+    })
+  })
+
+  /** Step one: a new secret to scan; it is used only once a code confirms it. */
+  app.post('/api/auth/2fa/setup', requireUser, requireSession, async (c) => {
+    const user = c.get('user')
+    if (user.twoFactor) throw new ApiError(409, 'two_factor_on', 'Two-step verification is already on')
+    const secret = newSecret()
+    await auth.setPendingSecret(user.id, secret)
+    return c.json({ secret, uri: otpauthUri(secret, user.email, ctx.config().site.name) })
+  })
+
+  /** Step two: the first code turns it on; the recovery codes are shown this once. */
+  app.post('/api/auth/2fa/enable', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ code: z.string().trim().min(6).max(10) }))
+    const user = c.get('user')
+    const state = await auth.twoFactorOf(user.id)
+    if (!state?.pending) throw new ApiError(409, 'no_setup', 'Start the setup again')
+    const step = verifyCode(state.pending, input.code)
+    if (step === null)
+      throw new ApiError(422, 'invalid_code', 'The code is not correct', [
+        { path: 'code', message: 'Il codice non è corretto' },
+      ])
+    const codes = recoveryCodes()
+    await auth.enableTwoFactor(user.id, step, codes)
+    return c.json({ recoveryCodes: codes })
+  })
+
+  app.post('/api/auth/2fa/disable', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ password: z.string().min(1) }))
+    if (await twoFactorRequired())
+      throw new ApiError(409, 'two_factor_required', 'This site requires two-step verification')
+    await checkPassword(c.get('user').id, input.password)
+    await auth.disableTwoFactor(c.get('user').id)
+    return c.json({ ok: true })
+  })
+
+  app.post('/api/auth/2fa/recovery', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ password: z.string().min(1) }))
+    await checkPassword(c.get('user').id, input.password)
+    if (!c.get('user').twoFactor) throw new ApiError(409, 'two_factor_off', 'Two-step verification is off')
+    const codes = recoveryCodes()
+    await auth.setRecoveryCodes(c.get('user').id, codes)
+    return c.json({ recoveryCodes: codes })
+  })
+
+  app.delete('/api/auth/sessions/:id', requireUser, requireSession, async (c) => {
+    if (!(await auth.endSession(c.get('user').id, c.req.param('id'))))
+      throw new ApiError(404, 'not_found', 'This device is not signed in')
+    return c.json({ ok: true })
+  })
+
+  app.post('/api/auth/sessions/others', requireUser, requireSession, async (c) =>
+    c.json({ ended: await auth.endOtherSessions(c.get('user').id, getCookie(c, SESSION_COOKIE)) }),
+  )
+
+  // The site's rules (Persone): two-step verification for everyone.
+  app.get('/api/security', requireUser, requireAdmin, async (c) =>
+    c.json({ requireTwoFactor: await twoFactorRequired() }),
+  )
+
+  app.put('/api/security', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ requireTwoFactor: z.boolean() }))
+    if (input.requireTwoFactor && !c.get('user').twoFactor)
+      throw new ApiError(409, 'two_factor_off', 'Turn on two-step verification for yourself first')
+    await settings.set('security', input, c.get('user').id)
+    return c.json(input)
+  })
 
   // ---------- personal access tokens (MCP clients, scripts) ----------
 
@@ -565,6 +778,17 @@ export function createApp(base: ServerContext) {
     return c.body(null, 204)
   })
 
+  /** For someone who lost their phone and their recovery codes: they sign in with the password alone. */
+  app.delete('/api/users/:id/two-factor', requireUser, requireSession, requireAdmin, async (c) => {
+    const target = await loadUser(c.req.param('id'))
+    await auth.disableTwoFactor(target.id)
+    await mailNotice(target.email, 'Verifica in due passaggi disattivata', [
+      `${c.get('user').name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.`,
+      'Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.',
+    ])
+    return c.json({ user: await auth.getUser(target.id) })
+  })
+
   app.post('/api/users/:id/reset', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     const { token, invite } = await auth.createInvite({
@@ -624,8 +848,8 @@ export function createApp(base: ServerContext) {
     }
     await auth.consumeInvite(token)
     if (!user) throw new ApiError(404, 'not_found', 'This person does not exist')
-    await startSession(c, user.id)
-    return c.json({ user }, invite.kind === 'reset' ? 200 : 201)
+    // A new password is not a way around the second step.
+    return signIn(c, user, invite.kind === 'reset' ? 200 : 201)
   })
 
   // ---------- schema ----------
@@ -1041,8 +1265,9 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
 
   app.post('/api/forms/:form', async (c) => {
     const form = c.req.param('form').slice(0, 80)
-    const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'local'
-    if (!allowForm(`${ip}:${form}`)) throw new ApiError(429, 'too_many_attempts', 'Too many messages, wait a minute')
+    const ip = clientIp(c)
+    if (!allowForm(`${ip}:${form}`))
+      throw new ApiError(429, 'too_many_attempts', 'Troppi messaggi: riprova tra un minuto')
     const isJson = (c.req.header('content-type') ?? '').includes('application/json')
     const raw = (isJson ? await c.req.json().catch(() => ({})) : await c.req.parseBody()) as Record<string, unknown>
     const page = typeof raw._page === 'string' ? raw._page.slice(0, 300) : (c.req.header('referer') ?? '').slice(0, 300)

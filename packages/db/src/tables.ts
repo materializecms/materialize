@@ -53,6 +53,14 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }),
+  /** Two-step verification: the authenticator app's secret, once confirmed. */
+  totpSecret: text('totp_secret'),
+  /** A secret shown during setup, waiting for its first code. */
+  totpPending: text('totp_pending'),
+  /** The last time step accepted: a code works once. */
+  totpLastStep: integer('totp_last_step'),
+  /** Hashes of the unused recovery codes. */
+  recoveryCodes: text('recovery_codes', { mode: 'json' }).$type<string[]>(),
 })
 
 /** Only a SHA-256 hash of each session token is stored. */
@@ -63,6 +71,19 @@ export const sessions = sqliteTable('sessions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  /** Last request: a session left unused for too long ends. */
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }),
+  /** Which device it is, for the list of connected devices. */
+  userAgent: text('user_agent'),
+  ip: text('ip'),
+})
+
+/** Failed sign-ins, by email and by address: repeated failures lock that key for a while. */
+export const loginAttempts = sqliteTable('login_attempts', {
+  key: text('key').primaryKey(),
+  failures: integer('failures').notNull(),
+  lockedUntil: integer('locked_until', { mode: 'timestamp_ms' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 })
 
 /**
@@ -283,5 +304,20 @@ export const MIGRATIONS: string[][] = [
   [
     'ALTER TABLE documents ADD COLUMN source_id TEXT',
     'CREATE INDEX IF NOT EXISTS documents_source ON documents (source_id)',
+  ],
+  [
+    'ALTER TABLE users ADD COLUMN totp_secret TEXT',
+    'ALTER TABLE users ADD COLUMN totp_pending TEXT',
+    'ALTER TABLE users ADD COLUMN totp_last_step INTEGER',
+    'ALTER TABLE users ADD COLUMN recovery_codes TEXT',
+    'ALTER TABLE sessions ADD COLUMN last_seen_at INTEGER',
+    'ALTER TABLE sessions ADD COLUMN user_agent TEXT',
+    'ALTER TABLE sessions ADD COLUMN ip TEXT',
+    `CREATE TABLE IF NOT EXISTS login_attempts (
+      key TEXT PRIMARY KEY,
+      failures INTEGER NOT NULL,
+      locked_until INTEGER,
+      updated_at INTEGER NOT NULL
+    )`,
   ],
 ]

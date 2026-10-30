@@ -2,6 +2,7 @@ export {
   type ApiToken,
   type AuthStore,
   createAuthStore,
+  type DeviceSession,
   EmailTakenError,
   type Invite,
   type Member,

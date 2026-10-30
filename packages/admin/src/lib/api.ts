@@ -11,6 +11,8 @@ export interface User {
   id: string
   email: string
   name: string
+  /** Signs in with a code from an authenticator app too. */
+  twoFactor?: boolean
   role: 'admin' | 'editor'
 }
 
@@ -68,6 +70,23 @@ export interface FontInfo {
   weights: number[]
   styles: string[]
   variable: boolean
+}
+
+export type SignIn = { user: User; twoFactor?: undefined } | { twoFactor: true; ticket: string; user?: undefined }
+
+/** Profilo → Sicurezza. */
+export interface AccountSecurity {
+  twoFactor: { enabled: boolean; recoveryLeft: number }
+  /** The site requires it of everyone. */
+  required: boolean
+  sessions: {
+    id: string
+    userAgent: string | null
+    ip: string | null
+    createdAt: string
+    lastSeenAt: string
+    current: boolean
+  }[]
 }
 
 export interface Overview {
@@ -227,7 +246,6 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // The API speaks English; the admin speaks to editors in Italian.
 const MESSAGES: Record<string, string> = {
   invalid_credentials: 'Email o password non corretti',
-  too_many_attempts: 'Troppi tentativi. Riprova tra un minuto',
   unauthenticated: 'Accedi per continuare',
   forbidden: 'Solo gli amministratori possono farlo',
   invalid_content: 'Alcuni campi vanno sistemati',
@@ -248,6 +266,11 @@ const MESSAGES: Record<string, string> = {
   translation_exists: 'Questa lingua esiste già',
   unknown_locale: 'Questa lingua non è attiva: Impostazioni → Lingue',
   session_required: 'Questa azione si fa dal pannello',
+  invalid_code: 'Il codice non è corretto',
+  challenge_expired: 'È passato troppo tempo: accedi di nuovo',
+  two_factor_required: 'Questo sito richiede la verifica in due passaggi',
+  two_factor_off: 'Prima attiva la verifica in due passaggi per te',
+  no_setup: 'Ricomincia l’attivazione',
 }
 
 function translate(code: string | undefined, fallback: string | undefined): string {
@@ -264,9 +287,24 @@ const q = (params: Record<string, string | number | undefined>) => {
 export const api = {
   setupStatus: () => request<{ needsSetup: boolean }>('GET', '/setup'),
   setup: (input: { email: string; name: string; password: string }) => request<{ user: User }>('POST', '/setup', input),
-  login: (input: { email: string; password: string }) => request<{ user: User }>('POST', '/auth/login', input),
+  /** Either signed in, or a ticket for the second step (two-step verification). */
+  login: (input: { email: string; password: string }) => request<SignIn>('POST', '/auth/login', input),
+  verifyLogin: (input: { ticket: string; code: string }) =>
+    request<{ user: User }>('POST', '/auth/login/verify', input),
   logout: () => request<{ ok: true }>('POST', '/auth/logout'),
-  me: () => request<{ user: User }>('GET', '/auth/me'),
+  me: () => request<{ user: User; needsTwoFactor?: boolean }>('GET', '/auth/me'),
+  security: () => request<AccountSecurity>('GET', '/auth/security'),
+  setupTwoFactor: () => request<{ secret: string; uri: string }>('POST', '/auth/2fa/setup'),
+  enableTwoFactor: (code: string) => request<{ recoveryCodes: string[] }>('POST', '/auth/2fa/enable', { code }),
+  disableTwoFactor: (password: string) => request<{ ok: true }>('POST', '/auth/2fa/disable', { password }),
+  newRecoveryCodes: (password: string) =>
+    request<{ recoveryCodes: string[] }>('POST', '/auth/2fa/recovery', { password }),
+  endSession: (id: string) => request<{ ok: true }>('DELETE', `/auth/sessions/${encodeURIComponent(id)}`),
+  endOtherSessions: () => request<{ ended: number }>('POST', '/auth/sessions/others'),
+  siteSecurity: () => request<{ requireTwoFactor: boolean }>('GET', '/security'),
+  saveSiteSecurity: (input: { requireTwoFactor: boolean }) =>
+    request<{ requireTwoFactor: boolean }>('PUT', '/security', input),
+  resetTwoFactor: (userId: string) => request<{ user: User }>('DELETE', `/users/${userId}/two-factor`),
   schema: () => request<Schema>('GET', '/schema'),
   theme: () => request<{ theme: Theme }>('GET', '/theme'),
   fonts: () => request<{ items: FontInfo[] }>('GET', '/fonts'),
@@ -414,7 +452,7 @@ export const api = {
       `/invites/${token}`,
     ),
   acceptInvite: (token: string, input: { name?: string; password: string }) =>
-    request<{ user: User }>('POST', `/invites/${token}/accept`, input),
+    request<SignIn>('POST', `/invites/${token}/accept`, input),
   updateMe: (input: { name: string }) => request<{ user: User }>('PATCH', '/auth/me', input),
   changeEmail: (input: { email: string; password: string }) => request<{ user: User }>('POST', '/auth/email', input),
   changePassword: (input: { current: string; next: string }) => request<{ ok: true }>('POST', '/auth/password', input),

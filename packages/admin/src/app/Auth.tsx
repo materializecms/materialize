@@ -26,6 +26,8 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Password accepted, the account asks for a code too.
+  const [ticket, setTicket] = useState<string | null>(null)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -33,7 +35,14 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
     setError(null)
     try {
       if (mode === 'setup') await api.setup({ name, email, password })
-      else await api.login({ email, password })
+      else {
+        const res = await api.login({ email, password })
+        if (res.twoFactor) {
+          setTicket(res.ticket)
+          setPassword('')
+          return
+        }
+      }
       await queryClient.invalidateQueries()
     } catch (err) {
       const issues = err instanceof ApiError ? err.issues : []
@@ -45,6 +54,20 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
   }
 
   const label = 'mb-1.5 block text-[12px] font-medium text-fg2'
+
+  if (ticket)
+    return (
+      <div className="flex min-h-full items-center justify-center px-4 py-12">
+        <div className="w-full max-w-[340px]">
+          <Logo className="mb-6 size-9" />
+          <TwoFactorStep
+            ticket={ticket}
+            onDone={() => void queryClient.invalidateQueries()}
+            onBack={() => setTicket(null)}
+          />
+        </div>
+      </div>
+    )
 
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-12">
@@ -99,5 +122,74 @@ export function AuthScreen({ mode }: { mode: 'setup' | 'login' }) {
         </Button>
       </form>
     </div>
+  )
+}
+
+/** The second step of signing in: the code from the app, or a recovery code. */
+export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDone: () => void; onBack: () => void }) {
+  const [code, setCode] = useState('')
+  const [recovery, setRecovery] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api.verifyLogin({ ticket, code })
+      onDone()
+    } catch (err) {
+      setError((err as Error).message)
+      if (err instanceof ApiError && err.code === 'challenge_expired') onBack()
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <h1 className="text-[20px] font-semibold tracking-tight">Verifica in due passaggi</h1>
+      <p className="mt-1 mb-6 text-fg2">
+        {recovery
+          ? 'Scrivi uno dei codici di riserva che hai salvato: ognuno vale una volta.'
+          : 'Apri l’app di autenticazione e scrivi il codice di 6 cifre.'}
+      </p>
+      <Input
+        key={recovery ? 'r' : 'c'}
+        value={code}
+        onChange={(e) => setCode(recovery ? e.target.value : e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+        inputMode={recovery ? 'text' : 'numeric'}
+        autoComplete="one-time-code"
+        placeholder={recovery ? 'abcd-efgh' : '123456'}
+        aria-label={recovery ? 'Codice di riserva' : 'Codice'}
+        required
+        autoFocus
+        className="font-mono tracking-[0.2em]"
+      />
+      {error && (
+        <p role="alert" className="mt-4 text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+      <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
+        Continua
+      </Button>
+      <div className="mt-4 flex justify-between text-[12.5px]">
+        <button type="button" className="text-fg2 hover:text-fg" onClick={onBack}>
+          Indietro
+        </button>
+        <button
+          type="button"
+          className="font-medium text-accent hover:underline"
+          onClick={() => {
+            setRecovery(!recovery)
+            setCode('')
+            setError(null)
+          }}
+        >
+          {recovery ? 'Usa il codice dell’app' : 'Usa un codice di riserva'}
+        </button>
+      </div>
+    </form>
   )
 }

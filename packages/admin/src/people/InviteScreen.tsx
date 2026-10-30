@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
-import { Logo } from '../app/Auth.tsx'
+import { Logo, TwoFactorStep } from '../app/Auth.tsx'
 import { Button, Input, Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { ROLES } from './PeopleScreen.tsx'
@@ -13,16 +13,26 @@ export function InviteScreen({ token }: { token: string }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [ticket, setTicket] = useState<string | null>(null)
+  // Fresh start, signed in, without the one-time link in the address bar.
+  const enter = () => {
+    queryClient.clear()
+    location.replace('/admin/')
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      await api.acceptInvite(token, { name: name.trim() || undefined, password })
-      queryClient.clear()
-      // Fresh start, signed in, without the one-time link in the address bar.
-      location.replace('/admin/')
+      const res = await api.acceptInvite(token, { name: name.trim() || undefined, password })
+      // The new password is set; an account with two-step verification still asks for its code.
+      if (res.twoFactor) {
+        setTicket(res.ticket)
+        setBusy(false)
+        return
+      }
+      enter()
     } catch (err) {
       const issues = err instanceof ApiError ? err.issues : []
       setError(
@@ -40,7 +50,9 @@ export function InviteScreen({ token }: { token: string }) {
     <div className="flex min-h-full items-center justify-center px-4 py-12">
       <div className="w-full max-w-[340px]">
         <Logo className="mb-6 size-9" />
-        {info.isPending ? (
+        {ticket ? (
+          <TwoFactorStep ticket={ticket} onDone={enter} onBack={enter} />
+        ) : info.isPending ? (
           <Spinner />
         ) : info.error || !info.data ? (
           <>

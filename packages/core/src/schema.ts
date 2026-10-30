@@ -73,7 +73,11 @@ export interface MaterializeConfig {
   database: { url: string; authToken?: string }
   /** Where uploaded files are kept. */
   media: { dir: string }
-  server: { port: number }
+  /**
+   * `trustProxy`: the site runs behind a proxy (Cloudflare, Nginx, the host's load balancer) that
+   * sets X-Forwarded-For; only then is that header used to know who is connecting.
+   */
+  server: { port: number; trustProxy: boolean }
 }
 
 export interface ConfigInput {
@@ -82,7 +86,7 @@ export interface ConfigInput {
   locales?: Partial<Locales>
   database?: { url?: string; authToken?: string }
   media?: { dir?: string }
-  server?: { port?: number }
+  server?: { port?: number; trustProxy?: boolean }
 }
 
 export class MaterializeConfigError extends Error {
@@ -126,7 +130,7 @@ export function defineConfig(input: ConfigInput): MaterializeConfig {
     locales,
     database: { url: input.database?.url ?? 'file:.materialize/content.db', authToken: input.database?.authToken },
     media: { dir: input.media?.dir ?? '.materialize/media' },
-    server: { port: input.server?.port ?? 4321 },
+    server: { port: input.server?.port ?? 4321, trustProxy: input.server?.trustProxy ?? false },
   }
 }
 

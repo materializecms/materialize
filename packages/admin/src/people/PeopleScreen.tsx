@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   PencilLine,
   ShieldCheck,
+  ShieldOff,
   Trash2,
   UserPlus,
   Users,
@@ -15,6 +16,7 @@ import { type FormEvent, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import {
   Button,
+  cx,
   Dialog,
   EmptyState,
   IconButton,
@@ -250,6 +252,15 @@ export function PeopleScreen() {
                   >
                     {person.lastSeenAt ? `Accesso ${relativeTime(person.lastSeenAt)}` : 'Mai entrato'}
                   </span>
+                  <span
+                    className={cx(
+                      'hidden w-16 text-[11.5px] font-medium md:block',
+                      person.twoFactor ? 'text-ok' : 'text-fg3',
+                    )}
+                    title={person.twoFactor ? 'Entra con password e codice dall’app' : 'Entra solo con la password'}
+                  >
+                    {person.twoFactor ? '2 passaggi' : '—'}
+                  </span>
                   <span className="inline-flex w-36 items-center gap-1.5 text-[12.5px]">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
                     {ROLES[person.role].label}
@@ -299,6 +310,22 @@ export function PeopleScreen() {
                         >
                           Link per una nuova password
                         </MenuItem>
+                        {person.twoFactor && person.id !== me.id && (
+                          <MenuItem
+                            icon={<ShieldOff />}
+                            onClick={() => {
+                              close()
+                              if (
+                                confirm(
+                                  `Disattivare la verifica in due passaggi di ${person.name}? Potrà entrare con la sola password e riattivarla dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.`,
+                                )
+                              )
+                                void run(() => api.resetTwoFactor(person.id), 'Verifica in due passaggi disattivata')
+                            }}
+                          >
+                            Disattiva la verifica in due passaggi
+                          </MenuItem>
+                        )}
                         <MenuItem
                           icon={<Trash2 />}
                           danger
@@ -317,6 +344,11 @@ export function PeopleScreen() {
               ))}
             </section>
             <EditorialSetting />
+            <TwoFactorSetting
+              everyone={people.data.users.every((u) => u.twoFactor)}
+              missing={people.data.users.filter((u) => !u.twoFactor).length}
+              mine={!!people.data.users.find((u) => u.id === me.id)?.twoFactor}
+            />
 
             {people.data.invites.length > 0 && (
               <section className="mt-8">
@@ -441,6 +473,42 @@ export function PeopleScreen() {
 }
 
 /** Whether editors may change the layout of pages, or only their texts, links and images. */
+/** Two-step verification for everyone: who has not turned it on is asked to, at the next visit. */
+function TwoFactorSetting({ everyone, missing, mine }: { everyone: boolean; missing: number; mine: boolean }) {
+  const queryClient = useQueryClient()
+  const security = useQuery({ queryKey: ['site-security'], queryFn: api.siteSecurity }).data
+  if (!security) return null
+  return (
+    <section className="mt-3 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+      <Switch
+        checked={security.requireTwoFactor}
+        label="Richiedi la verifica in due passaggi a tutti"
+        onChange={async (requireTwoFactor) => {
+          try {
+            queryClient.setQueryData(['site-security'], await api.saveSiteSecurity({ requireTwoFactor }))
+            toast(
+              requireTwoFactor ? 'Verifica in due passaggi richiesta a tutti' : 'Verifica in due passaggi facoltativa',
+            )
+          } catch (error) {
+            toast((error as Error).message, 'error')
+          }
+        }}
+      />
+      <div>
+        <div className="text-[13px] font-medium">Richiedi la verifica in due passaggi a tutti</div>
+        <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg3">
+          Per entrare servono la password e un codice dall’app del telefono: una password rubata da sola non basta.{' '}
+          {!mine
+            ? 'Prima attivala per te, dal tuo profilo → Sicurezza.'
+            : everyone
+              ? 'Tutti l’hanno già attivata.'
+              : `${missing === 1 ? 'Una persona non l’ha' : `${missing} persone non l’hanno`} ancora attivata: ${security.requireTwoFactor ? 'dovrà farlo' : 'se la richiedi, dovrà farlo'} al prossimo accesso.`}
+        </p>
+      </div>
+    </section>
+  )
+}
+
 function EditorialSetting() {
   const queryClient = useQueryClient()
   const editorial = useQuery({ queryKey: ['editorial'], queryFn: api.editorial }).data?.editorial
