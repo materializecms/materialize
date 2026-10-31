@@ -4,7 +4,7 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
-## 0.1.0 — 2026-10-30
+## 0.1.0 — 2026-10-31
 
 La prima versione pubblica.
 
