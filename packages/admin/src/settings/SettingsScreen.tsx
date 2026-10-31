@@ -238,7 +238,7 @@ function MailForm() {
         <Field label="Server">
           <Input
             value={mail.host}
-            placeholder="smtp.esempio.it"
+            placeholder="smtp.example.com"
             onChange={(e) => set({ host: e.target.value.trim() })}
           />
         </Field>
@@ -273,15 +273,15 @@ function MailForm() {
           />
         </Field>
       </div>
-      <Field label="Mittente" hint="Come appare a chi riceve, per esempio Studio Rossi <sito@studiorossi.it>.">
+      <Field label="Mittente" hint="Come appare a chi riceve, per esempio Studio Rossi <sito@example.com>.">
         <Input
           value={mail.from}
-          placeholder="Nome <indirizzo@dominio.it>"
+          placeholder="Nome <indirizzo@example.com>"
           onChange={(e) => set({ from: e.target.value })}
         />
       </Field>
       <Field label="Destinatario dei moduli" hint="Dove arrivano i messaggi inviati dal sito.">
-        <Input value={mail.to} placeholder="studio@dominio.it" onChange={(e) => set({ to: e.target.value.trim() })} />
+        <Input value={mail.to} placeholder="studio@example.com" onChange={(e) => set({ to: e.target.value.trim() })} />
       </Field>
       <div className="flex gap-2">
         <Button type="submit" variant="primary" loading={saving}>

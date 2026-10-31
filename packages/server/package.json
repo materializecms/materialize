@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/server",
   "version": "0.1.0",
-  "description": "HTTP API for Materialize: authentication, content management and the public delivery API.",
+  "description": "Il server di Materialize: API, accessi, media, backup, aggiornamenti dal pannello e server MCP.",
   "type": "module",
   "license": "MIT",
   "repository": {

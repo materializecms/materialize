@@ -1,8 +1,8 @@
 # A tag like v0.2.0 publishes that version: the same checks as every change, then the packages
 # on npm with provenance (npm shows they were built here, from this commit), then a GitHub release
 # with the notes from CHANGELOG.md, then the Docker image on GitHub's registry (ghcr.io), built
-# from the packages just published. Needs the NPM_TOKEN secret: an npm automation token with
-# access to the @materializecms scope.
+# from the packages just published. Needs the NPM_TOKEN secret: an npm granular token that can
+# publish (read and write, all packages, bypassing two-factor authentication), at most 90 days.
 name: Rilascio
 
 on:

@@ -35,7 +35,7 @@ export interface SiteSeo {
   /** Shared image for pages without their own. */
   image?: Media
   favicon?: Media
-  /** Account on X, such as "@studiorossi". */
+  /** Account on X, such as "@nomeaccount". */
   xHandle?: string
   business?: {
     type?: (typeof BUSINESS_TYPES)[number]['value']

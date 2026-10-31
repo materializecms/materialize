@@ -1,6 +1,6 @@
 # Materialize with HTTPS, on a server where Docker is already there:
 #
-#   DOMAIN=esempio.it docker compose up -d
+#   DOMAIN=example.com docker compose up -d
 #   docker compose logs materialize      (the link to finish the installation in the browser)
 #
 # Caddy gets the Let's Encrypt certificate for the domain, which must already point to the server.
@@ -13,7 +13,7 @@ services:
     volumes:
       - site:/site
     environment:
-      MATERIALIZE_SITE_URL: https://${DOMAIN:?Indica il dominio, per esempio DOMAIN=esempio.it docker compose up -d}
+      MATERIALIZE_SITE_URL: https://${DOMAIN:?Indica il dominio, per esempio DOMAIN=example.com docker compose up -d}
       MATERIALIZE_TRUST_PROXY: "1"
       # Other variables for the site go here, for example ANTHROPIC_API_KEY.
 

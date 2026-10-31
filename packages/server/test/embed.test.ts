@@ -52,8 +52,8 @@ afterEach(() => database.close())
 describe('custom code', () => {
   it('only admins add or change it, everyone can edit the rest', async () => {
     const admin = client()
-    await admin('POST', '/api/setup', { email: 'a@prova.it', name: 'A', password: 'una-password-lunga' })
-    const { body: invite } = await admin('POST', '/api/users/invites', { email: 'e@prova.it', role: 'editor' })
+    await admin('POST', '/api/setup', { email: 'a@prova.example', name: 'A', password: 'una-password-lunga' })
+    const { body: invite } = await admin('POST', '/api/users/invites', { email: 'e@prova.example', role: 'editor' })
     const editor = client()
     await editor('POST', `/api/invites/${invite.link.split('/').pop()}/accept`, {
       name: 'E',

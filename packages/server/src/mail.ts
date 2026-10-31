@@ -8,7 +8,7 @@ export interface MailSettings {
   security: 'tls' | 'starttls' | 'none'
   user: string
   pass: string
-  /** Sender shown to recipients, e.g. "Studio Rossi <sito@studiorossi.it>". */
+  /** Sender shown to recipients, e.g. "Studio Rossi <sito@example.com>". */
   from: string
   /** Where messages from the site's forms arrive. */
   to: string

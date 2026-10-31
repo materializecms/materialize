@@ -257,7 +257,7 @@ function newElement(kind: ElementKind): PageNode {
       text: 'Email',
       fieldName: 'email',
       inputKind: 'email',
-      placeholder: 'nome@esempio.it',
+      placeholder: 'nome@example.com',
       width: 'fill',
     }
   if (kind === 'icon')

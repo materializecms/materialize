@@ -444,7 +444,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
   }
   const title = pageTitle({ title: docTitle || 'Titolo della pagina', url: docUrl, seo: value, site })
   const description = value.description || site.description
-  const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'tuosito.it'
+  const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'example.com'
   const image = value.image ?? site.image
   const field = (key: keyof Seo, desc: FieldDescription) => (
     <Field field={desc} value={value[key]} path={[...path, key]} onChange={(v, g) => set(key, v, g)} />

@@ -610,7 +610,7 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
         },
         [
           field('Nome', 'nome', 'text', { required: true, placeholder: 'Il tuo nome' }),
-          field('Email', 'email', 'email', { required: true, placeholder: 'nome@esempio.it' }),
+          field('Email', 'email', 'email', { required: true, placeholder: 'nome@example.com' }),
           field('Tipo di progetto', 'progetto', 'select', {
             options: ['Casa nuova', 'Ristrutturazione', 'Interni', 'Altro'],
           }),
@@ -1419,7 +1419,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
           ]),
           F('Modulo', { gap: 12, padX: 28, padY: 28, radius: 'card', scheme: 'surface', maxW: 440 }, [
             T('fl', 'Etichetta', 'La tua email', 'small', { weight: 500 }),
-            T('fi', 'Campo', 'nome@esempio.it', 'small', {
+            T('fi', 'Campo', 'nome@example.com', 'small', {
               color: 'muted',
               bg: 'bg',
               padX: 14,

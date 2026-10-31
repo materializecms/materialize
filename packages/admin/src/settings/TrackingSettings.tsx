@@ -139,12 +139,12 @@ export function TrackingSettings() {
             label="Plausible"
             hint="Senza cookie: non chiede consenso. Il dominio del sito come registrato su Plausible."
           >
-            {input('plausible', 'esempio.it')}
+            {input('plausible', 'example.com')}
             {error('plausible')}
           </Field>
           <Field label="Matomo" hint="Statistiche: parte dopo il consenso.">
             <div className="flex gap-2">
-              {input('matomoUrl', 'https://matomo.esempio.it')}
+              {input('matomoUrl', 'https://matomo.example.com')}
               <div className="w-24 shrink-0">{input('matomoSiteId', 'ID sito')}</div>
             </div>
             {error('matomoUrl')}

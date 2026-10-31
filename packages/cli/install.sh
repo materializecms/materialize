@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Materialize on a VPS, in one command (Debian 12+ or Ubuntu 22.04+, as root):
 #
-#   curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain esempio.it
+#   curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain example.com
 #
 # Installs Node.js and Caddy (HTTPS with Let's Encrypt), creates the site in /srv/materialize, runs
 # it as a service that starts with the server, opens only SSH, HTTP and HTTPS in the firewall and
@@ -71,7 +71,7 @@ main() {
 usage() {
   cat <<'EOF'
 
-  curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain esempio.it
+  curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain example.com
 
   --domain <nome>      Il dominio del sito (se manca, lo chiede)
   --email <indirizzo>  Per gli avvisi di Let's Encrypt sul certificato (facoltativo)
@@ -156,8 +156,8 @@ ask_domain() {
     DOMAIN=$(sed -n 's/^# dominio: //p' /etc/caddy/materialize.caddy | head -n 1)
   fi
   if [ -z "$DOMAIN" ]; then
-    can_ask || die 'Indica il dominio del sito: --domain esempio.it'
-    DOMAIN=$(ask 'Il dominio del sito (per esempio esempio.it):')
+    can_ask || die 'Indica il dominio del sito: --domain example.com'
+    DOMAIN=$(ask 'Il dominio del sito (per esempio example.com):')
   fi
   DOMAIN=$(printf '%s' "$DOMAIN" | tr 'A-Z' 'a-z' | sed -e 's#^https\{0,1\}://##' -e 's#/.*$##')
   [[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]*[a-z0-9]$ ]] || die "«$DOMAIN» non sembra un dominio."

@@ -51,7 +51,7 @@ beforeEach(async () => {
   database = await openDatabase({ url: ':memory:' })
   app = createApp({ config: () => config, database })
   cookie = ''
-  await json('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: 'una-password-lunga' })
+  await json('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: 'una-password-lunga' })
 })
 
 afterEach(async () => {

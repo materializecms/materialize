@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { thirdPartyLicenses } from './licenses.ts'
 
 // The admin is served by the Materialize server at /admin. In `npm run dev:admin`
 // Vite proxies the API to a running `materialize dev` on port 4321.
@@ -8,7 +9,7 @@ const api = process.env.MATERIALIZE_API ?? 'http://localhost:4321'
 
 export default defineConfig({
   base: '/admin/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), thirdPartyLicenses()],
   build: { outDir: 'dist', emptyOutDir: true, chunkSizeWarningLimit: 1200 },
   server: {
     port: 5173,

@@ -139,7 +139,7 @@ function InviteDialog({
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="nome@studio.it"
+            placeholder="nome@example.com"
           />
         </label>
         <label className="block">

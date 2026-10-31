@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/core",
   "version": "0.1.0",
-  "description": "Schema-as-code for Materialize: collections, blocks, fields, types and validation.",
+  "description": "Il modello dei contenuti di Materialize: raccolte, campi, validazione, libreria di sezioni, SEO.",
   "type": "module",
   "license": "MIT",
   "repository": {

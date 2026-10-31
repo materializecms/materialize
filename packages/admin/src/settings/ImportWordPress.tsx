@@ -108,7 +108,12 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
         <>
           <label className="block">
             <span className={label}>Indirizzo del sito WordPress</span>
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.esempio.it" required />
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://www.example.com"
+              required
+            />
           </label>
           <details className="rounded-md border border-line px-3 py-2 text-[13px]">
             <summary className="cursor-pointer font-medium text-fg2">Anche bozze e pagine private</summary>

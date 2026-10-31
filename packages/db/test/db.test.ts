@@ -111,9 +111,14 @@ describe('documents', () => {
 describe('auth', () => {
   it('stores users and resolves sessions by token', async () => {
     expect(await auth.countUsers()).toBe(0)
-    const user = await auth.createUser({ email: ' Elena@Studio.it ', name: 'Elena', role: 'admin', passwordHash: 'x' })
-    expect(user.email).toBe('elena@studio.it')
-    expect(await auth.findForLogin('ELENA@studio.it')).toMatchObject({ id: user.id, passwordHash: 'x' })
+    const user = await auth.createUser({
+      email: ' Elena@Example.org ',
+      name: 'Elena',
+      role: 'admin',
+      passwordHash: 'x',
+    })
+    expect(user.email).toBe('elena@example.org')
+    expect(await auth.findForLogin('ELENA@example.org')).toMatchObject({ id: user.id, passwordHash: 'x' })
 
     const { token } = await auth.createSession(user.id, 60_000)
     expect(await auth.userForSession(token)).toMatchObject({ id: user.id, role: 'admin' })
@@ -122,7 +127,7 @@ describe('auth', () => {
   })
 
   it('treats expired sessions as missing', async () => {
-    const user = await auth.createUser({ email: 'a@b.it', name: 'A', role: 'editor', passwordHash: 'x' })
+    const user = await auth.createUser({ email: 'a@b.example', name: 'A', role: 'editor', passwordHash: 'x' })
     const { token } = await auth.createSession(user.id, -1)
     expect(await auth.userForSession(token)).toBeNull()
   })
@@ -130,23 +135,23 @@ describe('auth', () => {
 
 describe('people and invitations', () => {
   it('invites once per email, and links work only until used or expired', async () => {
-    const admin = await auth.createUser({ email: 'elena@studio.it', name: 'Elena', role: 'admin', passwordHash: 'x' })
+    const admin = await auth.createUser({ email: 'elena@example.org', name: 'Elena', role: 'admin', passwordHash: 'x' })
     const { token } = await auth.createInvite({
       kind: 'invite',
-      email: 'Marco@Studio.it',
+      email: 'Marco@Example.org',
       role: 'editor',
       ttlMs: 60_000,
     })
-    expect((await auth.findInvite(token))?.email).toBe('marco@studio.it')
-    expect((await auth.pendingInvites()).map((i) => i.email)).toEqual(['marco@studio.it'])
+    expect((await auth.findInvite(token))?.email).toBe('marco@example.org')
+    expect((await auth.pendingInvites()).map((i) => i.email)).toEqual(['marco@example.org'])
 
     // A new invitation to the same address replaces the old link.
-    const second = await auth.createInvite({ kind: 'invite', email: 'marco@studio.it', role: 'admin', ttlMs: 60_000 })
+    const second = await auth.createInvite({ kind: 'invite', email: 'marco@example.org', role: 'admin', ttlMs: 60_000 })
     expect(await auth.findInvite(token)).toBeNull()
     await auth.consumeInvite(second.token)
     expect(await auth.findInvite(second.token)).toBeNull()
 
-    const expired = await auth.createInvite({ kind: 'invite', email: 'luca@studio.it', role: 'editor', ttlMs: -1 })
+    const expired = await auth.createInvite({ kind: 'invite', email: 'luca@example.org', role: 'editor', ttlMs: -1 })
     expect(await auth.findInvite(expired.token)).toBeNull()
 
     await expect(
@@ -155,8 +160,8 @@ describe('people and invitations', () => {
   })
 
   it('changes roles, lists last sign-in and signs out everywhere on a new password', async () => {
-    const a = await auth.createUser({ email: 'a@studio.it', name: 'A', role: 'admin', passwordHash: 'x' })
-    const b = await auth.createUser({ email: 'b@studio.it', name: 'B', role: 'editor', passwordHash: 'x' })
+    const a = await auth.createUser({ email: 'a@example.org', name: 'A', role: 'admin', passwordHash: 'x' })
+    const b = await auth.createUser({ email: 'b@example.org', name: 'B', role: 'editor', passwordHash: 'x' })
     const keep = await auth.createSession(b.id, 60_000)
     const other = await auth.createSession(b.id, 60_000)
     expect((await auth.listUsers()).map((u) => [u.name, u.lastSeenAt !== null])).toEqual([

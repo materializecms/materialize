@@ -55,7 +55,7 @@ beforeEach(async () => {
   database = await openDatabase({ url: ':memory:' })
   app = createApp({ config: () => config, database })
   cookie = ''
-  await call('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: 'una-password-lunga' })
+  await call('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: 'una-password-lunga' })
 })
 
 afterEach(() => database.close())
@@ -71,7 +71,7 @@ describe('personal access tokens', () => {
     expect(JSON.stringify(listed.body)).not.toContain(token)
 
     const bearer = { authorization: `Bearer ${token}` }
-    expect((await call('GET', '/api/auth/me', undefined, bearer)).body.user.email).toBe('elena@studiorossi.it')
+    expect((await call('GET', '/api/auth/me', undefined, bearer)).body.user.email).toBe('elena@example.com')
     // A token cannot make tokens or touch accounts.
     expect((await call('POST', '/api/tokens', { name: 'x' }, bearer)).status).toBe(403)
     expect((await call('GET', '/api/mail', undefined, bearer)).status).toBe(403)

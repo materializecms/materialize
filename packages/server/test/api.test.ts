@@ -55,7 +55,7 @@ beforeEach(async () => {
 afterEach(() => database.close())
 
 async function signUp() {
-  return call('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: 'una-password-lunga' })
+  return call('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: 'una-password-lunga' })
 }
 
 describe('passwords', () => {
@@ -75,12 +75,12 @@ describe('setup and auth', () => {
     const created = await signUp()
     expect(created.status).toBe(201)
     expect(created.body.user.role).toBe('admin')
-    expect((await call('GET', '/api/auth/me')).body.user.email).toBe('elena@studiorossi.it')
+    expect((await call('GET', '/api/auth/me')).body.user.email).toBe('elena@example.com')
     expect((await signUp()).status).toBe(409)
   })
 
   it('rejects short passwords at setup', async () => {
-    const res = await call('POST', '/api/setup', { email: 'a@b.it', name: 'A', password: 'corta' })
+    const res = await call('POST', '/api/setup', { email: 'a@b.example', name: 'A', password: 'corta' })
     expect(res.status).toBe(422)
     expect(res.body.error.issues[0].path).toBe('password')
   })
@@ -89,11 +89,11 @@ describe('setup and auth', () => {
     await signUp()
     await call('POST', '/api/auth/logout')
     expect((await call('GET', '/api/auth/me')).status).toBe(401)
+    expect((await call('POST', '/api/auth/login', { email: 'elena@example.com', password: 'sbagliata' })).status).toBe(
+      401,
+    )
     expect(
-      (await call('POST', '/api/auth/login', { email: 'elena@studiorossi.it', password: 'sbagliata' })).status,
-    ).toBe(401)
-    expect(
-      (await call('POST', '/api/auth/login', { email: 'ELENA@studiorossi.it', password: 'una-password-lunga' })).status,
+      (await call('POST', '/api/auth/login', { email: 'ELENA@example.com', password: 'una-password-lunga' })).status,
     ).toBe(200)
     expect((await call('GET', '/api/auth/me')).status).toBe(200)
   })
@@ -107,7 +107,7 @@ describe('setup and auth', () => {
     const res = await app.request('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://evil.example' },
-      body: 'email=a@b.it&password=x',
+      body: 'email=a@b.example&password=x',
     })
     expect(res.status).toBe(403)
   })
@@ -160,7 +160,7 @@ describe('content workflow', () => {
     expect(live.status).toBe(200)
     expect(live.body.data.title).toBe('Chi siamo')
 
-    await call('POST', '/api/auth/login', { email: 'elena@studiorossi.it', password: 'una-password-lunga' })
+    await call('POST', '/api/auth/login', { email: 'elena@example.com', password: 'una-password-lunga' })
     const edited = await call('PUT', `/api/documents/${id}`, { data: { title: 'Lo studio', slug: 'chi-siamo' } })
     expect(edited.body.status).toBe('changed')
     expect((await call('GET', '/api/content/pages/chi-siamo')).body.data.title).toBe('Chi siamo')

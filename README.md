@@ -12,7 +12,7 @@ Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
 npm create materialize@latest
 ```
 
-Il comando chiede la cartella, copia un sito Astro con nove blocchi pronti (copertina, testo, galleria, citazione, numeri, servizi, domande, contatti, invito), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
+Il comando chiede la cartella, copia un sito Astro di partenza (le pagine si compongono sulla tela con le sezioni della libreria), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
 
 ### Dove installarlo
 
@@ -23,7 +23,7 @@ Con il pannello, Materialize è un programma Node sempre acceso: serve un **serv
 Su un VPS nuovo con Debian 12 o Ubuntu 22.04 (o più recenti), almeno 1 GB di memoria e un dominio che punta al suo indirizzo IP, basta un comando:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain esempio.it
+curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain example.com
 ```
 
 Lo script installa Node.js e Caddy, che serve il sito in HTTPS con un certificato Let's Encrypt rinnovato da solo. Poi crea il sito in `/srv/materialize` e lo avvia come servizio, che riparte con il server e dopo un errore. Infine apre nel firewall solo SSH, HTTP e HTTPS, attiva gli aggiornamenti di sicurezza del sistema e, sui server con poca memoria, aggiunge memoria di scambio. Alla fine scrive il link per completare l'installazione nel browser.
@@ -38,7 +38,7 @@ Su un server dove c'è già Docker, `docker/compose.yaml` avvia Materialize con 
 
 ```bash
 curl -fsSLO https://cdn.jsdelivr.net/npm/@materializecms/cli/compose.yaml
-DOMAIN=esempio.it docker compose up -d
+DOMAIN=example.com docker compose up -d
 docker compose logs materialize
 ```
 

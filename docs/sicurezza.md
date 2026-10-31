@@ -22,7 +22,7 @@ Il pannello va servito solo in HTTPS, altrimenti password e sessioni viaggiano i
 Nella configurazione indica l'indirizzo pubblico, che serve anche per SEO e sitemap:
 
 ```ts
-site: { name: 'Studio Rossi', url: 'https://www.studiorossi.it' },
+site: { name: 'Studio Rossi', url: 'https://www.example.com' },
 ```
 
 ## 2. Dietro un proxy: `trustProxy`
@@ -49,7 +49,7 @@ Impostazioni → Sicurezza avvisa in entrambi i casi.
 ```nginx
 server {
   listen 443 ssl http2;
-  server_name www.studiorossi.it;
+  server_name www.example.com;
   # certificati: certbot --nginx
 
   client_max_body_size 30m;   # caricamento di immagini fino a 25 MB
@@ -70,7 +70,7 @@ Nota `X-Forwarded-For $remote_addr`, non `$proxy_add_x_forwarded_for`. Così Ngi
 ### Caddy
 
 ```caddy
-www.studiorossi.it {
+www.example.com {
   reverse_proxy 127.0.0.1:4321
 }
 ```

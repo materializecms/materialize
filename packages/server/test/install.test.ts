@@ -37,7 +37,7 @@ async function call(method: string, path: string, json?: unknown) {
   return { status: res.status, body: text ? JSON.parse(text) : null }
 }
 
-const admin = { email: 'elena@studiorossi.it', name: 'Elena', password: 'una-password-lunga' }
+const admin = { email: 'elena@example.com', name: 'Elena', password: 'una-password-lunga' }
 
 beforeEach(async () => {
   database = await openDatabase({ url: ':memory:' })

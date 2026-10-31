@@ -46,12 +46,12 @@ beforeEach(async () => {
   // Behind a proxy: the tests tell apart addresses with X-Forwarded-For.
   app = createApp({ config: () => ({ ...config, server: { ...config.server, trustProxy: true } }), database })
   admin = client('10.0.0.1')
-  await admin('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: PASSWORD })
+  await admin('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: PASSWORD })
 })
 
 afterEach(() => database.close())
 
-const login = (who: ReturnType<typeof client>, password = PASSWORD, email = 'elena@studiorossi.it') =>
+const login = (who: ReturnType<typeof client>, password = PASSWORD, email = 'elena@example.com') =>
   who('POST', '/api/auth/login', { email, password })
 
 /** Turns two-step verification on for whoever `who` is; returns the secret and recovery codes. */
@@ -72,13 +72,13 @@ describe('sign-in limits', () => {
     expect((await login(client('10.0.0.3'))).status).toBe(429)
 
     const ghost = client('10.0.0.4')
-    for (let i = 0; i < 5; i++) await login(ghost, 'x', 'nessuno@studiorossi.it')
-    expect((await login(ghost, 'x', 'nessuno@studiorossi.it')).status).toBe(429)
+    for (let i = 0; i < 5; i++) await login(ghost, 'x', 'nessuno@example.com')
+    expect((await login(ghost, 'x', 'nessuno@example.com')).status).toBe(429)
   })
 
   it('pause an address that tries many accounts', async () => {
     const attacker = client('10.0.0.9')
-    for (let i = 0; i < 20; i++) await login(attacker, 'x', `utente${i}@studiorossi.it`)
+    for (let i = 0; i < 20; i++) await login(attacker, 'x', `utente${i}@example.com`)
     expect((await login(attacker)).status).toBe(429)
     // Elena, from her own address, is not affected.
     expect((await login(client('10.0.0.10'))).status).toBe(200)
@@ -134,7 +134,7 @@ describe('two-step verification', () => {
     await enable(admin)
     expect((await admin('PUT', '/api/security', { requireTwoFactor: true })).status).toBe(200)
 
-    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@studiorossi.it', role: 'editor' })
+    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@example.com', role: 'editor' })
     const marco = client('10.0.1.1')
     const joined = await marco('POST', `/api/invites/${body.link.split('/').pop()}/accept`, {
       name: 'Marco',
@@ -184,7 +184,7 @@ describe('activity log', () => {
   it('records sign-ins, people and publishing, for administrators only', async () => {
     await login(client('10.0.4.1'), 'sbagliata')
     await login(client('10.0.4.2'))
-    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@studiorossi.it', role: 'editor' })
+    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@example.com', role: 'editor' })
     const marco = client('10.0.4.3')
     await marco('POST', `/api/invites/${body.link.split('/').pop()}/accept`, {
       name: 'Marco',
@@ -199,7 +199,7 @@ describe('activity log', () => {
       expect.arrayContaining(['login.failed', 'login.ok', 'user.invited', 'user.joined', 'document.published']),
     )
     expect(all.find((e) => e.action === 'login.failed')).toMatchObject({
-      target: 'elena@studiorossi.it',
+      target: 'elena@example.com',
       ip: '10.0.4.1',
     })
     // Newest first.
@@ -247,7 +247,7 @@ describe('backups', () => {
     app = local
     try {
       const me = client('10.0.5.1')
-      await me('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: PASSWORD })
+      await me('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: PASSWORD })
       expect((await me('GET', '/api/backups')).body).toMatchObject({ enabled: true, keep: 14, available: true })
       await me('PUT', '/api/backups', { enabled: true, keep: 2 })
       for (let i = 0; i < 3; i++) expect((await me('POST', '/api/backups')).status).toBe(201)
@@ -259,7 +259,7 @@ describe('backups', () => {
       const { readFile } = await import('node:fs/promises')
       const copy = await openDatabase({ url: `file:${join(dir, 'backups', items[0]?.name as string)}` })
       const rows = await copy.client.execute('SELECT email FROM users')
-      expect(rows.rows[0]?.email).toBe('elena@studiorossi.it')
+      expect(rows.rows[0]?.email).toBe('elena@example.com')
       copy.close()
       expect((await readFile(join(dir, 'backups', items[0]?.name as string))).subarray(0, 15).toString()).toBe(
         'SQLite format 3',
@@ -301,7 +301,7 @@ describe('media backups and the whole archive', () => {
     app = createApp({ config: () => ({ ...config, database: { url }, media: { dir: media } }), database: db })
     try {
       const me = client('10.0.6.1')
-      await me('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: PASSWORD })
+      await me('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: PASSWORD })
       await me('POST', '/api/backups')
       expect((await me('GET', '/api/backups')).body.media.files).toBe(2)
 
@@ -324,7 +324,7 @@ describe('media backups and the whole archive', () => {
       expect(written.sort()).toEqual(['content.db', 'materialize.json', 'media/a.jpg'])
       expect(await readFile(join(out, 'media', 'a.jpg'), 'utf8')).toBe('immagine a')
       const copy = await openDatabase({ url: `file:${join(out, 'content.db')}` })
-      expect((await copy.client.execute('SELECT email FROM users')).rows[0]?.email).toBe('elena@studiorossi.it')
+      expect((await copy.client.execute('SELECT email FROM users')).rows[0]?.email).toBe('elena@example.com')
       copy.close()
 
       // A restored database gets its missing images back from the media copy; nothing outside it.

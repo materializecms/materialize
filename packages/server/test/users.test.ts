@@ -37,7 +37,7 @@ beforeEach(async () => {
   database = await openDatabase({ url: ':memory:' })
   app = createApp({ config: () => config, database })
   admin = client()
-  await admin('POST', '/api/setup', { email: 'elena@studiorossi.it', name: 'Elena', password: 'una-password-lunga' })
+  await admin('POST', '/api/setup', { email: 'elena@example.com', name: 'Elena', password: 'una-password-lunga' })
 })
 
 afterEach(() => database.close())
@@ -46,7 +46,7 @@ const tokenOf = (link: string) => link.split('/').pop() as string
 
 describe('invitations', () => {
   it('lets an invited editor join with their own password', async () => {
-    const invited = await admin('POST', '/api/users/invites', { email: 'marco@studiorossi.it', role: 'editor' })
+    const invited = await admin('POST', '/api/users/invites', { email: 'marco@example.com', role: 'editor' })
     expect(invited.status).toBe(201)
     expect(invited.body.link).toMatch(/^\/admin\/_invite\/[\w-]{40,}$/)
     expect((await admin('GET', '/api/users')).body.invites).toHaveLength(1)
@@ -55,7 +55,7 @@ describe('invitations', () => {
     const token = tokenOf(invited.body.link)
     expect((await marco('GET', `/api/invites/${token}`)).body).toMatchObject({
       kind: 'invite',
-      email: 'marco@studiorossi.it',
+      email: 'marco@example.com',
       site: 'Studio Rossi',
     })
     const joined = await marco('POST', `/api/invites/${token}/accept`, { name: 'Marco', password: 'password-di-marco' })
@@ -72,12 +72,12 @@ describe('invitations', () => {
   })
 
   it('refuses to invite an address that already has an account', async () => {
-    const res = await admin('POST', '/api/users/invites', { email: 'Elena@StudioRossi.it', role: 'editor' })
+    const res = await admin('POST', '/api/users/invites', { email: 'Elena@example.com', role: 'editor' })
     expect(res.status).toBe(409)
   })
 
   it('can be revoked', async () => {
-    const { body } = await admin('POST', '/api/users/invites', { email: 'luca@studiorossi.it', role: 'editor' })
+    const { body } = await admin('POST', '/api/users/invites', { email: 'luca@example.com', role: 'editor' })
     expect((await admin('DELETE', `/api/users/invites/${body.invite.id}`)).status).toBe(204)
     expect((await client()('GET', `/api/invites/${tokenOf(body.link)}`)).status).toBe(404)
   })
@@ -85,7 +85,7 @@ describe('invitations', () => {
 
 describe('people', () => {
   async function addEditor() {
-    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@studiorossi.it', role: 'editor' })
+    const { body } = await admin('POST', '/api/users/invites', { email: 'marco@example.com', role: 'editor' })
     const marco = client()
     const { body: joined } = await marco('POST', `/api/invites/${tokenOf(body.link)}/accept`, {
       name: 'Marco',
@@ -122,8 +122,7 @@ describe('people', () => {
     expect((await marco('GET', '/api/auth/me')).status).toBe(401)
     const again = client()
     expect(
-      (await again('POST', '/api/auth/login', { email: 'marco@studiorossi.it', password: 'nuova-password-123' }))
-        .status,
+      (await again('POST', '/api/auth/login', { email: 'marco@example.com', password: 'nuova-password-123' })).status,
     ).toBe(200)
   })
 
@@ -141,34 +140,34 @@ describe('people', () => {
 
   it('lets people change their own email, confirmed with the password', async () => {
     const { marco } = await addEditor()
-    const wrong = await marco('POST', '/api/auth/email', { email: 'marco@studio.it', password: 'sbagliata' })
+    const wrong = await marco('POST', '/api/auth/email', { email: 'marco@example.org', password: 'sbagliata' })
     expect(wrong.status).toBe(422)
     const taken = await marco('POST', '/api/auth/email', {
-      email: 'Elena@StudioRossi.it',
+      email: 'Elena@example.com',
       password: 'password-di-marco',
     })
     expect(taken.status).toBe(409)
-    const ok = await marco('POST', '/api/auth/email', { email: 'Marco@Studio.it', password: 'password-di-marco' })
-    expect(ok.body.user.email).toBe('marco@studio.it')
+    const ok = await marco('POST', '/api/auth/email', { email: 'Marco@Example.org', password: 'password-di-marco' })
+    expect(ok.body.user.email).toBe('marco@example.org')
     // The new address signs in, the old one no longer does.
     const fresh = client()
     expect(
-      (await fresh('POST', '/api/auth/login', { email: 'marco@studiorossi.it', password: 'password-di-marco' })).status,
+      (await fresh('POST', '/api/auth/login', { email: 'marco@example.com', password: 'password-di-marco' })).status,
     ).toBe(401)
     expect(
-      (await fresh('POST', '/api/auth/login', { email: 'marco@studio.it', password: 'password-di-marco' })).status,
+      (await fresh('POST', '/api/auth/login', { email: 'marco@example.org', password: 'password-di-marco' })).status,
     ).toBe(200)
   })
 
   it('lets administrators correct someone else’s email', async () => {
     const { marco, id } = await addEditor()
-    expect((await admin('PATCH', `/api/users/${id}`, { email: 'marco@studio.it' })).body.user.email).toBe(
-      'marco@studio.it',
+    expect((await admin('PATCH', `/api/users/${id}`, { email: 'marco@example.org' })).body.user.email).toBe(
+      'marco@example.org',
     )
-    expect((await admin('PATCH', `/api/users/${id}`, { email: 'elena@studiorossi.it' })).status).toBe(409)
+    expect((await admin('PATCH', `/api/users/${id}`, { email: 'elena@example.com' })).status).toBe(409)
     expect((await admin('PATCH', `/api/users/${id}`, { email: 'non-una-email' })).status).toBe(422)
     // An editor cannot change other people.
     const me = (await admin('GET', '/api/auth/me')).body.user
-    expect((await marco('PATCH', `/api/users/${me.id}`, { email: 'x@y.it' })).status).toBe(403)
+    expect((await marco('PATCH', `/api/users/${me.id}`, { email: 'x@y.example' })).status).toBe(403)
   })
 })

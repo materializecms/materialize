@@ -2008,7 +2008,7 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
           gtm: id(TRACKING_PATTERNS.gtm, 'Un ID di Tag Manager inizia con GTM-'),
           gtmCategory: category.optional(),
           metaPixel: id(TRACKING_PATTERNS.metaPixel, 'L’ID del Pixel è fatto di sole cifre'),
-          plausible: id(TRACKING_PATTERNS.plausible, 'Scrivi il dominio come su Plausible, per esempio esempio.it'),
+          plausible: id(TRACKING_PATTERNS.plausible, 'Scrivi il dominio come su Plausible, per esempio example.com'),
           plausibleSrc: id(/^https:\/\/[^"<>\s]+$/, 'Un indirizzo https://'),
           matomoUrl: id(/^https:\/\/[^"'<>\s]+$/, 'L’indirizzo di Matomo, con https://'),
           matomoSiteId: id(TRACKING_PATTERNS.matomoSiteId, 'Il numero del sito su Matomo'),

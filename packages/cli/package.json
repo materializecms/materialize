@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/cli",
   "version": "0.1.0",
-  "description": "The materialize command: run the CMS locally with live schema reload.",
+  "description": "Il comando materialize: sviluppo, produzione con aggiornamenti dal pannello, generazione del sito, backup, MCP.",
   "type": "module",
   "license": "MIT",
   "repository": {

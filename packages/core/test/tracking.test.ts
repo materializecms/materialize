@@ -18,7 +18,7 @@ describe('tracking', () => {
 
   it('runs cookie-free and necessary code without a banner', () => {
     const t = {
-      plausible: 'esempio.it',
+      plausible: 'example.com',
       custom: [
         {
           id: 'v',
