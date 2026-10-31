@@ -5,7 +5,7 @@
  *
  *   node scripts/smoke.ts
  */
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -28,6 +28,19 @@ async function main() {
     const name = file.replace(/-\d+\.\d+\.\d+\.tgz$/, '')
     local[name.startsWith('materializecms-') ? `@materializecms/${name.slice(15)}` : name] =
       `file:${join(TARBALLS, file)}`
+  }
+
+  // npm silently rewrites a manifest it finds wrong (it once took the bin out of the cli): a package
+  // must reach the registry exactly as it was built.
+  step('Controllo i manifest come li vede npm')
+  for (const dir of await readdir(join(ROOT, '.release'))) {
+    if (dir === 'tarballs' || !existsSync(join(ROOT, '.release', dir, 'package.json'))) continue
+    const out = spawnSync('npm', ['publish', '--dry-run', '--tag', 'smoke'], {
+      cwd: join(ROOT, '.release', dir),
+      encoding: 'utf8',
+    })
+    if (/auto-corrected|errors corrected/.test(out.stderr))
+      throw new Error(`npm correggerebbe il package.json di ${dir}:\n${out.stderr}`)
   }
 
   const work = await mkdtemp(join(tmpdir(), 'materialize-smoke-'))

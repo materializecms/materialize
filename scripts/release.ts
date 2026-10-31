@@ -82,7 +82,11 @@ function releaseManifest(pkg: Json, versions: Map<string, string>): Json {
   if (!pkg.exports) delete manifest.exports
   if (pkg.bin) {
     manifest.bin = Object.fromEntries(
-      Object.entries(pkg.bin as Record<string, string>).map(([key, file]) => [key, file.replace(/\.ts$/, '.js')]),
+      // npm rewrites "./src/x.js" as "src/x.js" and warns about it: written its way, there is nothing to fix.
+      Object.entries(pkg.bin as Record<string, string>).map(([key, file]) => [
+        key,
+        file.replace(/\.ts$/, '.js').replace(/^\.\//, ''),
+      ]),
     )
   }
   // Workspace packages move together, so they depend on each other's exact version.
@@ -96,7 +100,8 @@ function releaseManifest(pkg: Json, versions: Map<string, string>): Json {
   if (pkg.name === '@materializecms/admin') delete manifest.dependencies
   if (manifest.dependencies && !Object.keys(manifest.dependencies).length) delete manifest.dependencies
   manifest.engines = { node: '>=24' }
-  if (String(pkg.name).startsWith('@')) manifest.publishConfig = { access: 'public' }
+  // Public for every package: a new one cannot get provenance otherwise (create-materialize has no scope).
+  manifest.publishConfig = { access: 'public' }
   return manifest
 }
 

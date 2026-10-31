@@ -8,6 +8,15 @@ name: Rilascio
 on:
   push:
     tags: ["v*"]
+  # Resumes a release that stopped halfway, with the fixed scripts on main: what is already on npm is skipped.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Il tag della versione da riprendere, per esempio v0.1.0
+        required: true
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -29,15 +38,16 @@ jobs:
       - run: npm run release
       # A new site made from these packages must install, build and start.
       - run: npm run smoke
-      - run: node scripts/publish.ts --tag "$GITHUB_REF_NAME" --provenance
+      - run: node scripts/publish.ts --tag "$TAG" --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Release su GitHub
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          node scripts/notes.ts "$GITHUB_REF_NAME" > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "Materialize ${GITHUB_REF_NAME#v}" --notes-file notes.md packages/cli/install.sh docker/compose.yaml
+          gh release view "$TAG" >/dev/null 2>&1 && exit 0
+          node scripts/notes.ts "$TAG" > notes.md
+          gh release create "$TAG" --verify-tag --title "Materialize ${TAG#v}" --notes-file notes.md packages/cli/install.sh docker/compose.yaml
 
   docker:
     needs: release
@@ -47,7 +57,7 @@ jobs:
       - name: Versione e nome dell'immagine
         id: meta
         run: |
-          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/materialize" >> "$GITHUB_OUTPUT"
       # The image installs the packages from npm: wait until the new version is there.
       - name: Attesa dei pacchetti su npm
