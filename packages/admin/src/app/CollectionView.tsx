@@ -1,7 +1,17 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Button, cx, EmptyState, Input, Segmented, Spinner, StatusBadge, TintIcon } from '../components/ui.tsx'
+import {
+  Button,
+  cx,
+  EmptyState,
+  Input,
+  ScreenHeader,
+  Segmented,
+  Spinner,
+  StatusBadge,
+  TintIcon,
+} from '../components/ui.tsx'
 import { api, type CollectionDescription, type DocumentStatus, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { usePref } from '../lib/prefs.ts'
@@ -100,22 +110,17 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="shrink-0 px-4 pt-6 sm:px-8 sm:pt-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <TintIcon color={tint} size="lg">
-            {collectionIcon(collection)}
-          </TintIcon>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.025em]">{collection.label}</h1>
-            <p className="text-[13px] text-fg3">
-              {list.data ? (list.data.total === 1 ? '1 documento' : `${list.data.total} documenti`) : ' '}
-            </p>
-          </div>
+      <ScreenHeader
+        icon={collectionIcon(collection)}
+        color={tint}
+        title={collection.label}
+        subtitle={list.data ? (list.data.total === 1 ? '1 documento' : `${list.data.total} documenti`) : ''}
+        actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={create}>
             Nuovo
           </Button>
-        </div>
-
+        }
+      >
         <div className="mt-6 flex min-h-11 flex-wrap items-center gap-2 border-b border-line pb-3">
           {picked.length > 0 ? (
             <BulkBar
@@ -176,7 +181,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
             </>
           )}
         </div>
-      </header>
+      </ScreenHeader>
       <ConfirmDelete docs={deleting} onCancel={() => setDeleting(null)} onConfirm={() => void confirmDelete()} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-10 sm:px-8">

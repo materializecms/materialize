@@ -41,13 +41,15 @@ Nella stessa scheda vedi i **dispositivi** collegati al tuo account e puoi disco
 - Dopo 5 tentativi di accesso sbagliati per la stessa email, o 20 dallo stesso indirizzo, l'accesso si **ferma per un po'**: un minuto, poi due, quattro… fino a un'ora. Vale anche per le email che non esistono, così nessuno può scoprire chi è registrato.
 - Il pannello blocca le richieste che arrivano da altri siti e protegge le password con un algoritmo lento da decifrare.
 
-## Impostazioni → Sicurezza
+## Impostazioni → Protezione
 
-Solo per gli amministratori:
+Tre sezioni, solo per gli amministratori:
 
-- **Panoramica**: quello che va sistemato, per esempio amministratori senza verifica in due passaggi, email non configurata, sito senza HTTPS, accessi falliti nelle ultime 24 ore. Quando non c'è niente: **Tutto in ordine**.
-- **Registro delle attività**: chi è entrato, chi ha pubblicato, invitato, cambiato impostazioni o installato aggiornamenti, e da dove. Si conserva per un anno.
+- **Sicurezza**: quello che va sistemato, per esempio amministratori senza verifica in due passaggi, email non configurata, sito senza HTTPS, accessi falliti nelle ultime 24 ore. Ogni punto ha il suo pulsante. Quando non c'è niente: **Tutto in ordine**.
 - **Backup**: vedi [Aggiornamenti e backup](12-aggiornamenti-e-backup.md).
+- **Registro attività**: chi è entrato, chi ha pubblicato, invitato, cambiato impostazioni o installato aggiornamenti, e da dove. Si conserva per un anno.
+
+In **Persone**, la colonna della verifica dice per ognuno **Due passaggi** oppure **Solo password**.
 
 ## Se dimentichi la password
 

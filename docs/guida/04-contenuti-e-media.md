@@ -21,7 +21,7 @@ Negli elenchi:
 
 ## Cronologia
 
-Ogni salvataggio crea una versione.
+Ogni salvataggio crea una versione, con la data e il nome di chi l'ha fatta (**Persona rimossa** se nel frattempo il suo account è stato eliminato).
 
 - **Voci delle raccolte** (per esempio un articolo o un progetto, modificati con i campi): il pulsante **Pannello documento**, in alto, mostra stato, indirizzo, lingua e la **Cronologia**. **Ripristina** riporta la voce com'era. Anche il ripristino è una bozza: arriva sul sito solo quando pubblichi.
 - **Pagine composte sulla tela**: il pulsante **Cronologia**, in alto, apre l'elenco delle versioni. Cliccane una per **vederla su desktop, tablet e mobile**, senza toccare la bozza. **Ripristina questa versione** la riporta nella bozza (e **⌘Z** annulla il ripristino), **Chiudi** torna alla pagina com'era. Il ripristino arriva sul sito solo quando pubblichi.

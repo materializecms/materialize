@@ -569,7 +569,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               false,
             ),
           )}
-          <p className="-mt-3 text-[12px] leading-relaxed text-fg3">
+          <p className="-mt-3 text-[13px] leading-relaxed text-fg3">
             Solo se questa pagina ripete un’altra: indica quella originale e Google mostrerà quella.
           </p>
           {field('nofollow', seoField('nofollow', 'boolean', 'Non seguire i collegamenti di questa pagina', {}, false))}
@@ -587,7 +587,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
                 </option>
               ))}
             </select>
-            {value.schema && <p className="text-[12px] leading-relaxed text-fg3">{SCHEMA_HINTS[value.schema]}</p>}
+            {value.schema && <p className="text-[13px] leading-relaxed text-fg3">{SCHEMA_HINTS[value.schema]}</p>}
           </div>
           {value.schema === 'event' && <EventFields value={value.event ?? {}} onChange={(e) => set('event', e)} />}
           {value.schema === 'faq' && <FaqFields value={value.faq ?? []} onChange={(f) => set('faq', f, 'faq')} />}
@@ -675,7 +675,7 @@ function FaqFields({
       <Button size="sm" variant="ghost" onClick={() => onChange([...value, { q: '', a: '' }])}>
         <Plus className="size-3.5" /> Aggiungi una domanda
       </Button>
-      <p className="text-[12px] leading-relaxed text-fg3">Scrivi le stesse domande che si leggono nella pagina.</p>
+      <p className="text-[13px] leading-relaxed text-fg3">Scrivi le stesse domande che si leggono nella pagina.</p>
     </div>
   )
 }

@@ -53,8 +53,8 @@ export function AuthScreen() {
 
   if (forgot)
     return (
-      <div className="flex min-h-full items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[340px]">
+      <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+        <div className="mz-card w-full max-w-[388px]">
           <Logo className="mb-6 size-9" />
           <ForgotPassword initialEmail={email} onBack={() => setForgot(false)} />
         </div>
@@ -63,8 +63,8 @@ export function AuthScreen() {
 
   if (ticket)
     return (
-      <div className="flex min-h-full items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[340px]">
+      <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+        <div className="mz-card w-full max-w-[388px]">
           <Logo className="mb-6 size-9" />
           <TwoFactorStep
             ticket={ticket}
@@ -76,8 +76,8 @@ export function AuthScreen() {
     )
 
   return (
-    <div className="flex min-h-full items-center justify-center px-4 py-12">
-      <form onSubmit={submit} className="w-full max-w-[340px]">
+    <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+      <form onSubmit={submit} className="mz-card w-full max-w-[388px]">
         <Logo className="mb-6 size-9" />
         <h1 className="text-[20px] font-semibold tracking-tight">Accedi</h1>
         <p className="mt-1 mb-6 text-fg2">Inserisci le tue credenziali per continuare.</p>
@@ -121,6 +121,17 @@ export function AuthScreen() {
         <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
           Accedi
         </Button>
+        {/* Who makes it, without the version: a public page should not tell which one is running. */}
+        <p className="mt-10 text-center text-[12px] text-fg3">
+          <a
+            href="https://github.com/materializecms/materialize"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-fg2 hover:underline"
+          >
+            Materialize · CMS open source
+          </a>
+        </p>
       </form>
     </div>
   )

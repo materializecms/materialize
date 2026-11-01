@@ -111,16 +111,18 @@ La porta di Materialize (4321) non deve essere raggiungibile da fuori: ci arriva
 - Attiva la **verifica in due passaggi** per te (Il tuo profilo → Sicurezza). Poi richiedila a tutti, da **Persone**.
 - Configura l'**invio delle email** (Impostazioni → Email). Così le persone ricevono gli avvisi di tentativi falliti e di cambi di indirizzo, e i link per una nuova password arrivano da soli.
 - Dai il ruolo di amministratore solo a chi deve gestire persone, impostazioni e codice personalizzato. A tutti gli altri basta quello di redattore.
-- Ogni tanto guarda il registro in Impostazioni → Sicurezza, e i token in Impostazioni → AI e MCP: revoca quelli che non servono più.
+- Ogni tanto guarda Impostazioni → Registro attività, e i token in Impostazioni → AI e MCP: revoca quelli che non servono più.
 
 ## 6. Backup
 
 Ogni giorno il server salva nella cartella `backups`, accanto al database (per esempio `.materialize/backups`):
 
-- **una copia del database**. Tiene le ultime 14 copie; il numero si cambia in Impostazioni → Sicurezza;
+- **una copia del database**. Tiene le ultime 14 copie; il numero si cambia in Impostazioni → Backup;
 - **una copia delle immagini** in `backups/media`. Aggiunge solo i file nuovi, perché un originale caricato non cambia mai. Le versioni ridimensionate non servono: il server le rifà. Un'immagine eliminata dalla libreria resta nella copia almeno 30 giorni, e comunque finché c'è un backup del database più vecchio dell'eliminazione.
 
-Queste copie stanno sullo stesso server: se il server si rompe, si perdono con lui. Per questo in Impostazioni → Sicurezza c'è **Scarica tutto**: un unico archivio `.tar.gz` con il database, tutte le immagini originali e i caratteri. Si prepara mentre lo scarichi, quindi non occupa spazio sul server anche con molti GB. Tienine una copia altrove, per esempio sul tuo computer o in un cloud.
+Queste copie stanno sullo stesso server: se il server si rompe, si perdono con lui. La soluzione consigliata è la **copia fuori dal server**, in Impostazioni → Sicurezza → Backup: ogni notte i backup vanno, cifrati, su uno spazio S3 compatibile o in una cartella WebDAV. Come attivarla e come rimettere i backup è spiegato nella [guida](guida/12-aggiornamenti-e-backup.md#copia-fuori-dal-server).
+
+C'è anche **Scarica tutto**: un unico archivio `.tar.gz` con il database, tutte le immagini originali e i caratteri. Si prepara mentre lo scarichi, quindi non occupa spazio sul server anche con molti GB. Tienine una copia altrove, per esempio sul tuo computer o in un cloud.
 
 In alternativa, una copia automatica da un altro computer:
 

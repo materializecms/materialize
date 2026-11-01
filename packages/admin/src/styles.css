@@ -95,9 +95,51 @@ body {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
-  outline-offset: 1px;
+/* In the base layer: an element that draws its own focus (focus:outline-none, the search of ⌘K)
+   can turn this off; outside the layers it would win over every class. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+/* Every select of the panel: its own look instead of the browser's (border, arrow, both themes);
+   the list that opens stays the system's, which is what keyboards, screen readers and phones know.
+   In the base layer, so a select's own classes (the borderless width picker of the editor) still win. */
+@layer base {
+  select {
+    appearance: none;
+    background-color: var(--input);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8b94' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.45rem center;
+    background-size: 14px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  select:hover {
+    border-color: color-mix(in srgb, var(--text3) 40%, var(--border2));
+  }
+  select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  /* Full-width selects sit in forms next to inputs (h-8): the same height. */
+  select.w-full {
+    height: 2rem;
+  }
+  select option {
+    background: var(--panel);
+    color: var(--text);
+  }
+}
+/* Outside the layers, so it wins over px-* classes: room for the arrow. */
+select {
+  padding-inline-end: 1.6rem;
 }
 
 /* Rich text editor (Tiptap) */
@@ -167,4 +209,26 @@ body {
 }
 .mz-pop-in {
   animation: mz-in 120ms ease-out;
+}
+
+/* The screens before the panel (sign in, installation, invitation, required 2FA): the canvas dots
+   of the editor under a soft glow of the accent, and the form on a card. The panel's own look,
+   from the first screen. */
+.mz-backdrop {
+  background:
+    radial-gradient(64rem 36rem at 50% -10rem, color-mix(in srgb, var(--accent) 26%, transparent), transparent 72%),
+    radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 18px 18px,
+    var(--bg);
+}
+.mz-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--panel);
+  box-shadow: var(--pop);
+  padding: 2rem;
+}
+@media (max-width: 480px) {
+  .mz-card {
+    padding: 1.5rem;
+  }
 }

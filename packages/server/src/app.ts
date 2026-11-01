@@ -26,6 +26,7 @@ import {
   untranslatedIds,
   withLocales,
 } from '@materializecms/core/i18n'
+import { senderDomain } from '@materializecms/core/mail'
 import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
 import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { TRACKING_PATTERNS, type TrackingSettings, trackingBlocks } from '@materializecms/core/tracking'
@@ -77,9 +78,25 @@ import {
 import { type ArchiveEntry, folderEntries, tarGz } from './archive.ts'
 import { type BackupSettings, createBackups, DEFAULT_BACKUPS } from './backups.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
-import { isConfigured, type MailSettings, publicMail, sendMail, submissionText } from './mail.ts'
+import {
+  checkSenderDomain,
+  explainMailError,
+  isConfigured,
+  type MailSettings,
+  publicMail,
+  sendMail,
+  submissionText,
+} from './mail.ts'
 import { createMcpServer } from './mcp.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
+import {
+  DEFAULT_OFFSITE,
+  newRecoveryKey,
+  type OffsiteSettings,
+  type OffsiteStatus,
+  runOffsite,
+  testOffsite,
+} from './offsite.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
 import { statusPage } from './status-page.ts'
@@ -295,8 +312,58 @@ export function createApp(base: ServerContext) {
     })
   }
   const backupFailed = (error: unknown) => console.error('Materialize: backup not made', error)
-  setTimeout(() => void autoBackup().catch(backupFailed), 60_000).unref?.()
-  setInterval(() => void autoBackup().catch(backupFailed), 60 * 60_000).unref?.()
+
+  // ---------- the copy outside the server (S3, WebDAV) ----------
+
+  const offsiteSettings = async (): Promise<OffsiteSettings> => ({
+    ...DEFAULT_OFFSITE,
+    ...(await settings.get<Partial<OffsiteSettings>>('offsite')),
+  })
+  let offsiteRunning = false
+  /** One run; the outcome is kept, and administrators hear by email the first time it fails. */
+  const offsiteRun = async (fresh: boolean): Promise<OffsiteStatus> => {
+    if (offsiteRunning) throw new ApiError(409, 'offsite_running', 'A copy is already being made')
+    offsiteRunning = true
+    const before = await settings.get<OffsiteStatus>('offsite-status')
+    let status: OffsiteStatus
+    try {
+      status = await runOffsite(await offsiteSettings(), backups, ctx.config().media.dir, fresh)
+    } catch (error) {
+      status = { at: new Date().toISOString(), ok: false, message: (error as Error).message }
+      if (before?.ok !== false)
+        for (const admin of (await auth.listUsers()).filter((u) => u.role === 'admin'))
+          await mailNotice(admin.email, 'Backup fuori dal server non riuscito', [
+            `La copia dei backup di ${ctx.config().site.name} fuori dal server non è riuscita: ${status.message}`,
+            'Controlla in Impostazioni → Sicurezza → Backup. Ti scriviamo di nuovo solo quando torna a funzionare e si ferma di nuovo.',
+          ])
+    } finally {
+      offsiteRunning = false
+    }
+    await settings.set('offsite-status', status)
+    await activityLog.record({
+      userId: null,
+      userName: '',
+      action: status.ok ? 'backup.offsite' : 'backup.offsite_failed',
+      target: status.database ?? '',
+      detail: status.ok ? { media: status.media, fonts: status.fonts } : { message: status.message },
+      ip: null,
+    })
+    return status
+  }
+  /** After the daily copy: once a day, unless the last run failed (then every hour until it works). */
+  const autoOffsite = async () => {
+    const s = await offsiteSettings()
+    if (s.kind === 'off' || !s.key || offsiteRunning) return
+    const last = await settings.get<OffsiteStatus>('offsite-status')
+    if (last?.ok && Date.now() - new Date(last.at).getTime() < 23 * 60 * 60_000) return
+    await offsiteRun(false)
+  }
+  const nightly = async () => {
+    await autoBackup().catch(backupFailed)
+    await autoOffsite().catch((error) => console.error('Materialize: offsite copy not made', error))
+  }
+  setTimeout(() => void nightly(), 60_000).unref?.()
+  setInterval(() => void nightly(), 60 * 60_000).unref?.()
 
   const updateSettings = async (): Promise<UpdateSettings> => ({
     ...DEFAULT_UPDATES,
@@ -1144,7 +1211,38 @@ export function createApp(base: ServerContext) {
                 id: 'backups',
                 status: 'ok',
                 title: 'Backup del database ogni giorno',
-                detail: `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round(age / 3_600_000), 'hour')}, immagini comprese; ne restano ${b.keep}. Per una copia fuori dal server, scarica l’archivio completo.`,
+                detail: `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round(age / 3_600_000), 'hour')}, immagini comprese; ne restano ${b.keep}.`,
+              },
+      )
+    }
+    {
+      const o = await offsiteSettings()
+      const status = await settings.get<OffsiteStatus>('offsite-status')
+      checks.push(
+        o.kind === 'off' || !o.key
+          ? {
+              id: 'offsite',
+              status: 'warn',
+              title: 'I backup restano sul server',
+              detail:
+                'Se il server si rompe, si perdono anche le copie. Attiva la copia fuori dal server (S3 o WebDAV), oppure scarica ogni tanto l’archivio completo.',
+              action: 'backups',
+            }
+          : status && !status.ok
+            ? {
+                id: 'offsite',
+                status: 'bad',
+                title: 'La copia fuori dal server non riesce',
+                detail: status.message ?? 'Controlla il collegamento.',
+                action: 'backups',
+              }
+            : {
+                id: 'offsite',
+                status: 'ok',
+                title: 'Copia cifrata fuori dal server',
+                detail: status
+                  ? `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round((Date.now() - new Date(status.at).getTime()) / 3_600_000), 'hour')}, su ${o.kind === 's3' ? 'S3' : 'WebDAV'}.`
+                  : 'La prima copia parte entro un’ora.',
               },
       )
     }
@@ -1223,6 +1321,99 @@ export function createApp(base: ServerContext) {
     await settings.set('backups', input, c.get('user').id)
     await record(c, 'settings.backups', '', input)
     return c.json(await backupState())
+  })
+
+  /** What the panel may see: no passwords, no secret key, no recovery key. */
+  const offsiteState = async () => {
+    const s = await offsiteSettings()
+    return {
+      kind: s.kind,
+      keep: s.keep,
+      hasKey: !!s.key,
+      s3: s.s3 ? { ...s.s3, secretAccessKey: '', hasSecret: !!s.s3.secretAccessKey } : undefined,
+      webdav: s.webdav ? { ...s.webdav, password: '', hasSecret: !!s.webdav.password } : undefined,
+      status: (await settings.get<OffsiteStatus>('offsite-status')) ?? null,
+      running: offsiteRunning,
+    }
+  }
+  const s3Input = z.object({
+    endpoint: z.url({ protocol: /^https?$/ }).max(300),
+    region: z.string().trim().max(60),
+    bucket: z.string().trim().min(1).max(200),
+    prefix: z.string().trim().max(200).optional(),
+    accessKeyId: z.string().trim().min(1).max(200),
+    // Empty: keep the saved one.
+    secretAccessKey: z.string().max(500),
+  })
+  const webdavInput = z.object({
+    url: z.url({ protocol: /^https?$/ }).max(500),
+    user: z.string().trim().max(200),
+    password: z.string().max(500),
+  })
+  const offsiteInput = z.object({
+    kind: z.enum(['off', 's3', 'webdav']),
+    keep: z.number().int().min(1).max(365),
+    s3: s3Input.optional(),
+    webdav: webdavInput.optional(),
+  })
+  /** The settings as sent, with the saved secrets where the panel left them empty. */
+  const withSecrets = (input: z.infer<typeof offsiteInput>, saved: OffsiteSettings): OffsiteSettings => {
+    if (input.kind === 's3' && !input.s3) throw new ApiError(400, 'missing_s3', 'S3 settings are missing')
+    if (input.kind === 'webdav' && !input.webdav)
+      throw new ApiError(400, 'missing_webdav', 'WebDAV settings are missing')
+    return {
+      kind: input.kind,
+      keep: input.keep,
+      key: saved.key,
+      s3: input.s3
+        ? { ...input.s3, secretAccessKey: input.s3.secretAccessKey || saved.s3?.secretAccessKey || '' }
+        : saved.s3,
+      webdav: input.webdav
+        ? { ...input.webdav, password: input.webdav.password || saved.webdav?.password || '' }
+        : saved.webdav,
+    }
+  }
+
+  app.get('/api/backups/offsite', requireUser, requireSession, requireAdmin, async (c) => c.json(await offsiteState()))
+
+  /** Saves where the copy goes; the first time, makes the recovery key and returns it, once. */
+  app.put('/api/backups/offsite', requireUser, requireSession, requireAdmin, async (c) => {
+    const next = withSecrets(await body(c, offsiteInput), await offsiteSettings())
+    let shown: string | undefined
+    if (next.kind !== 'off' && !next.key) next.key = shown = newRecoveryKey()
+    await settings.set('offsite', next, c.get('user').id)
+    await record(c, 'settings.offsite', next.kind)
+    return c.json({ ...(await offsiteState()), recoveryKey: shown })
+  })
+
+  app.post('/api/backups/offsite/test', requireUser, requireSession, requireAdmin, async (c) => {
+    try {
+      await testOffsite(withSecrets(await body(c, offsiteInput), await offsiteSettings()))
+      return c.json({ ok: true })
+    } catch (error) {
+      if (error instanceof ApiError) throw error
+      return c.json({ ok: false, message: (error as Error).message })
+    }
+  })
+
+  /** "Esegui ora": a fresh copy of the database and whatever is missing, in the background. */
+  app.post('/api/backups/offsite/run', requireUser, requireSession, requireAdmin, async (c) => {
+    const s = await offsiteSettings()
+    if (s.kind === 'off' || !s.key) throw new ApiError(409, 'offsite_off', 'The copy outside the server is off')
+    if (offsiteRunning) throw new ApiError(409, 'offsite_running', 'A copy is already being made')
+    void offsiteRun(true).catch((error) => console.error('Materialize: offsite copy not made', error))
+    await record(c, 'backup.offsite_started')
+    return c.json(await offsiteState(), 202)
+  })
+
+  /** The recovery key again, for an administrator who confirms their password. */
+  app.post('/api/backups/offsite/key', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ password: z.string().min(1).max(500) }))
+    await checkPassword(c.get('user').id, input.password)
+    const s = await offsiteSettings()
+    if (!s.key) throw new ApiError(404, 'no_key', 'There is no recovery key yet')
+    await record(c, 'backup.key_shown')
+    return c.json({ recoveryKey: s.key })
   })
 
   app.post('/api/backups', requireUser, requireSession, requireAdmin, async (c) => {
@@ -1775,6 +1966,7 @@ export function createApp(base: ServerContext) {
           pass: z.string().max(500).nullable().optional(),
           from: z.string().max(200),
           to: z.string().max(200),
+          provider: z.string().max(40).optional(),
         }),
       }),
     )
@@ -1797,9 +1989,18 @@ export function createApp(base: ServerContext) {
         text: 'Se leggi questo messaggio, l’invio delle email dal sito funziona.',
       })
     } catch (error) {
-      throw new ApiError(422, 'mail_failed', error instanceof Error ? error.message : 'Sending failed')
+      // What went wrong and what to do, in words: a blocked port, a wrong password, an unverified sender…
+      return c.json({ ok: false, to, ...(await explainMailError(error, mail)) })
     }
     return c.json({ ok: true, to })
+  })
+
+  /** The sender's domain as mail servers see it: SPF, DKIM, DMARC. */
+  app.post('/api/mail/domain', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ from: z.string().max(200), provider: z.string().max(40).optional() }))
+    const domain = senderDomain(input.from)
+    if (!domain) throw new ApiError(422, 'no_domain', 'Write the sender first, for example sito@example.com')
+    return c.json({ domain, checks: await checkSenderDomain(domain, input.provider) })
   })
 
   // A form on the site: the message is kept, and sent by email when email is set up.
@@ -2337,7 +2538,13 @@ ${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')}
 
   app.get('/api/documents/:id/revisions', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
-    return c.json({ items: await content.revisions(existing.id) })
+    // Who made each version, by name; null for a person removed since (and for versions with no author).
+    const names = new Map((await auth.listUsers()).map((u) => [u.id, u.name]))
+    const items = (await content.revisions(existing.id)).map((r) => ({
+      ...r,
+      authorName: r.authorId ? (names.get(r.authorId) ?? null) : null,
+    }))
+    return c.json({ items })
   })
 
   app.post('/api/documents/:id/revisions/:revision/restore', requireUser, async (c) => {

@@ -4,6 +4,16 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Chi ha fatto ogni versione**: la cronologia mostra il nome dell'autore accanto alla data.
+
+- **Pannello più chiaro**: Impostazioni → Protezione divisa in Sicurezza, Backup e Registro attività; barra dell'editor a gruppi, con gli elementi meno usati in **⋯**; pannello sinistro dell'editor allargabile; menu a tendina, intestazioni e testi d'aiuto uniformi e più leggibili; pagina dedicata per gli indirizzi del pannello che non esistono; in Persone, chi entra con la sola password si riconosce a colpo d'occhio; accesso e installazione con l'aspetto del pannello.
+
+- **Informazioni su Materialize** in Impostazioni: versione, autore, licenza, novità, guida e licenze di terzi.
+
+- **Email più facile da configurare**: si sceglie il fornitore (Brevo, Postmark, Mailgun, Amazon SES, Gmail…) e il server si compila da solo; se la prova non riesce, il pannello spiega perché (porta bloccata, password rifiutata, mittente non verificato…); **Controlla il dominio** verifica SPF, DKIM e DMARC.
+
+- **Backup fuori dal server**, ogni notte e cifrati, su uno spazio S3 compatibile (Cloudflare R2, Backblaze B2, Hetzner, Amazon S3…) o in una cartella WebDAV (Nextcloud, NAS Synology e QNAP…). Si attiva in Impostazioni → Backup; `materialize decrypt` rende di nuovo leggibili i file scaricati.
+
 ## 0.2.0 — 2026-11-01
 
 - **Password dimenticata?** nella pagina di accesso: un link per email, valido un'ora. Senza email configurata, il comando `materialize reset-password` stampa il link sul server, anche per l'unico amministratore.

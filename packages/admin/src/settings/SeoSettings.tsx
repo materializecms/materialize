@@ -13,7 +13,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <label className="block space-y-1.5">
       <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[13px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -220,7 +220,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
               />
               <div className="text-[14px]">
                 Blocca i crawler che addestrano modelli AI
-                <p className="text-[12px] leading-relaxed text-fg3">
+                <p className="text-[13px] leading-relaxed text-fg3">
                   GPTBot, ClaudeBot, Google-Extended, CCBot e simili. Google e Bing continuano a indicizzare il sito.
                 </p>
               </div>

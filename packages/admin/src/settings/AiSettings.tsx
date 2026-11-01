@@ -40,7 +40,7 @@ function Field({ label, hint, children }: { label: string; hint?: React.ReactNod
     <label className="block space-y-1.5">
       <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[13px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -299,7 +299,7 @@ function Snippet({ title, hint, code }: { title: string; hint?: string; code: st
       <pre className="overflow-x-auto rounded-lg bg-panel2 p-3 font-mono text-[12px] leading-relaxed whitespace-pre text-fg2">
         {code}
       </pre>
-      {hint && <p className="text-[12px] leading-relaxed text-fg3">{hint}</p>}
+      {hint && <p className="text-[13px] leading-relaxed text-fg3">{hint}</p>}
     </div>
   )
 }

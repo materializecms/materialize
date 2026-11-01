@@ -24,13 +24,41 @@ Gli aggiornamenti di sicurezza di Debian o Ubuntu si installano da soli: l'insta
 
 ## Backup
 
-In **Impostazioni → Sicurezza → Backup**:
+In **Impostazioni → Backup**:
 
 - **Backup automatici ogni giorno** del database, con **Quante copie tenere**;
 - una copia di tutte le immagini caricate, che non perde i file eliminati per almeno 30 giorni;
-- **Scarica tutto**: un unico archivio `.tar.gz` con database, media e caratteri. Conservane una copia **fuori dal server**, per esempio sul tuo computer o in un cloud.
+- **Scarica tutto**: un unico archivio `.tar.gz` con database, media e caratteri, da tenere sul tuo computer;
+- **Copia fuori dal server**: la protezione vera, vedi sotto.
 
 Prima di ogni aggiornamento Materialize fa comunque un backup in più.
+
+## Copia fuori dal server
+
+I backup normali restano sullo stesso server del sito: se il server si rompe, si perdono anche loro. La **copia fuori dal server** li manda ogni notte su uno spazio esterno, cifrati prima di uscire.
+
+Due tipi di spazio:
+
+- **S3 compatibile**: Cloudflare R2, Backblaze B2, Hetzner Object Storage, Amazon S3, Scaleway, OVH, Wasabi e altri. Per un sito normale costano pochi centesimi al mese. Crei un «bucket» e una chiave di accesso nel pannello del servizio, poi copi in Materialize indirizzo, bucket, regione e chiave.
+- **WebDAV**: Nextcloud, ownCloud, NAS Synology o QNAP in ufficio, pCloud, kDrive. Servono l'indirizzo della cartella, l'utente e la password (con Nextcloud, meglio una password per app).
+
+Come si attiva, in **Impostazioni → Backup → Copia fuori dal server**:
+
+1. scegli **S3 compatibile** o **WebDAV** e compila i campi;
+2. **Prova il collegamento**: Materialize scrive, rilegge ed elimina un file di prova;
+3. **Salva**: compare la **chiave di ripristino**.
+
+### La chiave di ripristino
+
+Tutto è cifrato con una chiave che Materialize crea per te. Chi apre lo spazio esterno, compreso il fornitore, vede solo dati illeggibili. **Senza la chiave i backup non si possono rimettere**: copiala o scaricala come file e conservala lontano dal server, per esempio nel gestore di password. Si può rivedere con **Mostra la chiave di ripristino**, confermando la password.
+
+### Cosa succede ogni notte
+
+- Parte la copia più recente del database. Tieni quante copie vuoi (7, 14, 30, 90 o 365): le più vecchie si cancellano.
+- Partono le immagini e i caratteri nuovi, solo quelli non ancora inviati. Sullo spazio esterno le immagini non si cancellano mai, perché una copia vecchia del database potrebbe usarle.
+- Se una notte non riesce, gli amministratori ricevono un'email e **Impostazioni → Sicurezza** lo segnala. Materialize riprova ogni ora finché non funziona.
+
+**Esegui ora** fa subito una copia, per esempio dopo aver caricato molte immagini.
 
 ## Ripristinare un backup
 
@@ -54,3 +82,12 @@ docker compose start materialize
 ```
 
 Il file può essere un backup del database (`content-….db`, nella cartella `.materialize/backups` del sito) oppure un archivio completo scaricato con **Scarica tutto** (`materialize-….tar.gz`). Con Docker il file deve essere nel volume del sito.
+
+### Dalla copia fuori dal server
+
+Se il server è perso, installa Materialize su un server nuovo, poi:
+
+1. **Scarica** la cartella dei backup dallo spazio esterno: dalla console del servizio, dal client di Nextcloud, oppure con [rclone](https://rclone.org).
+2. **Decifrala**, nella cartella del sito: `npx materialize decrypt <cartella scaricata> --key mzk1-…`. I file decifrati compaiono accanto a quelli cifrati, e il comando dice quale database rimettere.
+3. **Rimetti il database** con `npx materialize restore …/database/content-….db`, a server fermo.
+4. **Copia** le cartelle `media` e `fonts` decifrate dentro `.materialize/` del sito.

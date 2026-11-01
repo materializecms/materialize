@@ -195,6 +195,8 @@ describe('content workflow', () => {
     const first = history.body.items.find(
       (r: { kind: string; data: { title: string } }) => r.kind === 'save' && r.data.title === 'Prima',
     )
+    // Each version says who made it.
+    expect(first.authorName).toBe('Elena')
     const restored = await call('POST', `/api/documents/${id}/revisions/${first.id}/restore`)
     expect(restored.body.data.title).toBe('Prima')
   })

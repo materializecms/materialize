@@ -47,8 +47,8 @@ export function InviteScreen({ token }: { token: string }) {
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
 
   return (
-    <div className="flex min-h-full items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[340px]">
+    <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+      <div className="mz-card w-full max-w-[388px]">
         <Logo className="mb-6 size-9" />
         {ticket ? (
           <TwoFactorStep ticket={ticket} onDone={enter} onBack={enter} />

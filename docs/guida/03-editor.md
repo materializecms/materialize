@@ -9,10 +9,14 @@ L'editor mostra la pagina vera, come apparirà sul sito, e la modifichi direttam
   - **Aggiungi**: sezioni pronte ed elementi da mettere sulla pagina;
   - **Stili**: colori, caratteri e impostazioni di tutto il sito;
   - **SEO**: i controlli della pagina per i motori di ricerca (vedi [SEO](06-seo.md)).
+
+  Il pannello si allarga trascinandone il bordo destro, fino a 440 px, e il browser se lo ricorda; un doppio clic sul bordo lo riporta com'era.
 - **Al centro**, la **tela**: la pagina.
 - **A destra**, il pannello dell'elemento selezionato: cambia con l'elemento (disposizione, dimensioni, colori, testo, animazioni…). Senza niente selezionato mostra **Pagina**: titolo, indirizzo, modello e motori di ricerca.
-- **Sopra la tela**, i pulsanti per aggiungere al volo gli elementi.
-- **In alto**: la larghezza dell'anteprima (desktop, tablet, mobile, tutti affiancati), lo zoom, i righelli, la prova delle animazioni, i commenti, l'assistente AI e **?** per l'elenco delle scorciatoie.
+- **Sopra la tela**, una barra a gruppi:
+  - a sinistra, **Aggiungi**: contenitore, testo, immagine, pulsante, icona o forma; **⋯** apre gli altri (video, codice, scena WebGL, campo di un modulo);
+  - al centro, il dispositivo (desktop, tablet, mobile), la larghezza, tutti affiancati ed **Esporta**;
+  - a destra, lo zoom, **?** per le scorciatoie, i righelli, l'assistente AI, i commenti, la prova delle animazioni e **Anteprima**, per provare la pagina come sul sito.
 
 La prima volta un breve tour presenta l'editor.
 

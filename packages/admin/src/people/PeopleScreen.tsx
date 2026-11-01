@@ -6,10 +6,12 @@ import {
   Mail,
   MoreHorizontal,
   PencilLine,
+  ShieldAlert,
   ShieldCheck,
   ShieldOff,
   Trash2,
   UserPlus,
+  UserRound,
   Users,
 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -24,6 +26,7 @@ import {
   MenuItem,
   MenuSeparator,
   Popover,
+  ScreenHeader,
   Segmented,
   Spinner,
   Switch,
@@ -214,15 +217,21 @@ export function PeopleScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
-        <Users className="size-4 text-fg3" />
-        <h1 className="text-[14px] font-semibold">Persone</h1>
-        {people.data && <span className="text-fg3 tabular-nums">{people.data.users.length}</span>}
-        <div className="flex-1" />
-        <Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)}>
-          Invita
-        </Button>
-      </header>
+      <ScreenHeader
+        icon={<UserRound />}
+        color="#8b5cf6"
+        title="Persone"
+        subtitle={
+          people.data
+            ? `${people.data.users.length} ${people.data.users.length === 1 ? 'persona' : 'persone'} con accesso al pannello`
+            : ''
+        }
+        actions={
+          <Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)}>
+            Invita
+          </Button>
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {people.isPending ? (
@@ -252,14 +261,16 @@ export function PeopleScreen() {
                   >
                     {person.lastSeenAt ? `Accesso ${relativeTime(person.lastSeenAt)}` : 'Mai entrato'}
                   </span>
+                  {/* Said in words: a lone dash told nothing about what it meant. */}
                   <span
                     className={cx(
-                      'hidden w-16 text-[12px] font-medium md:block',
-                      person.twoFactor ? 'text-ok' : 'text-fg3',
+                      'hidden w-32 items-center gap-1.5 text-[13px] md:inline-flex [&_svg]:size-3.5 [&_svg]:shrink-0',
+                      person.twoFactor ? 'text-ok' : 'text-warn',
                     )}
                     title={person.twoFactor ? 'Entra con password e codice dall’app' : 'Entra solo con la password'}
                   >
-                    {person.twoFactor ? '2 passaggi' : '—'}
+                    {person.twoFactor ? <ShieldCheck /> : <ShieldAlert />}
+                    {person.twoFactor ? 'Due passaggi' : 'Solo password'}
                   </span>
                   <span className="inline-flex w-36 items-center gap-1.5 text-[13px]">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}

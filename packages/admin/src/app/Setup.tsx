@@ -13,8 +13,8 @@ const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
 
 function Frame({ step, children }: { step?: number; children: ReactNode }) {
   return (
-    <div className="flex min-h-full items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[420px]">
+    <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+      <div className="mz-card w-full max-w-[468px]">
         <Logo className="mb-6 size-9" />
         {step !== undefined && (
           <ol className="mb-6 flex gap-1.5" aria-label="Passi dell’installazione">

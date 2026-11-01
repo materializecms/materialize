@@ -20,6 +20,7 @@ import { Button, cx, EmptyState, IconButton, Spinner, Switch, toast } from '../c
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
+import { OffsiteBackup } from './OffsiteBackup.tsx'
 
 const STATUS: Record<SecurityCheck['status'], { icon: ReactNode; tone: string }> = {
   bad: { icon: <CircleX />, tone: 'text-danger' },
@@ -133,6 +134,22 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: 'ha eliminato un messaggio ricevuto', group: 'content' }
     case 'backup.created':
       return { text: d.auto ? 'Backup automatico del database' : 'ha fatto un backup del database', group: 'settings' }
+    case 'backup.offsite':
+      return { text: 'Copia cifrata dei backup fuori dal server', group: 'settings' }
+    case 'backup.offsite_failed':
+      return { text: `Copia fuori dal server non riuscita: ${String(d.message ?? '')}`, group: 'settings' }
+    case 'backup.offsite_started':
+      return { text: 'ha avviato una copia fuori dal server', group: 'settings' }
+    case 'backup.key_shown':
+      return { text: 'ha mostrato la chiave di ripristino dei backup', group: 'settings' }
+    case 'settings.offsite':
+      return {
+        text:
+          e.target === 'off'
+            ? 'ha spento la copia fuori dal server'
+            : `ha impostato la copia fuori dal server su ${e.target === 's3' ? 'S3' : 'WebDAV'}`,
+        group: 'settings',
+      }
     case 'backup.downloaded':
       return { text: `ha scaricato il backup ${e.target}`, group: 'settings' }
     case 'backup.deleted':
@@ -168,8 +185,17 @@ const FILTERS = [
   { value: 'settings', label: 'Impostazioni' },
 ] as const
 
-/** Impostazioni → Sicurezza: what to fix, then what happened. Administrators only. */
-export function SecuritySettings({ onOpenProfile }: { onOpenProfile: () => void }) {
+/**
+ * Impostazioni → Protezione, in three sections: Sicurezza (what to fix), Backup (copies here and
+ * off the server) and Registro attività (what happened). Administrators only.
+ */
+export function SecuritySettings({
+  part,
+  onOpenProfile,
+}: {
+  part: 'security' | 'backups' | 'activity'
+  onOpenProfile: () => void
+}) {
   const { user } = useSession()
   if (user.role !== 'admin')
     return (
@@ -184,9 +210,13 @@ export function SecuritySettings({ onOpenProfile }: { onOpenProfile: () => void 
     )
   return (
     <div className="mx-auto max-w-3xl space-y-10 px-5 py-8">
-      <Overview onOpenProfile={onOpenProfile} />
-      <BackupsSection />
-      <ActivityLog />
+      {part === 'backups' ? (
+        <BackupsSection />
+      ) : part === 'activity' ? (
+        <ActivityLog />
+      ) : (
+        <Overview onOpenProfile={onOpenProfile} />
+      )}
     </div>
   )
 }
@@ -224,7 +254,7 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
                   c.action === 'profile'
                     ? onOpenProfile()
                     : c.action === 'backups'
-                      ? document.getElementById('backups')?.scrollIntoView({ behavior: 'smooth' })
+                      ? navigate({ name: 'settings', tab: 'backups' })
                       : navigate(c.action === 'mail' ? { name: 'settings', tab: 'mail' } : { name: 'people' })
                 }
               >
@@ -268,7 +298,7 @@ function BackupsSection() {
     }
   }
   return (
-    <section id="backups" className="scroll-mt-6 space-y-3">
+    <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
         <DatabaseBackup /> Backup
       </h2>
@@ -293,6 +323,7 @@ function BackupsSection() {
           <Download /> Scarica tutto
         </a>
       </div>
+      <OffsiteBackup />
       {!data.available ? (
         <p className="text-[14px] leading-relaxed text-fg2">
           Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano
@@ -378,7 +409,7 @@ function BackupsSection() {
               ))}
             </ul>
           )}
-          <p className="text-[12px] leading-relaxed text-fg3">
+          <p className="text-[13px] leading-relaxed text-fg3">
             {data.media.files > 0 && `Copia delle immagini: ${data.media.files} file, ${size(data.media.size)}. `}
             Per rimettere un backup: ferma il server, poi nella cartella del sito{' '}
             <code className="font-mono">npx materialize restore percorso/del/backup.db</code>. Le immagini che mancano

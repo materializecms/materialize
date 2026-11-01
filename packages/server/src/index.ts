@@ -20,6 +20,7 @@ export { restoreMedia } from './backups.ts'
 export { createFonts, type FontInfo, type Fonts } from './fonts.ts'
 export { createMcpServer, registerTools } from './mcp.ts'
 export { createMediaFiles, type MediaFiles } from './media.ts'
+export { decryptTree, type OffsiteSettings, parseRecoveryKey } from './offsite.ts'
 export { hashPassword, verifyPassword } from './password.ts'
 export { apiCaller, siteTools } from './tools.ts'
 

@@ -32,6 +32,7 @@ import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Code,
   Columns3,
+  Ellipsis,
   Eye,
   FileDown,
   Image as ImageIcon,
@@ -59,7 +60,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, cx, IconButton, Segmented, toast } from '../components/ui.tsx'
+import { Button, cx, IconButton, MenuItem, Popover, Segmented, toast } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
@@ -304,6 +305,14 @@ function newElement(kind: ElementKind): PageNode {
  * The canvas editor for a page field: like the design prototype, sections are made of elements
  * that can be selected, edited in place, styled per device and animated.
  */
+/** The left panel of the editor: its usual width, and how far it can be dragged. */
+const LEFT_DEFAULT = 264
+
+/** A set of related toolbar buttons, drawn as one pill so the bar reads in groups. */
+const TOOL_GROUP = 'flex shrink-0 items-center gap-0.5 rounded-lg bg-panel2 p-0.5'
+const LEFT_MIN = 240
+const LEFT_MAX = 440
+
 export function PageEditor({
   collection,
   pageField,
@@ -467,6 +476,8 @@ export function PageEditor({
   const [editing, setEditing] = useState<string | null>(null)
   const [device, setDevice] = useState<Breakpoint>('desktop')
   const [sideBySide, setSideBySide] = useState(false)
+  const [leftPref, setLeftWidth] = usePref('mz-editor-left', String(LEFT_DEFAULT))
+  const leftWidth = Math.min(LEFT_MAX, Math.max(LEFT_MIN, Number(leftPref) || LEFT_DEFAULT))
   const [exporting, setExporting] = useState(false)
   const [widths, setWidths] = useState<Record<Breakpoint, number>>({ desktop: 1280, tablet: 768, mobile: 390 })
   const [zoom, setZoom] = useState<'fit' | number>('fit')
@@ -1356,7 +1367,30 @@ export function PageEditor({
             )}
           </aside>
         ) : (
-          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel max-md:hidden">
+          <aside
+            className="relative flex shrink-0 flex-col border-r border-line bg-panel max-md:hidden"
+            style={{ width: leftWidth }}
+          >
+            {/* Drag the edge to make the panel wider (remembered in this browser); double click resets it. */}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: a pointer handle; the width has a sensible default */}
+            <div
+              title="Trascina per allargare il pannello · doppio clic per la larghezza normale"
+              className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40"
+              onDoubleClick={() => setLeftWidth(String(LEFT_DEFAULT))}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                const start = e.clientX
+                const from = leftWidth
+                const move = (ev: PointerEvent) =>
+                  setLeftWidth(String(Math.min(LEFT_MAX, Math.max(LEFT_MIN, from + ev.clientX - start))))
+                const up = () => {
+                  window.removeEventListener('pointermove', move)
+                  window.removeEventListener('pointerup', up)
+                }
+                window.addEventListener('pointermove', move)
+                window.addEventListener('pointerup', up)
+              }}
+            />
             <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
               {(
                 [
@@ -1455,6 +1489,17 @@ export function PageEditor({
                   setSelected(id)
                   revealOnCanvas(id)
                 }}
+                onEditFields={() => {
+                  // Nothing selected: the panel on the right shows the page, with its SEO fields.
+                  setSelected(null)
+                  requestAnimationFrame(() => {
+                    const field = document.querySelector<HTMLElement>(
+                      `aside [data-path="${otherFields.find((f) => f.kind === 'seo')?.name ?? 'seo'}"]`,
+                    )
+                    field?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    field?.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true })
+                  })
+                }}
               />
             )}
           </aside>
@@ -1478,18 +1523,15 @@ export function PageEditor({
         <div className="flex min-w-0 flex-1 flex-col max-md:hidden">
           <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line overflow-x-auto bg-panel px-3 [scrollbar-width:none]">
             {mode === 'design' && (
-              <div className="flex items-center gap-0.5">
+              <div className={TOOL_GROUP}>
+                <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">Aggiungi</span>
                 {(
                   [
                     ['frame', 'Contenitore · F', <Rows3 key="f" />],
                     ['text', 'Testo · T', <Type key="t" />],
                     ['image', 'Immagine · I', <ImageIcon key="i" />],
                     ['button', 'Pulsante · B', <MousePointerClick key="b" />],
-                    ['video', 'Video · V', <Video key="v" />],
-                    ['embed', 'Codice · C', <Code key="c" />],
-                    ['scene', 'Scena WebGL · G', <Sparkles key="g" />],
                     ['icon', 'Icona o forma · O', <Shapes key="o" />],
-                    ['input', 'Campo di un modulo · K', <TextCursorInput key="k" />],
                   ] as const
                 ).map(([kind, label, icon]) => (
                   <IconButton
@@ -1500,6 +1542,38 @@ export function PageEditor({
                     {icon}
                   </IconButton>
                 ))}
+                {/* The rarer elements in a menu with their names, so the bar stays short and readable. */}
+                <Popover
+                  width={240}
+                  trigger={({ toggle, ref, open }) => (
+                    <IconButton ref={ref} label="Altri elementi" active={open} onClick={toggle}>
+                      <Ellipsis />
+                    </IconButton>
+                  )}
+                >
+                  {(close) =>
+                    (
+                      [
+                        ['video', 'Video', 'V', <Video key="v" />],
+                        ['embed', 'Codice', 'C', <Code key="c" />],
+                        ['scene', 'Scena WebGL', 'G', <Sparkles key="g" />],
+                        ['input', 'Campo di un modulo', 'K', <TextCursorInput key="k" />],
+                      ] as const
+                    ).map(([kind, label, key, icon]) => (
+                      <MenuItem
+                        key={kind}
+                        icon={icon}
+                        hint={key}
+                        onClick={() => {
+                          insertAfterSelection(newElement(kind))
+                          close()
+                        }}
+                      >
+                        {label}
+                      </MenuItem>
+                    ))
+                  }
+                </Popover>
               </div>
             )}
             {mode === 'content' && (
@@ -1511,67 +1585,75 @@ export function PageEditor({
               </span>
             )}
             <div className="flex-1" />
-            <Segmented
-              size="sm"
-              value={device}
-              onChange={(d) => {
-                setDevice(d)
-                setZoom('fit')
-              }}
-              options={[
-                { value: 'desktop', label: <Monitor />, title: `Desktop · ${widths.desktop} px` },
-                { value: 'tablet', label: <Tablet />, title: `Tablet · ${widths.tablet} px` },
-                { value: 'mobile', label: <Smartphone />, title: `Mobile · ${widths.mobile} px` },
-              ]}
-            />
-            <select
-              aria-label="Larghezza dell’anteprima"
-              title="Larghezza dello schermo su cui provi la pagina"
-              value={widths[device]}
-              onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
-              className="h-7 rounded-md bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
-            >
-              {widthPresets[device].map((w) => (
-                <option key={w} value={w}>
-                  {w} px
-                </option>
-              ))}
-            </select>
-            <IconButton
-              label="Tutti i dispositivi affiancati"
-              active={sideBySide}
-              onClick={() => setSideBySide(!sideBySide)}
-            >
-              <Columns3 />
-            </IconButton>
-            <IconButton label="Esporta in PDF o PNG" onClick={() => setExporting(true)}>
-              <FileDown />
-            </IconButton>
+            <div className="flex items-center gap-1">
+              <Segmented
+                size="sm"
+                value={device}
+                onChange={(d) => {
+                  setDevice(d)
+                  setZoom('fit')
+                }}
+                options={[
+                  { value: 'desktop', label: <Monitor />, title: `Desktop · ${widths.desktop} px` },
+                  { value: 'tablet', label: <Tablet />, title: `Tablet · ${widths.tablet} px` },
+                  { value: 'mobile', label: <Smartphone />, title: `Mobile · ${widths.mobile} px` },
+                ]}
+              />
+              <select
+                aria-label="Larghezza dell’anteprima"
+                title="Larghezza dello schermo su cui provi la pagina"
+                value={widths[device]}
+                onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
+                className="h-7 rounded-md bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
+              >
+                {widthPresets[device].map((w) => (
+                  <option key={w} value={w}>
+                    {w} px
+                  </option>
+                ))}
+              </select>
+              <IconButton
+                label="Tutti i dispositivi affiancati"
+                active={sideBySide}
+                onClick={() => setSideBySide(!sideBySide)}
+              >
+                <Columns3 />
+              </IconButton>
+              <IconButton label="Esporta in PDF o PNG" onClick={() => setExporting(true)}>
+                <FileDown />
+              </IconButton>
+            </div>
             <div className="flex-1" />
             <div className="flex items-center gap-0.5">
-              <IconButton
-                label="Riduci lo zoom"
-                onClick={() => setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))}
-              >
-                <Minus />
-              </IconButton>
-              <button
-                type="button"
-                title="Adatta alla finestra"
-                onClick={() => setZoom('fit')}
-                className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
-              >
-                {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
-              </button>
-              <IconButton
-                label="Aumenta lo zoom"
-                onClick={() => setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))}
-              >
-                <Plus />
-              </IconButton>
-              <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
-                <Maximize />
-              </IconButton>
+              <div className={TOOL_GROUP}>
+                <IconButton
+                  label="Riduci lo zoom"
+                  onClick={() =>
+                    setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))
+                  }
+                >
+                  <Minus />
+                </IconButton>
+                <button
+                  type="button"
+                  title="Adatta alla finestra"
+                  onClick={() => setZoom('fit')}
+                  className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
+                >
+                  {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
+                </button>
+                <IconButton
+                  label="Aumenta lo zoom"
+                  onClick={() =>
+                    setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))
+                  }
+                >
+                  <Plus />
+                </IconButton>
+                <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
+                  <Maximize />
+                </IconButton>
+              </div>
               <IconButton label="Scorciatoie da tastiera · ?" onClick={() => setShowShortcuts(true)}>
                 <Keyboard />
               </IconButton>
@@ -1606,6 +1688,7 @@ export function PageEditor({
                 )}
               >
                 <MessageSquare />
+                <span className="max-2xl:hidden">Commenti</span>
                 {openComments.length > 0 && <span className="font-mono">{openComments.length}</span>}
               </button>
               {others.length > 0 && (
@@ -1638,7 +1721,7 @@ export function PageEditor({
                 )}
               >
                 <Eye />
-                {previewing && 'Esci dall’anteprima'}
+                {previewing ? 'Esci dall’anteprima' : <span className="max-2xl:hidden">Anteprima</span>}
               </button>
             </div>
           </div>

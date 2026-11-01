@@ -17,6 +17,7 @@
     "./style": "./src/style.ts",
     "./page": "./src/page.ts",
     "./library": "./src/library.ts",
+    "./mail": "./src/mail.ts",
     "./motion": "./src/motion.ts",
     "./scene": "./src/scene.ts",
     "./icons": "./src/icons.ts",

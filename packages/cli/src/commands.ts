@@ -17,7 +17,10 @@ import {
   createFonts,
   createMcpServer,
   createMediaFiles,
+  decryptTree,
   extractTarGz,
+  type OffsiteSettings,
+  parseRecoveryKey,
   restoreMedia,
   startServer,
   VERSION,
@@ -46,6 +49,9 @@ ${accent('materialize')} ${dim(VERSION)}
   materialize reset-password <email>
                        Un link per una nuova password, valido un'ora: per chi non può riceverlo per email
                        (per esempio l'unico amministratore, senza email configurata)
+  materialize decrypt <cartella o file> [--key <chiave>]
+                       Decifra i backup scaricati dallo spazio esterno (S3, WebDAV); la chiave di
+                       ripristino si può dare anche con MATERIALIZE_BACKUP_KEY
   materialize --help   Mostra questo aiuto
 
 Opzioni
@@ -437,11 +443,69 @@ async function resetPassword(args: string[]): Promise<void> {
   }
 }
 
+/**
+ * The backups sent outside the server, downloaded with any tool, made readable again: every .mzb
+ * file is decrypted next to itself. The key comes from --key, MATERIALIZE_BACKUP_KEY or, in the
+ * folder of a site that still has its database, from its settings.
+ */
+async function decrypt(args: string[]): Promise<void> {
+  const flag = args.indexOf('--key')
+  const source = args.find((a, i) => !a.startsWith('--') && (flag < 0 || i !== flag + 1))
+  if (!source) {
+    console.error(fail('Indica la cartella (o il file) da decifrare: materialize decrypt <cartella> --key <chiave>'))
+    process.exit(1)
+  }
+  let text = flag >= 0 ? args[flag + 1] : process.env.MATERIALIZE_BACKUP_KEY
+  if (!text) {
+    const path = findConfig(process.cwd())
+    if (path) {
+      const database = await openDatabase((await loadConfig(path)).database).catch(() => null)
+      if (database) {
+        text = (await createSettingsStore(database.db).get<OffsiteSettings>('offsite'))?.key
+        database.close()
+      }
+    }
+  }
+  if (!text) {
+    console.error(fail('Manca la chiave di ripristino: --key mzk1-… oppure MATERIALIZE_BACKUP_KEY.'))
+    process.exit(1)
+  }
+  let key: Buffer
+  try {
+    key = parseRecoveryKey(text)
+  } catch (error) {
+    console.error(fail(describeError(error)))
+    process.exit(1)
+  }
+  try {
+    const done = await decryptTree(resolve(source), key)
+    console.log(
+      `  ${ok('✓')} ${done.length} ${done.length === 1 ? 'file decifrato' : 'file decifrati'}, accanto agli originali.`,
+    )
+    const db = done
+      .filter((f) => /content-[^/\\]+\.db$/.test(f))
+      .sort()
+      .at(-1)
+    if (db)
+      // The shorter of the two ways to write the path.
+      console.log(
+        dim(
+          `  Per rimettere il database (a server fermo): npx materialize restore ${[relative(process.cwd(), db), db].sort((x, y) => x.length - y.length)[0]}`,
+        ),
+      )
+  } catch (error) {
+    console.error(fail(describeError(error)))
+    process.exit(1)
+  }
+}
+
 const [command = 'help', ...args] = process.argv.slice(2)
 if (command === 'dev' || command === 'start' || command === 'build') {
   await run(command, args)
 } else if (command === 'mcp') {
   await mcp(args)
+} else if (command === 'decrypt') {
+  await decrypt(args)
 } else if (command === 'reset-password') {
   await resetPassword(args)
 } else if (command === 'restore') {

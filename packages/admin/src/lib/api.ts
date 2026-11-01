@@ -120,6 +120,30 @@ export interface BackupFile {
 }
 
 /** Impostazioni → Sicurezza → Backup. */
+export interface OffsiteForm {
+  kind: 'off' | 's3' | 'webdav'
+  keep: number
+  s3?: {
+    endpoint: string
+    region: string
+    bucket: string
+    prefix?: string
+    accessKeyId: string
+    secretAccessKey: string
+  }
+  webdav?: { url: string; user: string; password: string }
+}
+
+export interface OffsiteState {
+  kind: OffsiteForm['kind']
+  keep: number
+  hasKey: boolean
+  s3?: NonNullable<OffsiteForm['s3']> & { hasSecret: boolean }
+  webdav?: NonNullable<OffsiteForm['webdav']> & { hasSecret: boolean }
+  status: { at: string; ok: boolean; message?: string; database?: string; media?: number; fonts?: number } | null
+  running: boolean
+}
+
 export interface BackupState {
   enabled: boolean
   keep: number
@@ -208,6 +232,8 @@ export interface Revision {
   data: Data
   createdAt: string
   authorId: string | null
+  /** The author's name; null for a person removed since, or a version with no author. */
+  authorName?: string | null
 }
 
 export interface MediaAsset {
@@ -225,6 +251,13 @@ export interface MediaAsset {
   usage?: number
 }
 
+export interface DomainCheck {
+  id: 'spf' | 'dkim' | 'dmarc'
+  state: 'ok' | 'warn' | 'bad' | 'info'
+  title: string
+  detail: string
+}
+
 export interface MailSettings {
   host: string
   port: number
@@ -232,6 +265,8 @@ export interface MailSettings {
   user: string
   from: string
   to: string
+  /** The provider chosen from the list (core/mail.ts); empty for another one. */
+  provider?: string
   /** A password is saved (it is never sent back). */
   hasPassword?: boolean
 }
@@ -462,6 +497,13 @@ export const api = {
   importJob: (id: string) => request<WpProgress>('GET', `/import/jobs/${id}`),
   backups: () => request<BackupState>('GET', '/backups'),
   saveBackups: (input: { enabled: boolean; keep: number }) => request<BackupState>('PUT', '/backups', input),
+  offsite: () => request<OffsiteState>('GET', '/backups/offsite'),
+  saveOffsite: (input: OffsiteForm) =>
+    request<OffsiteState & { recoveryKey?: string }>('PUT', '/backups/offsite', input),
+  testOffsite: (input: OffsiteForm) =>
+    request<{ ok: boolean; message?: string }>('POST', '/backups/offsite/test', input),
+  runOffsite: () => request<OffsiteState>('POST', '/backups/offsite/run'),
+  offsiteKey: (password: string) => request<{ recoveryKey: string }>('POST', '/backups/offsite/key', { password }),
   createBackup: () => request<{ backup: BackupFile }>('POST', '/backups'),
   removeBackup: (name: string) => request<{ ok: true }>('DELETE', `/backups/${encodeURIComponent(name)}`),
   schema: () => request<Schema>('GET', '/schema'),
@@ -504,7 +546,9 @@ export const api = {
   mail: () => request<{ mail: MailSettings }>('GET', '/mail'),
   saveMail: (mail: MailSettings & { pass?: string | null }) =>
     request<{ mail: MailSettings }>('PUT', '/mail', { mail }),
-  testMail: () => request<{ ok: true; to: string }>('POST', '/mail/test'),
+  testMail: () => request<{ ok: boolean; to: string; message?: string; hint?: string }>('POST', '/mail/test'),
+  mailDomain: (from: string, provider?: string) =>
+    request<{ domain: string; checks: DomainCheck[] }>('POST', '/mail/domain', { from, provider }),
   ai: () => request<{ ai: AiSettings }>('GET', '/ai'),
   saveAi: (ai: Omit<AiSettings, 'ready' | 'hasKey' | 'envKey'> & { apiKey?: string | null }) =>
     request<{ ai: AiSettings }>('PUT', '/ai', { ai }),

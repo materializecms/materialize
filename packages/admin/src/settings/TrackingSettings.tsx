@@ -40,7 +40,7 @@ function Field({ label, hint, children }: { label: string; hint?: React.ReactNod
     <label className="block space-y-1.5">
       <span className="text-[13px] font-medium">{label}</span>
       {children}
-      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
+      {hint && <span className="block text-[13px] leading-relaxed text-fg3">{hint}</span>}
     </label>
   )
 }
@@ -269,7 +269,7 @@ export function TrackingSettings() {
             Pulsante per riaprire le preferenze
           </span>
         </div>
-        <p className="rounded-lg bg-panel2 px-3.5 py-3 text-[12px] leading-relaxed text-fg3">
+        <p className="rounded-lg bg-panel2 px-3.5 py-3 text-[13px] leading-relaxed text-fg3">
           Il banner raccoglie il consenso come chiedono le regole europee e il Garante, ma non sostituisce privacy
           policy e cookie policy scritte per il sito: quelle restano a chi lo gestisce.
         </p>

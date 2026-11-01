@@ -1,5 +1,5 @@
 import { ArrowRight, ArrowUpRight, ImagePlus, Images, Plus, SlidersHorizontal, UserPlus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Button, cx, Spinner, StatusBadge, TintIcon } from '../components/ui.tsx'
 import { type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
@@ -37,6 +37,15 @@ export function Overview() {
   const pages = lists.find((c) => /page|pagin/.test(c.name)) ?? lists[0]
   const counts = overview.data?.counts ?? []
   const toPublish = counts.reduce((n, c) => n + c.drafts + c.changed, 0)
+  // The counters fill whole rows: as many columns as fit evenly (at most 4), and Media, the last
+  // card, widens to close the row instead of leaving a hole. Two columns on phones.
+  const cards = lists.length + 1
+  const cols = cards <= 4 ? cards : Math.ceil(cards / Math.ceil(cards / 4))
+  const grid = {
+    '--cols': `repeat(${cols}, minmax(0, 1fr))`,
+    '--span': cols - ((cards - 1) % cols),
+    '--span-phone': cards % 2 ? 2 : 1,
+  } as CSSProperties
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -71,7 +80,7 @@ export function Overview() {
           </div>
         </header>
 
-        <section className="mt-10 grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+        <section className="mt-10 grid grid-cols-2 gap-3 lg:grid-cols-(--cols)" style={grid}>
           {lists.map((c) => {
             const row = counts.find((r) => r.collection === c.name)
             const total = row?.total ?? 0
@@ -105,7 +114,7 @@ export function Overview() {
           })}
           <a
             {...go({ name: 'media' })}
-            className="group rounded-xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-line2 hover:shadow-pop"
+            className="group col-span-(--span-phone) rounded-xl lg:col-span-(--span) border border-line bg-panel p-4 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-line2 hover:shadow-pop"
           >
             <div className="flex items-center justify-between">
               <TintIcon color="#0ea5e9">

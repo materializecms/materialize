@@ -24,6 +24,7 @@ import {
   MenuItem,
   MenuSeparator,
   Popover,
+  ScreenHeader,
   Spinner,
   Textarea,
   toast,
@@ -225,24 +226,30 @@ export function MediaLibrary() {
             </Button>
           </header>
         ) : (
-          <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
-            <Images className="size-4 text-fg3" />
-            <h1 className="text-[14px] font-semibold">Media</h1>
-            <div className="flex-1" />
-            <div className="relative w-56">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cerca per nome o descrizione"
-                className="pl-8"
-                aria-label="Cerca"
-              />
+          <ScreenHeader
+            icon={<Images />}
+            color="#0ea5e9"
+            title="Media"
+            subtitle="Immagini, video e modelli 3D del sito: trascinali qui per caricarli."
+            actions={
+              <Button variant="primary" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
+                Carica
+              </Button>
+            }
+          >
+            <div className="mt-6 flex items-center border-b border-line pb-3">
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cerca per nome o descrizione"
+                  className="pl-8"
+                  aria-label="Cerca nei media"
+                />
+              </div>
             </div>
-            <Button variant="primary" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
-              Carica
-            </Button>
-          </header>
+          </ScreenHeader>
         )}
         {picker.element}
         <DropZone onFiles={start} className="min-h-0 flex-1 overflow-y-auto">

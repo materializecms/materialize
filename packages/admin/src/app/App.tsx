@@ -1,10 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Menu } from 'lucide-react'
+import { Compass, Menu } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { cx, Spinner } from '../components/ui.tsx'
+import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { usePref } from '../lib/prefs.ts'
-import { href, useRoute } from '../lib/router.ts'
+import { href, navigate, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
@@ -158,9 +158,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
           ) : route.name === 'settings' ? (
             <SettingsScreen tab={route.tab} />
           ) : !collection ? (
-            <Fatal
-              message={`La collezione "${'collection' in route ? route.collection : ''}" non esiste nello schema.`}
-            />
+            <NotFound />
           ) : route.name === 'collection' ? (
             <CollectionView key={collection.name} collection={collection} />
           ) : (
@@ -203,8 +201,8 @@ function Fatal({ message }: { message: string }) {
 function RequiredTwoFactor() {
   const queryClient = useQueryClient()
   return (
-    <div className="flex min-h-full items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[420px]">
+    <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
+      <div className="mz-card w-full max-w-[468px]">
         <Logo className="mb-6 size-9" />
         <h1 className="text-[20px] font-semibold tracking-tight">Attiva la verifica in due passaggi</h1>
         <p className="mt-1 mb-6 text-fg2">
@@ -224,5 +222,19 @@ function RequiredTwoFactor() {
         </button>
       </div>
     </div>
+  )
+}
+
+/** An address of the panel that leads nowhere: a typo, an old link, a removed collection. */
+function NotFound() {
+  return (
+    <EmptyState icon={<Compass />} title="Questa pagina del pannello non esiste">
+      <p>L’indirizzo potrebbe essere sbagliato, oppure la sezione è stata tolta.</p>
+      <div className="mt-4 flex justify-center">
+        <Button variant="primary" onClick={() => navigate({ name: 'home' })}>
+          Torna alla panoramica
+        </Button>
+      </div>
+    </EmptyState>
   )
 }

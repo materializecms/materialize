@@ -290,6 +290,42 @@ export function TintIcon({
   )
 }
 
+/**
+ * The top of a main screen (a collection, Media, Persone, Impostazioni): the icon in the same hue
+ * as in the side menu, the title, one line about it, the actions. `children` is a toolbar below.
+ */
+export function ScreenHeader({
+  icon,
+  color,
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  icon: ReactNode
+  color: string
+  title: ReactNode
+  subtitle?: ReactNode
+  actions?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <header className="shrink-0 px-4 pt-6 sm:px-8 sm:pt-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <TintIcon color={color} size="lg">
+          {icon}
+        </TintIcon>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.025em]">{title}</h1>
+          {subtitle !== undefined && <p className="min-h-[18px] text-[13px] text-fg3">{subtitle}</p>}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </header>
+  )
+}
+
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cx('size-4 animate-spin text-fg3', className)} />
 }
@@ -553,7 +589,7 @@ export function Toaster() {
 export function EmptyState({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-seg text-fg2 [&_svg]:size-5">
+      <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/15 [&_svg]:size-5">
         {icon}
       </div>
       <div className="text-[14px] font-medium">{title}</div>

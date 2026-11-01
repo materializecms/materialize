@@ -95,9 +95,10 @@ La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso
 - **Persone**: gli amministratori invitano editor e altri amministratori con un link valido 7 giorni, cambiano ruoli, rimuovono accessi e creano link per una nuova password (24 ore). C'è sempre almeno un amministratore. Ognuno cambia nome e password dal proprio profilo.
 - **Password dimenticata**: dalla pagina di accesso arriva per email un link valido un'ora. La risposta è la stessa per ogni indirizzo, così non si scopre chi è registrato, e le richieste per email e per indirizzo sono limitate. Il link usa sempre l'indirizzo pubblico del sito (`site.url` o `MATERIALIZE_SITE_URL`), mai quello dichiarato dalla richiesta. Senza email configurata, la pagina spiega chi può aiutare: un amministratore, oppure chi gestisce il server con `materialize reset-password <email>`, che stampa il link.
 - **Importa da WordPress** (Impostazioni → Importa): articoli, pagine, immagini, categorie e SEO, dall'indirizzo del sito (anche bozze, con una password applicativa) o dal file di esportazione. Funziona con Gutenberg, Elementor, WPBakery, Divi e gli altri editor. Le immagini vanno nella libreria, i link interni puntano alle nuove pagine e i vecchi indirizzi vengono reindirizzati con un 301. Le pagine arrivano con i contenuti in ordine; l'impaginazione si rifà sul canvas.
-- **Cronologia**: ogni salvataggio è una versione. Per le pagine sulla tela, il pulsante Cronologia elenca le versioni; cliccandone una la si vede su desktop, tablet e mobile prima di ripristinarla. Il ripristino torna nella bozza e ⌘Z lo annulla. Per le voci modificate con i campi la cronologia è nel pannello del documento.
+- **Cronologia**: ogni salvataggio è una versione, con il nome di chi l'ha fatta. Per le pagine sulla tela, il pulsante Cronologia elenca le versioni; cliccandone una la si vede su desktop, tablet e mobile prima di ripristinarla. Il ripristino torna nella bozza e ⌘Z lo annulla. Per le voci modificate con i campi la cronologia è nel pannello del documento.
 - **Esporta in PDF o PNG** la pagina com'è adesso, anche non pubblicata, per mandarla al cliente: desktop, tablet e mobile, ognuno come un'unica immagine lunga (nel PDF una pagina per dispositivo, con nome, dispositivo e data).
 - Annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
+- **Informazioni su Materialize** (Impostazioni → Informazioni): versione installata, autore, licenza MIT, novità, guida, codice sorgente, segnalazione dei problemi e licenze del codice di terzi incluso nel pannello. La pagina di accesso porta al progetto, senza mostrare la versione: una pagina pubblica non deve dire quale versione è installata.
 
 Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
 
@@ -159,12 +160,17 @@ Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, 
 - **colori con nome** nel tema (uno per il tema chiaro, uno per lo scuro) e **punti di rottura** di tablet e mobile configurabili;
 - **pagine modello**: una pagina può fare da modello per ogni voce di una raccolta (la pagina di ogni progetto), con anteprima su una voce vera;
 - **moduli di contatto**: campi veri, invio senza ricaricare la pagina (e anche senza JavaScript), messaggi in Impostazioni → Messaggi e per email via SMTP; con l’email configurata anche inviti e reset password arrivano per posta;
+- **email facile da configurare** (Impostazioni → Email):
+  - si sceglie il fornitore (Brevo, Postmark, Resend, Mailgun, Amazon SES, SendGrid, Mailjet, SMTP2GO, Aruba, Register.it, Gmail, Microsoft 365) e server, porta e sicurezza si compilano da soli, con l'indicazione di dove trovare utente e password;
+  - se la prova non riesce, il pannello dice perché, in parole semplici: server inesistente, porta bloccata dal fornitore del VPS (con le porte che invece rispondono), sicurezza sbagliata per la porta, password rifiutata, mittente non verificato, limite raggiunto;
+  - **Controlla il dominio** legge il DNS del mittente e verifica SPF, DKIM e DMARC, che tengono le email fuori dallo spam;
 - **lavoro in squadra**: commenti sugli elementi o sulla pagina, e chi altro ha aperta la pagina, con l’elemento che ha selezionato.
 
 Sulla tela:
 
 - ⇧ clic (sulla tela o nei livelli) seleziona più elementi, e così un riquadro trascinato dalla tela vuota o dallo sfondo di una sezione (con ⇧, ovunque): le modifiche di stile valgono per tutti; ⌘A seleziona gli elementi vicini; trascinandone uno si spostano tutti insieme;
 - righelli in pixel della pagina lungo i bordi della tela, con la selezione evidenziata (⇧R per mostrarli o nasconderli);
+- pannello sinistro allargabile trascinandone il bordo (fino a 440 px, ricordato dal browser);
 - larghezze di prova per ogni dispositivo e tutti i dispositivi affiancati; ⌥⌘C / ⌥⌘V copia e incolla lo stile; ? mostra tutte le scorciatoie, e la prima volta un breve tour presenta l’editor;
 - ⌘G raggruppa la selezione in un contenitore, ⇧⌘G lo separa; ⌘D duplica, ⌫ elimina;
 - allinea e distribuisci (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): gli elementi liberi si spostano, quelli in colonna o in riga si allineano tramite il loro contenitore;
@@ -253,6 +259,7 @@ npm run build       # compila il pannello
 npx materialize build   # genera il sito statico in dist/, da pubblicare su qualsiasi hosting
 npx materialize start   # produzione: sito statico, pannello e rigenerazione a ogni pubblicazione
 npx materialize restore <file>   # rimette un backup o l'archivio completo (a server fermo)
+npx materialize decrypt <cartella> --key mzk1-…   # decifra i backup scaricati dallo spazio esterno
 npx materialize reset-password <email>   # stampa un link per una nuova password, valido un'ora
 npm test            # test (Vitest)
 npm run typecheck   # TypeScript 7
@@ -271,9 +278,36 @@ Il pannello si protegge da solo:
 - verifica in due passaggi;
 - regole CSP;
 - registro delle attività;
-- backup giornalieri del database e delle immagini, e un archivio completo da scaricare.
+- backup giornalieri del database e delle immagini, e un archivio completo da scaricare;
+- copia cifrata dei backup **fuori dal server**, ogni notte, su uno spazio S3 compatibile o in una cartella WebDAV (vedi sotto).
 
-HTTPS, proxy, Cloudflare, firewall e copie fuori dal server spettano a chi mette online il sito: sono spiegati in [docs/sicurezza.md](docs/sicurezza.md). Lo stato del singolo sito si vede in Impostazioni → Sicurezza.
+HTTPS, proxy, Cloudflare e firewall spettano a chi mette online il sito: sono spiegati in [docs/sicurezza.md](docs/sicurezza.md). Lo stato del singolo sito si vede in Impostazioni → Sicurezza; i backup in Impostazioni → Backup e il registro in Impostazioni → Registro attività.
+
+### Backup fuori dal server
+
+In Impostazioni → Backup, **Copia fuori dal server** manda ogni notte i backup su:
+- **S3 compatibile**: Amazon S3, Cloudflare R2, Backblaze B2, Hetzner Object Storage, Scaleway, OVH, Wasabi, DigitalOcean Spaces, MinIO…
+- **WebDAV**: Nextcloud, ownCloud, NAS Synology e QNAP, pCloud, kDrive…
+
+**Cosa va fuori:**
+- ogni notte l'ultima copia del database;
+- media e caratteri non ancora inviati: i file caricati non cambiano mai, quindi partono una volta sola.
+
+Sullo spazio esterno i media si aggiungono soltanto. Le copie del database oltre il numero scelto vengono cancellate.
+
+**Cifratura:** tutto è cifrato prima di uscire (AES-256-GCM, a blocchi da 1 MiB autenticati, con l'ultimo blocco marcato, così un file troncato viene rifiutato). La chiave casuale è la **chiave di ripristino** (`mzk1-…`): il pannello la mostra una volta al primo salvataggio e poi solo a chi conferma la password.
+
+**Prova e avvisi:**
+- **Prova il collegamento** scrive, rilegge ed elimina un file;
+- **Esegui ora** fa subito una copia;
+- se una notte la copia non riesce, gli amministratori ricevono un'email e Impostazioni → Sicurezza lo segnala.
+
+Per i client c'è solo `fetch` e `node:crypto`, con la firma AWS Signature Version 4 scritta in casa e verificata sull'esempio ufficiale di Amazon.
+
+**Ripristino:**
+1. Scarica la cartella con qualsiasi strumento (la console del servizio, Nextcloud, `rclone`).
+2. Decifrala con `npx materialize decrypt <cartella> --key mzk1-…`. Nella cartella di un sito che ha ancora il suo database la chiave si legge da sola; altrimenti si può passare con `MATERIALIZE_BACKUP_KEY`.
+3. Rimetti il database con `npx materialize restore`, e copia `media/` e `fonts/` in `.materialize/`.
 
 ## Pubblicare una versione
 

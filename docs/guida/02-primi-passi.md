@@ -37,6 +37,10 @@ In alto, nella pagina, ci sono due modi di lavorare:
 
 Un amministratore può decidere che gli editor usino solo **Contenuto** (vedi [Persone e sicurezza](08-persone-e-sicurezza.md)): così l'impaginazione resta quella decisa dall'agenzia.
 
+## Informazioni su Materialize
+
+In **Impostazioni → Informazioni** trovi la versione installata, chi realizza Materialize, la licenza, i link alle novità, alla guida e al codice sorgente, dove segnalare un problema e le licenze dei progetti di terzi inclusi nel pannello.
+
 ## E adesso
 
 - Dai un nome al sito, scegli i colori e i caratteri: [L'editor delle pagine](03-editor.md), scheda **Stili**.

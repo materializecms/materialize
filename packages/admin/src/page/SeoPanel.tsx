@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, TriangleAlert } from 'lucide-react'
 import { useMemo } from 'react'
 import { useSession } from '../app/context.ts'
-import { cx } from '../components/ui.tsx'
+import { Button, cx } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { useForm } from '../fields/form-context.ts'
 import { api, type Data, type FieldDescription } from '../lib/api.ts'
@@ -15,13 +15,18 @@ const ICON = {
   ok: <CircleCheck className="size-3.5 text-ok" />,
 }
 
-/** The checks of a page for search engines, worst first, with the page's SEO fields to fix them. */
+/**
+ * The checks of a page for search engines, worst first, and the fields that fix them (title,
+ * description, image). In Design those fields are already in the page panel on the right: then
+ * `onEditFields` is given and leads there, so they are never shown twice.
+ */
 export function SeoPanel({
   nodes,
   data,
   seoField,
   onChange,
   onSelect,
+  onEditFields,
 }: {
   nodes: PageNode[]
   data: Data
@@ -29,6 +34,7 @@ export function SeoPanel({
   onChange: (next: Data, group?: string) => void
   /** Selects the element a check points to. */
   onSelect: (id: string) => void
+  onEditFields?: () => void
 }) {
   const { docTitle, docUrl } = useForm()
   const { schema } = useSession()
@@ -96,9 +102,19 @@ export function SeoPanel({
           </li>
         ))}
       </ul>
-      {seoField && (
+      {seoField && !onEditFields && (
         <div className="border-t border-line px-3.5 py-4">
           <FieldsForm fields={[seoField]} value={data} onChange={onChange} path={[]} />
+        </div>
+      )}
+      {seoField && onEditFields && (
+        <div className="border-t border-line px-3.5 py-4">
+          <p className="mb-2.5 text-[13px] leading-relaxed text-fg3">
+            Titolo, descrizione e immagine per Google e i social sono nel pannello della pagina, a destra.
+          </p>
+          <Button size="sm" className="w-full" onClick={onEditFields}>
+            Modifica titolo e descrizione
+          </Button>
         </div>
       )}
     </div>

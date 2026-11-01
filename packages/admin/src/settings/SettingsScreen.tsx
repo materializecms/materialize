@@ -1,22 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, Mail, Send, Settings, Trash2 } from 'lucide-react'
-import { type FormEvent, useEffect, useState } from 'react'
+import { Inbox, Mail, Settings, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { DocumentScreen } from '../app/DocumentScreen.tsx'
-import { Button, cx, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
-import { ApiError, api, type CollectionDescription, type MailSettings } from '../lib/api.ts'
+import { cx, EmptyState, IconButton, ScreenHeader, Spinner } from '../components/ui.tsx'
+import { api, type CollectionDescription } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
+import { About } from './About.tsx'
 import { AiScreen } from './AiSettings.tsx'
 import { ImportWordPress } from './ImportWordPress.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
+import { MailForm } from './MailSettings.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 import { TrackingSettings } from './TrackingSettings.tsx'
 import { UpdatesSettings, useUpdateAvailable } from './UpdatesSettings.tsx'
-
-const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '' }
 
 /**
  * A single-document collection's name as a settings tab: "Impostazioni del sito" → "Sito"
@@ -58,13 +58,25 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         { value: 'messages', label: 'Messaggi', badge: unread },
       ],
     },
-    { title: 'Protezione', items: [{ value: 'security', label: 'Sicurezza' }] },
+    {
+      title: 'Protezione',
+      items: [
+        { value: 'security', label: 'Sicurezza' },
+        ...(user.role === 'admin'
+          ? [
+              { value: 'backups', label: 'Backup' },
+              { value: 'activity', label: 'Registro attività' },
+            ]
+          : []),
+      ],
+    },
     {
       title: 'Strumenti',
       items: [
         { value: 'ai', label: 'AI e MCP' },
         { value: 'import', label: 'Importa' },
         ...(user.role === 'admin' ? [{ value: 'updates', label: 'Aggiornamenti', dot: !!update }] : []),
+        { value: 'about', label: 'Informazioni' },
       ],
     },
   ]
@@ -97,10 +109,14 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel px-5">
-        <Settings className="size-4 text-fg3" />
-        <h1 className="text-[15px] font-semibold">Impostazioni</h1>
-      </header>
+      <ScreenHeader
+        icon={<Settings />}
+        color="#64748b"
+        title="Impostazioni"
+        subtitle="Il sito, la posta, la sicurezza e gli strumenti."
+      >
+        <div className="mt-5 border-b border-line" />
+      </ScreenHeader>
       <div className="flex min-h-0 flex-1 max-md:flex-col">
         <nav
           aria-label="Sezioni delle impostazioni"
@@ -118,7 +134,9 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             <SingleDocument collection={single} />
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {active === 'ai' ? (
+              {active === 'about' ? (
+                <About />
+              ) : active === 'ai' ? (
                 <AiScreen />
               ) : active === 'updates' ? (
                 <UpdatesSettings />
@@ -126,8 +144,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
                 <TrackingSettings />
               ) : active === 'import' ? (
                 <ImportWordPress />
-              ) : active === 'security' ? (
-                <SecuritySettings onOpenProfile={() => setProfile(true)} />
+              ) : active === 'security' || active === 'backups' || active === 'activity' ? (
+                <SecuritySettings part={active} onOpenProfile={() => setProfile(true)} />
               ) : active === 'languages' ? (
                 <LanguagesSettings />
               ) : active === 'messages' ? (
@@ -167,131 +185,6 @@ function SingleDocument({ collection }: { collection: CollectionDescription }) {
       id={list.data?.items[0]?.id ?? null}
       embedded
     />
-  )
-}
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
-    <label className="block space-y-1.5">
-      <span className="text-[13px] font-medium">{label}</span>
-      {children}
-      {hint && <span className="block text-[12px] leading-relaxed text-fg3">{hint}</span>}
-    </label>
-  )
-}
-
-function MailForm() {
-  const queryClient = useQueryClient()
-  const saved = useQuery({ queryKey: ['mail'], queryFn: api.mail })
-  const [mail, setMail] = useState<MailSettings>(EMPTY)
-  const [pass, setPass] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [testing, setTesting] = useState(false)
-  useEffect(() => {
-    if (saved.data) setMail(saved.data.mail)
-  }, [saved.data])
-  const set = (patch: Partial<MailSettings>) => setMail((m) => ({ ...m, ...patch }))
-
-  const save = async (e?: FormEvent) => {
-    e?.preventDefault()
-    setSaving(true)
-    try {
-      const res = await api.saveMail({ ...mail, pass: pass || undefined })
-      queryClient.setQueryData(['mail'], res)
-      setPass('')
-      toast('Impostazioni email salvate')
-      return true
-    } catch (error) {
-      toast((error as Error).message, 'error')
-      return false
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const test = async () => {
-    setTesting(true)
-    try {
-      if (!(await save())) return
-      const res = await api.testMail()
-      toast(`Email di prova inviata a ${res.to}`)
-    } catch (error) {
-      const detail = error instanceof ApiError && error.code === 'mail_failed' ? `: ${error.message}` : ''
-      toast(detail ? `Il server di posta ha rifiutato l’invio${detail}` : (error as Error).message, 'error')
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  if (saved.isLoading) return <Spinner />
-  return (
-    <form onSubmit={save} className="mx-auto max-w-xl space-y-6 px-5 py-8">
-      <div>
-        <h2 className="text-[16px] font-semibold">Invio delle email</h2>
-        <p className="mt-1 text-[14px] leading-relaxed text-fg2">
-          Con un server SMTP (quello della tua casella, o servizi come Postmark, Brevo, Amazon SES) i messaggi dei
-          moduli del sito arrivano anche per email. Senza, restano comunque in Messaggi.
-        </p>
-      </div>
-      <div className="grid grid-cols-[1fr_120px] gap-3">
-        <Field label="Server">
-          <Input
-            value={mail.host}
-            placeholder="smtp.example.com"
-            onChange={(e) => set({ host: e.target.value.trim() })}
-          />
-        </Field>
-        <Field label="Porta">
-          <Input type="number" value={mail.port} onChange={(e) => set({ port: Number(e.target.value) || 587 })} />
-        </Field>
-      </div>
-      <Field label="Sicurezza" hint="TLS di solito sulla porta 465, STARTTLS sulla 587.">
-        <Segmented
-          value={mail.security}
-          onChange={(security) =>
-            set({ security, port: security === 'tls' ? 465 : security === 'starttls' ? 587 : mail.port })
-          }
-          options={[
-            { value: 'starttls', label: 'STARTTLS' },
-            { value: 'tls', label: 'TLS' },
-            { value: 'none', label: 'Nessuna' },
-          ]}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Utente">
-          <Input value={mail.user} autoComplete="off" onChange={(e) => set({ user: e.target.value.trim() })} />
-        </Field>
-        <Field label="Password" hint={mail.hasPassword ? 'Salvata: lascia vuoto per non cambiarla.' : undefined}>
-          <Input
-            type="password"
-            value={pass}
-            autoComplete="new-password"
-            placeholder={mail.hasPassword ? '••••••••' : ''}
-            onChange={(e) => setPass(e.target.value)}
-          />
-        </Field>
-      </div>
-      <Field label="Mittente" hint="Come appare a chi riceve, per esempio Studio Rossi <sito@example.com>.">
-        <Input
-          value={mail.from}
-          placeholder="Nome <indirizzo@example.com>"
-          onChange={(e) => set({ from: e.target.value })}
-        />
-      </Field>
-      <Field label="Destinatario dei moduli" hint="Dove arrivano i messaggi inviati dal sito.">
-        <Input value={mail.to} placeholder="studio@example.com" onChange={(e) => set({ to: e.target.value.trim() })} />
-      </Field>
-      <div className="flex gap-2">
-        <Button type="submit" variant="primary" loading={saving}>
-          Salva
-        </Button>
-        <Button icon={<Send className="size-3.5" />} loading={testing} onClick={test} disabled={!mail.host}>
-          Salva e invia una prova
-        </Button>
-      </div>
-    </form>
   )
 }
 

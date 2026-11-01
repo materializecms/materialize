@@ -417,7 +417,8 @@ function Editor({
               <ArrowLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           )}
-          <div className={cx('flex min-w-0 items-center gap-1.5 text-[14px]', embedded && 'hidden')}>
+          {/* On a phone the buttons would squeeze the title to nothing: it keeps room for a few words. */}
+          <div className={cx('flex min-w-[6rem] shrink items-center gap-1.5 text-[14px]', embedded && 'hidden')}>
             {!collection.singleton && (
               <>
                 <span className="hidden shrink-0 font-semibold xl:inline">{schema.site.name}</span>
@@ -646,7 +647,7 @@ function Editor({
                     Chiudi
                   </Button>
                 </div>
-                <p className="mb-3 text-[12px] leading-relaxed text-fg3">
+                <p className="mb-3 text-[13px] leading-relaxed text-fg3">
                   Clicca una versione per vederla su tutti i dispositivi, prima di ripristinarla.
                 </p>
                 <RevisionList
@@ -853,7 +854,7 @@ function RevisionList({
   return (
     <ol className="relative space-y-0.5 border-l border-line pl-3">
       {items.map((r, i) => {
-        const label = `${i === 0 ? 'l’ultima versione' : `la versione del ${fullDate(r.createdAt)}`}`
+        const label = `${i === 0 ? 'l’ultima versione' : `la versione del ${fullDate(r.createdAt)}`}${r.authorName ? ` di ${r.authorName}` : ''}`
         return (
           <li
             key={r.id}
@@ -875,6 +876,10 @@ function RevisionList({
               onClick={() => onPick?.(r, label)}
             >
               <span className="block text-[13px]">{kindLabel[r.kind]}</span>
+              {/* Who made it: the name, or "persona rimossa" when the account no longer exists. */}
+              {r.authorId && (
+                <span className="block truncate text-[12px] text-fg2">{r.authorName ?? 'Persona rimossa'}</span>
+              )}
               <span className="block text-[12px] text-fg3" title={fullDate(r.createdAt)}>
                 {/* Many saves on the same day: past the last few hours, the time tells them apart. */}
                 {Date.now() - new Date(r.createdAt).getTime() < 6 * 60 * 60_000
