@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 import { Button, Input } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
@@ -28,6 +28,7 @@ export function AuthScreen() {
   const [busy, setBusy] = useState(false)
   // Password accepted, the account asks for a code too.
   const [ticket, setTicket] = useState<string | null>(null)
+  const [forgot, setForgot] = useState(false)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -49,6 +50,16 @@ export function AuthScreen() {
   }
 
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
+
+  if (forgot)
+    return (
+      <div className="flex min-h-full items-center justify-center px-4 py-12">
+        <div className="w-full max-w-[340px]">
+          <Logo className="mb-6 size-9" />
+          <ForgotPassword initialEmail={email} onBack={() => setForgot(false)} />
+        </div>
+      </div>
+    )
 
   if (ticket)
     return (
@@ -83,7 +94,16 @@ export function AuthScreen() {
             />
           </label>
           <label className="block">
-            <span className={label}>Password</span>
+            <span className="mb-1.5 flex items-baseline justify-between text-[13px] font-medium text-fg2">
+              Password
+              <button
+                type="button"
+                className="text-[13px] font-normal text-accent hover:underline"
+                onClick={() => setForgot(true)}
+              >
+                Password dimenticata?
+              </button>
+            </span>
             <Input
               type="password"
               value={password}
@@ -103,6 +123,98 @@ export function AuthScreen() {
         </Button>
       </form>
     </div>
+  )
+}
+
+/**
+ * A forgotten password: a link by email, valid an hour. The answer never says whether the email
+ * has an account. Without email set up on the site, it says who can help instead.
+ */
+function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
+  const [email, setEmail] = useState(initialEmail)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+  const recovery = useQuery({ queryKey: ['recovery'], queryFn: api.recovery })
+  const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
+  const back = (
+    <button type="button" className="mt-4 text-[13px] text-fg2 hover:text-fg" onClick={onBack}>
+      Torna all’accesso
+    </button>
+  )
+
+  if (recovery.data && !recovery.data.mail)
+    return (
+      <div>
+        <h1 className="text-[20px] font-semibold tracking-tight">Password dimenticata</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-fg2">
+          Questo sito non ha ancora l’invio delle email, quindi il link non può arrivarti per posta. Chiedi a un
+          amministratore: dalla pagina Persone crea un link per una nuova password.
+        </p>
+        <p className="mt-3 text-[14px] leading-relaxed text-fg2">
+          Se sei l’unico amministratore, chi gestisce il server può creare il link con il comando{' '}
+          <code className="font-mono text-[13px]">materialize reset-password</code> seguito dalla tua email.
+        </p>
+        {back}
+      </div>
+    )
+
+  if (sent)
+    return (
+      <div>
+        <h1 className="text-[20px] font-semibold tracking-tight">Controlla la posta</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-fg2">
+          Se <strong className="font-semibold text-fg">{email.trim()}</strong> ha un account, tra poco riceverai
+          un’email con il link per scegliere una nuova password. Il link vale un’ora.
+        </p>
+        <p className="mt-3 text-[13px] leading-relaxed text-fg3">
+          Non arriva? Guarda anche nello spam, oppure chiedi a un amministratore.
+        </p>
+        {back}
+      </div>
+    )
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await api.forgot(email.trim())
+      setSent(true)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <h1 className="text-[20px] font-semibold tracking-tight">Password dimenticata</h1>
+      <p className="mt-1 mb-6 text-fg2">
+        Scrivi l’email del tuo account: ti mandiamo un link per sceglierne una nuova.
+      </p>
+      <label className="block">
+        <span className={label}>Email</span>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+          autoFocus
+        />
+      </label>
+      {error && (
+        <p role="alert" className="mt-4 text-[14px] text-danger">
+          {error}
+        </p>
+      )}
+      <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
+        Mandami il link
+      </Button>
+      {back}
+    </form>
   )
 }
 

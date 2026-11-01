@@ -112,6 +112,11 @@ const CHALLENGE_TTL = 5 * 60 * 1000
 const dummyHash = hashPassword(randomBytes(16).toString('hex'))
 const INVITE_TTL = 7 * 24 * 60 * 60 * 1000
 const RESET_TTL = 24 * 60 * 60 * 1000
+/** A link asked for from the sign-in page: shorter, since nobody vouched for the request. */
+const FORGOT_TTL = 60 * 60 * 1000
+/** Links asked for per email, and per address, before a pause: no one is flooded with emails. */
+const FORGOT_THRESHOLD = 3
+const FORGOT_IP_THRESHOLD = 10
 /** Where people open their one-time link: the admin's welcome screen. */
 const linkPath = (token: string) => `/admin/_invite/${token}`
 
@@ -757,6 +762,48 @@ export function createApp(base: ServerContext) {
     return signIn(c, user)
   })
 
+  /** For the sign-in page: whether "Password dimenticata?" can send an email, or someone has to help. */
+  app.get('/api/auth/recovery', async (c) => c.json({ mail: isConfigured(await settings.get<MailSettings>('mail')) }))
+
+  /**
+   * A forgotten password: a one-time link by email, valid an hour. The answer is the same whether
+   * the email has an account or not, so nobody can learn who is registered; requests per email and
+   * per address are limited, so nobody can flood an inbox.
+   */
+  app.post('/api/auth/forgot', async (c) => {
+    const input = await body(c, z.object({ email: z.email() }))
+    const email = input.email.trim().toLowerCase()
+    const ip = clientIp(c)
+    await checkLocks(`forgot:${email}`, `forgot-ip:${ip}`)
+    await auth.recordFailure(`forgot:${email}`, FORGOT_THRESHOLD)
+    await auth.recordFailure(`forgot-ip:${ip}`, FORGOT_IP_THRESHOLD)
+    const mail = isConfigured(await settings.get<MailSettings>('mail'))
+    const found = mail ? await auth.findForLogin(email) : null
+    if (found) {
+      const { token } = await auth.createInvite({
+        kind: 'reset',
+        email: found.email,
+        name: found.name,
+        role: found.role,
+        userId: found.id,
+        ttlMs: FORGOT_TTL,
+      })
+      await mailLink(
+        c,
+        found.email,
+        'Nuova password',
+        [
+          `Qualcuno ha chiesto una nuova password per il tuo account su ${ctx.config().site.name}.`,
+          'Se non sei stato tu, ignora questa email: la password resta quella di prima.',
+          'Per sceglierne una nuova, apri questo link entro un’ora:',
+        ],
+        linkPath(token),
+      )
+      await record(c, 'password.forgot', found.email, null, { id: found.id, name: found.name })
+    }
+    return c.json({ ok: true, mail })
+  })
+
   /** The second step: a code from the app, or a recovery code. */
   app.post('/api/auth/login/verify', async (c) => {
     const input = await body(
@@ -897,7 +944,7 @@ export function createApp(base: ServerContext) {
 
   /** Groups of the activity log, by the start of their action codes. */
   const ACTIVITY_GROUPS: Record<string, string[]> = {
-    access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.'],
+    access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.', 'password.'],
     people: ['user.'],
     content: ['document.', 'media.', 'message.'],
     settings: ['settings.', 'backup.', 'update.'],
@@ -1685,11 +1732,24 @@ export function createApp(base: ServerContext) {
     }
   }
 
-  const mailLink = async (c: Context<Env>, to: string, subject: string, lines: string[], path: string) => {
+  /**
+   * The address links in emails point to: the site's own (MATERIALIZE_SITE_URL, site.url) when it
+   * is known. The request's Host header is used only without it, as in local development: anyone
+   * can send a request with a false Host, and a link to their server would carry the token there.
+   */
+  const publicOrigin = (c: Context) => {
+    const site = ctx.config().site.url
+    try {
+      if (site) return new URL(site).origin
+    } catch {}
+    return new URL(c.req.url).origin
+  }
+
+  const mailLink = async (c: Context, to: string, subject: string, lines: string[], path: string) => {
     const mail = await settings.get<MailSettings>('mail')
     if (!isConfigured(mail)) return false
     try {
-      const url = new URL(path, new URL(c.req.url).origin).toString()
+      const url = new URL(path, publicOrigin(c)).toString()
       await sendMail(mail, { to, subject, text: `${lines.join('\n')}\n\n${url}\n` })
       return true
     } catch (error) {

@@ -5,7 +5,13 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
 import { type Redirect, resolveRedirect } from '@materializecms/core/seo'
-import { createAuthStore, createContentStore, createSettingsStore, openDatabase } from '@materializecms/db'
+import {
+  createActivityStore,
+  createAuthStore,
+  createContentStore,
+  createSettingsStore,
+  openDatabase,
+} from '@materializecms/db'
 import {
   apiCaller,
   createFonts,
@@ -37,6 +43,9 @@ ${accent('materialize')} ${dim(VERSION)}
   materialize restore <file>
                        Rimette un backup (content-….db, o l'archivio completo materialize-….tar.gz);
                        il server va fermato
+  materialize reset-password <email>
+                       Un link per una nuova password, valido un'ora: per chi non può riceverlo per email
+                       (per esempio l'unico amministratore, senza email configurata)
   materialize --help   Mostra questo aiuto
 
 Opzioni
@@ -370,11 +379,71 @@ async function restore(args: string[]): Promise<void> {
     console.log(dim(`  Il database di prima è in ${relative(process.cwd(), kept)}, se servisse tornare indietro.`))
 }
 
+/**
+ * A one-time link for a new password, printed here: the way back in for someone who cannot get it
+ * by email, such as the only administrator of a site without email. Only who can run commands on
+ * the server can ask for it. The server may be running.
+ */
+async function resetPassword(args: string[]): Promise<void> {
+  const email = args
+    .find((a) => !a.startsWith('--'))
+    ?.trim()
+    .toLowerCase()
+  const path = findConfig(process.cwd())
+  if (!email || !path) {
+    console.error(
+      fail(
+        !email
+          ? 'Indica l’email: materialize reset-password <email>'
+          : 'Non trovo materialize.config.ts in questa cartella: lancia il comando dalla cartella del sito.',
+      ),
+    )
+    process.exit(1)
+  }
+  const config = await loadConfig(path)
+  const database = await openDatabase(config.database)
+  try {
+    const auth = createAuthStore(database.db)
+    const user = await auth.findForLogin(email)
+    if (!user) {
+      console.error(fail(`Nessun account con l’email ${email}.`))
+      process.exitCode = 1
+      return
+    }
+    const { token } = await auth.createInvite({
+      kind: 'reset',
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      userId: user.id,
+      ttlMs: 60 * 60 * 1000,
+    })
+    await createActivityStore(database.db).record({
+      userId: null,
+      userName: '',
+      action: 'password.reset_cli',
+      target: user.email,
+      detail: null,
+      ip: 'server',
+    })
+    const base = config.site.url?.replace(/\/+$/, '') ?? `http://localhost:${config.server.port}`
+    console.log(`  ${ok('✓')} Link per una nuova password di ${user.name} (${user.email}), valido un’ora:`)
+    console.log()
+    console.log(`    ${accent(`${base}/admin/_invite/${token}`)}`)
+    console.log()
+    console.log(dim('  Chi lo apre sceglie la password. La verifica in due passaggi, se attiva, resta.'))
+  } finally {
+    database.close()
+  }
+}
+
 const [command = 'help', ...args] = process.argv.slice(2)
 if (command === 'dev' || command === 'start' || command === 'build') {
   await run(command, args)
 } else if (command === 'mcp') {
   await mcp(args)
+} else if (command === 'reset-password') {
+  await resetPassword(args)
 } else if (command === 'restore') {
   await restore(args)
 } else if (command === '--version' || command === '-v') {

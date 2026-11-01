@@ -2,7 +2,9 @@
 
 CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
 
-> Stato: **Alpha**, verso la prima versione pubblica. Le novità di ogni versione sono in [CHANGELOG.md](CHANGELOG.md).
+> Stato: **Alpha**. Le novità di ogni versione sono in [CHANGELOG.md](CHANGELOG.md).
+
+**Per chi usa Materialize** c'è la [guida](docs/guida/README.md): installazione, editor, contenuti, lingue, SEO, persone, aggiornamenti e backup. Questo README è per chi sviluppa.
 
 ## Un nuovo sito
 
@@ -38,11 +40,12 @@ Su un server dove c'è già Docker, `docker/compose.yaml` avvia Materialize con 
 
 ```bash
 curl -fsSLO https://cdn.jsdelivr.net/npm/@materializecms/cli/compose.yaml
-DOMAIN=example.com docker compose up -d
+echo "DOMAIN=example.com" > .env
+docker compose up -d
 docker compose logs materialize
 ```
 
-Il registro contiene il link per finire l'installazione nel browser. Da solo, senza Caddy:
+Il file `.env` ricorda il dominio per tutti i comandi successivi (`docker compose logs`, `stop`, `run`…). Il registro contiene il link per finire l'installazione nel browser. Da solo, senza Caddy:
 
 ```bash
 docker run -d --name materialize -p 4321:4321 -v materialize:/site --restart unless-stopped ghcr.io/materializecms/materialize
@@ -90,8 +93,11 @@ La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso
 - **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
 - **Media**: libreria con caricamento trascinando i file, ricerca, testo alternativo e conteggio delle pagine che usano ogni immagine. Dal campo immagine si carica, si sceglie dalla libreria o si trascina un file.
 - **Persone**: gli amministratori invitano editor e altri amministratori con un link valido 7 giorni, cambiano ruoli, rimuovono accessi e creano link per una nuova password (24 ore). C'è sempre almeno un amministratore. Ognuno cambia nome e password dal proprio profilo.
+- **Password dimenticata**: dalla pagina di accesso arriva per email un link valido un'ora. La risposta è la stessa per ogni indirizzo, così non si scopre chi è registrato, e le richieste per email e per indirizzo sono limitate. Il link usa sempre l'indirizzo pubblico del sito (`site.url` o `MATERIALIZE_SITE_URL`), mai quello dichiarato dalla richiesta. Senza email configurata, la pagina spiega chi può aiutare: un amministratore, oppure chi gestisce il server con `materialize reset-password <email>`, che stampa il link.
 - **Importa da WordPress** (Impostazioni → Importa): articoli, pagine, immagini, categorie e SEO, dall'indirizzo del sito (anche bozze, con una password applicativa) o dal file di esportazione. Funziona con Gutenberg, Elementor, WPBakery, Divi e gli altri editor. Le immagini vanno nella libreria, i link interni puntano alle nuove pagine e i vecchi indirizzi vengono reindirizzati con un 301. Le pagine arrivano con i contenuti in ordine; l'impaginazione si rifà sul canvas.
-- Cronologia con ripristino, annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
+- **Cronologia**: ogni salvataggio è una versione. Per le pagine sulla tela, il pulsante Cronologia elenca le versioni; cliccandone una la si vede su desktop, tablet e mobile prima di ripristinarla. Il ripristino torna nella bozza e ⌘Z lo annulla. Per le voci modificate con i campi la cronologia è nel pannello del documento.
+- **Esporta in PDF o PNG** la pagina com'è adesso, anche non pubblicata, per mandarla al cliente: desktop, tablet e mobile, ognuno come un'unica immagine lunga (nel PDF una pagina per dispositivo, con nome, dispositivo e data).
+- Annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
 
 Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
 
@@ -221,6 +227,7 @@ Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `s
 | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `GET /api/setup` · `POST /api/setup`                                                                  | Primo amministratore (solo se non ne esiste uno)                                                               |
 | `POST /api/auth/login` · `logout` · `GET /api/auth/me`                                                | Sessione con cookie sicuro                                                                                     |
+| `GET /api/auth/recovery` · `POST /api/auth/forgot`                                                    | Password dimenticata: se l'email è configurata, e il link per email                                            |
 | `GET /api/schema`                                                                                     | Collezioni e campi, per costruire le form                                                                      |
 | `GET` · `POST /api/collections/:nome`                                                                 | Elenco con ricerca, creazione con validazione                                                                  |
 | `GET` · `PUT` · `DELETE /api/documents/:id`                                                           | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin) |
@@ -246,6 +253,7 @@ npm run build       # compila il pannello
 npx materialize build   # genera il sito statico in dist/, da pubblicare su qualsiasi hosting
 npx materialize start   # produzione: sito statico, pannello e rigenerazione a ogni pubblicazione
 npx materialize restore <file>   # rimette un backup o l'archivio completo (a server fermo)
+npx materialize reset-password <email>   # stampa un link per una nuova password, valido un'ora
 npm test            # test (Vitest)
 npm run typecheck   # TypeScript 7
 npm run lint        # Biome

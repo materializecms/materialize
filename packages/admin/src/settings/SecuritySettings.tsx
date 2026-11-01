@@ -58,6 +58,10 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `codice di verifica sbagliato per ${e.target}`, group: 'access' }
     case 'login.blocked':
       return { text: `tentativo di accesso in pausa per ${e.target}`, group: 'access' }
+    case 'password.forgot':
+      return { text: 'ha chiesto un link per una nuova password', group: 'access' }
+    case 'password.reset_cli':
+      return { text: `link per una nuova password creato dal server per ${e.target}`, group: 'access' }
     case 'logout':
       return { text: 'è uscito', group: 'access' }
     case 'session.ended':

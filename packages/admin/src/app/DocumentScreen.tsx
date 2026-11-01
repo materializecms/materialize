@@ -39,6 +39,7 @@ import {
   api,
   type CollectionDescription,
   type Data,
+  type Revision,
   type StoredDocument,
   type ValidationIssue,
 } from '../lib/api.ts'
@@ -309,13 +310,18 @@ function Editor({
     }
   }
 
+  // Cronologia for pages on the canvas: the list beside the editor, and the version being looked at.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [previewing, setPreviewing] = useState<{ revision: Revision; label: string } | null>(null)
+
   const restore = async (revision: string) => {
     if (!doc) return
     try {
       const res = await api.restore(doc.id, revision)
       history.set(res.data)
       applyServer(res, JSON.stringify(clean(fields, res.data)))
-      toast('Versione ripristinata nella bozza')
+      setPreviewing(null)
+      toast('Versione ripristinata nella bozza: ⌘Z la annulla')
     } catch (error) {
       handleError(error)
     }
@@ -492,6 +498,18 @@ function Editor({
               <div className="mx-1 h-5 w-px bg-line" />
               <ThemeSwitch compact />
             </div>
+            {pageField && doc && (
+              <IconButton
+                label="Cronologia"
+                active={historyOpen}
+                onClick={() => {
+                  setHistoryOpen(!historyOpen)
+                  setPreviewing(null)
+                }}
+              >
+                <HistoryIcon />
+              </IconButton>
+            )}
             {mode === 'content' && !pageField && (
               <IconButton
                 label="Pannello documento"
@@ -591,15 +609,55 @@ function Editor({
         </header>
 
         {pageField ? (
-          <PageEditor
-            collection={collection}
-            pageField={pageField}
-            data={history.value}
-            onChange={set}
-            mode={mode}
-            docId={doc?.id}
-            onContentMode={() => chooseMode('content')}
-          />
+          <div className="flex min-h-0 flex-1">
+            <PageEditor
+              collection={collection}
+              pageField={pageField}
+              data={history.value}
+              onChange={set}
+              mode={mode}
+              docId={doc?.id}
+              onContentMode={() => chooseMode('content')}
+              preview={
+                previewing
+                  ? {
+                      label: previewing.label,
+                      data: previewing.revision.data,
+                      onRestore: () => void restore(previewing.revision.id),
+                      onClose: () => setPreviewing(null),
+                    }
+                  : undefined
+              }
+            />
+            {historyOpen && doc && (
+              <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel px-4 py-3.5">
+                <div className="mb-1 flex items-center justify-between">
+                  <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-fg3">
+                    <HistoryIcon className="size-3.5" /> Cronologia
+                  </h2>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setHistoryOpen(false)
+                      setPreviewing(null)
+                    }}
+                  >
+                    Chiudi
+                  </Button>
+                </div>
+                <p className="mb-3 text-[12px] leading-relaxed text-fg3">
+                  Clicca una versione per vederla su tutti i dispositivi, prima di ripristinarla.
+                </p>
+                <RevisionList
+                  docId={doc.id}
+                  onRestore={restore}
+                  selected={previewing?.revision.id}
+                  onPick={(revision, label) => setPreviewing({ revision, label })}
+                />
+              </aside>
+            )}
+          </div>
         ) : mode === 'design' && blocksField ? (
           <DesignMode
             collection={collection}
@@ -773,6 +831,74 @@ function TitleInput({
 
 const kindLabel = { save: 'Salvataggio', publish: 'Pubblicazione', restore: 'Ripristino' }
 
+/**
+ * The saved versions of a document, newest first. "Ripristina" puts one back in the draft; with
+ * `onPick`, a click on a version shows it first (pages on the canvas).
+ */
+function RevisionList({
+  docId,
+  onRestore,
+  onPick,
+  selected,
+}: {
+  docId: string
+  onRestore: (id: string) => void
+  onPick?: (revision: Revision, label: string) => void
+  selected?: string
+}) {
+  const revisions = useQuery({ queryKey: ['revisions', docId], queryFn: () => api.revisions(docId) })
+  if (revisions.isPending) return <Spinner />
+  const items = revisions.data?.items ?? []
+  if (!items.length) return <p className="text-[13px] text-fg3">Nessuna versione salvata.</p>
+  return (
+    <ol className="relative space-y-0.5 border-l border-line pl-3">
+      {items.map((r, i) => {
+        const label = `${i === 0 ? 'l’ultima versione' : `la versione del ${fullDate(r.createdAt)}`}`
+        return (
+          <li
+            key={r.id}
+            className={cx(
+              'group relative -ml-3 flex items-center gap-2 rounded-md py-1 pr-1 pl-3 hover:bg-hover',
+              selected === r.id && 'bg-accent/10',
+            )}
+          >
+            <span
+              className={cx(
+                'absolute top-1/2 -left-[3.5px] size-[7px] -translate-y-1/2 rounded-full border-2 border-panel',
+                r.kind === 'publish' ? 'bg-ok' : 'bg-line2',
+              )}
+            />
+            <button
+              type="button"
+              disabled={!onPick}
+              className="min-w-0 flex-1 text-left disabled:cursor-default"
+              onClick={() => onPick?.(r, label)}
+            >
+              <span className="block text-[13px]">{kindLabel[r.kind]}</span>
+              <span className="block text-[12px] text-fg3" title={fullDate(r.createdAt)}>
+                {/* Many saves on the same day: past the last few hours, the time tells them apart. */}
+                {Date.now() - new Date(r.createdAt).getTime() < 6 * 60 * 60_000
+                  ? relativeTime(r.createdAt)
+                  : fullDate(r.createdAt)}
+              </span>
+            </button>
+            {i > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className={cx('group-hover:opacity-100', selected === r.id ? 'opacity-100' : 'opacity-0')}
+                onClick={() => onRestore(r.id)}
+              >
+                Ripristina
+              </Button>
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 function InfoPanel({
   doc,
   dirty,
@@ -783,7 +909,6 @@ function InfoPanel({
   onRestore: (id: string) => void
 }) {
   const { schema } = useSession()
-  const revisions = useQuery({ queryKey: ['revisions', doc.id], queryFn: () => api.revisions(doc.id) })
   const status = dirty && doc.status === 'published' ? 'changed' : doc.status
   const row = 'flex items-start justify-between gap-3 py-1.5'
   const publicUrl = doc.url && schema.site.url ? new URL(doc.url, schema.site.url).toString() : null
@@ -834,41 +959,7 @@ function InfoPanel({
         <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-fg3">
           <HistoryIcon className="size-3.5" /> Cronologia
         </h2>
-        {revisions.isPending ? (
-          <Spinner />
-        ) : (
-          <ol className="relative space-y-0.5 border-l border-line pl-3">
-            {revisions.data?.items.map((r, i) => (
-              <li
-                key={r.id}
-                className="group relative -ml-3 flex items-center gap-2 rounded-md py-1 pr-1 pl-3 hover:bg-hover"
-              >
-                <span
-                  className={cx(
-                    'absolute top-1/2 -left-[3.5px] size-[7px] -translate-y-1/2 rounded-full border-2 border-panel',
-                    r.kind === 'publish' ? 'bg-ok' : 'bg-line2',
-                  )}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px]">{kindLabel[r.kind]}</span>
-                  <span className="block text-[12px] text-fg3" title={fullDate(r.createdAt)}>
-                    {relativeTime(r.createdAt)}
-                  </span>
-                </span>
-                {i > 0 && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100"
-                    onClick={() => onRestore(r.id)}
-                  >
-                    Ripristina
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        <RevisionList docId={doc.id} onRestore={onRestore} />
       </section>
     </aside>
   )

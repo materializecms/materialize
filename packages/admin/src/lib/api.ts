@@ -421,6 +421,9 @@ export const api = {
   verifyLogin: (input: { ticket: string; code: string }) =>
     request<{ user: User }>('POST', '/auth/login/verify', input),
   logout: () => request<{ ok: true }>('POST', '/auth/logout'),
+  /** Whether "Password dimenticata?" can send an email (otherwise someone has to help). */
+  recovery: () => request<{ mail: boolean }>('GET', '/auth/recovery'),
+  forgot: (email: string) => request<{ ok: true; mail: boolean }>('POST', '/auth/forgot', { email }),
   me: () => request<{ user: User; needsTwoFactor?: boolean }>('GET', '/auth/me'),
   security: () => request<AccountSecurity>('GET', '/auth/security'),
   setupTwoFactor: () => request<{ secret: string; uri: string }>('POST', '/auth/2fa/setup'),

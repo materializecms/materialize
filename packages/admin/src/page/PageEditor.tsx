@@ -33,6 +33,7 @@ import {
   Code,
   Columns3,
   Eye,
+  FileDown,
   Image as ImageIcon,
   Keyboard,
   Layers as LayersIcon,
@@ -72,6 +73,7 @@ import { ContentPanel, SectionsIndex } from './ContentPanel.tsx'
 import { ContextMenu, type MenuEntry } from './ContextMenu.tsx'
 import { SwatchesContext } from './controls.tsx'
 import { DevicesView } from './DevicesView.tsx'
+import { ExportDialog } from './ExportDialog.tsx'
 import { loadFont } from './fonts.ts'
 import { ShortcutsDialog, Tour } from './Help.tsx'
 import { Inspector } from './Inspector.tsx'
@@ -310,6 +312,7 @@ export function PageEditor({
   mode,
   docId,
   onContentMode,
+  preview,
 }: {
   collection: CollectionDescription
   pageField: FieldDescription
@@ -320,6 +323,8 @@ export function PageEditor({
   docId?: string
   /** Switches the document to Content mode (offered on small screens, where design does not fit). */
   onContentMode?: () => void
+  /** A past version shown instead of the canvas, read-only, until it is restored or closed (Cronologia). */
+  preview?: { label: string; data: Data; onRestore: () => void; onClose: () => void }
 }) {
   const { user, schema, locale } = useSession()
   const queryClient = useQueryClient()
@@ -341,6 +346,20 @@ export function PageEditor({
         components,
       ),
     [data, pageField.name, globals, components],
+  )
+  // The version being looked at in Cronologia: drawn with today's global sections and components.
+  const previewNodes = useMemo(
+    () =>
+      preview
+        ? expandComponents(
+            expandGlobals(
+              Array.isArray(preview.data[pageField.name]) ? (preview.data[pageField.name] as PageNode[]) : [],
+              globals,
+            ),
+            components,
+          )
+        : null,
+    [preview, pageField.name, globals, components],
   )
   // Entries for the lists bound to a collection.
   const boundNames = useMemo(() => {
@@ -448,6 +467,7 @@ export function PageEditor({
   const [editing, setEditing] = useState<string | null>(null)
   const [device, setDevice] = useState<Breakpoint>('desktop')
   const [sideBySide, setSideBySide] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [widths, setWidths] = useState<Record<Breakpoint, number>>({ desktop: 1280, tablet: 768, mobile: 390 })
   const [zoom, setZoom] = useState<'fit' | number>('fit')
   const [fitZoom, setFitZoom] = useState(1)
@@ -1288,7 +1308,7 @@ export function PageEditor({
 
   return (
     <SwatchesContext.Provider value={swatchTokens}>
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1">
         {/* left: layers, library, styles */}
         {mode === 'content' ? (
           <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel max-md:hidden">
@@ -1524,6 +1544,9 @@ export function PageEditor({
             >
               <Columns3 />
             </IconButton>
+            <IconButton label="Esporta in PDF o PNG" onClick={() => setExporting(true)}>
+              <FileDown />
+            </IconButton>
             <div className="flex-1" />
             <div className="flex items-center gap-0.5">
               <IconButton
@@ -1619,7 +1642,33 @@ export function PageEditor({
               </button>
             </div>
           </div>
-          {nodes.length === 0 ? (
+          {preview && previewNodes ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-accent/10 px-4 py-2.5 text-[13px]"
+              >
+                <span className="min-w-0 flex-1">
+                  Stai guardando <strong className="font-semibold">{preview.label}</strong>. La bozza resta com’è finché
+                  non ripristini.
+                </span>
+                <Button size="sm" variant="primary" onClick={preview.onRestore}>
+                  Ripristina questa versione
+                </Button>
+                <Button size="sm" onClick={preview.onClose}>
+                  Chiudi
+                </Button>
+              </div>
+              <DevicesView
+                nodes={previewNodes}
+                theme={theme}
+                widths={widths}
+                data={boundData}
+                entry={sampleEntry}
+                onPick={() => {}}
+              />
+            </div>
+          ) : nodes.length === 0 ? (
             <div className="flex min-h-0 flex-1 items-center justify-center bg-canvas bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:18px_18px] p-8">
               {startBlank ? (
                 <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-line2 p-8 text-center text-fg2">
@@ -1909,6 +1958,20 @@ export function PageEditor({
 
         <ContextMenu at={menu} items={menu ? menuItems() : []} onClose={() => setMenu(null)} />
         <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+        <ExportDialog
+          open={exporting}
+          onClose={() => setExporting(false)}
+          title={String(data[collection.titleField] ?? '')}
+          nodes={nodes}
+          theme={theme}
+          widths={widths}
+          options={{
+            data: boundData,
+            entry: sampleEntry,
+            locale,
+            alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
+          }}
+        />
         {tourPref === 'todo' && mode === 'design' && <Tour onDone={() => setTourPref('done')} />}
         <MediaPicker
           open={!!picking}
