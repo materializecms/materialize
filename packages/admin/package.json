@@ -1,6 +1,6 @@
 {
   "name": "@materializecms/admin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Il pannello di Materialize già compilato: contenuti, editor visuale sulla tela, media, impostazioni.",
   "type": "module",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@materializecms/core": "0.1.0",
+    "@materializecms/core": "0.2.0",
     "qrcode-generator": "2.0.4"
   },
   "devDependencies": {

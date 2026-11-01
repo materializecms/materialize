@@ -4,11 +4,13 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.2.0 — 2026-11-01
+
 - **Password dimenticata?** nella pagina di accesso: un link per email, valido un'ora. Senza email configurata, il comando `materialize reset-password` stampa il link sul server, anche per l'unico amministratore.
 - **Cronologia per le pagine sulla tela**: ogni versione si guarda su desktop, tablet e mobile prima di ripristinarla.
-
 - **Esporta la pagina in PDF o PNG** dall'editor, per mandarla al cliente: desktop, tablet e mobile, ognuno come un'unica immagine lunga.
 - **Guida per chi usa Materialize**, in `docs/guida`: installazione, editor, contenuti, lingue, SEO, persone, aggiornamenti, backup e problemi comuni.
+- **Sicurezza**: i link degli inviti e delle nuove password puntano sempre all'indirizzo pubblico del sito, mai a quello dichiarato da chi fa la richiesta. Consigliato aggiornare.
 
 ## 0.1.0 — 2026-10-31
 
