@@ -1,13 +1,12 @@
 /**
  * Moves every package to a new version at once, with the packages that depend on each other and
- * the example site, and dates the "Prossima versione" section of CHANGELOG.md.
+ * the lockfile, and dates the "Prossima versione" section of CHANGELOG.md.
  *
  *   node scripts/bump.ts 0.2.0          an exact version
  *   node scripts/bump.ts patch|minor|major
  *
  * It changes files only: committing, tagging and publishing stay separate steps.
  */
-import { execFileSync } from 'node:child_process'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,10 +17,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 type Json = Record<string, unknown>
 
 async function manifests(): Promise<string[]> {
-  const dirs = [
-    ...(await readdir(join(ROOT, 'packages'))).map((d) => join(ROOT, 'packages', d)),
-    ...(await readdir(join(ROOT, 'examples'))).map((d) => join(ROOT, 'examples', d)),
-  ]
+  const dirs = (await readdir(join(ROOT, 'packages'))).map((d) => join(ROOT, 'packages', d))
   const files: string[] = []
   for (const dir of dirs) {
     const file = join(dir, 'package.json')
@@ -55,11 +51,17 @@ async function main() {
     await writeFile(file, `${JSON.stringify(pkg, null, 2)}\n`)
   }
   await writeFile(changelogPath, changelog)
-  // The lockfile records workspace versions too.
-  execFileSync('npm', ['install', '--package-lock-only', '--ignore-scripts', '--no-audit', '--no-fund'], {
-    cwd: ROOT,
-    stdio: 'ignore',
-  })
+  // The lockfile records workspace versions too. Edited here rather than by npm: npm on macOS drops
+  // the optional packages only Linux installs, and npm ci then fails on GitHub.
+  const lockPath = join(ROOT, 'package-lock.json')
+  const lock = JSON.parse(await readFile(lockPath, 'utf8')) as { packages: Record<string, Json> }
+  for (const [key, entry] of Object.entries(lock.packages)) {
+    if (!key.startsWith('packages/')) continue
+    entry.version = version
+    const deps = entry.dependencies as Record<string, string> | undefined
+    for (const dep of Object.keys(deps ?? {})) if (dep.startsWith('@materializecms/') && deps) deps[dep] = version
+  }
+  await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`)
 
   console.log(`› ${current} → ${version}`)
   console.log(`› CHANGELOG.md: «${NEXT}» ora è ${version}`)
