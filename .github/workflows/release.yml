@@ -60,12 +60,28 @@ jobs:
         run: |
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/materialize" >> "$GITHUB_OUTPUT"
-      # The image installs the packages from npm: wait until the new version is there.
+      # The image installs the packages from npm: wait until every package of the new version is
+      # listed, give the files a minute to reach npm's network (one asked for too early can be
+      # remembered as missing for a while), then check that each one downloads.
       - name: Attesa dei pacchetti su npm
+        env:
+          V: ${{ steps.meta.outputs.version }}
         run: |
-          for i in $(seq 1 30); do
-            npm view "create-materialize@${{ steps.meta.outputs.version }}" version && exit 0
+          names="create-materialize @materializecms/core @materializecms/db @materializecms/admin @materializecms/server @materializecms/astro @materializecms/cli"
+          for i in $(seq 1 60); do
+            missing=0
+            for n in $names; do npm view "$n@$V" version >/dev/null 2>&1 || missing=1; done
+            [ "$missing" = 0 ] && break
             sleep 10
+          done
+          sleep 60
+          for i in $(seq 1 60); do
+            missing=0
+            for n in $names; do
+              [ "$(curl -s -o /dev/null -w '%{http_code}' -I "https://registry.npmjs.org/$n/-/${n#*/}-$V.tgz")" = 200 ] || missing=1
+            done
+            [ "$missing" = 0 ] && exit 0
+            sleep 20
           done
           exit 1
       - uses: docker/setup-qemu-action@v4
