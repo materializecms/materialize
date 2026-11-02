@@ -2,7 +2,7 @@ import { iconSvg } from '@materializecms/core/icons'
 import type { NodeProps, PageNode, Run } from '@materializecms/core/page'
 import { Globe, ImagePlus, Link2, ListTree } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
-import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
+import { AiButton, CanvasTextMenu } from '../components/AiMenu.tsx'
 import { cx } from '../components/ui.tsx'
 import { domToRuns, simplify } from './runs.ts'
 
@@ -233,16 +233,7 @@ export function ContentPanel({
                       {bound && <span> · {bound}</span>}
                     </span>
                     {!bound && (n.type === 'text' || n.type === 'button') && (
-                      <AiTextMenu
-                        text={plain(n)}
-                        onResult={(text) =>
-                          onContent(
-                            n.id,
-                            n.type === 'text' ? { text, runs: null } : { text: text.replace(/\n/g, ' ') },
-                            `ai:${n.id}`,
-                          )
-                        }
-                      />
+                      <CanvasTextMenu node={n} onResult={(patch) => onContent(n.id, patch, `ai:${n.id}`)} />
                     )}
                     {!bound && n.type === 'image' && (
                       <AiButton

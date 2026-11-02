@@ -5,7 +5,9 @@ import {
   mergeTranslation,
   nodeSlots,
   parseRichTextMarkup,
+  parseRunsMarkup,
   richTextMarkup,
+  runsMarkup,
   withLocales,
 } from '@materializecms/core/i18n'
 import type { PageNode } from '@materializecms/core/page'
@@ -204,6 +206,24 @@ describe('rich text markup for the AI', () => {
       { type: 'listItem', children: [{ text: 'B', bold: true }] },
       { type: 'paragraph', children: [{ text: 'Due' }] },
       { type: 'paragraph', children: [{ text: 'righe' }] },
+    ])
+  })
+
+  it('keeps bold and links of a canvas text, paragraphs becoming lines', () => {
+    const runs = [
+      { t: 'Seguiamo ' },
+      { t: 'ogni fase', b: true },
+      { t: ', fino alla ' },
+      { t: 'consegna', href: '/metodo' },
+    ]
+    const m = runsMarkup(runs)
+    expect(m.text).toBe('<p>Seguiamo <b>ogni fase</b>, fino alla <a1>consegna</a1></p>')
+    expect(parseRunsMarkup(m.text, m.links)).toEqual(runs)
+    expect(parseRunsMarkup('<p>Uno <b>due</b></p>\n<p><a1>tre</a1></p>', m.links)).toEqual([
+      { t: 'Uno ' },
+      { t: 'due', b: true },
+      { t: '\n' },
+      { t: 'tre', href: '/metodo' },
     ])
   })
 

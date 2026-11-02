@@ -586,6 +586,8 @@ export const api = {
       nodes: PageNode[]
       page: { title: string; collection: string; url?: string | null }
       selected?: string[]
+      /** Reference pictures, base64. */
+      images?: { mime: 'image/jpeg'; data: string }[]
     },
     onEvent: (e: ChatEvent) => void,
     signal?: AbortSignal,

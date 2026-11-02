@@ -45,7 +45,7 @@ import {
 import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { localeName } from '../app/Sidebar.tsx'
-import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
+import { AiButton, CanvasTextMenu } from '../components/AiMenu.tsx'
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
 import type { AlignHow } from './align.ts'
@@ -472,14 +472,7 @@ export function Inspector({
         (isT || isB) && (
           <Section
             title="Contenuto"
-            action={
-              <AiTextMenu
-                text={isT ? plainText(node) : (node.text ?? '')}
-                onResult={(text) =>
-                  onContent(isT ? { text, runs: null } : { text: text.replace(/\n/g, ' ') }, `ai:${node.id}`)
-                }
-              />
-            }
+            action={<CanvasTextMenu node={node} onResult={(patch) => onContent(patch, `ai:${node.id}`)} />}
           >
             <Textarea
               aria-label="Testo"

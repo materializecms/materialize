@@ -4,12 +4,17 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Immagini di riferimento nell'assistente**: allega, incolla (⌘V) o trascina nella chat lo screenshot di un sito che ti piace, un mockup o uno schizzo, e l'assistente ne riprende impaginazione e atmosfera con le sezioni e lo stile del tuo sito. Fino a 4 immagini per messaggio; non vanno nella libreria e non finiscono sulla pagina.
+- **Conversazioni con l'assistente più solide**: un secondo messaggio dopo aver cambiato la selezione sulla tela non fallisce più, e ogni nuovo messaggio rilegge dalla cache tutta la conversazione precedente, così costa una frazione.
 - **L'assistente costa meno**: con Claude usa la cache dei prompt, così istruzioni, strumenti e pagina, rimandati a ogni passaggio, si pagano a una frazione del prezzo dopo il primo.
 - **Azioni rapide più economiche**: ✨ sui testi, SEO e testo alternativo usano Claude Haiku 5.5, molto più economico di Opus; l'assistente e le traduzioni delle pagine restano sul modello principale. Si può scegliere un altro modello in Impostazioni → AI e MCP.
 - **Uso dell'AI del mese** in Impostazioni → AI e MCP: richieste, token letti (e quanti dalla cache) e scritti, per tenere d'occhio la spesa.
 - **AI sul testo formattato**: il pulsante ✨ c'è anche nel corpo degli articoli, e riscrive, accorcia o traduce mantenendo titoli, elenchi, grassetti, link e immagini.
+- **✨ sulla tela mantiene grassetti, corsivi e link** di un testo, nell'Inspector e in modalità Contenuto.
+- **Accorcia e Allunga più affidabili**: chiedono una lunghezza precisa (circa un terzo in meno, circa la metà in più), così un testo breve non torna quasi uguale e uno da allungare non diventa sette volte più lungo.
 - **L'AI rispetta la lunghezza dei campi**: un testo riscritto non supera più il massimo del campo (prima, per esempio, un sommario di 220 caratteri poteva arrivare a 234 e bloccare la pubblicazione).
 - **Descrivi con l'AI conserva i crediti**: il testo alternativo nuovo mantiene il credito della foto già scritto, come «foto di … su Unsplash», e la sua lingua.
+- **Nastri con i bordi sfumati**: le lettere che scendono sotto la riga (g, p, y) non vengono più tagliate in basso.
 - **Indirizzi del pannello scritti a mano**: `/admin/media`, `/admin/persone` e `/admin/impostazioni` portano alla sezione giusta, se nessuna raccolta ha quel nome.
 
 ## 0.3.0 — 2026-11-01

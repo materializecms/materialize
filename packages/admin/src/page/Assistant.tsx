@@ -1,6 +1,6 @@
 import type { PageNode } from '@materializecms/core/page'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, Loader2, RotateCcw, Sparkles, Square, Wrench } from 'lucide-react'
+import { ArrowUp, ImagePlus, Loader2, RotateCcw, Sparkles, Square, Wrench, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { useAiReady } from '../components/AiMenu.tsx'
@@ -8,8 +8,36 @@ import { cx, IconButton, toast } from '../components/ui.tsx'
 import { api, type ChatEvent } from '../lib/api.ts'
 import { navigate } from '../lib/router.ts'
 
+/** A reference picture: made smaller here, sent as base64, shown from its own small copy. */
+interface Picture {
+  id: number
+  data: string
+  url: string
+}
+
+const MAX_PICTURES = 4
+/** The longest side sent to the model: enough to read a layout, a fraction of the tokens. */
+const MAX_SIDE = 1600
+
+/** A picture as a JPEG of at most MAX_SIDE pixels (transparent parts on white). */
+async function shrink(file: File): Promise<{ data: string; url: string }> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Il browser non riesce a leggere l’immagine')
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const url = canvas.toDataURL('image/jpeg', 0.88)
+  return { data: url.slice(url.indexOf(',') + 1), url }
+}
+
 type Entry =
-  | { kind: 'user'; text: string }
+  | { kind: 'user'; text: string; pictures?: string[] }
   | { kind: 'assistant'; text: string }
   | { kind: 'step'; text: string; tool?: boolean }
   | { kind: 'error'; text: string }
@@ -44,6 +72,9 @@ export function AssistantPanel({
   const seq = useRef(0)
   const add = (entry: Entry) => setItems((xs) => [...xs, { ...entry, id: seq.current++ }])
   const [draft, setDraft] = useState('')
+  const [pictures, setPictures] = useState<Picture[]>([])
+  const [dragging, setDragging] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const [running, setRunning] = useState(false)
   const chatId = useRef<string | undefined>(undefined)
   const abort = useRef<AbortController | null>(null)
@@ -56,10 +87,28 @@ export function AssistantPanel({
     list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' })
   }, [items])
 
-  const send = async (text: string) => {
-    if (!text.trim() || running) return
+  const attach = async (files: Iterable<File>) => {
+    const images = [...files].filter((f) => /^image\/(png|jpeg|webp|gif)$/.test(f.type))
+    if (!images.length) return toast('Allega un’immagine PNG, JPEG o WebP', 'error')
+    const room = MAX_PICTURES - pictures.length
+    if (images.length > room) toast(`Al massimo ${MAX_PICTURES} immagini per messaggio`, 'error')
+    for (const file of images.slice(0, Math.max(0, room))) {
+      try {
+        const small = await shrink(file)
+        setPictures((ps) => (ps.length < MAX_PICTURES ? [...ps, { id: seq.current++, ...small }] : ps))
+      } catch {
+        toast(`Non riesco a leggere “${file.name}”`, 'error')
+      }
+    }
+  }
+
+  const send = async (typed: string) => {
+    const sent = pictures
+    if ((!typed.trim() && !sent.length) || running) return
+    const text = typed.trim() || 'Usa questa immagine come riferimento per la pagina.'
     setDraft('')
-    add({ kind: 'user', text: text.trim() })
+    setPictures([])
+    add({ kind: 'user', text, pictures: sent.map((p) => p.url) })
     setRunning(true)
     const controller = new AbortController()
     abort.current = controller
@@ -78,7 +127,14 @@ export function AssistantPanel({
     }
     try {
       await api.chat(
-        { chatId: chatId.current, message: text.trim(), nodes: nodesRef.current, page, selected: selection },
+        {
+          chatId: chatId.current,
+          message: text,
+          nodes: nodesRef.current,
+          page,
+          selected: selection,
+          images: sent.map((p) => ({ mime: 'image/jpeg', data: p.data })),
+        },
         onEvent,
         controller.signal,
       )
@@ -100,6 +156,7 @@ export function AssistantPanel({
     abort.current?.abort()
     chatId.current = undefined
     setItems([])
+    setPictures([])
   }
 
   if (!ready)
@@ -137,8 +194,9 @@ export function AssistantPanel({
           <div className="space-y-3">
             <p className="text-[13px] leading-relaxed text-fg2">
               Chiedi cosa cambiare in questa pagina: nuove sezioni, testi, colori, immagini.
-              {selection.length > 0 && ' Puoi dire “questo” per l’elemento selezionato.'} Le modifiche si annullano con
-              ⌘Z e restano in bozza.
+              {selection.length > 0 && ' Puoi dire “questo” per l’elemento selezionato.'} Puoi allegare, incollare o
+              trascinare un’immagine di riferimento, per esempio lo screenshot di un sito che ti piace. Le modifiche si
+              annullano con ⌘Z e restano in bozza.
             </p>
             <div className="flex flex-col gap-1.5">
               {SUGGESTIONS.map((s) => (
@@ -160,6 +218,13 @@ export function AssistantPanel({
               key={it.id}
               className="ml-6 rounded-lg rounded-br-sm bg-accent/12 px-2.5 py-1.5 text-[13px] whitespace-pre-wrap"
             >
+              {!!it.pictures?.length && (
+                <div className="mb-1.5 flex flex-wrap gap-1.5">
+                  {it.pictures.map((url) => (
+                    <img key={url.slice(-32)} src={url} alt="" className="size-14 rounded-md object-cover" />
+                  ))}
+                </div>
+              )}
               {it.text}
             </div>
           ) : it.kind === 'assistant' ? (
@@ -192,13 +257,75 @@ export function AssistantPanel({
           e.preventDefault()
           void send(draft)
         }}
+        onDragOver={(e) => {
+          if (![...e.dataTransfer.types].includes('Files')) return
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return
+          e.preventDefault()
+          setDragging(false)
+          void attach(e.dataTransfer.files)
+        }}
       >
-        <div className="flex items-end gap-1.5 rounded-lg border border-line2 bg-input p-1.5 focus-within:border-accent">
+        {pictures.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {pictures.map((p) => (
+              <div key={p.id} className="relative">
+                <img
+                  src={p.url}
+                  alt="Immagine di riferimento"
+                  className="size-14 rounded-md border border-line object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label="Togli l’immagine"
+                  onClick={() => setPictures((ps) => ps.filter((x) => x.id !== p.id))}
+                  className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border border-line bg-panel text-fg2 shadow-pop hover:text-fg [&_svg]:size-3"
+                >
+                  <X />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files) void attach(e.target.files)
+            e.target.value = ''
+          }}
+        />
+        <div
+          className={cx(
+            'flex items-end gap-1.5 rounded-lg border border-line2 bg-input p-1.5 focus-within:border-accent',
+            dragging && 'border-accent bg-accent/5',
+          )}
+        >
+          <IconButton
+            label="Allega un’immagine di riferimento"
+            onClick={() => fileInput.current?.click()}
+            disabled={running || pictures.length >= MAX_PICTURES}
+          >
+            <ImagePlus />
+          </IconButton>
           <textarea
             value={draft}
             rows={Math.min(6, Math.max(1, draft.split('\n').length))}
             placeholder="Chiedi una modifica…"
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={(e) => {
+              const files = [...e.clipboardData.files]
+              if (!files.some((f) => f.type.startsWith('image/'))) return
+              e.preventDefault()
+              void attach(files)
+            }}
             onKeyDown={(e) => {
               // The editor's shortcuts stay out of the conversation.
               e.stopPropagation()
@@ -217,7 +344,7 @@ export function AssistantPanel({
             <button
               type="submit"
               aria-label="Invia"
-              disabled={!draft.trim()}
+              disabled={!draft.trim() && !pictures.length}
               className={cx(
                 'flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-white transition-opacity disabled:opacity-35',
               )}

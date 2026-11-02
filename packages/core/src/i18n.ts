@@ -1,5 +1,5 @@
 import type { Fields, RichText, RichTextBlock } from './fields.ts'
-import { CONTENT_ONLY_KEYS, type PageNode } from './page.ts'
+import { CONTENT_ONLY_KEYS, type PageNode, type Run } from './page.ts'
 import type { Locales } from './schema.ts'
 
 /**
@@ -296,6 +296,32 @@ export function parseRichTextMarkup(text: string, links: string[], images: RichT
     if (!used.has(i + 1)) out.push(b)
   })
   return out
+}
+
+/**
+ * A canvas text with bold, italic or links as one paragraph of the same markup, so the AI keeps
+ * them; `parseRunsMarkup` reads the reply back (several paragraphs become lines).
+ */
+export function runsMarkup(runs: Run[]): { text: string; links: string[] } {
+  const { text, links } = richTextMarkup([
+    { type: 'paragraph', children: runs.map((r) => ({ text: r.t, bold: r.b, italic: r.i, href: r.href })) },
+  ])
+  return { text, links }
+}
+
+export function parseRunsMarkup(text: string, links: string[]): Run[] {
+  const runs: Run[] = []
+  parseRichTextMarkup(text, links, []).forEach((block, i) => {
+    if (i) runs.push({ t: '\n' })
+    for (const r of block.children)
+      runs.push({
+        t: r.text,
+        ...(r.bold ? { b: true } : {}),
+        ...(r.italic ? { i: true } : {}),
+        ...(r.href ? { href: r.href } : {}),
+      })
+  })
+  return runs
 }
 
 /**

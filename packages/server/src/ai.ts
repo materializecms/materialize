@@ -56,6 +56,12 @@ export function isReady(s: AiSettings | null): s is AiSettings {
   return s.provider === 'anthropic' ? !!(s.apiKey || process.env.ANTHROPIC_API_KEY) : !!(s.baseUrl && s.model)
 }
 
+/** A picture sent to the model: base64, in one of the formats every provider reads. */
+export interface AiImage {
+  mime: 'image/png' | 'image/jpeg' | 'image/webp'
+  data: string
+}
+
 /** Progress of an assistant turn, sent to the panel as it happens. */
 export type AiEvent =
   | { type: 'status'; text: string }
@@ -122,8 +128,17 @@ export async function complete(
 export async function runTurn(
   s: AiSettings,
   conv: Conversation,
-  input: { system: string; text: string; tools: SiteTool[]; onEvent: (e: AiEvent) => void; maxSteps?: number },
+  input: {
+    system: string
+    text: string
+    /** Pictures attached to the message: references to look at, not files for the site. */
+    images?: AiImage[]
+    tools: SiteTool[]
+    onEvent: (e: AiEvent) => void
+    maxSteps?: number
+  },
 ): Promise<string> {
+  const images = input.images ?? []
   const byName = new Map(input.tools.map((t) => [t.name, t]))
   const runTool = async (name: string, raw: unknown): Promise<{ text: string; error: boolean }> => {
     const t = byName.get(name)
@@ -147,7 +162,15 @@ export async function runTurn(
       function: { name: t.name, description: t.description, parameters: schemaOf(t) },
     }))
     const messages = conv.messages as OpenAiMessage[]
-    messages.push({ role: 'user', content: input.text })
+    messages.push({
+      role: 'user',
+      content: images.length
+        ? [
+            ...images.map((i) => ({ type: 'image_url', image_url: { url: `data:${i.mime};base64,${i.data}` } })),
+            { type: 'text', text: input.text },
+          ]
+        : input.text,
+    })
     for (let step = 0; step < maxSteps; step++) {
       const reply = await openaiChat(s, { messages: [{ role: 'system', content: input.system }, ...messages], tools })
       messages.push(reply)
@@ -176,7 +199,18 @@ export async function runTurn(
     input_schema: schemaOf(t) as Anthropic.Beta.BetaTool.InputSchema,
   }))
   const messages = conv.messages as Anthropic.Beta.BetaMessageParam[]
-  messages.push({ role: 'user', content: input.text })
+  messages.push({
+    role: 'user',
+    content: images.length
+      ? [
+          ...images.map((i) => ({
+            type: 'image' as const,
+            source: { type: 'base64' as const, media_type: i.mime, data: i.data },
+          })),
+          { type: 'text' as const, text: input.text },
+        ]
+      : input.text,
+  })
   // Each step sends the instructions, the tools and the whole conversation again (the page read
   // with get_page included): from the cache they cost a fraction. A fixed point after the
   // instructions and tools, and the automatic one at the end of the conversation, which moves
@@ -256,6 +290,9 @@ async function claude(
       throw new AiError('La chiave non ha accesso a questo modello.')
     if (error instanceof Anthropic.NotFoundError) throw new AiError(`Il modello “${model}” non esiste.`)
     if (error instanceof Anthropic.RateLimitError) throw new AiError('Troppe richieste ad Anthropic: riprova tra poco.')
+    // The reasoning of earlier turns no longer fits the conversation (it was changed underneath).
+    if (error instanceof Anthropic.BadRequestError && /thinking/i.test(error.message))
+      throw new AiError('Questa conversazione non può continuare: iniziane una nuova con ↺ in alto.')
     if (error instanceof Anthropic.BadRequestError) throw new AiError(`Richiesta non valida: ${error.message}`)
     if (error instanceof Anthropic.APIError) throw new AiError(`Anthropic non risponde (${error.status ?? 'rete'}).`)
     throw error

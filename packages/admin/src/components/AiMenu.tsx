@@ -1,3 +1,5 @@
+import { parseRunsMarkup, runsMarkup } from '@materializecms/core/i18n'
+import { type PageNode, plainText } from '@materializecms/core/page'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Sparkles, Wand2 } from 'lucide-react'
 import { useState } from 'react'
@@ -182,5 +184,31 @@ export function AiButton({
       {busy ? <Loader2 className="animate-spin" /> : <Sparkles />}
       {label}
     </button>
+  )
+}
+
+/**
+ * ✨ for a text or a button on the canvas. A text with bold, italic or links goes as markup and
+ * comes back with them; the rest as plain text.
+ */
+export function CanvasTextMenu({ node, onResult }: { node: PageNode; onResult: (patch: Partial<PageNode>) => void }) {
+  if (node.type === 'text' && node.runs?.some((r) => r.b || r.i || r.href)) {
+    const markup = runsMarkup(node.runs)
+    return (
+      <AiTextMenu
+        text={markup.text}
+        format="rich"
+        onResult={(text) => {
+          const runs = parseRunsMarkup(text, markup.links)
+          onResult({ runs, text: runs.map((r) => r.t).join('') })
+        }}
+      />
+    )
+  }
+  return (
+    <AiTextMenu
+      text={node.type === 'text' ? plainText(node) : (node.text ?? '')}
+      onResult={(text) => onResult(node.type === 'text' ? { text, runs: null } : { text: text.replace(/\n/g, ' ') })}
+    />
   )
 }

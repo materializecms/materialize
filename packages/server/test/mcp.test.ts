@@ -219,6 +219,52 @@ describe('AI', () => {
   })
 })
 
+describe('shorten', () => {
+  it('asks for a length, and goes to the main model when the quick one returns the text as is', async () => {
+    const calls: { model: string; prompt: string }[] = []
+    const text = 'Siti, prodotti ed esperienze 3D che si muovono come il tuo brand. Strategia, design e sviluppo.'
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { model, messages } = JSON.parse(raw) as { model: string; messages: { content: string }[] }
+        calls.push({ model, prompt: messages[1]?.content ?? '' })
+        res.setHeader('content-type', 'application/json')
+        res.end(
+          JSON.stringify({
+            choices: [
+              { message: { role: 'assistant', content: model === 'grande' ? 'Siti ed esperienze 3D.' : text } },
+            ],
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: {
+          provider: 'openai',
+          apiKey: '',
+          baseUrl: `http://127.0.0.1:${port}/v1`,
+          model: 'grande',
+          fastModel: 'piccolo',
+        },
+      })
+      const res = await call('POST', '/api/ai/text', { action: 'shorten', text })
+      expect(res.body.text).toBe('Siti ed esperienze 3D.')
+      expect(calls.map((c) => c.model)).toEqual(['piccolo', 'piccolo', 'grande'])
+      expect(calls[0]?.prompt).toContain(
+        `The text has ${text.length} characters: aim for about ${Math.round(text.length * 0.65)}`,
+      )
+    } finally {
+      server.close()
+    }
+  })
+})
+
 describe('assistant with Claude', () => {
   it('runs the quick actions on Haiku, unless another model is chosen', async () => {
     const models: string[] = []
@@ -303,9 +349,20 @@ describe('assistant with Claude', () => {
           onUsage: (u) => usage.push(u),
         },
         { provider: 'anthropic', messages: [] },
-        { system: 'Istruzioni', text: 'Ciao', tools: [], onEvent: () => {} },
+        {
+          system: 'Istruzioni',
+          text: 'Ciao',
+          images: [{ mime: 'image/jpeg', data: 'AAAA' }],
+          tools: [],
+          onEvent: () => {},
+        },
       )
       expect(reply).toBe('Fatto.')
+      // A reference picture goes before the words, as an image block.
+      expect((bodies[0]?.messages as { content: unknown }[] | undefined)?.[0]?.content).toEqual([
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' } },
+        { type: 'text', text: 'Ciao' },
+      ])
       expect(bodies[0]?.cache_control).toEqual({ type: 'ephemeral' })
       expect(bodies[0]?.system).toEqual([{ type: 'text', text: 'Istruzioni', cache_control: { type: 'ephemeral' } }])
       expect(usage).toEqual([{ requests: 1, input: 30, output: 5, cacheRead: 900, cacheWrite: 70 }])

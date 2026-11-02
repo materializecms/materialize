@@ -1806,11 +1806,15 @@ export function renderSections(
             // No growing in the endless track; a child's own fixed width (a logo, an icon) still applies.
             `.mz-page .${cls}>.mz-track>div>.mz-n{flex:none}:where(.mz-page .${cls}>.mz-track>div>.mz-n){width:auto}`,
         )
-        // Soft edges: what enters and leaves fades in and out instead of being cut.
+        // Soft edges: what enters and leaves fades in and out instead of being cut. A mask paints
+        // only inside the box, as tall as one line: no-clip lets the fade go on above and below,
+        // so the tails of g, p and y below the line (and accents above) are not cut off.
         const fade = Math.min(40, Math.max(0, p.marquee.fade ?? 0))
         if (fade) {
           const mask = `linear-gradient(90deg,transparent,#000 ${fade}%,#000 ${100 - fade}%,transparent)`
-          desktop.push(`.mz-page .${cls}{-webkit-mask-image:${mask};mask-image:${mask}}`)
+          desktop.push(
+            `.mz-page .${cls}{-webkit-mask-image:${mask};mask-image:${mask};-webkit-mask-clip:no-clip;mask-clip:no-clip}`,
+          )
         }
         // In the editor it stops under the pointer, so what is inside can be clicked.
         if (options.editor) desktop.push(`.mz-page .${cls}:hover>.mz-track{animation-play-state:paused}`)

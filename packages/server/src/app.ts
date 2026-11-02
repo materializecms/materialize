@@ -2080,8 +2080,8 @@ export function createApp(base: ServerContext) {
 
   const TEXT_ACTIONS: Record<string, string> = {
     rewrite: 'Rewrite it so it reads better: same meaning, similar length.',
-    shorten: 'Make it shorter, keeping what matters.',
-    expand: 'Make it a little longer and richer, without inventing facts.',
+    shorten: 'Make it shorter, keeping what matters most.',
+    expand: 'Make it longer and richer, without inventing facts.',
     fix: 'Fix spelling, grammar and punctuation only; change nothing else.',
     formal: 'Make the tone more formal and professional.',
     friendly: 'Make the tone warmer and more conversational.',
@@ -2142,19 +2142,32 @@ export function createApp(base: ServerContext) {
       input.format === 'rich'
         ? '\n\nThe text is markup, one block per line: <p>, <h2>, <h3>, <h4>, <blockquote>, <li>, with <b>, <i> and numbered links (<a1>…</a1>) inside, and <img1>, <img2>… for images. Reply in the same markup: you may change, merge, split or add blocks; keep each link around the matching words and every image line.'
         : ''
-    const limit = input.max ? `\n\nThe result must be at most ${input.max} characters, spaces included.` : ''
+    // Shorter and longer by how much: as words, small models barely touch a short text or
+    // multiply it. A length in characters (the words alone, without markup) they follow.
+    const length = input.text.replace(/<[^>]+>/g, '').length
+    let max = input.max
+    let target = ''
+    if (input.action === 'shorten') {
+      target = `\n\nThe text has ${length} characters: aim for about ${Math.round(length * 0.65)}.`
+      max = Math.min(max ?? Number.POSITIVE_INFINITY, Math.round(length * 0.8))
+    } else if (input.action === 'expand')
+      target = `\n\nThe text has ${length} characters: aim for about ${Math.round(length * 1.5)}, never more than ${length * 2}.`
+    const limit = max ? `\n\nThe result must be at most ${max} characters, spaces included.` : ''
     let text = await complete(ai, {
       system,
       fast: true,
-      prompt: `${task}${limit}${rich}\n\n<text>\n${input.text}\n</text>`,
+      prompt: `${task}${target}${limit}${rich}\n\n<text>\n${input.text}\n</text>`,
     }).catch(aiFailed)
-    // Models count characters loosely: one more pass when the field would reject the result.
-    if (input.max && input.format === 'plain' && text.length > input.max)
+    // Models count characters loosely: another pass when the result is too long, then one on the
+    // main model when the quick one still does not get there (a small model may return the text as is).
+    for (const fast of [true, false]) {
+      if (!max || input.format !== 'plain' || text.length <= max) break
       text = await complete(ai, {
         system,
-        fast: true,
-        prompt: `Shorten this text to at most ${input.max} characters, spaces included (it has ${text.length}), keeping its meaning and tone.\n\n<text>\n${text}\n</text>`,
+        fast,
+        prompt: `Shorten this text to at most ${max} characters, spaces included (it has ${text.length}), keeping its meaning and tone.\n\n<text>\n${text}\n</text>`,
       }).catch(aiFailed)
+    }
     return c.json({ text })
   })
 
@@ -2175,6 +2188,16 @@ export function createApp(base: ServerContext) {
           url: z.string().max(500).nullish(),
         }),
         selected: z.array(z.string().max(100)).max(50).optional(),
+        /** Reference pictures (a screenshot, a mockup, a sketch), already made smaller by the panel. */
+        images: z
+          .array(
+            z.object({
+              mime: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+              data: z.base64().max(4_000_000),
+            }),
+          )
+          .max(4)
+          .default([]),
       }),
     )
     const user = c.get('user')
@@ -2197,18 +2220,27 @@ export function createApp(base: ServerContext) {
     else if (cookie) auth.cookie = cookie
     const tools = assistantTools(apiCaller(app.fetch, auth), page, ctx.config().site.name)
     const limited = await contentOnly(user)
-    const system = `You are the assistant inside Materialize, the visual editor of the website "${ctx.config().site.name}". The person (${user.name}) is editing the page "${input.page.title}" (collection ${input.page.collection}${input.page.url ? `, address ${input.page.url}` : ''}).
+    // The instructions stay the same for the whole conversation: the model's earlier reasoning is
+    // tied to them (a change is refused) and they are read from the prompt cache. What changes
+    // from turn to turn, the page and what is selected, goes with each message instead.
+    const system = `You are the assistant inside Materialize, the visual editor of the website "${ctx.config().site.name}". The person (${user.name}) is editing a page; each of their messages starts with a <context> note on the page and on what is selected on the canvas.
 Use the tools to look at the page (get_page, get_node) and change it (edit_page). Your changes go into the editor, where the person sees them at once and can undo them; they are not published.
 Read the page before changing it. Make the changes asked, consistent with the design already there (theme colors and text styles, spacing, the look of nearby sections); prefer the section library for new sections. Keep ids of existing nodes.
-${limited ? 'This person may change only contents (texts, links, images, alt texts), not the layout or the design: do not add, remove or move nodes, and do not change styles.\n' : ''}When done, say in one or two short sentences what you changed. Reply in the person's language. If something cannot be done with the tools, say so.
-${input.selected?.length ? `Selected on the canvas: ${input.selected.join(', ')} (what "this" refers to).` : ''}`
+${limited ? 'This person may change only contents (texts, links, images, alt texts), not the layout or the design: do not add, remove or move nodes, and do not change styles.\n' : ''}Pictures the person attaches are references (a site they like, a mockup, a sketch): take their layout, hierarchy and mood, and build it with this site's sections, theme and texts; never copy their brand, logos or texts, and do not put the pictures on the page.
+When done, say in one or two short sentences what you changed. Reply in the person's language. If something cannot be done with the tools, say so.`
+    const context = `<context>Page "${input.page.title}" (collection ${input.page.collection}${input.page.url ? `, address ${input.page.url}` : ''}). ${
+      input.selected?.length
+        ? `Selected on the canvas: ${input.selected.join(', ')} (what "this" refers to).`
+        : 'Nothing selected on the canvas.'
+    }</context>`
 
     return streamSSE(c, async (stream) => {
       const send = (data: unknown) => stream.writeSSE({ data: JSON.stringify(data) })
       try {
         const reply = await runTurn(ai, conv, {
           system,
-          text: input.message,
+          text: `${context}\n\n${input.message}`,
+          images: input.images,
           tools,
           onEvent: (e) => void send(e),
         })

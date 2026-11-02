@@ -16,11 +16,12 @@ L'uso dell'AI si paga al fornitore, in base a quanto si usa. Sotto il modulo, **
 
 ## Cosa fa
 
-- **Testi**: dal pulsante ✨ accanto a un testo (nell'editor, in modalità Contenuto e nei campi, compreso il testo formattato degli articoli): **Riscrivi meglio**, **Accorcia**, **Allunga**, **Correggi errori**, **Più formale**, **Più colloquiale**, oppure una richiesta a parole. Nel testo formattato restano titoli, elenchi, grassetti, link e immagini. Se il campo ha una lunghezza massima, il risultato la rispetta.
+- **Testi**: dal pulsante ✨ accanto a un testo (nell'editor, in modalità Contenuto e nei campi, compreso il testo formattato degli articoli): **Riscrivi meglio**, **Accorcia**, **Allunga**, **Correggi errori**, **Più formale**, **Più colloquiale**, oppure una richiesta a parole. Nel testo formattato restano titoli, elenchi, grassetti, link e immagini; sulla tela, grassetti, corsivi e link del testo. **Accorcia** toglie circa un terzo, **Allunga** aggiunge circa la metà. Se il campo ha una lunghezza massima, il risultato la rispetta.
 - **SEO**: propone titolo e descrizione della pagina.
 - **Testo alternativo**: descrive un'immagine guardandola. Se c'era già un credito, per esempio «foto di … su Unsplash», lo mantiene in fondo.
 - **Traduzioni**: crea una pagina in un'altra lingua (vedi [Siti in più lingue](05-lingue.md)).
 - **Assistente nell'editor**: dall'icona in alto nell'editor gli chiedi a parole, per esempio «aggiungi una sezione con tre servizi» o «rendi più grandi i titoli». Le modifiche arrivano sulla pagina come bozza, e un solo **⌘Z** le annulla tutte.
+- **Immagini di riferimento**: con il pulsante 🖼 accanto al campo, incollando (⌘V) o trascinando un file nella chat, alleghi fino a 4 immagini, per esempio lo screenshot di un sito che ti piace, un mockup o la foto di uno schizzo. L'assistente ne riprende impaginazione, gerarchia e atmosfera, ma usa le sezioni, i colori e i testi del tuo sito: non copia marchi o testi e non mette l'immagine sulla pagina. Le immagini vengono rimpicciolite prima dell'invio, così costano poco.
 
 ## MCP: collegare un client AI esterno
 
