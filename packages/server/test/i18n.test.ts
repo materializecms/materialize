@@ -195,6 +195,18 @@ describe('rich text markup for the AI', () => {
     ])
   })
 
+  it('reads HTML habits: lists in <ul>, blocks on one line or over two', () => {
+    expect(
+      parseRichTextMarkup('<p>Uno</p><ul>\n<li>A</li><li><b>B</b></li>\n</ul>\n<p>Due\nrighe</p>', [], []),
+    ).toEqual([
+      { type: 'paragraph', children: [{ text: 'Uno' }] },
+      { type: 'listItem', children: [{ text: 'A' }] },
+      { type: 'listItem', children: [{ text: 'B', bold: true }] },
+      { type: 'paragraph', children: [{ text: 'Due' }] },
+      { type: 'paragraph', children: [{ text: 'righe' }] },
+    ])
+  })
+
   it('drops tags it cannot match, keeping the words', () => {
     expect(parseRichTextMarkup('<p>Un <a9>link</a9> perso</p>', [], [])).toEqual([
       { type: 'paragraph', children: [{ text: 'Un link perso' }] },

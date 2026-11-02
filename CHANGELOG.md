@@ -4,6 +4,9 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **L'assistente costa meno**: con Claude usa la cache dei prompt, così istruzioni, strumenti e pagina, rimandati a ogni passaggio, si pagano a una frazione del prezzo dopo il primo.
+- **Azioni rapide più economiche**: ✨ sui testi, SEO e testo alternativo usano Claude Haiku 5.5, molto più economico di Opus; l'assistente e le traduzioni delle pagine restano sul modello principale. Si può scegliere un altro modello in Impostazioni → AI e MCP.
+- **Uso dell'AI del mese** in Impostazioni → AI e MCP: richieste, token letti (e quanti dalla cache) e scritti, per tenere d'occhio la spesa.
 - **AI sul testo formattato**: il pulsante ✨ c'è anche nel corpo degli articoli, e riscrive, accorcia o traduce mantenendo titoli, elenchi, grassetti, link e immagini.
 - **L'AI rispetta la lunghezza dei campi**: un testo riscritto non supera più il massimo del campo (prima, per esempio, un sommario di 220 caratteri poteva arrivare a 234 e bloccare la pubblicazione).
 - **Descrivi con l'AI conserva i crediti**: il testo alternativo nuovo mantiene il credito della foto già scritto, come «foto di … su Unsplash», e la sua lingua.

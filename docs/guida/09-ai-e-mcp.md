@@ -7,11 +7,12 @@ L'AI in Materialize è facoltativa: tutto funziona anche senza. Quando è config
 In **Impostazioni → AI e MCP**, sezione **Modello AI**, un amministratore sceglie il **fornitore**:
 
 - **Claude (Anthropic)**: serve una **chiave API**, da [console.anthropic.com](https://console.anthropic.com) → API Keys. Il modello predefinito è Claude Opus 5.5.
+- Il **modello per le azioni rapide** (✨, SEO, testo alternativo) è, se lasci vuoto, **Claude Haiku 5.5**: per testi brevi va benissimo e costa molto meno. L'assistente dell'editor e le traduzioni delle pagine usano il modello principale. «Salva e prova» controlla entrambi.
 - **Compatibile OpenAI**: OpenAI stessa o un server compatibile, anche sul tuo computer come Ollama. Si indicano indirizzo del server e nome del modello.
 
 La chiave resta sul server: una volta salvata, il pannello non la mostra più. Sul server si può anche impostare la variabile d'ambiente `ANTHROPIC_API_KEY` (su un VPS installato con lo script va in `/etc/materialize/env`, poi `systemctl restart materialize`).
 
-L'uso dell'AI si paga al fornitore, in base a quanto si usa.
+L'uso dell'AI si paga al fornitore, in base a quanto si usa. Sotto il modulo, **Uso di questo mese** conta le richieste e i token letti e scritti: il costo esatto è sul sito del fornitore (per Claude, console.anthropic.com → Utilizzo). La parte più cara è l'assistente dell'editor, che a ogni passaggio rilegge la pagina: con Claude la rilettura passa dalla cache dei prompt e costa molto meno.
 
 ## Cosa fa
 

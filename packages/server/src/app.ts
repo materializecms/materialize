@@ -67,6 +67,7 @@ import { serveAdmin } from './admin.ts'
 import {
   AiError,
   type AiSettings,
+  type AiUsage,
   type Conversation,
   complete,
   EMPTY_AI,
@@ -2007,10 +2008,31 @@ export function createApp(base: ServerContext) {
   // ---------- AI: settings, text actions and the editor's assistant ----------
 
   const aiSettings = async () => ({ ...EMPTY_AI, ...(await settings.get<AiSettings>('ai')) })
+
+  /** The tokens of this month, added up request by request: what the provider will bill. */
+  type MonthUsage = AiUsage & { month: string }
+  const thisMonth = () => new Date().toISOString().slice(0, 7)
+  const monthUsage = async (): Promise<MonthUsage> => {
+    const saved = await settings.get<MonthUsage>('ai-usage')
+    const month = thisMonth()
+    return saved?.month === month ? saved : { month, requests: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+  }
+  // One write at a time: the steps of a turn and parallel requests all count.
+  let usageWrites = Promise.resolve()
+  const countUsage = (u: AiUsage) => {
+    usageWrites = usageWrites
+      .then(async () => {
+        const total = await monthUsage()
+        for (const k of ['requests', 'input', 'output', 'cacheRead', 'cacheWrite'] as const) total[k] += u[k]
+        await settings.set('ai-usage', total)
+      })
+      .catch((error) => console.error(error))
+  }
+
   const readyAi = async () => {
     const ai = await aiSettings()
     if (!isReady(ai)) throw new ApiError(400, 'ai_not_configured', 'L’AI non è configurata: Impostazioni → AI e MCP')
-    return ai
+    return { ...ai, onUsage: countUsage }
   }
   const aiFailed = (error: unknown): never => {
     if (error instanceof AiError) throw new ApiError(422, 'ai_failed', error.message)
@@ -2020,7 +2042,9 @@ export function createApp(base: ServerContext) {
 
   app.get('/api/ai', requireUser, async (c) => {
     const ai = await aiSettings()
-    return c.json(c.get('user').role === 'admin' ? { ai: publicAi(ai) } : { ai: { ready: isReady(ai) } })
+    return c.json(
+      c.get('user').role === 'admin' ? { ai: publicAi(ai), usage: await monthUsage() } : { ai: { ready: isReady(ai) } },
+    )
   })
 
   app.put('/api/ai', requireUser, requireSession, requireAdmin, async (c) => {
@@ -2033,6 +2057,7 @@ export function createApp(base: ServerContext) {
           apiKey: z.string().max(500).nullable().optional(),
           baseUrl: z.union([z.url().max(500), z.literal('')]),
           model: z.string().trim().max(120),
+          fastModel: z.string().trim().max(120).default(''),
         }),
       }),
     )
@@ -2046,7 +2071,10 @@ export function createApp(base: ServerContext) {
 
   app.post('/api/ai/test', requireUser, requireSession, requireAdmin, async (c) => {
     const ai = await readyAi()
-    const reply = await complete(ai, { system: 'Answer with one short word.', prompt: 'Say: ok' }).catch(aiFailed)
+    const probe = { system: 'Answer with one short word.', prompt: 'Say: ok' }
+    // Both models: a wrong name for the quick actions shows up here, not at the first ✨.
+    const reply = await complete(ai, probe).catch(aiFailed)
+    await complete(ai, { ...probe, fast: true }).catch(aiFailed)
     return c.json({ ok: true, reply })
   })
 
@@ -2097,6 +2125,7 @@ export function createApp(base: ServerContext) {
         : ''
       const text = await complete(ai, {
         system,
+        fast: true,
         prompt: `Write the alternative text (alt) for this image on a website, in the language with code "${lang}"${current ? ' unless said otherwise below' : ''}: one sentence, at most 125 characters (besides any credit), describing what matters for someone who cannot see it. No "image of".${current}`,
         image: { data, mime: 'image/jpeg' },
       }).catch(aiFailed)
@@ -2116,12 +2145,14 @@ export function createApp(base: ServerContext) {
     const limit = input.max ? `\n\nThe result must be at most ${input.max} characters, spaces included.` : ''
     let text = await complete(ai, {
       system,
+      fast: true,
       prompt: `${task}${limit}${rich}\n\n<text>\n${input.text}\n</text>`,
     }).catch(aiFailed)
     // Models count characters loosely: one more pass when the field would reject the result.
     if (input.max && input.format === 'plain' && text.length > input.max)
       text = await complete(ai, {
         system,
+        fast: true,
         prompt: `Shorten this text to at most ${input.max} characters, spaces included (it has ${text.length}), keeping its meaning and tone.\n\n<text>\n${text}\n</text>`,
       }).catch(aiFailed)
     return c.json({ text })

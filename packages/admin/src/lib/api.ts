@@ -276,10 +276,22 @@ export interface AiSettings {
   provider: 'anthropic' | 'openai'
   baseUrl: string
   model: string
+  /** For the quick actions (✨, SEO, alternative text). Empty: Claude Haiku 5.5, or the main model. */
+  fastModel?: string
   hasKey?: boolean
   /** The server has ANTHROPIC_API_KEY in its environment. */
   envKey?: boolean
   ready: boolean
+}
+
+/** The AI tokens of this month: what the provider bills. */
+export interface AiUsage {
+  month: string
+  requests: number
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
 }
 
 /** A personal access token as listed (the secret is shown only when created). */
@@ -549,7 +561,8 @@ export const api = {
   testMail: () => request<{ ok: boolean; to: string; message?: string; hint?: string }>('POST', '/mail/test'),
   mailDomain: (from: string, provider?: string) =>
     request<{ domain: string; checks: DomainCheck[] }>('POST', '/mail/domain', { from, provider }),
-  ai: () => request<{ ai: AiSettings }>('GET', '/ai'),
+  /** usage: for administrators only. */
+  ai: () => request<{ ai: AiSettings; usage?: AiUsage }>('GET', '/ai'),
   saveAi: (ai: Omit<AiSettings, 'ready' | 'hasKey' | 'envKey'> & { apiKey?: string | null }) =>
     request<{ ai: AiSettings }>('PUT', '/ai', { ai }),
   testAi: () => request<{ ok: true; reply: string }>('POST', '/ai/test'),

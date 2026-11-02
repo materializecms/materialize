@@ -14,10 +14,31 @@ export interface AiSettings {
   baseUrl: string
   /** Empty: the default (Claude Opus 5.5 for Anthropic). */
   model: string
+  /**
+   * For the quick actions (✨ on a text, SEO, alternative text). Empty: Claude Haiku 5.5 for
+   * Anthropic, the main model for a compatible server.
+   */
+  fastModel?: string
+  /** Told the tokens of every request (never saved). */
+  onUsage?: (usage: AiUsage) => void
 }
 
-export const EMPTY_AI: AiSettings = { provider: 'anthropic', apiKey: '', baseUrl: '', model: '' }
+/** The tokens of one or more requests: what the provider bills. */
+export interface AiUsage {
+  requests: number
+  /** Read at full price. */
+  input: number
+  output: number
+  /** Read from the prompt cache, at a fraction of the price. */
+  cacheRead: number
+  /** Written to the prompt cache, at a little more than the full price. */
+  cacheWrite: number
+}
+
+export const EMPTY_AI: AiSettings = { provider: 'anthropic', apiKey: '', baseUrl: '', model: '', fastModel: '' }
 export const DEFAULT_CLAUDE = 'claude-opus-5-5'
+/** Short, one-shot texts: a fraction of Opus's price, quality enough for them. */
+export const DEFAULT_CLAUDE_FAST = 'claude-haiku-5-5'
 
 /** Raised when the AI cannot answer: not set up, refused, or the provider failed. */
 export class AiError extends Error {}
@@ -47,11 +68,15 @@ export interface Conversation {
   messages: unknown[]
 }
 
-/** Text in, text out: a rewrite, a translation, an alt text (with an image). */
+/**
+ * Text in, text out: a rewrite, a translation, an alt text (with an image). `fast`: on the model
+ * for the quick actions.
+ */
 export async function complete(
   s: AiSettings,
-  input: { system: string; prompt: string; image?: { data: string; mime: string } },
+  input: { system: string; prompt: string; image?: { data: string; mime: string }; fast?: boolean },
 ): Promise<string> {
+  if (input.fast) s = { ...s, model: fastModelOf(s) }
   if (s.provider === 'openai') {
     const content = input.image
       ? [
@@ -86,6 +111,7 @@ export async function complete(
       },
     ],
   })
+  if (message.stop_reason === 'refusal') throw new AiError('La richiesta è stata rifiutata dal modello.')
   return textOf(message).trim()
 }
 
@@ -151,13 +177,19 @@ export async function runTurn(
   }))
   const messages = conv.messages as Anthropic.Beta.BetaMessageParam[]
   messages.push({ role: 'user', content: input.text })
+  // Each step sends the instructions, the tools and the whole conversation again (the page read
+  // with get_page included): from the cache they cost a fraction. A fixed point after the
+  // instructions and tools, and the automatic one at the end of the conversation, which moves
+  // forward step by step.
+  const system = [{ type: 'text' as const, text: input.system, cache_control: { type: 'ephemeral' as const } }]
   for (let step = 0; step < maxSteps; step++) {
     const message = await claude(s, {
       max_tokens: 16000,
       output_config: { effort: 'medium' },
       // Progress notes between tool calls, so the panel can say what is happening.
       ...(updatesSupported(s) ? { thinking: { type: 'adaptive', display: 'updates' } } : {}),
-      system: input.system,
+      cache_control: { type: 'ephemeral' },
+      system,
       tools,
       messages,
     })
@@ -187,6 +219,8 @@ export async function runTurn(
 const CURRENT = /^claude-(opus-5-5|opus-5|sonnet-5-5|fable-5-1)$/
 
 const modelOf = (s: AiSettings) => s.model.trim() || DEFAULT_CLAUDE
+export const fastModelOf = (s: AiSettings) =>
+  s.fastModel?.trim() || (s.provider === 'anthropic' ? DEFAULT_CLAUDE_FAST : s.model.trim())
 const updatesSupported = (s: AiSettings) => /^claude-(opus-5-5|sonnet-5-5|fable-5-1|fable-5)$/.test(modelOf(s))
 
 async function claude(
@@ -202,12 +236,20 @@ async function claude(
   if ('thinking' in params && (params.thinking as { display?: string } | undefined)?.display === 'updates')
     betas.push('thinking-display-updates-2026-08-18')
   try {
-    return await client.beta.messages.create({
+    const message = await client.beta.messages.create({
       ...params,
       model,
       ...(betas.length ? { betas } : {}),
       ...(fallback ? { fallbacks: 'default' as const } : {}),
     })
+    s.onUsage?.({
+      requests: 1,
+      input: message.usage.input_tokens,
+      output: message.usage.output_tokens,
+      cacheRead: message.usage.cache_read_input_tokens ?? 0,
+      cacheWrite: message.usage.cache_creation_input_tokens ?? 0,
+    })
+    return message
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) throw new AiError('La chiave API di Anthropic non è valida.')
     if (error instanceof Anthropic.PermissionDeniedError)
@@ -260,9 +302,21 @@ async function openaiChat(s: AiSettings, body: { messages: unknown[]; tools?: un
   }
   const json = (await res.json().catch(() => null)) as {
     choices?: { message?: OpenAiReply }[]
+    usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
     error?: { message?: string }
   } | null
   if (!res.ok) throw new AiError(json?.error?.message ?? `Il server AI ha risposto ${res.status}.`)
+  if (json?.usage) {
+    // Cached tokens are part of the prompt tokens here: the rest is the full-price part.
+    const cached = json.usage.prompt_tokens_details?.cached_tokens ?? 0
+    s.onUsage?.({
+      requests: 1,
+      input: (json.usage.prompt_tokens ?? 0) - cached,
+      output: json.usage.completion_tokens ?? 0,
+      cacheRead: cached,
+      cacheWrite: 0,
+    })
+  }
   const message = json?.choices?.[0]?.message
   if (!message) throw new AiError('Il server AI ha dato una risposta vuota.')
   return { role: 'assistant', content: message.content ?? null, tool_calls: message.tool_calls }

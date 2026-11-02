@@ -3,7 +3,7 @@ import { Check, Copy, KeyRound, Plug, Sparkles, Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { Button, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
-import { type AiSettings, api } from '../lib/api.ts'
+import { type AiSettings, type AiUsage, api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
 
 /**
@@ -38,7 +38,7 @@ function Field({ label, hint, children }: { label: string; hint?: React.ReactNod
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
     <label className="block space-y-1.5">
-      <span className="text-[13px] font-medium">{label}</span>
+      <span className="block text-[13px] font-medium">{label}</span>
       {children}
       {hint && <span className="block text-[13px] leading-relaxed text-fg3">{hint}</span>}
     </label>
@@ -93,9 +93,11 @@ function ModelForm() {
         provider: ai.provider,
         baseUrl: ai.baseUrl.trim(),
         model: ai.model.trim(),
+        fastModel: (ai.fastModel ?? '').trim(),
         apiKey: key || undefined,
       })
-      queryClient.setQueryData(['ai'], res)
+      // The month's usage stays: the save answers with the settings only.
+      queryClient.setQueryData(['ai'], (old: typeof saved.data) => ({ ...old, ...res }))
       setKey('')
       toast('Impostazioni AI salvate')
       return true
@@ -131,7 +133,7 @@ function ModelForm() {
         <Field label="Fornitore">
           <Segmented
             value={ai.provider}
-            onChange={(provider) => set({ provider, model: '', baseUrl: '' })}
+            onChange={(provider) => set({ provider, model: '', fastModel: '', baseUrl: '' })}
             options={[
               { value: 'anthropic', label: 'Claude (Anthropic)' },
               { value: 'openai', label: 'Compatibile OpenAI' },
@@ -177,6 +179,20 @@ function ModelForm() {
             />
           </Field>
         </div>
+        <Field
+          label="Modello per le azioni rapide"
+          hint={
+            claude
+              ? 'Per riscrivere e correggere i testi, la SEO e il testo alternativo, che sono brevi: vuoto, Claude Haiku 5.5, molto più economico. L’assistente e le traduzioni delle pagine usano il modello principale.'
+              : 'Per riscrivere e correggere i testi, la SEO e il testo alternativo. Vuoto: lo stesso modello.'
+          }
+        >
+          <Input
+            value={ai.fastModel ?? ''}
+            placeholder={claude ? 'claude-haiku-5-5' : ai.model || 'lo stesso modello'}
+            onChange={(e) => set({ fastModel: e.target.value })}
+          />
+        </Field>
         <div className="flex gap-2">
           <Button type="submit" variant="primary" loading={saving}>
             Salva
@@ -185,8 +201,30 @@ function ModelForm() {
             Salva e prova
           </Button>
         </div>
+        {saved.data?.usage && <Usage usage={saved.data.usage} />}
       </form>
     </Section>
+  )
+}
+
+/** This month's tokens, as the provider counts them: the bill itself is on the provider's site. */
+function Usage({ usage }: { usage: AiUsage }) {
+  const n = (x: number) => x.toLocaleString('it-IT')
+  const read = usage.input + usage.cacheRead + usage.cacheWrite
+  const cached = read ? Math.round((usage.cacheRead / read) * 100) : 0
+  return (
+    <div className="rounded-lg border border-line bg-panel2 px-3 py-2.5 text-[13px] text-fg2">
+      <div className="font-medium text-fg">Uso di questo mese</div>
+      {usage.requests ? (
+        <p className="mt-0.5">
+          {n(usage.requests)} {usage.requests === 1 ? 'richiesta' : 'richieste'} · {n(read)} token letti
+          {usage.cacheRead > 0 && ` (${cached}% dalla cache, a una frazione del prezzo)`} · {n(usage.output)} token
+          scritti. Il costo esatto è sul sito del fornitore.
+        </p>
+      ) : (
+        <p className="mt-0.5">Nessuna richiesta all’AI questo mese.</p>
+      )}
+    </div>
   )
 }
 

@@ -255,7 +255,14 @@ export function richTextMarkup(blocks: RichText): { text: string; links: string[
 export function parseRichTextMarkup(text: string, links: string[], images: RichTextBlock[]): RichText {
   const out: RichText = []
   const used = new Set<number>()
-  for (const raw of text.split('\n')) {
+  // Models write HTML habits too: lists inside <ul>/<ol>, several blocks on one line.
+  const lines = text
+    .replace(/<\/?(?:ul|ol)>/g, '\n')
+    .replace(/<(p|h[234]|blockquote|li)>/g, '\n<$1>')
+    .replace(/<\/(p|h[234]|blockquote|li)>/g, '</$1>\n')
+    .replace(/(<img\d+\s*\/?>)/g, '\n$1\n')
+    .split('\n')
+  for (const raw of lines) {
     const line = raw.trim()
     if (!line) continue
     const img = /^<img(\d+)\s*\/?>$/.exec(line)
@@ -270,7 +277,8 @@ export function parseRichTextMarkup(text: string, links: string[], images: RichT
     }
     const m = /^<(p|h[234]|blockquote|li)>([\s\S]*)<\/\1>$/.exec(line)
     const tag = m?.[1] ?? 'p'
-    const inner = m?.[2] ?? line
+    // A block split over lines: its pieces become paragraphs, without the stray tags.
+    const inner = m?.[2] ?? line.replace(/<\/?(?:p|h[234]|blockquote|li)>/g, '')
     const runs = decodeRuns(inner, links) ?? [{ t: inner.replace(/<[^>]+>/g, '') }]
     const children = runs
       .filter((r) => r.t)

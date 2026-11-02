@@ -4,6 +4,7 @@ import { defineCollection, defineConfig, f } from '@materializecms/core'
 import type { PageNode } from '@materializecms/core/page'
 import { type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { type AiUsage, complete, runTurn } from '../src/ai.ts'
 import { createApp } from '../src/index.ts'
 import { applyOperations, outline, ToolError } from '../src/tools.ts'
 
@@ -172,7 +173,7 @@ describe('AI', () => {
     expect(JSON.stringify((await call('GET', '/api/ai')).body)).not.toContain('sk-segreta')
   })
 
-  it('keeps a text within the field: one more pass when the first is too long', async () => {
+  it('keeps a text within the field, and counts the tokens of each request', async () => {
     // A stand-in for an OpenAI-compatible server: too long the first time, short the second.
     const prompts: string[] = []
     const replies = ['x'.repeat(300), 'Un testo breve.']
@@ -185,7 +186,12 @@ describe('AI', () => {
         const { messages } = JSON.parse(raw) as { messages: { content: string }[] }
         prompts.push(messages[1]?.content ?? '')
         res.setHeader('content-type', 'application/json')
-        res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: replies.shift() } }] }))
+        res.end(
+          JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: replies.shift() } }],
+            usage: { prompt_tokens: 100, completion_tokens: 10, prompt_tokens_details: { cached_tokens: 40 } },
+          }),
+        )
       })
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -199,6 +205,110 @@ describe('AI', () => {
       expect(prompts).toHaveLength(2)
       expect(prompts[0]).toContain('at most 220 characters')
       expect(prompts[1]).toContain('it has 300')
+      // Both requests are counted in this month's usage, cached tokens apart.
+      await new Promise((r) => setTimeout(r, 50))
+      expect((await call('GET', '/api/ai')).body.usage).toMatchObject({
+        requests: 2,
+        input: 120,
+        cacheRead: 80,
+        output: 20,
+      })
+    } finally {
+      server.close()
+    }
+  })
+})
+
+describe('assistant with Claude', () => {
+  it('runs the quick actions on Haiku, unless another model is chosen', async () => {
+    const models: string[] = []
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { model } = JSON.parse(raw) as { model: string }
+        models.push(model)
+        res.setHeader('content-type', 'application/json')
+        res.end(
+          JSON.stringify({
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model,
+            content: [{ type: 'text', text: 'ok' }],
+            stop_reason: 'end_turn',
+            usage: { input_tokens: 1, output_tokens: 1 },
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      const ai = {
+        provider: 'anthropic' as const,
+        apiKey: 'chiave-di-prova',
+        baseUrl: `http://127.0.0.1:${port}`,
+        model: '',
+      }
+      await complete(ai, { system: 's', prompt: 'p', fast: true })
+      await complete(ai, { system: 's', prompt: 'p' })
+      await complete({ ...ai, fastModel: 'claude-sonnet-5-5' }, { system: 's', prompt: 'p', fast: true })
+      expect(models).toEqual(['claude-haiku-5-5', 'claude-opus-5-5', 'claude-sonnet-5-5'])
+    } finally {
+      server.close()
+    }
+  })
+
+  it('marks the instructions and the conversation for the prompt cache, and reports the tokens', async () => {
+    const bodies: Record<string, unknown>[] = []
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        bodies.push(JSON.parse(raw))
+        res.setHeader('content-type', 'application/json')
+        res.end(
+          JSON.stringify({
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-opus-5-5',
+            content: [{ type: 'text', text: 'Fatto.' }],
+            stop_reason: 'end_turn',
+            usage: {
+              input_tokens: 30,
+              output_tokens: 5,
+              cache_read_input_tokens: 900,
+              cache_creation_input_tokens: 70,
+            },
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      const usage: AiUsage[] = []
+      const reply = await runTurn(
+        {
+          provider: 'anthropic',
+          apiKey: 'chiave-di-prova',
+          baseUrl: `http://127.0.0.1:${port}`,
+          model: 'claude-opus-5-5',
+          onUsage: (u) => usage.push(u),
+        },
+        { provider: 'anthropic', messages: [] },
+        { system: 'Istruzioni', text: 'Ciao', tools: [], onEvent: () => {} },
+      )
+      expect(reply).toBe('Fatto.')
+      expect(bodies[0]?.cache_control).toEqual({ type: 'ephemeral' })
+      expect(bodies[0]?.system).toEqual([{ type: 'text', text: 'Istruzioni', cache_control: { type: 'ephemeral' } }])
+      expect(usage).toEqual([{ requests: 1, input: 30, output: 5, cacheRead: 900, cacheWrite: 70 }])
     } finally {
       server.close()
     }
