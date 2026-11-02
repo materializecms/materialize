@@ -35,11 +35,17 @@ export function AiTextMenu({
   text,
   onResult,
   label = '',
+  format,
+  max,
 }: {
   text: string
   onResult: (text: string) => void
   /** Shown next to the icon; empty: the icon alone. */
   label?: string
+  /** rich: `text` is rich text as markup (richTextMarkup), and so is the result. */
+  format?: 'plain' | 'rich'
+  /** The most characters the field takes: the result stays within it. */
+  max?: number
 }) {
   const ready = useAiReady()
   const { locale } = useSession()
@@ -50,7 +56,7 @@ export function AiTextMenu({
   const run = async (action: TextAction, instruction?: string) => {
     setBusy(true)
     try {
-      const res = await api.aiText({ action, text, instruction, locale })
+      const res = await api.aiText({ action, text, instruction, locale, format, max })
       onResult(res.text)
     } catch (error) {
       toast((error as Error).message, 'error')

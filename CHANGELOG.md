@@ -4,6 +4,11 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **AI sul testo formattato**: il pulsante ✨ c'è anche nel corpo degli articoli, e riscrive, accorcia o traduce mantenendo titoli, elenchi, grassetti, link e immagini.
+- **L'AI rispetta la lunghezza dei campi**: un testo riscritto non supera più il massimo del campo (prima, per esempio, un sommario di 220 caratteri poteva arrivare a 234 e bloccare la pubblicazione).
+- **Descrivi con l'AI conserva i crediti**: il testo alternativo nuovo mantiene il credito della foto già scritto, come «foto di … su Unsplash», e la sua lingua.
+- **Indirizzi del pannello scritti a mano**: `/admin/media`, `/admin/persone` e `/admin/impostazioni` portano alla sezione giusta, se nessuna raccolta ha quel nome.
+
 ## 0.3.0 — 2026-11-01
 
 - **Backup fuori dal server**, ogni notte e cifrati, su uno spazio S3 compatibile (Cloudflare R2, Backblaze B2, Hetzner, Amazon S3…) o in una cartella WebDAV (Nextcloud, NAS Synology e QNAP…). Si attiva in Impostazioni → Backup; `materialize decrypt` rende di nuovo leggibili i file scaricati.

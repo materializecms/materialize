@@ -569,6 +569,7 @@ export function Inspector({
             <AiButton
               action="alt"
               src={node.src ?? undefined}
+              text={node.alt ?? ''}
               label=""
               title="Descrivi l’immagine con l’AI"
               onResult={(alt) => onContent({ alt }, `ai:${node.id}`)}

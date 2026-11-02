@@ -1,3 +1,5 @@
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { defineCollection, defineConfig, f } from '@materializecms/core'
 import type { PageNode } from '@materializecms/core/page'
 import { type Database, openDatabase } from '@materializecms/db'
@@ -168,5 +170,37 @@ describe('AI', () => {
     })
     expect(saved.body.ai).toMatchObject({ provider: 'openai', hasKey: true, ready: true })
     expect(JSON.stringify((await call('GET', '/api/ai')).body)).not.toContain('sk-segreta')
+  })
+
+  it('keeps a text within the field: one more pass when the first is too long', async () => {
+    // A stand-in for an OpenAI-compatible server: too long the first time, short the second.
+    const prompts: string[] = []
+    const replies = ['x'.repeat(300), 'Un testo breve.']
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { messages } = JSON.parse(raw) as { messages: { content: string }[] }
+        prompts.push(messages[1]?.content ?? '')
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: replies.shift() } }] }))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: { provider: 'openai', apiKey: '', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'm' },
+      })
+      const res = await call('POST', '/api/ai/text', { action: 'formal', text: 'ciao a tutti', max: 220 })
+      expect(res.body.text).toBe('Un testo breve.')
+      expect(prompts).toHaveLength(2)
+      expect(prompts[0]).toContain('at most 220 characters')
+      expect(prompts[1]).toContain('it has 300')
+    } finally {
+      server.close()
+    }
   })
 })

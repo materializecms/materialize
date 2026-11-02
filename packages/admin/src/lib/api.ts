@@ -553,8 +553,15 @@ export const api = {
   saveAi: (ai: Omit<AiSettings, 'ready' | 'hasKey' | 'envKey'> & { apiKey?: string | null }) =>
     request<{ ai: AiSettings }>('PUT', '/ai', { ai }),
   testAi: () => request<{ ok: true; reply: string }>('POST', '/ai/test'),
-  aiText: (input: { action: TextAction; text?: string; instruction?: string; src?: string; locale?: string }) =>
-    request<{ text: string }>('POST', '/ai/text', input),
+  aiText: (input: {
+    action: TextAction
+    text?: string
+    instruction?: string
+    src?: string
+    locale?: string
+    format?: 'plain' | 'rich'
+    max?: number
+  }) => request<{ text: string }>('POST', '/ai/text', input),
   tokens: () => request<{ tokens: ApiToken[] }>('GET', '/tokens'),
   createToken: (name: string) => request<{ token: string; record: ApiToken }>('POST', '/tokens', { name }),
   revokeToken: (id: string) => request<{ ok: true }>('DELETE', `/tokens/${id}`),

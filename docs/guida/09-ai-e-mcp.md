@@ -15,9 +15,9 @@ L'uso dell'AI si paga al fornitore, in base a quanto si usa.
 
 ## Cosa fa
 
-- **Testi**: dal pulsante ✨ accanto a un testo (nell'editor, in modalità Contenuto e nei campi): **Riscrivi meglio**, **Accorcia**, **Allunga**, **Correggi errori**, **Più formale**, **Più colloquiale**.
+- **Testi**: dal pulsante ✨ accanto a un testo (nell'editor, in modalità Contenuto e nei campi, compreso il testo formattato degli articoli): **Riscrivi meglio**, **Accorcia**, **Allunga**, **Correggi errori**, **Più formale**, **Più colloquiale**, oppure una richiesta a parole. Nel testo formattato restano titoli, elenchi, grassetti, link e immagini. Se il campo ha una lunghezza massima, il risultato la rispetta.
 - **SEO**: propone titolo e descrizione della pagina.
-- **Testo alternativo**: descrive un'immagine guardandola.
+- **Testo alternativo**: descrive un'immagine guardandola. Se c'era già un credito, per esempio «foto di … su Unsplash», lo mantiene in fondo.
 - **Traduzioni**: crea una pagina in un'altra lingua (vedi [Siti in più lingue](05-lingue.md)).
 - **Assistente nell'editor**: dall'icona in alto nell'editor gli chiedi a parole, per esempio «aggiungi una sezione con tre servizi» o «rendi più grandi i titoli». Le modifiche arrivano sulla pagina come bozza, e un solo **⌘Z** le annulla tutte.
 

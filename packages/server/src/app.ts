@@ -2074,6 +2074,10 @@ export function createApp(base: ServerContext) {
         src: z.string().max(1000).optional(),
         /** The site's language, for texts written from scratch. */
         locale: z.string().max(20).optional(),
+        /** rich: the text is rich text as lines of markup (richTextMarkup), and so is the reply. */
+        format: z.enum(['plain', 'rich']).default('plain'),
+        /** The most characters the field takes. */
+        max: z.number().int().positive().max(100_000).optional(),
       }),
     )
     if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
@@ -2087,9 +2091,13 @@ export function createApp(base: ServerContext) {
       const file = key ? await files.open(decodeURIComponent(key), { width: 1024, format: 'jpg' }) : null
       if (!file) throw new ApiError(400, 'no_image', 'Scegli prima un’immagine della libreria')
       const data = (await readFile(file.path)).toString('base64')
+      // The text already there may credit the photographer or the source: that part stays.
+      const current = input.text.trim()
+        ? `\n\nThe current alternative text is:\n<text>\n${input.text}\n</text>\nWrite in its language. If it credits a photographer, an author or a source (such as "photo by … on Unsplash"), keep that credit at the end, in the same form.`
+        : ''
       const text = await complete(ai, {
         system,
-        prompt: `Write the alternative text (alt) for this image on a website, in the language with code "${lang}": one sentence, at most 125 characters, describing what matters for someone who cannot see it. No "image of".`,
+        prompt: `Write the alternative text (alt) for this image on a website, in the language with code "${lang}"${current ? ' unless said otherwise below' : ''}: one sentence, at most 125 characters (besides any credit), describing what matters for someone who cannot see it. No "image of".${current}`,
         image: { data, mime: 'image/jpeg' },
       }).catch(aiFailed)
       return c.json({ text })
@@ -2101,7 +2109,21 @@ export function createApp(base: ServerContext) {
         : input.action === 'custom'
           ? (input.instruction ?? 'Improve it.')
           : TEXT_ACTIONS[input.action]
-    const text = await complete(ai, { system, prompt: `${task}\n\n<text>\n${input.text}\n</text>` }).catch(aiFailed)
+    const rich =
+      input.format === 'rich'
+        ? '\n\nThe text is markup, one block per line: <p>, <h2>, <h3>, <h4>, <blockquote>, <li>, with <b>, <i> and numbered links (<a1>…</a1>) inside, and <img1>, <img2>… for images. Reply in the same markup: you may change, merge, split or add blocks; keep each link around the matching words and every image line.'
+        : ''
+    const limit = input.max ? `\n\nThe result must be at most ${input.max} characters, spaces included.` : ''
+    let text = await complete(ai, {
+      system,
+      prompt: `${task}${limit}${rich}\n\n<text>\n${input.text}\n</text>`,
+    }).catch(aiFailed)
+    // Models count characters loosely: one more pass when the field would reject the result.
+    if (input.max && input.format === 'plain' && text.length > input.max)
+      text = await complete(ai, {
+        system,
+        prompt: `Shorten this text to at most ${input.max} characters, spaces included (it has ${text.length}), keeping its meaning and tone.\n\n<text>\n${text}\n</text>`,
+      }).catch(aiFailed)
     return c.json({ text })
   })
 

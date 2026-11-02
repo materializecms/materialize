@@ -373,6 +373,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
                 <AiButton
                   action="alt"
                   src={asset.url}
+                  text={alt}
                   label="Descrivi con l’AI"
                   onResult={(text) => {
                     setAlt(text)

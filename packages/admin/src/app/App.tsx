@@ -158,7 +158,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
           ) : route.name === 'settings' ? (
             <SettingsScreen tab={route.tab} />
           ) : !collection ? (
-            <NotFound />
+            <NotFound name={route.name === 'collection' ? route.collection : ''} />
           ) : route.name === 'collection' ? (
             <CollectionView key={collection.name} collection={collection} />
           ) : (
@@ -225,8 +225,22 @@ function RequiredTwoFactor() {
   )
 }
 
+/** Built-in screens typed by hand without the "_" (/admin/media): used when no collection has the name. */
+const BUILT_IN: Record<string, 'media' | 'people' | 'settings'> = {
+  media: 'media',
+  people: 'people',
+  persone: 'people',
+  settings: 'settings',
+  impostazioni: 'settings',
+}
+
 /** An address of the panel that leads nowhere: a typo, an old link, a removed collection. */
-function NotFound() {
+function NotFound({ name }: { name: string }) {
+  const screen = BUILT_IN[name]
+  useEffect(() => {
+    if (screen) navigate({ name: screen }, { replace: true })
+  }, [screen])
+  if (screen) return null
   return (
     <EmptyState icon={<Compass />} title="Questa pagina del pannello non esiste">
       <p>L’indirizzo potrebbe essere sbagliato, oppure la sezione è stata tolta.</p>

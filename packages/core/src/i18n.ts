@@ -1,4 +1,4 @@
-import type { Fields } from './fields.ts'
+import type { Fields, RichText, RichTextBlock } from './fields.ts'
 import { CONTENT_ONLY_KEYS, type PageNode } from './page.ts'
 import type { Locales } from './schema.ts'
 
@@ -212,6 +212,82 @@ function richSlots(blocks: RichBlock[]): TextSlot[] {
     })
   }
   return slots
+}
+
+const BLOCK_TAGS: Record<string, string> = { paragraph: 'p', quote: 'blockquote', listItem: 'li' }
+
+/**
+ * Rich text as lines of markup for the AI ("<h2>…</h2>", "<p>A <b>word</b> and <a1>a link</a1></p>",
+ * "<img1>"): it can rewrite, merge or add blocks and keep the formatting. Links and images stay
+ * here, out of the text, and come back by number.
+ */
+export function richTextMarkup(blocks: RichText): { text: string; links: string[]; images: RichTextBlock[] } {
+  const links: string[] = []
+  const images: RichTextBlock[] = []
+  const lines: string[] = []
+  for (const b of blocks) {
+    if (b.type === 'image') {
+      images.push(b)
+      lines.push(`<img${images.length}>`)
+      continue
+    }
+    // Link numbers go on across blocks: one list for the whole text.
+    const text = b.children
+      .map((r) => {
+        let h = encodeRuns([{ t: r.text, b: r.bold, i: r.italic }]).text
+        if (r.href) {
+          links.push(r.href)
+          h = `<a${links.length}>${h}</a${links.length}>`
+        }
+        return h
+      })
+      .join('')
+    const tag = b.type === 'heading' ? `h${b.level ?? 2}` : (BLOCK_TAGS[b.type] ?? 'p')
+    lines.push(`<${tag}>${text}</${tag}>`)
+  }
+  return { text: lines.join('\n'), links, images }
+}
+
+/**
+ * The AI's markup back into rich text. Lines without a block tag become paragraphs; images the
+ * reply left out are kept at the end, so none is lost.
+ */
+export function parseRichTextMarkup(text: string, links: string[], images: RichTextBlock[]): RichText {
+  const out: RichText = []
+  const used = new Set<number>()
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const img = /^<img(\d+)\s*\/?>$/.exec(line)
+    if (img) {
+      const n = Number(img[1])
+      const block = images[n - 1]
+      if (block && !used.has(n)) {
+        used.add(n)
+        out.push(block)
+      }
+      continue
+    }
+    const m = /^<(p|h[234]|blockquote|li)>([\s\S]*)<\/\1>$/.exec(line)
+    const tag = m?.[1] ?? 'p'
+    const inner = m?.[2] ?? line
+    const runs = decodeRuns(inner, links) ?? [{ t: inner.replace(/<[^>]+>/g, '') }]
+    const children = runs
+      .filter((r) => r.t)
+      .map((r) => ({
+        text: r.t,
+        ...(r.b ? { bold: true } : {}),
+        ...(r.i ? { italic: true } : {}),
+        ...(r.href ? { href: r.href } : {}),
+      }))
+    if (!children.length) continue
+    if (tag.startsWith('h')) out.push({ type: 'heading', level: Number(tag[1]) as 2 | 3 | 4, children })
+    else out.push({ type: tag === 'blockquote' ? 'quote' : tag === 'li' ? 'listItem' : 'paragraph', children })
+  }
+  images.forEach((b, i) => {
+    if (!used.has(i + 1)) out.push(b)
+  })
+  return out
 }
 
 /**

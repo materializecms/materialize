@@ -1,4 +1,5 @@
 import type { Link as LinkValue, Media, RichText, Seo } from '@materializecms/core'
+import { parseRichTextMarkup, richTextMarkup } from '@materializecms/core/i18n'
 import { pageTitle, SCHEMA_TYPES } from '@materializecms/core/seo'
 import { slugify } from '@materializecms/core/slug'
 import { useQuery } from '@tanstack/react-query'
@@ -92,11 +93,15 @@ export function Field(props: FieldProps) {
           <span className={cx('self-center', typeof field.options.max !== 'number' && 'ml-auto')}>
             <AiTextMenu
               text={typeof props.value === 'string' ? props.value : ''}
+              max={typeof field.options.max === 'number' ? field.options.max : undefined}
               onResult={(text) =>
                 props.onChange(field.options.multiline ? text : text.replace(/\n/g, ' '), `ai:${pathKey(path)}`)
               }
             />
           </span>
+        )}
+        {field.kind === 'richText' && (
+          <RichTextAi value={props.value as RichText | undefined} path={path} onChange={props.onChange} />
         )}
       </div>
       <FieldControl {...props} />
@@ -703,5 +708,19 @@ function JsonInput({ id, value, onChange }: { id: string; value: unknown; onChan
         }
       }}
     />
+  )
+}
+
+/** ✨ on rich text: the AI works on the whole text, headings, lists, bold and links included. */
+function RichTextAi({ value, path, onChange }: { value: RichText | undefined; path: Path; onChange: Change }) {
+  const markup = richTextMarkup(value ?? [])
+  return (
+    <span className="ml-auto self-center">
+      <AiTextMenu
+        text={markup.text.replace(/<img\d+>/g, '').trim() ? markup.text : ''}
+        format="rich"
+        onResult={(text) => onChange(parseRichTextMarkup(text, markup.links, markup.images), `ai:${pathKey(path)}`)}
+      />
+    </span>
   )
 }

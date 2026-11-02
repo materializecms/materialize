@@ -1,5 +1,13 @@
 import { defineCollection, defineConfig, f } from '@materializecms/core'
-import { documentSlots, localizeLinks, mergeTranslation, nodeSlots, withLocales } from '@materializecms/core/i18n'
+import {
+  documentSlots,
+  localizeLinks,
+  mergeTranslation,
+  nodeSlots,
+  parseRichTextMarkup,
+  richTextMarkup,
+  withLocales,
+} from '@materializecms/core/i18n'
 import type { PageNode } from '@materializecms/core/page'
 import { type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -139,6 +147,58 @@ describe('languages', () => {
     // Design stays the main language's.
     expect(inEnglish.gap).toBeUndefined()
     expect(inEnglish.children[0].color).toBeUndefined()
+  })
+})
+
+describe('rich text markup for the AI', () => {
+  const image = { type: 'image' as const, children: [], image: { src: '/media/a.jpg', alt: 'Una foto' } }
+  const text = [
+    { type: 'heading' as const, level: 3 as const, children: [{ text: 'Chi siamo' }] },
+    {
+      type: 'paragraph' as const,
+      children: [
+        { text: 'Uno ' },
+        { text: 'studio', bold: true },
+        { text: ' a ' },
+        { text: 'Milano', href: '/contatti' },
+      ],
+    },
+    image,
+    { type: 'listItem' as const, children: [{ text: 'Progetti', italic: true, href: 'https://example.com' }] },
+  ]
+
+  it('writes blocks, marks, links and images as lines', () => {
+    const m = richTextMarkup(text)
+    expect(m.text).toBe(
+      '<h3>Chi siamo</h3>\n<p>Uno <b>studio</b> a <a1>Milano</a1></p>\n<img1>\n<li><a2><i>Progetti</i></a2></li>',
+    )
+    expect(m.links).toEqual(['/contatti', 'https://example.com'])
+  })
+
+  it('reads back the same rich text', () => {
+    const m = richTextMarkup(text)
+    expect(parseRichTextMarkup(m.text, m.links, m.images)).toEqual(text)
+  })
+
+  it('takes new blocks, plain lines, and keeps the images the reply left out', () => {
+    const m = richTextMarkup(text)
+    const out = parseRichTextMarkup(
+      '<h2>Lo studio</h2>\nUna riga <b>semplice</b>\n<blockquote>Una frase</blockquote>',
+      m.links,
+      m.images,
+    )
+    expect(out).toEqual([
+      { type: 'heading', level: 2, children: [{ text: 'Lo studio' }] },
+      { type: 'paragraph', children: [{ text: 'Una riga ' }, { text: 'semplice', bold: true }] },
+      { type: 'quote', children: [{ text: 'Una frase' }] },
+      image,
+    ])
+  })
+
+  it('drops tags it cannot match, keeping the words', () => {
+    expect(parseRichTextMarkup('<p>Un <a9>link</a9> perso</p>', [], [])).toEqual([
+      { type: 'paragraph', children: [{ text: 'Un link perso' }] },
+    ])
   })
 })
 

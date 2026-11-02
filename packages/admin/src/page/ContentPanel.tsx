@@ -248,6 +248,7 @@ export function ContentPanel({
                       <AiButton
                         action="alt"
                         src={n.src ?? undefined}
+                        text={n.alt ?? ''}
                         label="Descrivi"
                         title="Scrivi la descrizione con l’AI"
                         onResult={(alt) => onContent(n.id, { alt }, `ai:${n.id}`)}
