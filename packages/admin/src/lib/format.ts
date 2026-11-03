@@ -18,3 +18,13 @@ export const fullDate = (value: string | Date) => full.format(new Date(value))
 const day = new Intl.DateTimeFormat('it', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 /** A calendar day ("2026-10-30" → "30 ottobre 2026"), with no time and no shift across time zones. */
 export const dayDate = (value: string) => day.format(new Date(`${value.slice(0, 10)}T00:00:00Z`))
+
+const moment = new Intl.DateTimeFormat('it', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+/** A moment coming up, short: "lun 10 nov, 09:00". */
+export const whenDate = (value: string | Date) => moment.format(new Date(value))

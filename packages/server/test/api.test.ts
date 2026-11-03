@@ -215,6 +215,89 @@ describe('content workflow', () => {
   })
 })
 
+describe('scheduled publishing', () => {
+  beforeEach(async () => {
+    await signUp()
+  })
+  const inMinutes = (m: number) => new Date(Date.now() + m * 60_000)
+  const create = async (data: Record<string, unknown>) =>
+    (await call('POST', '/api/collections/pages', { data })).body.id as string
+  const schedule = (id: string, action: string, at: Date | null) =>
+    call('PUT', `/api/documents/${id}/schedule`, { action, at: at?.toISOString() ?? null })
+
+  it('publishes the draft as it is when the time comes, as the person who set it', async () => {
+    const id = await create({ title: 'Saldi' })
+    const set = await schedule(id, 'publish', inMinutes(60))
+    expect(set.status).toBe(200)
+    expect(set.body.schedule.publish.createdByName).toBe('Elena')
+    expect((await call('GET', '/api/collections/pages')).body.items[0].publishAt).toBeTruthy()
+
+    // Edited after scheduling: the newer draft is what goes online.
+    await call('PUT', `/api/documents/${id}`, { data: { title: 'Saldi d’inverno', slug: 'saldi' } })
+    expect(await app.runSchedules(inMinutes(30))).toBe(0)
+    expect(await app.runSchedules(inMinutes(61))).toBe(1)
+    const doc = (await call('GET', `/api/documents/${id}`)).body
+    expect(doc.status).toBe('published')
+    expect(doc.schedule.publish).toBeNull()
+    expect((await call('GET', '/api/content/pages/saldi')).body.data.title).toBe('Saldi d’inverno')
+    const log = (await call('GET', '/api/activity?group=content')).body.items[0]
+    expect(log).toMatchObject({ action: 'document.published', userName: 'Elena', detail: { scheduled: true } })
+  })
+
+  it('refuses a time in the past and an incomplete page, before they fail at night', async () => {
+    const id = await create({ title: 'Saldi' })
+    expect((await schedule(id, 'publish', inMinutes(-5))).body.error.code).toBe('past_time')
+    const incomplete = await create({ blocks: [{ _type: 'hero', _key: 'k' }] })
+    const res = await schedule(incomplete, 'publish', inMinutes(60))
+    expect(res.status).toBe(422)
+    expect(res.body.error.issues).toHaveLength(2)
+  })
+
+  it('fails with a reason when the page broke in the meantime, and keeps it to show', async () => {
+    const id = await create({ title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k', title: 'Luce' }] })
+    await schedule(id, 'publish', inMinutes(60))
+    await call('PUT', `/api/documents/${id}`, { data: { title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k' }] } })
+    await app.runSchedules(inMinutes(61))
+    const doc = (await call('GET', `/api/documents/${id}`)).body
+    expect(doc.status).toBe('draft')
+    expect(doc.schedule.failed.error).toMatch(/Alcuni campi vanno completati/)
+    // Publishing by hand clears it.
+    await call('PUT', `/api/documents/${id}`, {
+      data: { title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k', title: 'Luce' }] },
+    })
+    await schedule(id, 'publish', inMinutes(90))
+    await call('POST', `/api/documents/${id}/publish`)
+    const after = (await call('GET', `/api/documents/${id}`)).body.schedule
+    expect(after).toEqual({ publish: null, unpublish: null, failed: null })
+  })
+
+  it('takes a page off the site, never before it is published', async () => {
+    const id = await create({ title: 'Promo' })
+    expect((await schedule(id, 'unpublish', inMinutes(60))).body.error.code).toBe('not_published')
+    await schedule(id, 'publish', inMinutes(60))
+    expect((await schedule(id, 'unpublish', inMinutes(30))).body.error.code).toBe('before_publish')
+    expect((await schedule(id, 'unpublish', inMinutes(120))).status).toBe(200)
+    await app.runSchedules(inMinutes(61))
+    expect((await call('GET', '/api/content/pages/promo')).status).toBe(200)
+    await app.runSchedules(inMinutes(121))
+    expect((await call('GET', '/api/content/pages/promo')).status).toBe(404)
+  })
+
+  it('cancels, lists what is coming, and forgets a deleted page', async () => {
+    const a = await create({ title: 'Primo' })
+    const b = await create({ title: 'Secondo' })
+    await schedule(b, 'publish', inMinutes(120))
+    await schedule(a, 'publish', inMinutes(60))
+    expect((await call('GET', '/api/schedules')).body.items.map((i: { title: string }) => i.title)).toEqual([
+      'Primo',
+      'Secondo',
+    ])
+    expect((await schedule(a, 'publish', null)).body.schedule.publish).toBeNull()
+    await call('DELETE', `/api/documents/${b}`)
+    expect((await call('GET', '/api/schedules')).body.items).toEqual([])
+  })
+})
+
 describe('status page', () => {
   it('confirms the server is up', async () => {
     const res = await app.request('/')

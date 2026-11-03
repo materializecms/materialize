@@ -19,6 +19,19 @@ Negli elenchi:
 - **Togli dal sito** riporta una pagina pubblicata a bozza: sparisce dal sito ma resta nel pannello.
 - Se cambi l'indirizzo di una pagina già pubblicata, il vecchio indirizzo **reindirizza** da solo al nuovo, così i link esterni e Google non trovano errori.
 
+## Pubblicazione programmata
+
+Per far uscire una pagina o un articolo più tardi, usa il pulsante con il **calendario** accanto a **Pubblica**:
+
+- In **Pubblica il** scegli giorno e ora, oppure una scorciatoia come **Domani alle 9**, e premi **Programma**. Nell'intestazione compare la data, per esempio «Esce lun 10 nov, 09:00»; la stessa data si vede negli elenchi.
+- Puoi continuare a modificare la bozza: al momento giusto esce la versione com'è in quel momento.
+- In **Togli dal sito il** scegli quando la pagina torna bozza da sola, per un'offerta o un evento che scade.
+- Per cambiare la data apri di nuovo il calendario; **Annulla** toglie la programmazione. Se pubblichi a mano prima, la programmazione non serve più e si annulla da sola.
+- I campi obbligatori vengono controllati subito. Se al momento di uscire la pagina non è più completa (hai svuotato un campo nel frattempo), resta bozza e il pulsante diventa rosso: **Programmazione non riuscita**, con il motivo. Sistema e programma di nuovo, oppure pubblica.
+- Se il server è spento all'ora scelta, la pagina esce appena riparte.
+
+Il **Registro attività** (Impostazioni → Registro attività) mostra ogni pubblicazione programmata, a nome di chi l'ha programmata.
+
 ## Cronologia
 
 Ogni salvataggio crea una versione, con la data e il nome di chi l'ha fatta (**Persona rimossa** se nel frattempo il suo account è stato eliminato).

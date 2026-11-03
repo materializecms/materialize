@@ -52,6 +52,7 @@ import { PageEditor } from '../page/PageEditor.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
+import { ScheduleMenu } from './ScheduleMenu.tsx'
 import { localeName } from './Sidebar.tsx'
 
 /**
@@ -268,6 +269,18 @@ function Editor({
     } finally {
       setPublishing(false)
     }
+  }
+
+  /** The draft saved and complete, as a schedule needs it; null after pointing at what to fix. */
+  const ensureSaved = async () => {
+    let target = doc
+    if (!target || dirty) target = await save()
+    if (!target) return null
+    if (target.issues?.length) {
+      showIssues(target.issues[0]?.path)
+      return null
+    }
+    return target
   }
 
   const unpublish = async () => {
@@ -585,6 +598,17 @@ function Editor({
                 </div>
               )}
             </Popover>
+            {!collection.singleton && (
+              <ScheduleMenu
+                doc={doc}
+                ensureSaved={ensureSaved}
+                onChange={(res) => {
+                  applyServer(res, latest.current.current)
+                  queryClient.invalidateQueries({ queryKey: ['list', collection.name] })
+                }}
+                onError={handleError}
+              />
+            )}
             {!doc ? (
               <>
                 <Button onClick={() => void save()} loading={saving} className="ml-1">

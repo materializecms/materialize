@@ -18,7 +18,7 @@ import { type ReactNode, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { Button, cx, EmptyState, IconButton, Spinner, Switch, toast } from '../components/ui.tsx'
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
-import { fullDate, relativeTime } from '../lib/format.ts'
+import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
 import { OffsiteBackup } from './OffsiteBackup.tsx'
 
@@ -114,9 +114,24 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
     case 'document.created':
       return { text: `ha creato ${t}`, group: 'content' }
     case 'document.published':
-      return { text: `ha pubblicato ${t}`, group: 'content' }
+      return { text: `ha pubblicato ${t}${d.scheduled ? ', come programmato' : ''}`, group: 'content' }
     case 'document.unpublished':
-      return { text: `ha tolto dal sito ${t}`, group: 'content' }
+      return { text: `ha tolto dal sito ${t}${d.scheduled ? ', come programmato' : ''}`, group: 'content' }
+    case 'document.scheduled':
+      return {
+        text: `ha programmato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} di ${t} per ${whenDate(String(d.at))}`,
+        group: 'content',
+      }
+    case 'document.schedule_cancelled':
+      return {
+        text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
+        group: 'content',
+      }
+    case 'document.schedule_failed':
+      return {
+        text: `${d.action === 'unpublish' ? 'Rimozione' : 'Pubblicazione'} programmata di ${t} non riuscita: ${String(d.message ?? '')}`,
+        group: 'content',
+      }
     case 'document.deleted':
       return { text: `ha eliminato ${t}`, group: 'content' }
     case 'document.restored':

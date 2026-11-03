@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { LayoutGrid, List, Plus, Search } from 'lucide-react'
+import { CalendarClock, LayoutGrid, List, Plus, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   Button,
@@ -13,7 +13,7 @@ import {
   TintIcon,
 } from '../components/ui.tsx'
 import { api, type CollectionDescription, type DocumentStatus, type DocumentSummary, thumb } from '../lib/api.ts'
-import { fullDate, relativeTime } from '../lib/format.ts'
+import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { usePref } from '../lib/prefs.ts'
 import { href, navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
@@ -253,6 +253,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                     )}
                   </span>
                   <OtherLanguages doc={doc} />
+                  <Scheduled doc={doc} />
                   <StatusBadge status={doc.status} short />
                   <span
                     className="hidden w-28 shrink-0 text-right text-[13px] text-fg3 tabular-nums sm:block"
@@ -332,8 +333,13 @@ function Card({
               {icon}
             </div>
           )}
-          <span className="absolute top-2.5 left-2.5 rounded-full bg-panel shadow-sm">
-            <StatusBadge status={doc.status} short />
+          <span className="absolute top-2.5 left-2.5 flex items-center gap-1">
+            <span className="rounded-full bg-panel shadow-sm">
+              <StatusBadge status={doc.status} short />
+            </span>
+            <span className="rounded-full bg-panel shadow-sm">
+              <Scheduled doc={doc} />
+            </span>
           </span>
         </div>
         <div className="px-3.5 py-3">
@@ -381,6 +387,25 @@ function OtherLanguages({ doc }: { doc: DocumentSummary }) {
           {l}
         </span>
       ))}
+    </span>
+  )
+}
+
+/** When it goes on or off the site by itself: the next of the two. */
+function Scheduled({ doc }: { doc: DocumentSummary }) {
+  const publish = doc.publishAt ?? null
+  const unpublish = doc.unpublishAt ?? null
+  if (!publish && !unpublish) return null
+  const next =
+    publish && (!unpublish || publish < unpublish)
+      ? { at: publish, verb: 'Esce' }
+      : { at: unpublish as string, verb: 'Si toglie' }
+  return (
+    <span
+      title={`${next.verb} ${fullDate(next.at)}`}
+      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[12px] font-medium whitespace-nowrap text-accent [&_svg]:size-3"
+    >
+      <CalendarClock /> {whenDate(next.at)}
     </span>
   )
 }

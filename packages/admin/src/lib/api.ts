@@ -54,6 +54,9 @@ export interface DocumentSummary {
   url?: string | null
   /** The other languages it exists in. */
   locales?: string[]
+  /** When it goes on or off the site by itself (lists only). */
+  publishAt?: string | null
+  unpublishAt?: string | null
 }
 
 /** One language version of a document. */
@@ -224,6 +227,24 @@ export interface StoredDocument extends DocumentSummary {
   sourceId?: string | null
   /** Problems to fix before publishing; returned when a draft is saved. */
   issues?: ValidationIssue[]
+  /** When it goes on or off the site by itself, and the last scheduled action that failed. */
+  schedule?: DocumentSchedule
+}
+
+export interface Schedule {
+  id: string
+  documentId: string
+  action: 'publish' | 'unpublish'
+  runAt: string
+  status: 'pending' | 'done' | 'failed' | 'cancelled'
+  error: string | null
+  createdByName: string
+}
+
+export interface DocumentSchedule {
+  publish: Schedule | null
+  unpublish: Schedule | null
+  failed: Schedule | null
 }
 
 export interface Revision {
@@ -659,6 +680,11 @@ export const api = {
   save: (id: string, data: Data) => request<StoredDocument>('PUT', `/documents/${id}`, { data }),
   publish: (id: string) => request<StoredDocument>('POST', `/documents/${id}/publish`),
   unpublish: (id: string) => request<StoredDocument>('POST', `/documents/${id}/unpublish`),
+  /** When a document goes on (publish) or off (unpublish) the site by itself; null cancels. */
+  schedule: (id: string, action: 'publish' | 'unpublish', at: Date | null) =>
+    request<StoredDocument>('PUT', `/documents/${id}/schedule`, { action, at: at?.toISOString() ?? null }),
+  schedules: () =>
+    request<{ items: (Schedule & { title: string; collection: string; locale: string })[] }>('GET', '/schedules'),
   remove: (id: string) => request<void>('DELETE', `/documents/${id}`),
   revisions: (id: string) => request<{ items: Revision[] }>('GET', `/documents/${id}/revisions`),
   restore: (id: string, revision: string) =>

@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Pubblicazione programmata**: scegli quando una pagina o un articolo esce, e se vuoi quando torna bozza da solo (offerte, eventi). Dal pulsante con il calendario accanto a «Pubblica», con scorciatoie come «Domani alle 9». Esce la bozza com'è in quel momento; i campi mancanti vengono segnalati subito, e se al momento di uscire qualcosa non va la pagina resta bozza e il pannello dice perché. Le date compaiono anche negli elenchi.
+
 ## 0.4.0 — 2026-11-03
 
 - **Immagini di riferimento nell'assistente**: allega, incolla (⌘V) o trascina nella chat lo screenshot di un sito che ti piace, un mockup o uno schizzo, e l'assistente ne riprende impaginazione e atmosfera con le sezioni e lo stile del tuo sito. Fino a 4 immagini per messaggio; non vanno nella libreria e non finiscono sulla pagina.

@@ -199,6 +199,29 @@ export const activity = sqliteTable(
   (t) => [index('activity_at').on(t.at), index('activity_action').on(t.action, t.at)],
 )
 
+/**
+ * What happens to a document at a set time: published, or taken off the site. One pending row per
+ * document and action; done, failed and cancelled rows stay as a record. `releaseId` will group
+ * several into one release.
+ */
+export const schedules = sqliteTable(
+  'schedules',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    action: text('action', { enum: ['publish', 'unpublish'] }).notNull(),
+    runAt: integer('run_at', { mode: 'timestamp_ms' }).notNull(),
+    status: text('status', { enum: ['pending', 'done', 'failed', 'cancelled'] }).notNull(),
+    /** Why it failed, in words for the panel. */
+    error: text('error'),
+    releaseId: text('release_id'),
+    createdBy: text('created_by'),
+    createdByName: text('created_by_name').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [index('schedules_due').on(t.status, t.runAt), index('schedules_document').on(t.documentId)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -353,5 +376,21 @@ export const MIGRATIONS: string[][] = [
     )`,
     'CREATE INDEX IF NOT EXISTS activity_at ON activity (at)',
     'CREATE INDEX IF NOT EXISTS activity_action ON activity (action, at)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS schedules (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      run_at INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      error TEXT,
+      release_id TEXT,
+      created_by TEXT,
+      created_by_name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
+    )`,
+    'CREATE INDEX IF NOT EXISTS schedules_due ON schedules (status, run_at)',
+    'CREATE INDEX IF NOT EXISTS schedules_document ON schedules (document_id)',
   ],
 ]

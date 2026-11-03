@@ -319,7 +319,9 @@ export function assistantTools(call: ApiCall, page: { nodes: PageNode[] }, brand
     },
   })
   return [
-    ...contentTools(call, getSchema).filter((t) => t.name !== 'publish_entry' && t.name !== 'unpublish_entry'),
+    ...contentTools(call, getSchema).filter(
+      (t) => t.name !== 'publish_entry' && t.name !== 'unpublish_entry' && t.name !== 'schedule_entry',
+    ),
     ...pageTools({ source, withId: false, brand: async () => brand }),
   ]
 }
@@ -436,6 +438,28 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
       run: async (input) => {
         const doc = await call<Doc>('POST', `/api/documents/${encodeURIComponent(input.id)}/unpublish`)
         return { id: doc.id, title: doc.title, published: false }
+      },
+    }),
+    tool({
+      name: 'schedule_entry',
+      title: 'Programmo',
+      description:
+        'Sets when an entry goes on the public site (publish) or comes off it (unpublish) by itself, as an ISO date with time zone, e.g. 2026-11-10T09:00:00+01:00. at null cancels. The draft as it is at that moment is what gets published.',
+      input: z.object({
+        id: z.string(),
+        action: z.enum(['publish', 'unpublish']),
+        at: z.string().nullable(),
+      }),
+      run: async (input) => {
+        const doc = await call<
+          Doc & { schedule: { publish: { runAt: string } | null; unpublish: { runAt: string } | null } }
+        >('PUT', `/api/documents/${encodeURIComponent(input.id)}/schedule`, { action: input.action, at: input.at })
+        return {
+          id: doc.id,
+          title: doc.title,
+          publishAt: doc.schedule.publish?.runAt ?? null,
+          unpublishAt: doc.schedule.unpublish?.runAt ?? null,
+        }
       },
     }),
     tool({

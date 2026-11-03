@@ -25,5 +25,12 @@ export {
 } from './content.ts'
 export { type Database, type Db, openDatabase } from './database.ts'
 export { createMediaStore, type MediaAsset, type MediaStore } from './media.ts'
+export {
+  createScheduleStore,
+  type DocumentSchedule,
+  type Schedule,
+  type ScheduleAction,
+  type ScheduleStore,
+} from './schedules.ts'
 export { createSettingsStore, type SettingsStore } from './settings.ts'
 export { createSubmissionStore, type Submission, type SubmissionStore } from './submissions.ts'

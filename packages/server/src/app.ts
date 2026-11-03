@@ -45,6 +45,7 @@ import {
   createCommentStore,
   createContentStore,
   createMediaStore,
+  createScheduleStore,
   createSettingsStore,
   createSubmissionStore,
   type Database,
@@ -289,6 +290,7 @@ export function createApp(base: ServerContext) {
   const submissions = createSubmissionStore(ctx.database.db)
   const comments = createCommentStore(ctx.database.db)
   const activityLog = createActivityStore(ctx.database.db)
+  const schedules = createScheduleStore(ctx.database.db)
   const backups = createBackups(ctx.database, () => ctx.config().media.dir)
   const backupSettings = async (): Promise<BackupSettings> => ({
     ...DEFAULT_BACKUPS,
@@ -548,13 +550,15 @@ export function createApp(base: ServerContext) {
   }
 
   /** A document as the admin sees it, with what still needs fixing before it can be published. */
-  const toJson = (doc: StoredDocument) => {
+  const toJson = async (doc: StoredDocument) => {
     const def = ctx.config().collections.find((x) => x.name === doc.collection)
     const check = def ? validate(def, prepare(def, doc.data)) : null
     return {
       ...doc,
       url: def?.url ? def.url(doc.data as never) : null,
       issues: check && !check.ok ? check.issues : [],
+      /** When it goes on or off the site by itself, and the last scheduled action that failed. */
+      schedule: await schedules.forDocument(doc.id),
     }
   }
 
@@ -2542,7 +2546,19 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         return null
       }
     }
-    return c.json({ ...result, items: result.items.map((i) => ({ ...i, url: urlOf(i.slug) })) })
+    // What goes on or off the site by itself, for a label in the list.
+    const pending = await schedules.pending()
+    const when = (id: string, action: 'publish' | 'unpublish') =>
+      pending.find((p) => p.documentId === id && p.action === action)?.runAt ?? null
+    return c.json({
+      ...result,
+      items: result.items.map((i) => ({
+        ...i,
+        url: urlOf(i.slug),
+        publishAt: when(i.id, 'publish'),
+        unpublishAt: when(i.id, 'unpublish'),
+      })),
+    })
   })
 
   app.post('/api/collections/:name', requireUser, async (c) => {
@@ -2558,7 +2574,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       content.create({ collection: def.name, locale: lang, ...draft, userId: c.get('user').id }),
     )
     await record(c, 'document.created', doc.title, { collection: def.name, id: doc.id })
-    return c.json(toJson(doc), 201)
+    return c.json(await toJson(doc), 201)
   })
 
   const loadDocument = async (id: string) => {
@@ -2567,7 +2583,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     return doc
   }
 
-  app.get('/api/documents/:id', requireUser, async (c) => c.json(toJson(await loadDocument(c.req.param('id')))))
+  app.get('/api/documents/:id', requireUser, async (c) => c.json(await toJson(await loadDocument(c.req.param('id')))))
 
   app.put('/api/documents/:id', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
@@ -2578,11 +2594,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     for (const [name, f] of Object.entries(def.fields))
       if (f.kind === 'page') await guardDesign(c.get('user'), existing.data[name], draft.data[name])
     const doc = await slugGuard(() => content.update(existing.id, { ...draft, userId: c.get('user').id }))
-    return c.json(toJson(doc as StoredDocument))
+    return c.json(await toJson(doc as StoredDocument))
   })
 
-  app.post('/api/documents/:id/publish', requireUser, async (c) => {
-    const existing = await loadDocument(c.req.param('id'))
+  /** Puts a document's draft on the site: the same steps from the button and from a schedule. */
+  const publishDocument = async (existing: StoredDocument, userId: string | undefined) => {
     // Validated now, not at save time: drafts may be incomplete and the schema may have changed since.
     const def = collection(existing.collection)
     const data = publishableData(def, existing.data)
@@ -2597,25 +2613,170 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           ? addMove(redirects, before, after)
           : redirects.filter((r) => normalizePath(r.from) !== normalizePath(after))
       if (next.length !== redirects.length || next.some((r, i) => r !== redirects[i]))
-        await settings.set('redirects', next, c.get('user').id)
+        await settings.set('redirects', next, userId)
     }
-    const doc = (await content.publish(existing.id, c.get('user').id, data)) as StoredDocument
+    const doc = (await content.publish(existing.id, userId, data)) as StoredDocument
     ctx.onPublish?.()
-    await record(c, 'document.published', doc.title, { collection: def.name, id: doc.id, url: after })
-    return c.json(toJson(doc))
+    return { doc, url: after }
+  }
+
+  const unpublishDocument = async (existing: StoredDocument, userId: string | undefined) => {
+    const doc = (await content.unpublish(existing.id, userId)) as StoredDocument
+    if (existing.publishedAt) ctx.onPublish?.()
+    return doc
+  }
+
+  app.post('/api/documents/:id/publish', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    const { doc, url } = await publishDocument(existing, c.get('user').id)
+    // Published by hand: a publication still waiting would only repeat it.
+    await schedules.cancel(existing.id, 'publish')
+    await record(c, 'document.published', doc.title, { collection: doc.collection, id: doc.id, url })
+    return c.json(await toJson(doc))
   })
 
   app.post('/api/documents/:id/unpublish', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
-    const doc = (await content.unpublish(existing.id, c.get('user').id)) as StoredDocument
-    if (existing.publishedAt) ctx.onPublish?.()
+    const doc = await unpublishDocument(existing, c.get('user').id)
+    await schedules.cancel(existing.id, 'unpublish')
     await record(c, 'document.unpublished', doc.title, { collection: doc.collection, id: doc.id })
-    return c.json(toJson(doc))
+    return c.json(await toJson(doc))
+  })
+
+  /**
+   * When a document goes on the site, or comes off it, by itself. `at` null cancels. A publication
+   * is checked now too, so missing fields show up when it is set, not when it fails at night.
+   */
+  app.put('/api/documents/:id/schedule', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    const input = await body(
+      c,
+      z.object({ action: z.enum(['publish', 'unpublish']), at: z.iso.datetime({ offset: true }).nullable() }),
+    )
+    const user = c.get('user')
+    const label = input.action === 'publish' ? 'publish' : 'unpublish'
+    if (input.at === null) {
+      await schedules.cancel(existing.id, input.action)
+      await record(c, `document.schedule_cancelled`, existing.title, {
+        collection: existing.collection,
+        id: existing.id,
+        action: label,
+      })
+      return c.json(await toJson(existing))
+    }
+    const at = new Date(input.at)
+    if (at.getTime() <= Date.now() + 30_000)
+      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
+    const current = await schedules.forDocument(existing.id)
+    if (input.action === 'publish') publishableData(collection(existing.collection), existing.data)
+    else {
+      if (!existing.publishedAt && !current.publish)
+        throw new ApiError(409, 'not_published', 'La pagina non è sul sito: programma prima la pubblicazione')
+      if (current.publish && current.publish.runAt >= at)
+        throw new ApiError(400, 'before_publish', 'La pagina verrebbe tolta prima di essere pubblicata')
+    }
+    if (input.action === 'publish' && current.unpublish && current.unpublish.runAt <= at)
+      throw new ApiError(400, 'after_unpublish', 'La pubblicazione verrebbe dopo il momento in cui la pagina va tolta')
+    await schedules.set({ documentId: existing.id, action: input.action, runAt: at, user })
+    await record(c, 'document.scheduled', existing.title, {
+      collection: existing.collection,
+      id: existing.id,
+      action: label,
+      at: at.toISOString(),
+    })
+    return c.json(await toJson(existing))
+  })
+
+  /**
+   * Runs the actions whose time has come, as the person who set them. A server that was off at the
+   * time catches up when it starts. A publication whose fields are no longer complete fails with a
+   * reason the panel shows, instead of putting a broken page online.
+   */
+  let schedulesRunning = false
+  const runSchedules = async (now = new Date()): Promise<number> => {
+    if (schedulesRunning) return 0
+    schedulesRunning = true
+    let ran = 0
+    try {
+      for (const item of await schedules.due(now)) {
+        const note = (action: string, target: string, detail: Record<string, unknown>) =>
+          activityLog
+            .record({
+              userId: item.createdBy,
+              userName: item.createdByName,
+              action,
+              target,
+              detail: { ...detail, scheduled: true },
+              ip: null,
+            })
+            .catch((error) => console.error('Materialize: activity not recorded', error))
+        const existing = await content.get(item.documentId)
+        if (!existing) {
+          await schedules.finish(item.id, 'failed', 'La pagina non esiste più')
+          continue
+        }
+        try {
+          if (item.action === 'publish') {
+            const def = ctx.config().collections.find((x) => x.name === existing.collection)
+            const check = def ? validate(def, prepare(def, existing.data)) : null
+            if (!def || !check?.ok) {
+              const fields =
+                def && check && !check.ok
+                  ? [...new Set(check.issues.map((i) => def.fields[i.path.split('.')[0] ?? '']?.label ?? i.path))].join(
+                      ', ',
+                    )
+                  : ''
+              throw new Error(
+                def ? `Alcuni campi vanno completati${fields ? `: ${fields}` : ''}` : 'La raccolta non esiste più',
+              )
+            }
+            const { doc, url } = await publishDocument(existing, item.createdBy ?? undefined)
+            await schedules.finish(item.id, 'done')
+            await note('document.published', doc.title, { collection: doc.collection, id: doc.id, url })
+          } else {
+            const doc = await unpublishDocument(existing, item.createdBy ?? undefined)
+            await schedules.finish(item.id, 'done')
+            await note('document.unpublished', doc.title, { collection: doc.collection, id: doc.id })
+          }
+          ran++
+        } catch (error) {
+          const message = error instanceof Error && error.message ? error.message : 'Errore imprevisto'
+          await schedules.finish(item.id, 'failed', message)
+          await note('document.schedule_failed', existing.title, {
+            collection: existing.collection,
+            id: existing.id,
+            action: item.action,
+            message,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Materialize: scheduled publishing failed', error)
+    } finally {
+      schedulesRunning = false
+    }
+    return ran
+  }
+  setTimeout(() => void runSchedules(), 5_000).unref?.()
+  setInterval(() => void runSchedules(), 30_000).unref?.()
+
+  /** What is coming: every pending publication and removal, soonest first. */
+  app.get('/api/schedules', requireUser, async (c) => {
+    const items = await schedules.pending()
+    const docs = new Map<string, StoredDocument | null>()
+    for (const i of items) if (!docs.has(i.documentId)) docs.set(i.documentId, await content.get(i.documentId))
+    return c.json({
+      items: items.flatMap((i) => {
+        const doc = docs.get(i.documentId)
+        return doc ? [{ ...i, title: doc.title, collection: doc.collection, locale: doc.locale }] : []
+      }),
+    })
   })
 
   app.delete('/api/documents/:id', requireUser, requireAdmin, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     await content.remove(existing.id)
+    await schedules.removeForDocument(existing.id)
     if (existing.publishedAt) ctx.onPublish?.()
     await record(c, 'document.deleted', existing.title, { collection: existing.collection })
     return c.body(null, 204)
@@ -2637,7 +2798,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
     await record(c, 'document.restored', doc.title, { collection: doc.collection, id: doc.id })
-    return c.json(toJson(doc))
+    return c.json(await toJson(doc))
   })
 
   // ---------- languages and translations ----------
@@ -2746,7 +2907,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       }),
     )
     await record(c, 'document.translated', created.title, { locale: lang, id: created.id, ai: input.translate })
-    return c.json(toJson(created), 201)
+    return c.json(await toJson(created), 201)
   })
 
   /**
@@ -2792,7 +2953,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       if (f.kind === 'page') await guardDesign(c.get('user'), doc.data[name], data[name])
     const draft = draftData(def, data)
     const saved = await slugGuard(() => content.update(doc.id, { ...draft, userId: c.get('user').id }))
-    return c.json({ document: toJson(saved as StoredDocument), added: fresh.size })
+    return c.json({ document: await toJson(saved as StoredDocument), added: fresh.size })
   })
 
   // ---------- importing a WordPress site ----------
@@ -3212,5 +3373,6 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     return c.json(publicDocument(doc))
   })
 
-  return app
+  // runSchedules: for the tests, which cannot wait for the clock.
+  return Object.assign(app, { runSchedules })
 }
