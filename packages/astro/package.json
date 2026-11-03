@@ -1,6 +1,6 @@
 {
   "name": "@materializecms/astro",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "L'integrazione Astro di Materialize: il sito dai contenuti pubblicati e l'anteprima delle bozze sulla tela.",
   "type": "module",
   "license": "MIT",
@@ -19,8 +19,8 @@
     "./virtual": "./src/virtual.d.ts"
   },
   "dependencies": {
-    "@materializecms/core": "0.3.0",
-    "@materializecms/db": "0.3.0"
+    "@materializecms/core": "0.4.0",
+    "@materializecms/db": "0.4.0"
   },
   "peerDependencies": {
     "astro": "^7.0.0"
