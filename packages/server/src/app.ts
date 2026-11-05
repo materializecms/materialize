@@ -47,6 +47,7 @@ import {
   type UpdateStatus,
   type Updates,
 } from '@materializecms/core/updates'
+import { type BrandVoice, VOICE_TONES, voicePrompt } from '@materializecms/core/voice'
 import {
   type AuthStore,
   type ContentStore,
@@ -2122,6 +2123,85 @@ export function createApp(base: ServerContext) {
     return c.json({ ok: true, reply })
   })
 
+  // ---------- brand voice ----------
+
+  /** `style` when the AI changes a text someone wrote, `full` when it writes one (see voicePrompt). */
+  const voiceText = async (use: 'full' | 'style' = 'full') => voicePrompt(await settings.get<BrandVoice>('voice'), use)
+  const voiceSchema = z.object({
+    about: z.string().trim().max(1000).optional(),
+    tones: z.array(z.enum(VOICE_TONES)).max(3).optional(),
+    address: z.enum(['tu', 'voi', 'lei']).nullable().optional(),
+    prefer: z.string().trim().max(1000).optional(),
+    avoid: z.string().trim().max(1000).optional(),
+    rules: z.string().trim().max(1500).optional(),
+    example: z.string().trim().max(3000).optional(),
+  })
+
+  app.get('/api/voice', requireUser, async (c) => c.json({ voice: (await settings.get<BrandVoice>('voice')) ?? {} }))
+
+  app.put('/api/voice', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ voice: voiceSchema }))
+    await settings.set('voice', input.voice, c.get('user').id)
+    await record(c, 'settings.voice')
+    return c.json({ voice: input.voice })
+  })
+
+  /**
+   * A brand voice read from the texts already on the site, to start from: nothing is saved, the
+   * panel puts it in the form to check.
+   */
+  app.post('/api/voice/suggest', requireUser, requireAdmin, async (c) => {
+    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const config = ctx.config()
+    const texts: string[] = []
+    let size = 0
+    for (const def of config.collections) {
+      for (const doc of await content.published(def.name, config.locales.default)) {
+        for (const slot of documentSlots(def.fields, doc.publishedData ?? {})) {
+          const t = slot.text.replace(/<[^>]+>/g, '').trim()
+          if (t.length < 20 || size > 14_000) continue
+          texts.push(t)
+          size += t.length
+        }
+      }
+    }
+    if (size < 300)
+      throw new ApiError(400, 'too_little_text', 'Il sito ha ancora pochi testi pubblicati: scrivi la voce a mano')
+    const reply = await complete(ai, {
+      system:
+        'You describe the voice of a brand from the texts of its website, for a style guide the brand will reuse. Reply with JSON only, no code fences.',
+      prompt: `Read these texts of the website "${config.site.name}" and describe how it speaks, writing in the language of the texts.
+Reply with this JSON object:
+{"about": "who the brand is and who it writes for, one or two sentences",
+ "tones": [up to three of ${JSON.stringify(VOICE_TONES)}],
+ "address": "tu" | "voi" | "lei" | null (how readers are addressed),
+ "prefer": "words and phrases typical of these texts, comma separated",
+ "avoid": "words that would sound wrong for this brand, comma separated",
+ "rules": "two or three rules of style seen in the texts, as short sentences",
+ "example": "a short paragraph of new text in this voice, about the brand"}
+
+<texts>
+${texts.join('\n---\n')}
+</texts>`,
+    }).catch(aiFailed)
+    let raw: Record<string, unknown> | null = null
+    try {
+      raw = JSON.parse(reply.replace(/^\s*```(?:json)?|```\s*$/g, '').trim()) as Record<string, unknown>
+    } catch {}
+    const parsed = voiceSchema.safeParse(
+      raw && {
+        ...raw,
+        tones: Array.isArray(raw.tones)
+          ? raw.tones.filter((t) => (VOICE_TONES as readonly unknown[]).includes(t)).slice(0, 3)
+          : [],
+        address: ['tu', 'voi', 'lei'].includes(raw.address as string) ? raw.address : null,
+      },
+    )
+    if (!parsed.success) throw new ApiError(422, 'ai_failed', 'L’AI non ha risposto come doveva: riprova')
+    return c.json({ voice: parsed.data, texts: texts.length })
+  })
+
   const TEXT_ACTIONS: Record<string, string> = {
     rewrite: 'Rewrite it so it reads better: same meaning, similar length.',
     shorten: 'Make it shorter, keeping what matters most.',
@@ -2154,10 +2234,15 @@ export function createApp(base: ServerContext) {
     )
     if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
     const ai = await readyAi()
+    // Writing from scratch takes the whole voice; changing a text, only its style.
+    const voice = await voiceText(['seo_title', 'seo_description', 'custom'].includes(input.action) ? 'full' : 'style')
     const lang = input.locale ?? ctx.config().locales.default
     const system = `You edit texts for a website. Reply with the resulting text only: no quotes, no preamble, no notes. Keep the language of the text${
       input.action === 'translate' ? ' unless asked to translate' : ''
-    }; when writing from scratch, write in the language with code "${lang}". Keep line breaks where they make sense; never add Markdown.`
+    }; when writing from scratch, write in the language with code "${lang}". Keep line breaks where they make sense; never add Markdown.${
+      // Spelling fixes and alternative texts describe: they do not speak with the brand's voice.
+      input.action === 'fix' || input.action === 'alt' || !voice ? '' : `\n\n${voice}`
+    }`
     if (input.action === 'alt') {
       const key = /^\/media\/([^/?#@]+)/.exec(input.src ?? '')?.[1]
       const file = key ? await files.open(decodeURIComponent(key), { width: 1024, format: 'jpg' }) : null
@@ -2216,7 +2301,7 @@ export function createApp(base: ServerContext) {
   })
 
   /** Conversations with the assistant, per person and chat, kept for two hours in memory. */
-  const chats = new Map<string, { conv: Conversation; at: number }>()
+  const chats = new Map<string, { conv: Conversation; at: number; voice?: string }>()
 
   app.post('/api/ai/chat', requireUser, async (c) => {
     const input = await body(
@@ -2252,8 +2337,12 @@ export function createApp(base: ServerContext) {
     const chatId = input.chatId ?? crypto.randomUUID()
     const key = `${user.id}:${chatId}`
     const entry = chats.get(key)
-    const conv = entry && entry.conv.provider === ai.provider ? entry.conv : { provider: ai.provider, messages: [] }
-    chats.set(key, { conv, at: now })
+    const same = !!entry && entry.conv.provider === ai.provider
+    const conv = same && entry ? entry.conv : { provider: ai.provider, messages: [] }
+    // Fixed when the conversation starts (its instructions may not change): a voice changed
+    // meanwhile applies to the next conversation.
+    const voice = same && entry?.voice !== undefined ? entry.voice : await voiceText()
+    chats.set(key, { conv, at: now, voice })
 
     const before = input.nodes as unknown as PageNode[]
     const page = { nodes: before }
@@ -2267,7 +2356,7 @@ export function createApp(base: ServerContext) {
     // The instructions stay the same for the whole conversation: the model's earlier reasoning is
     // tied to them (a change is refused) and they are read from the prompt cache. What changes
     // from turn to turn, the page and what is selected, goes with each message instead.
-    const system = `You are the assistant inside Materialize, the visual editor of the website "${ctx.config().site.name}". The person (${user.name}) is editing a page; each of their messages starts with a <context> note on the page and on what is selected on the canvas.
+    const system = `${voice ? `${voice}\n\n` : ''}You are the assistant inside Materialize, the visual editor of the website "${ctx.config().site.name}". The person (${user.name}) is editing a page; each of their messages starts with a <context> note on the page and on what is selected on the canvas.
 Use the tools to look at the page (get_page, get_node) and change it (edit_page). Your changes go into the editor, where the person sees them at once and can undo them; they are not published.
 Read the page before changing it. Make the changes asked, consistent with the design already there (theme colors and text styles, spacing, the look of nearby sections); prefer the section library for new sections. Keep ids of existing nodes.
 ${limited ? 'This person may change only contents (texts, links, images, alt texts), not the layout or the design: do not add, remove or move nodes, and do not change styles.\n' : ''}Pictures the person attaches are references (a site they like, a mockup, a sketch): take their layout, hierarchy and mood, and build it with this site's sections, theme and texts; never copy their brand, logos or texts, and do not put the pictures on the page.
@@ -2288,7 +2377,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           tools,
           onEvent: (e) => void send(e),
         })
-        chats.set(key, { conv, at: Date.now() })
+        chats.set(key, { conv, at: Date.now(), voice })
         if (page.nodes !== before) {
           if (limited && !sameDesign(before, page.nodes))
             await send({
@@ -3137,6 +3226,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       slots.map((s) => s.text),
       from,
       to,
+      undefined,
+      await voiceText('style'),
     ).catch(aiFailed)
     for (const [i, slot] of slots.entries()) slot.set(translated[i] as string)
   }
@@ -3219,6 +3310,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           own.map((s) => s.text),
           original.locale,
           doc.locale,
+          undefined,
+          await voiceText('style'),
         ).catch(aiFailed)
         for (const [i, slot] of own.entries()) slot.set(translated[i] as string)
       }

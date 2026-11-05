@@ -371,3 +371,55 @@ describe('assistant with Claude', () => {
     }
   })
 })
+
+describe('brand voice', () => {
+  it('goes with every text the AI writes, but not with spelling fixes', async () => {
+    const systems: string[] = []
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { messages } = JSON.parse(raw) as { messages: { content: string }[] }
+        systems.push(messages[0]?.content ?? '')
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'Fatto.' } }] }))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: { provider: 'openai', apiKey: '', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'm' },
+      })
+      expect((await call('GET', '/api/voice')).body.voice).toEqual({})
+      const saved = await call('PUT', '/api/voice', {
+        voice: {
+          about: 'Studio di architettura a Milano',
+          tones: ['Elegante'],
+          address: 'lei',
+          avoid: 'eccellenza, leader',
+        },
+      })
+      expect(saved.status).toBe(200)
+      expect((await call('PUT', '/api/voice', { voice: { tones: ['Urlato'] } })).status).toBe(422)
+
+      await call('POST', '/api/ai/text', { action: 'rewrite', text: 'Siamo i migliori' })
+      await call('POST', '/api/ai/text', { action: 'fix', text: 'Siamo i miglori' })
+      await call('POST', '/api/ai/text', { action: 'seo_title', text: 'La pagina dello studio' })
+      // Changing a text: the style only, so no facts about the brand end up in it.
+      expect(systems[0]).toContain('<brand_voice>')
+      expect(systems[0]).toContain('Never use these words or phrases: eccellenza, leader.')
+      expect(systems[0]).toContain('Address readers formally')
+      expect(systems[0]).not.toContain('Studio di architettura a Milano')
+      expect(systems[1]).not.toContain('<brand_voice>')
+      // Writing from scratch: who the brand is, too.
+      expect(systems[2]).toContain('Who we are and who we write for: Studio di architettura a Milano')
+      // Too few published texts to read a voice from.
+      expect((await call('POST', '/api/voice/suggest')).body.error.code).toBe('too_little_text')
+    } finally {
+      server.close()
+    }
+  })
+})

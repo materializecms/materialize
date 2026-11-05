@@ -379,8 +379,10 @@ export async function translateTexts(
   from: string,
   to: string,
   onProgress?: (done: number) => void,
+  /** The brand voice (voicePrompt), kept in the other language. */
+  voice = '',
 ): Promise<string[]> {
-  const system = `You translate the texts of a website from ${languageName(from)} to ${languageName(to)}. You receive a JSON array of strings and reply with a JSON array of their translations: same length, same order, nothing else (no code fences, no notes). Keep the tags <b>, </b>, <i>, </i>, <a1>, </a1> and so on around the matching words, keep line breaks, numbers, brand names, e-mail addresses and URLs. Write naturally for native readers, as a professional copywriter would, with the same tone and roughly the same length.`
+  const system = `${voice ? `${voice}\nKeep this voice in ${languageName(to)}: its tone and form of address, with words natural in that language.\n\n` : ''}You translate the texts of a website from ${languageName(from)} to ${languageName(to)}. You receive a JSON array of strings and reply with a JSON array of their translations: same length, same order, nothing else (no code fences, no notes). Keep the tags <b>, </b>, <i>, </i>, <a1>, </a1> and so on around the matching words, keep line breaks, numbers, brand names, e-mail addresses and URLs. Write naturally for native readers, as a professional copywriter would, with the same tone and roughly the same length.`
   const out: string[] = []
   const BATCH = 60
   for (let start = 0; start < texts.length; start += BATCH) {

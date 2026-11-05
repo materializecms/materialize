@@ -25,7 +25,8 @@
     "./i18n": "./src/i18n.ts",
     "./tracking": "./src/tracking.ts",
     "./updates": "./src/updates.ts",
-    "./quality": "./src/quality.ts"
+    "./quality": "./src/quality.ts",
+    "./voice": "./src/voice.ts"
   },
   "dependencies": {
     "lucide": "1.64.0",

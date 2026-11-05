@@ -14,6 +14,7 @@ import {
   removeNode,
   updateNode,
 } from '@materializecms/core/page'
+import { type BrandVoice, voicePrompt } from '@materializecms/core/voice'
 import { z } from 'zod'
 
 /**
@@ -333,13 +334,15 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
       name: 'get_site',
       title: 'Guardo il sito',
       description:
-        'The site: its name, languages and collections (pages, articles, projects…) with their fields. Start here.',
+        'The site: its name, languages, collections (pages, articles, projects…) with their fields, and its brand voice: follow it in every text you write. Start here.',
       input: z.object({}),
       readOnly: true,
       run: async () => {
         const s = await getSchema()
+        const voice = voicePrompt((await call<{ voice: BrandVoice }>('GET', '/api/voice').catch(() => null))?.voice)
         return {
           site: s.site,
+          ...(voice ? { brandVoice: voice } : {}),
           locales: s.locales,
           collections: s.collections.map((c) => ({
             name: c.name,

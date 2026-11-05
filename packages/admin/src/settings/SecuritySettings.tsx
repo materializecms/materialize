@@ -40,6 +40,7 @@ const SETTINGS: Record<string, string> = {
   backups: 'i backup automatici',
   tracking: 'tracciamento e cookie',
   updates: 'gli aggiornamenti automatici',
+  voice: 'la voce del brand',
 }
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */

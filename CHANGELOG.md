@@ -4,6 +4,7 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Voce del brand per l'AI**: in Impostazioni → Voce del brand scrivi chi siete, il tono, come vi rivolgete a chi legge, le parole da usare ed evitare e un testo d'esempio. L'AI la segue in ogni testo che scrive: pulsante ✨, assistente, traduzioni e client MCP. Il pulsante **Ricavala dai testi del sito** la propone leggendo le pagine pubblicate.
 ## 0.5.0 — 2026-11-05
 
 - **Nuovo logo**: una M fatta di blocchi che passano da trasparenti a pieni, perché i contenuti prendono forma. Il nome è in Geist. Lo trovi nel pannello, nella favicon, nella pagina di accesso e nel README; i file sono in `docs/assets`.

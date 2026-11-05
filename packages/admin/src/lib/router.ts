@@ -53,6 +53,7 @@ export function parse(pathname: string): Route {
             tracciamento: 'tracking',
             aggiornamenti: 'updates',
             informazioni: 'about',
+            voce: 'voice',
           } as Record<string, string>
         )[id ?? ''] ?? id,
     }
@@ -71,7 +72,7 @@ export function href(route: Route): string {
     case 'people':
       return `${BASE}/_people`
     case 'settings':
-      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni' }[route.tab as string] ?? route.tab}` : ''}`
+      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni', voice: 'voce' }[route.tab as string] ?? route.tab}` : ''}`
     case 'invite':
       return `${BASE}/_invite/${route.token}`
     case 'collection':

@@ -17,6 +17,7 @@ import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 import { TrackingSettings } from './TrackingSettings.tsx'
 import { UpdatesSettings, useUpdateAvailable } from './UpdatesSettings.tsx'
+import { VoiceSettings } from './VoiceSettings.tsx'
 
 /**
  * A single-document collection's name as a settings tab: "Impostazioni del sito" → "Sito"
@@ -74,6 +75,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       title: 'Strumenti',
       items: [
         { value: 'ai', label: 'AI e MCP' },
+        { value: 'voice', label: 'Voce del brand' },
         { value: 'import', label: 'Importa' },
         ...(user.role === 'admin' ? [{ value: 'updates', label: 'Aggiornamenti', dot: !!update }] : []),
         { value: 'about', label: 'Informazioni' },
@@ -138,6 +140,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
             <div className="min-h-0 flex-1 overflow-y-auto">
               {active === 'about' ? (
                 <About />
+              ) : active === 'voice' ? (
+                <VoiceSettings editable={user.role === 'admin'} />
               ) : active === 'ai' ? (
                 <AiScreen />
               ) : active === 'updates' ? (

@@ -3,6 +3,7 @@ import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/cor
 import type { Redirect, SiteSeo } from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { UpdateSettings, UpdateStatus } from '@materializecms/core/updates'
+import type { BrandVoice } from '@materializecms/core/voice'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -693,6 +694,10 @@ export const api = {
     request<{ keepMonths: number | null }>('PUT', '/forms/settings', { keepMonths }),
   removeSubmission: (id: string) => request<void>('DELETE', `/submissions/${id}`),
   templates: () => request<{ templates: Record<string, string> }>('GET', '/templates'),
+  voice: () => request<{ voice: BrandVoice }>('GET', '/voice'),
+  saveVoice: (voice: BrandVoice) => request<{ voice: BrandVoice }>('PUT', '/voice', { voice }),
+  /** A voice read by the AI from the texts already published: nothing is saved. */
+  suggestVoice: () => request<{ voice: BrandVoice; texts: number }>('POST', '/voice/suggest'),
   seo: () => request<{ seo: SiteSeo }>('GET', '/seo'),
   saveSeo: (seo: SiteSeo) => request<{ seo: SiteSeo }>('PUT', '/seo', { seo }),
   redirects: () => request<{ redirects: Redirect[] }>('GET', '/redirects'),
