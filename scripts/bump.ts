@@ -34,11 +34,7 @@ async function main() {
   const version = nextVersion(current, arg)
 
   const changelogPath = join(ROOT, 'CHANGELOG.md')
-  const changelog = stampChangelog(
-    await readFile(changelogPath, 'utf8'),
-    version,
-    new Date().toLocaleDateString('sv'),
-  )
+  const changelog = stampChangelog(await readFile(changelogPath, 'utf8'), version, new Date().toLocaleDateString('sv'))
 
   for (const file of await manifests()) {
     const pkg = JSON.parse(await readFile(file, 'utf8')) as Json
