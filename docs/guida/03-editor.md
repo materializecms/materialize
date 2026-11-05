@@ -105,6 +105,8 @@ La scheda **Controlli** a sinistra (nella modalità Contenuto è accanto a Sezio
   - livelli dei titoli saltati e video che si muovono da soli senza i comandi per fermarli.
 - **Prestazioni**, perché la pagina si apra in fretta anche sul telefono: immagini o video presi da altri siti (non vengono ottimizzati), GIF e video pesanti, video senza copertina, più di due scene 3D o WebGL, script esterni nel codice personalizzato, più di tre caratteri diversi, pagine con moltissimi elementi.
 
+**Revisione AI**: in cima alla scheda, se l'AI è configurata, **Rivedi con l'AI** fa rileggere la pagina come da un correttore di bozze. Segnala refusi, errori di grammatica, frasi fuori dalla [voce del brand](09-ai-e-mcp.md#voce-del-brand), informazioni che si contraddicono (un prezzo o una data diversi in due punti) e link le cui parole promettono altro rispetto alla pagina a cui portano. Per ogni segnalazione mostra le parole esatte e la correzione: **Applica** la mette nella bozza, e ⌘Z la annulla; la crocetta la ignora. Un clic sul testo seleziona l'elemento sulla tela. La revisione parte solo quando la chiedi, perché ogni lettura è una richiesta all'AI (pochi centesimi), e resta lì finché non chiudi la pagina; se poi modifichi la pagina, un avviso ti dice che è cambiata. Per gli articoli e gli altri contenuti senza tela la trovi in **Altre azioni → Revisione AI**.
+
 **Prima di pubblicare**, se la pagina ha problemi seri di accessibilità o di prestazioni, Materialize li elenca e chiede se pubblicare lo stesso o vederli. I consigli non fermano mai la pubblicazione.
 
 ## Esportare per il cliente

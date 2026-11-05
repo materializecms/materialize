@@ -78,7 +78,7 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 
 ## Cosa arriverà
 
-Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: revisione AI prima di pubblicare, sito da un brief, rilasci di più contenuti insieme; più avanti newsletter, vendita semplice e collaborazione in tempo reale.
+Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: sito da un brief, rilasci di più contenuti insieme; più avanti newsletter, vendita semplice e collaborazione in tempo reale.
 
 ## Fonti
 

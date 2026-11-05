@@ -128,6 +128,11 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
         text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
         group: 'content',
       }
+    case 'document.reviewed':
+      return {
+        text: `ha fatto rivedere ${t} all’AI${typeof d.issues === 'number' ? `: ${d.issues === 1 ? 'un suggerimento' : `${d.issues} suggerimenti`}` : ''}`,
+        group: 'content',
+      }
     case 'document.preview_shared':
       return {
         text: `ha creato un link di anteprima di ${t}${d.expiresAt ? ` valido fino a ${whenDate(String(d.expiresAt))}` : ' senza scadenza'}`,

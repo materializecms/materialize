@@ -2202,6 +2202,127 @@ ${texts.join('\n---\n')}
     return c.json({ voice: parsed.data, texts: texts.length })
   })
 
+  // ---------- AI review before publishing ----------
+
+  const REVIEW_KINDS = ['spelling', 'grammar', 'voice', 'consistency', 'link', 'clarity'] as const
+
+  /** The site's pages by address, with their titles: what a link on the page points to. */
+  const pageTitles = async () => {
+    const out = new Map<string, string>()
+    const config = ctx.config()
+    for (const def of config.collections) {
+      if (!def.url) continue
+      for (const doc of await content.published(def.name)) {
+        const url = publicUrl(def, doc.locale, doc.publishedData ?? {})
+        if (url && out.size < 200) out.set(url, doc.title)
+      }
+    }
+    return out
+  }
+
+  /**
+   * The AI reads the draft as it is now (saved or not) and lists what to fix before publishing:
+   * typos, grammar, sentences out of the brand voice, facts that contradict each other, links whose
+   * words promise something else than where they go, unclear sentences. Each with the exact words
+   * and a replacement. Nothing is changed.
+   */
+  app.post('/api/documents/:id/review', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    const input = await body(c, z.object({ data: z.record(z.string(), z.unknown()).optional() }))
+    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const def = collection(existing.collection)
+    const slots = documentSlots(def.fields, structuredClone(input.data ?? existing.data))
+    if (!slots.length) throw new ApiError(400, 'empty_text', 'Non c’è testo da rivedere')
+    const titles = await pageTitles()
+    const linkTo = (href: string) => {
+      const path = href.split('#')[0] || href
+      const title = titles.get(path.replace(/\/+$/, '') || '/')
+      return title ? `${href} (page "${title}")` : href
+    }
+    let size = 0
+    const listed = slots.flatMap((s, i) => {
+      if (size > 30_000) return []
+      size += s.text.length
+      const links = s.links?.length ? `\n  links: ${s.links.map((l, n) => `${n + 1} → ${linkTo(l)}`).join('; ')}` : ''
+      return [`[${i}] ${s.text}${links}`]
+    })
+    const voice = await voiceText('full')
+    const reply = await complete(ai, {
+      system: `${voice ? `${voice}\n\n` : ''}You review a web page before it is published, as a careful editor. Reply with JSON only, no code fences.`,
+      prompt: `These are the texts of the page "${existing.title}", numbered. Tags like <b>, <i> and <a1>…</a1> mark formatting and links; "links" says where each numbered link goes.
+
+Find what really needs fixing before publishing, and nothing else:
+- spelling: typos and misspelled words
+- grammar: grammar, agreement, punctuation
+- voice: sentences clearly out of the brand voice above (skip if there is none)
+- consistency: facts on the page that contradict each other (prices, dates, names, numbers)
+- link: link words that promise something different from the page they go to
+- clarity: a sentence a reader would not understand
+
+Reply with {"issues": [{"slot": number, "kind": one of ${JSON.stringify(REVIEW_KINDS)}, "find": "the exact words to change, copied from that text with its tags", "replace": "the corrected words, or \\"\\" when only a person can fix it", "note": "why, in one short sentence, in the language of the page"}]}.
+At most 25 issues, the most important first. An empty list is a fine answer when the page is good. Do not report style preferences, the length of texts, or things that are fine.
+
+<texts>
+${listed.join('\n')}
+</texts>`,
+    }).catch(aiFailed)
+    let raw: unknown
+    try {
+      raw = JSON.parse(reply.replace(/^\s*```(?:json)?|```\s*$/g, '').trim())
+    } catch {
+      throw new ApiError(422, 'ai_failed', 'L’AI non ha risposto come doveva: riprova')
+    }
+    const issue = z.object({
+      slot: z.number().int().min(0),
+      kind: z.enum(REVIEW_KINDS),
+      find: z.string().min(1).max(2000),
+      replace: z.string().max(4000),
+      note: z.string().max(500),
+    })
+    const items = Array.isArray((raw as { issues?: unknown })?.issues) ? (raw as { issues: unknown[] }).issues : []
+    const issues = items.flatMap((it) => {
+      const parsed = issue.safeParse(it)
+      if (!parsed.success) return []
+      const slot = slots[parsed.data.slot]
+      // Only what is really in the text: a quote the model made up cannot be applied.
+      if (!slot?.text.includes(parsed.data.find)) return []
+      return [{ ...parsed.data, node: slot.node ?? null, context: slot.text.replace(/<[^>]+>/g, '').slice(0, 160) }]
+    })
+    await record(c, 'document.reviewed', existing.title, {
+      collection: existing.collection,
+      id: existing.id,
+      issues: issues.length,
+    })
+    return c.json({ issues: issues.slice(0, 25) })
+  })
+
+  /**
+   * Applies one suggestion of the review to the draft as the editor holds it, and gives it back:
+   * the editor takes it as one change, which ⌘Z undoes. Nothing is saved here.
+   */
+  app.post('/api/documents/:id/review/apply', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    const input = await body(
+      c,
+      z.object({
+        data: z.record(z.string(), z.unknown()),
+        slot: z.number().int().min(0),
+        find: z.string().min(1).max(2000),
+        replace: z.string().max(4000),
+      }),
+    )
+    const data = structuredClone(input.data)
+    const slots = documentSlots(collection(existing.collection).fields, data)
+    // The same text, or the first one that still has those words (the page may have changed since).
+    const slot = slots[input.slot]?.text.includes(input.find)
+      ? slots[input.slot]
+      : slots.find((s) => s.text.includes(input.find))
+    if (!slot) throw new ApiError(409, 'changed', 'Quel testo è cambiato: rifai la revisione')
+    slot.set(slot.text.replace(input.find, input.replace))
+    return c.json({ data })
+  })
+
   const TEXT_ACTIONS: Record<string, string> = {
     rewrite: 'Rewrite it so it reads better: same meaning, similar length.',
     shorten: 'Make it shorter, keeping what matters most.',

@@ -4,6 +4,7 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Revisione AI prima di pubblicare**: nella scheda Controlli (e in Altre azioni per gli articoli) **Rivedi con l'AI** rilegge la pagina e segnala refusi, grammatica, frasi fuori dalla voce del brand, incoerenze e link che non portano dove dicono. Ogni segnalazione ha la correzione, da applicare con un clic e annullare con ⌘Z.
 - **Voce del brand per l'AI**: in Impostazioni → Voce del brand scrivi chi siete, il tono, come vi rivolgete a chi legge, le parole da usare ed evitare e un testo d'esempio. L'AI la segue in ogni testo che scrive: pulsante ✨, assistente, traduzioni e client MCP. Il pulsante **Ricavala dai testi del sito** la propone leggendo le pagine pubblicate.
 ## 0.5.0 — 2026-11-05
 

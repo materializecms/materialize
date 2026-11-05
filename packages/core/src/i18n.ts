@@ -80,6 +80,10 @@ export function untranslatedIds(original: PageNode[], translation: PageNode[]): 
 export interface TextSlot {
   text: string
   set: (value: string) => void
+  /** The canvas element it belongs to, to select it. */
+  node?: string
+  /** Where the numbered links in it go (<a1> is the first), or a link element's own address. */
+  links?: string[]
 }
 
 type Mark = { b?: boolean; i?: boolean; href?: string }
@@ -146,6 +150,8 @@ export function nodeSlots(nodes: PageNode[]): TextSlot[] {
       if (text.trim())
         slots.push({
           text,
+          node: n.id,
+          links,
           set: (v) => {
             const decoded = decodeRuns(v, links)
             if (decoded) p.runs = decoded as never
@@ -163,10 +169,15 @@ export function nodeSlots(nodes: PageNode[]): TextSlot[] {
       p.text.trim() &&
       !/^[\s\d.,:;+\-–—%°€$#*/|·•→←↗]+$/.test(p.text)
     )
-      slots.push({ text: p.text, set: (v) => (p.text = v) })
+      slots.push({
+        text: p.text,
+        node: n.id,
+        ...(typeof p.href === 'string' && p.href ? { links: [p.href] } : {}),
+        set: (v) => (p.text = v),
+      })
     for (const k of ['alt', 'placeholder'] as const)
       if (typeof p[k] === 'string' && (p[k] as string).trim())
-        slots.push({ text: p[k] as string, set: (v) => (p[k] = v) })
+        slots.push({ text: p[k] as string, node: n.id, set: (v) => (p[k] = v) })
     if (Array.isArray(p.options))
       (p.options as unknown[]).forEach((o, i) => {
         if (typeof o === 'string' && o.trim()) slots.push({ text: o, set: (v) => ((p.options as string[])[i] = v) })
@@ -200,6 +211,7 @@ function richSlots(blocks: RichBlock[]): TextSlot[] {
     if (!text.trim()) continue
     slots.push({
       text,
+      links,
       set: (v) => {
         const decoded = decodeRuns(v, links) ?? [{ t: v.replace(/<[^>]+>/g, '') }]
         b.children = decoded.map((r) => ({

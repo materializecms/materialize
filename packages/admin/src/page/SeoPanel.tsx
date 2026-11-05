@@ -10,6 +10,7 @@ import { FieldsForm } from '../fields/FieldInput.tsx'
 import { useForm } from '../fields/form-context.ts'
 import { api, type Data, type FieldDescription } from '../lib/api.ts'
 import { qualityOf } from './quality.ts'
+import { Review } from './Review.tsx'
 
 const ICON = {
   error: <CircleAlert className="size-3.5 text-danger" />,
@@ -33,6 +34,7 @@ export function useMediaInfo(): Record<string, MediaInfo> {
  * `onEditFields` is given and leads there, so they are never shown twice.
  */
 export function SeoPanel({
+  docId,
   nodes,
   data,
   theme,
@@ -41,6 +43,8 @@ export function SeoPanel({
   onSelect,
   onEditFields,
 }: {
+  /** The document, for the AI review. */
+  docId?: string
   nodes: PageNode[]
   data: Data
   theme?: Theme
@@ -104,6 +108,10 @@ export function SeoPanel({
             .join(' · ') || 'La pagina è pronta: motori di ricerca, accessibilità e prestazioni.'}
         </div>
       </div>
+      <section className="border-b border-line px-3.5 pt-3 pb-3.5">
+        <h3 className="pb-2 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">Revisione AI</h3>
+        <Review docId={docId} data={data} onApply={(next) => onChange(next, 'ai:review')} onSelect={onSelect} />
+      </section>
       {groups.map((g) => (
         <section key={g.title} className="border-b border-line last:border-b-0">
           <h3 className="px-3.5 pt-3 pb-1 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">{g.title}</h3>

@@ -245,6 +245,20 @@ export interface PreviewLink {
   url: string
 }
 
+/** Something the AI review found on a page, with the exact words and what to put instead. */
+export interface ReviewIssue {
+  slot: number
+  kind: 'spelling' | 'grammar' | 'voice' | 'consistency' | 'link' | 'clarity'
+  find: string
+  /** Empty: only a person can fix it. */
+  replace: string
+  note: string
+  /** The canvas element, to select it. */
+  node: string | null
+  /** The text around it, without formatting. */
+  context: string
+}
+
 export interface Schedule {
   id: string
   documentId: string
@@ -694,6 +708,11 @@ export const api = {
     request<{ keepMonths: number | null }>('PUT', '/forms/settings', { keepMonths }),
   removeSubmission: (id: string) => request<void>('DELETE', `/submissions/${id}`),
   templates: () => request<{ templates: Record<string, string> }>('GET', '/templates'),
+  /** The AI reads the draft (as the editor holds it) and lists what to fix: nothing is changed. */
+  review: (id: string, data: Data) => request<{ issues: ReviewIssue[] }>('POST', `/documents/${id}/review`, { data }),
+  /** One suggestion applied to the draft, given back for the editor to take as one change. */
+  applyReview: (id: string, data: Data, issue: Pick<ReviewIssue, 'slot' | 'find' | 'replace'>) =>
+    request<{ data: Data }>('POST', `/documents/${id}/review/apply`, { data, ...issue }),
   voice: () => request<{ voice: BrandVoice }>('GET', '/voice'),
   saveVoice: (voice: BrandVoice) => request<{ voice: BrandVoice }>('PUT', '/voice', { voice }),
   /** A voice read by the AI from the texts already published: nothing is saved. */

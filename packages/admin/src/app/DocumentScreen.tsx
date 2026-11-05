@@ -15,10 +15,12 @@ import {
   MoreHorizontal,
   PanelRight,
   Redo2,
+  Sparkles,
   Trash2,
   Undo2,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAiReady } from '../components/AiMenu.tsx'
 import {
   Button,
   cx,
@@ -53,6 +55,7 @@ import { usePref } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
 import { PageEditor } from '../page/PageEditor.tsx'
 import { qualityOf } from '../page/quality.ts'
+import { Review } from '../page/Review.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
@@ -155,6 +158,8 @@ function Editor({
   const [publishing, setPublishing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
+  const aiReady = useAiReady()
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
   /** Serious accessibility or performance problems found when publishing a canvas page. */
   const [problems, setProblems] = useState<QualityCheck[] | null>(null)
@@ -585,6 +590,19 @@ function Editor({
                       {doc?.publishedAt ? 'Torna bozza, non più visibile online' : 'Non è pubblicato'}
                     </span>
                   </MenuItem>
+                  {aiReady && !pageField && (
+                    <MenuItem
+                      icon={<Sparkles />}
+                      disabled={!doc}
+                      onClick={() => {
+                        close()
+                        setReviewing(true)
+                      }}
+                    >
+                      <span className="block">Revisione AI</span>
+                      <span className="block text-[12px] font-normal text-fg3">Refusi, voce, incoerenze, link</span>
+                    </MenuItem>
+                  )}
                   {schema.preview && (
                     <MenuItem
                       icon={<Link2 />}
@@ -816,6 +834,18 @@ function Editor({
         }
       >
         Non sarà più visibile online e tornerà una bozza. Il contenuto resta qui: puoi ripubblicarlo quando vuoi.
+      </Dialog>
+
+      <Dialog
+        open={reviewing}
+        onClose={() => setReviewing(false)}
+        title="Revisione AI"
+        width={520}
+        footer={<Button onClick={() => setReviewing(false)}>Fine</Button>}
+      >
+        <div className="max-h-[60vh] overflow-y-auto">
+          <Review docId={doc?.id} data={history.value} onApply={(next) => set(next, 'ai:review')} />
+        </div>
       </Dialog>
 
       {doc && (

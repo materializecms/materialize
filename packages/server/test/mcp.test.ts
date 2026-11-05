@@ -423,3 +423,77 @@ describe('brand voice', () => {
     }
   })
 })
+
+describe('AI review', () => {
+  it('lists what to fix with the exact words, drops made-up quotes, and applies a suggestion', async () => {
+    const prompts: string[] = []
+    const answer = {
+      issues: [
+        { slot: 1, kind: 'spelling', find: 'archittetura', replace: 'architettura', note: 'Refuso' },
+        { slot: 1, kind: 'grammar', find: 'parole che non ci sono', replace: 'x', note: 'Inventata' },
+        { slot: 2, kind: 'link', find: 'Scopri i servizi', replace: '', note: 'Porta ai contatti' },
+      ],
+    }
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { messages } = JSON.parse(raw) as { messages: { content: string }[] }
+        prompts.push(messages[1]?.content ?? '')
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: JSON.stringify(answer) } }] }))
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: { provider: 'openai', apiKey: '', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'm' },
+      })
+      const contact = (await call('POST', '/api/collections/pages', { data: { title: 'Contatti', slug: 'contatti' } }))
+        .body
+      await call('POST', `/api/documents/${contact.id}/publish`)
+      const page = [
+        {
+          id: 's',
+          type: 'frame',
+          children: [
+            { id: 't', type: 'text', text: 'Studio di archittetura a Milano' },
+            { id: 'b', type: 'button', text: 'Scopri i servizi', href: '/contatti' },
+          ],
+        },
+      ]
+      const data = { title: 'Studio', slug: 'studio', page }
+      const doc = (await call('POST', '/api/collections/pages', { data })).body
+      const res = await call('POST', `/api/documents/${doc.id}/review`, { data })
+      expect(res.status).toBe(200)
+      // Where each link goes, with the title of that page.
+      expect(prompts[0]).toContain('[2] Scopri i servizi\n  links: 1 → /contatti (page "Contatti")')
+      expect(res.body.issues.map((i: { find: string }) => i.find)).toEqual(['archittetura', 'Scopri i servizi'])
+      expect(res.body.issues[0]).toMatchObject({ node: 't', kind: 'spelling' })
+
+      const applied = await call('POST', `/api/documents/${doc.id}/review/apply`, {
+        data,
+        slot: 1,
+        find: 'archittetura',
+        replace: 'architettura',
+      })
+      expect(applied.body.data.page[0].children[0].text).toBe('Studio di architettura a Milano')
+      // The draft itself is not touched: the editor takes the change.
+      expect((await call('GET', `/api/documents/${doc.id}`)).body.data.page[0].children[0].text).toContain(
+        'archittetura',
+      )
+      const gone = await call('POST', `/api/documents/${doc.id}/review/apply`, {
+        data: applied.body.data,
+        slot: 1,
+        find: 'archittetura',
+        replace: 'architettura',
+      })
+      expect(gone.body.error.code).toBe('changed')
+    } finally {
+      server.close()
+    }
+  })
+})

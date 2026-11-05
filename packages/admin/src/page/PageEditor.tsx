@@ -1365,6 +1365,7 @@ export function PageEditor({
               />
             ) : (
               <SeoPanel
+                docId={docId}
                 nodes={nodes}
                 data={data}
                 theme={theme}
@@ -1494,6 +1495,7 @@ export function PageEditor({
             {tab === 'styles' && <ThemePanel theme={theme} onChange={setTheme} canEdit={user.role === 'admin'} />}
             {tab === 'seo' && (
               <SeoPanel
+                docId={docId}
                 nodes={nodes}
                 data={data}
                 theme={theme}
