@@ -55,6 +55,10 @@ export interface SiteSeo {
   }
   /** Keeps AI crawlers (GPTBot, CCBot…) from reading the site to train models. */
   blockAi?: boolean
+  /** false: no llms.txt and no Markdown copies of the pages for AI search and assistants. */
+  llms?: boolean
+  /** Collections in /rss.xml; unset, every collection with pages and a date field, empty for no feed. */
+  feed?: string[]
   /** Paths search engines should not visit, one per line. */
   disallow?: string[]
   /** Verification codes from Google Search Console and Bing Webmaster Tools. */
@@ -95,6 +99,10 @@ export interface PageHeadInput {
   description?: string
   /** First image of the page, when no sharing image is set. */
   image?: Media
+  /** Path of the site's RSS feed, announced on every page. */
+  feed?: string
+  /** Path of the page's Markdown copy, for AI assistants. */
+  markdown?: string
 }
 
 const absolute = (path: string, base?: string | URL) => {
@@ -166,6 +174,13 @@ export function pageHead(input: PageHeadInput): HeadTag[] {
     ...meta({ name: 'google-site-verification', content: input.url === '/' ? site.google : undefined }),
     ...meta({ name: 'msvalidate.01', content: input.url === '/' ? site.bing : undefined }),
   ]
+  if (input.feed)
+    tags.push({
+      tag: 'link',
+      attrs: { rel: 'alternate', type: 'application/rss+xml', title: site.siteName || 'RSS', href: input.feed },
+    })
+  if (input.markdown && !seo.noindex)
+    tags.push({ tag: 'link', attrs: { rel: 'alternate', type: 'text/markdown', href: input.markdown } })
   if (site.favicon?.src) {
     tags.push({ tag: 'link', attrs: { rel: 'icon', href: site.favicon.src } })
     tags.push({ tag: 'link', attrs: { rel: 'apple-touch-icon', href: site.favicon.src } })
@@ -381,13 +396,20 @@ export function sitemapXml(pages: SitemapPage[], siteUrl: string | URL): string 
 export const AI_CRAWLERS = [
   'GPTBot',
   'ClaudeBot',
+  'anthropic-ai',
   'CCBot',
   'Google-Extended',
   'Applebot-Extended',
   'Bytespider',
   'meta-externalagent',
-  'PerplexityBot',
+  'cohere-training-data-crawler',
 ]
+
+/**
+ * Crawlers of AI search and assistants, which read a page to answer someone and link to it:
+ * never blocked by `blockAi`, like Google and Bing.
+ */
+export const AI_SEARCH_CRAWLERS = ['OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot']
 
 /** robots.txt: what crawlers may visit, and where the sitemap is. */
 export function robotsTxt(site: SiteSeo, siteUrl?: string | URL): string {
@@ -396,6 +418,7 @@ export function robotsTxt(site: SiteSeo, siteUrl?: string | URL): string {
   lines.push(...(disallow.length ? disallow.map((d) => `Disallow: ${d.startsWith('/') ? d : `/${d}`}`) : ['Allow: /']))
   lines.push('Disallow: /admin/', 'Disallow: /_materialize/')
   if (site.blockAi) for (const bot of AI_CRAWLERS) lines.push('', `User-agent: ${bot}`, 'Disallow: /')
+  if (site.blockAi) for (const bot of AI_SEARCH_CRAWLERS) lines.push('', `User-agent: ${bot}`, 'Allow: /')
   if (siteUrl) lines.push('', `Sitemap: ${absolute('/sitemap.xml', String(siteUrl))}`)
   return `${lines.join('\n')}\n`
 }
@@ -589,4 +612,326 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
 
   const order: Record<CheckLevel, number> = { error: 0, warning: 1, ok: 2 }
   return out.sort((a, b) => order[a.level] - order[b.level])
+}
+
+// ---------- feeds and AI search ----------
+
+const xml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+export interface FeedItem {
+  title: string
+  url: string
+  date: Date
+  description?: string
+  image?: Media
+}
+
+/** RSS 2.0, newest first: for feed readers, newsletters that read feeds, and AI search. */
+export function rssXml(input: {
+  title: string
+  description?: string
+  siteUrl: string | URL
+  language: string
+  items: FeedItem[]
+}): string {
+  const base = String(input.siteUrl)
+  const items = [...input.items]
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .map((i) => {
+      const link = absolute(i.url, base)
+      const image = i.image?.src ? absolute(i.image.src, base) : null
+      return [
+        '    <item>',
+        `      <title>${xml(i.title)}</title>`,
+        `      <link>${xml(link)}</link>`,
+        `      <guid isPermaLink="true">${xml(link)}</guid>`,
+        `      <pubDate>${i.date.toUTCString()}</pubDate>`,
+        i.description ? `      <description>${xml(i.description)}</description>` : '',
+        image ? `      <enclosure url="${xml(image)}" type="${mimeOf(image)}" length="0"/>` : '',
+        '    </item>',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    })
+  const self = absolute('/rss.xml', base)
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${xml(input.title)}</title>
+    <link>${xml(absolute('/', base))}</link>
+    <description>${xml(input.description || input.title)}</description>
+    <language>${xml(input.language)}</language>
+    <atom:link href="${xml(self)}" rel="self" type="application/rss+xml"/>
+${items.join('\n')}
+  </channel>
+</rss>
+`
+}
+
+const mimeOf = (src: string) => {
+  const ext = src.split('?')[0]?.split('.').pop()?.toLowerCase()
+  return ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'avif' ? 'image/avif' : 'image/jpeg'
+}
+
+/**
+ * The collections in the RSS feed: the chosen ones, or by default every collection with pages,
+ * several documents and a date (articles, news, events).
+ */
+export function feedCollections(
+  collections: readonly { name: string; singleton: boolean; url?: unknown; fields: Record<string, { kind: string }> }[],
+  chosen?: string[],
+): string[] {
+  const eligible = collections.filter((c) => c.url && !c.singleton)
+  if (chosen) return eligible.filter((c) => chosen.includes(c.name)).map((c) => c.name)
+  return eligible.filter((c) => Object.values(c.fields).some((f) => f.kind === 'date')).map((c) => c.name)
+}
+
+/** Where a page's Markdown copy lives: /diario/articolo → /diario/articolo.md, the home page → /index.md. */
+export const markdownPath = (url: string) => (url === '/' || url === '' ? '/index.md' : `${url.replace(/\/+$/, '')}.md`)
+
+export interface LlmsSection {
+  title: string
+  items: { title: string; url: string; description?: string }[]
+}
+
+/**
+ * llms.txt (llmstxt.org): what the site is and its pages, in Markdown, so an AI assistant finds
+ * the right page without reading the whole site. Links point to each page's Markdown copy.
+ */
+export function llmsTxt(input: {
+  name: string
+  description?: string
+  details?: string[]
+  siteUrl: string | URL
+  sections: LlmsSection[]
+}): string {
+  const base = String(input.siteUrl)
+  const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim()
+  const out = [`# ${oneLine(input.name)}`, '']
+  if (input.description) out.push(`> ${oneLine(input.description)}`, '')
+  if (input.details?.length) out.push(...input.details.map((d) => `- ${oneLine(d)}`), '')
+  for (const section of input.sections) {
+    if (!section.items.length) continue
+    out.push(`## ${oneLine(section.title)}`, '')
+    for (const i of section.items) {
+      const link = `[${oneLine(i.title).replace(/[[\]]/g, '')}](${absolute(markdownPath(i.url), base)})`
+      out.push(`- ${link}${i.description ? `: ${oneLine(i.description)}` : ''}`)
+    }
+    out.push('')
+  }
+  return `${out.join('\n').trimEnd()}\n`
+}
+
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  hellip: '…',
+  mdash: '—',
+  ndash: '–',
+  rsquo: '’',
+  lsquo: '‘',
+  rdquo: '”',
+  ldquo: '“',
+  laquo: '«',
+  raquo: '»',
+  middot: '·',
+  copy: '©',
+}
+const decode = (s: string) =>
+  s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === '#') {
+      const n = e[1] === 'x' || e[1] === 'X' ? Number.parseInt(e.slice(2), 16) : Number(e.slice(1))
+      return Number.isFinite(n) ? String.fromCodePoint(n) : m
+    }
+    return ENTITIES[e.toLowerCase()] ?? m
+  })
+
+/** Elements whose content is not the page's text: menus, footers, code, things hidden from readers. */
+const SKIP = new Set([
+  'script',
+  'style',
+  'svg',
+  'noscript',
+  'template',
+  'iframe',
+  'form',
+  'nav',
+  'footer',
+  'button',
+  'select',
+  'video',
+  'audio',
+  'canvas',
+  'dialog',
+  'head',
+])
+const VOID = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'source',
+  'track',
+  'wbr',
+])
+const BLOCK = new Set([
+  'p',
+  'div',
+  'section',
+  'article',
+  'main',
+  'header',
+  'aside',
+  'figure',
+  'figcaption',
+  'ul',
+  'ol',
+  'table',
+  'tr',
+  'blockquote',
+  'pre',
+  'dl',
+  'dt',
+  'dd',
+  'details',
+  'summary',
+])
+
+const attr = (attrs: string, name: string) => {
+  const m = attrs.match(new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))
+  return m ? decode(m[2] ?? m[3] ?? m[4] ?? '') : null
+}
+
+/**
+ * A rendered page as Markdown, for AI assistants: the main content (menus, footers, scripts and
+ * hidden copies left out), with headings, lists, links and image descriptions.
+ */
+export function htmlToMarkdown(html: string, baseUrl?: string | URL): string {
+  const main =
+    html.match(/<main\b[^>]*>([\s\S]*)<\/main>/i)?.[1] ?? html.match(/<body\b[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? html
+  const base = baseUrl ? String(baseUrl) : undefined
+  const full = (href: string) => (base && href.startsWith('/') ? absolute(href, base) : href)
+  let out = ''
+  let skip = 0
+  let pre = 0
+  const stack: { name: string; skip: boolean }[] = []
+  const links: { start: number; href: string | null }[] = []
+  const lists: { ordered: boolean; n: number }[] = []
+  const marks: { start: number; sign: string }[] = []
+  const block = (prefix = '') => {
+    out = out.replace(/[ \t]+$/, '')
+    if (out && !out.endsWith('\n\n')) out += out.endsWith('\n') ? '\n' : '\n\n'
+    out += prefix
+  }
+  const close = (name: string) => {
+    if (name === 'a') {
+      const link = links.pop()
+      if (!link) return
+      const label = out.slice(link.start).trim()
+      out = out.slice(0, link.start)
+      const real = link.href && !link.href.startsWith('#') && !/^(javascript|mailto|tel):/i.test(link.href)
+      out += label && real && link.href ? `[${label.replace(/\n+/g, ' ')}](${full(link.href)})` : label
+    } else if (name === 'strong' || name === 'b' || name === 'em' || name === 'i') {
+      const mark = marks.pop()
+      if (!mark) return
+      const inside = out.slice(mark.start)
+      // Nothing in it: no marks either.
+      if (!inside.trim()) out = out.slice(0, mark.start - mark.sign.length) + inside
+      else out = `${out.replace(/[ \t]+$/, '')}${mark.sign}`
+    } else if (name === 'ul' || name === 'ol') {
+      lists.pop()
+      block()
+    } else if (name === 'pre') {
+      pre--
+      out += '\n```'
+      block()
+    } else if (name === 'li') {
+      out = out.replace(/[ \t]+$/, '')
+      if (!out.endsWith('\n')) out += '\n'
+    } else if (/^h[1-6]$/.test(name) || BLOCK.has(name)) block()
+  }
+  const token = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][\w-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>|([^<]+)/g
+  for (const m of main.matchAll(token)) {
+    const [, closing, rawName, attrs = '', text] = m
+    if (text !== undefined) {
+      if (skip) continue
+      const t = decode(text)
+      out += pre
+        ? t
+        : t.replace(/\s+/g, ' ').replace(/^ /, /[\s([]$|^$/.test(out) || marks.at(-1)?.start === out.length ? '' : ' ')
+      continue
+    }
+    if (!rawName) continue
+    const name = rawName.toLowerCase()
+    if (closing) {
+      // Closes up to the matching element: forgiving with HTML that leaves some open.
+      let at = stack.length - 1
+      while (at >= 0 && stack[at]?.name !== name) at--
+      if (at === -1) continue
+      for (const open of stack.splice(at).reverse()) {
+        if (open.skip) skip--
+        else if (!skip) close(open.name)
+      }
+      continue
+    }
+    if (VOID.has(name) || attrs.trim().endsWith('/')) {
+      if (skip) continue
+      if (name === 'br') out += '\n'
+      else if (name === 'hr') block('---\n\n')
+      else if (name === 'img') {
+        const alt = attr(attrs, 'alt')?.trim()
+        const src = attr(attrs, 'src')
+        if (alt && src) out += `![${alt.replace(/[[\]]/g, '')}](${full(src)})`
+      }
+      continue
+    }
+    const hidden =
+      /\saria-hidden\s*=\s*["']?true/i.test(attrs) ||
+      /\shidden(\s|=|$)/i.test(attrs) ||
+      // A canvas page's navigation section.
+      (name === 'header' && /\sclass\s*=\s*["'][^"']*\bmz-n\b/.test(attrs))
+    if (skip || SKIP.has(name) || hidden) {
+      stack.push({ name, skip: true })
+      skip++
+      continue
+    }
+    stack.push({ name, skip: false })
+    if (/^h[1-6]$/.test(name)) block(`${'#'.repeat(Number(name[1]))} `)
+    else if (name === 'li') {
+      const list = lists.at(-1)
+      out = out.replace(/[ \t]+$/, '')
+      if (out && !out.endsWith('\n')) out += '\n'
+      out += `${'  '.repeat(Math.max(0, lists.length - 1))}${list?.ordered ? `${++list.n}.` : '-'} `
+    } else if (name === 'ul' || name === 'ol') {
+      if (!lists.length) block()
+      lists.push({ ordered: name === 'ol', n: 0 })
+    } else if (name === 'blockquote') block('> ')
+    else if (name === 'pre') {
+      block('```\n')
+      pre++
+    } else if (name === 'a') {
+      // Buttons side by side are links with no space between them.
+      if (/[^\s([«"'“]$/.test(out)) out += ' '
+      links.push({ start: out.length, href: attr(attrs, 'href') })
+    } else if (name === 'strong' || name === 'b' || name === 'em' || name === 'i') {
+      const sign = name === 'strong' || name === 'b' ? '**' : '*'
+      out += sign
+      marks.push({ start: out.length, sign })
+    } else if (BLOCK.has(name)) block()
+  }
+  return `${out
+    .replace(/^(#{1,6}|-|\d+\.) *\n/gm, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()}\n`
 }

@@ -1,4 +1,4 @@
-import { BUSINESS_TYPES, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
+import { BUSINESS_TYPES, feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
@@ -51,6 +51,14 @@ export function SeoSettings({ editable }: { editable: boolean }) {
   const setBusiness = (patch: Partial<NonNullable<SiteSeo['business']>>) => set({ business: { ...business, ...patch } })
   const local = business.type && business.type !== 'Organization' && business.type !== 'Person'
   const siteUrl = schema.site.url
+  const shapes = schema.collections.map((c) => ({
+    ...c,
+    url: c.hasPages || undefined,
+    fields: Object.fromEntries(c.fields.map((f) => [f.name, { kind: f.kind }])),
+  }))
+  // Collections that can be in the feed, and the ones that are (chosen, or by default).
+  const feedChoices = schema.collections.filter((c) => c.hasPages && !c.singleton)
+  const feed = feedCollections(shapes, seo.feed)
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
@@ -198,8 +206,13 @@ export function SeoSettings({ editable }: { editable: boolean }) {
             text="La mappa del sito e robots.txt si aggiornano da soli a ogni pubblicazione."
           >
             {siteUrl && (
-              <div className="flex gap-4 text-[13px]">
-                {['sitemap.xml', 'robots.txt'].map((f) => (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+                {[
+                  'sitemap.xml',
+                  'robots.txt',
+                  ...(feed.length ? ['rss.xml'] : []),
+                  ...(seo.llms !== false ? ['llms.txt'] : []),
+                ].map((f) => (
                   <a
                     key={f}
                     href={`/${f}`}
@@ -214,6 +227,20 @@ export function SeoSettings({ editable }: { editable: boolean }) {
             )}
             <div className="flex items-start gap-3">
               <Switch
+                checked={seo.llms !== false}
+                onChange={(on) => set({ llms: on ? undefined : false })}
+                label="Pronto per le ricerche AI"
+              />
+              <div className="text-[14px]">
+                Pronto per le ricerche AI
+                <p className="text-[13px] leading-relaxed text-fg3">
+                  Pubblica llms.txt, l’indice del sito per ChatGPT, Claude, Perplexity e gli altri assistenti, e una
+                  copia in testo semplice di ogni pagina (per esempio /chi-siamo.md), più facile da leggere e citare.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Switch
                 checked={!!seo.blockAi}
                 onChange={(blockAi) => set({ blockAi })}
                 label="Blocca i crawler che addestrano modelli AI"
@@ -221,10 +248,37 @@ export function SeoSettings({ editable }: { editable: boolean }) {
               <div className="text-[14px]">
                 Blocca i crawler che addestrano modelli AI
                 <p className="text-[13px] leading-relaxed text-fg3">
-                  GPTBot, ClaudeBot, Google-Extended, CCBot e simili. Google e Bing continuano a indicizzare il sito.
+                  GPTBot, ClaudeBot, Google-Extended, CCBot e simili. Google, Bing e le ricerche AI (ChatGPT Search,
+                  Claude, Perplexity) continuano a trovare il sito e a mandarti visitatori.
                 </p>
               </div>
             </div>
+            {feedChoices.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[13px] font-medium">Feed RSS</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {feedChoices.map((c) => (
+                    <label key={c.name} className="inline-flex items-center gap-2 text-[14px]">
+                      <input
+                        type="checkbox"
+                        className="accent-accent"
+                        checked={feed.includes(c.name)}
+                        onChange={(e) =>
+                          set({
+                            feed: e.target.checked ? [...feed, c.name] : feed.filter((n) => n !== c.name),
+                          })
+                        }
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[13px] leading-relaxed text-fg3">
+                  Gli ultimi contenuti pubblicati, in /rss.xml: per i lettori di feed, le newsletter automatiche e le
+                  ricerche AI. Nessuna casella, nessun feed.
+                </p>
+              </div>
+            )}
             <Field label="Percorsi da non visitare" hint="Uno per riga, per esempio /area-riservata.">
               <Textarea
                 value={(seo.disallow ?? []).join('\n')}

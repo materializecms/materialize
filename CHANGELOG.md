@@ -6,6 +6,9 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 - **Pubblicazione programmata**: scegli quando una pagina o un articolo esce, e se vuoi quando torna bozza da solo (offerte, eventi). Dal pulsante con il calendario accanto a «Pubblica», con scorciatoie come «Domani alle 9». Esce la bozza com'è in quel momento; i campi mancanti vengono segnalati subito, e se al momento di uscire qualcosa non va la pagina resta bozza e il pannello dice perché. Le date compaiono anche negli elenchi.
 - **Link di anteprima da condividere**: un link segreto per far vedere una bozza a un cliente o a un collega senza account, con il design vero del sito. Scade dopo 1, 7 o 30 giorni o quando lo revochi, segue le modifiche, non finisce su Google e mostra un'etichetta «Anteprima». Da «Altre azioni» → «Condividi anteprima».
+- **Pronto per le ricerche AI**: il sito pubblica `llms.txt`, l'indice per ChatGPT, Claude, Perplexity e gli altri assistenti, e una copia in Markdown di ogni pagina (per esempio `/chi-siamo.md`), più facile da leggere e citare. Si spegne in Impostazioni → SEO.
+- **Feed RSS** su `/rss.xml` con gli ultimi articoli, annunciato in ogni pagina; in Impostazioni → SEO si scelgono le raccolte.
+- **Blocco dei crawler AI più preciso**: blocca solo chi addestra modelli; le ricerche AI (ChatGPT Search, Claude, Perplexity) restano libere, perché portano visitatori. Prima PerplexityBot veniva bloccato.
 
 ## 0.4.0 — 2026-11-03
 

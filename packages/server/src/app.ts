@@ -218,6 +218,8 @@ const siteSeoSchema = z.object({
     })
     .optional(),
   blockAi: z.boolean().optional(),
+  llms: z.boolean().optional(),
+  feed: z.array(z.string().max(80)).max(50).optional(),
   disallow: z.array(z.string().trim().max(300)).max(100).optional(),
   google: short,
   bing: short,

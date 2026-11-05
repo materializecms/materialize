@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { type PageNode, sameDesign } from '../src/page.ts'
-import { addMove, headHtml, pageChecks, pageHead, resolveRedirect, robotsTxt, sitemapXml } from '../src/seo.ts'
+import {
+  addMove,
+  feedCollections,
+  headHtml,
+  htmlToMarkdown,
+  llmsTxt,
+  markdownPath,
+  pageChecks,
+  pageHead,
+  resolveRedirect,
+  robotsTxt,
+  rssXml,
+  sitemapXml,
+} from '../src/seo.ts'
 
 describe('page head', () => {
   const site = { siteName: 'Studio Rossi', business: { type: 'LocalBusiness' as const, city: 'Milano' } }
@@ -79,6 +92,9 @@ describe('sitemap and robots', () => {
     const txt = robotsTxt({ blockAi: true, disallow: ['privato'] }, 'https://a.example')
     expect(txt).toContain('Disallow: /privato')
     expect(txt).toContain('User-agent: GPTBot\nDisallow: /')
+    // AI search sends visitors, like Google: it stays allowed.
+    expect(txt).toContain('User-agent: PerplexityBot\nAllow: /')
+    expect(txt).toContain('User-agent: OAI-SearchBot\nAllow: /')
     expect(txt).toContain('Sitemap: https://a.example/sitemap.xml')
   })
 })
@@ -132,5 +148,93 @@ describe('checks', () => {
     expect(sameDesign(nodes, edited)).toBe(true)
     ;(edited[0]?.children?.[0] as PageNode).style = 'h2'
     expect(sameDesign(nodes, edited)).toBe(false)
+  })
+})
+
+describe('feeds and AI search', () => {
+  it('writes an RSS feed, newest first, with escaped text', () => {
+    const xml = rssXml({
+      title: 'Studio Rossi',
+      siteUrl: 'https://a.example',
+      language: 'it',
+      items: [
+        { title: 'Vecchio', url: '/diario/vecchio', date: new Date('2026-01-02') },
+        {
+          title: 'Luce & ombra',
+          url: '/diario/luce',
+          date: new Date('2026-03-04'),
+          description: 'Case <calde>',
+          image: { src: '/media/luce.webp', alt: 'Luce' },
+        },
+      ],
+    })
+    expect(xml.indexOf('Luce &amp; ombra')).toBeLessThan(xml.indexOf('Vecchio'))
+    expect(xml).toContain('<link>https://a.example/diario/luce</link>')
+    expect(xml).toContain('<description>Case &lt;calde&gt;</description>')
+    expect(xml).toContain('url="https://a.example/media/luce.webp" type="image/webp"')
+    expect(xml).toContain('href="https://a.example/rss.xml" rel="self"')
+  })
+
+  it('puts dated collections with pages in the feed, or the chosen ones', () => {
+    const collections: { name: string; singleton: boolean; url?: boolean; fields: Record<string, { kind: string }> }[] =
+      [
+        { name: 'pages', singleton: false, url: true, fields: { title: { kind: 'text' } } },
+        { name: 'posts', singleton: false, url: true, fields: { date: { kind: 'date' } } },
+        { name: 'news', singleton: false, fields: { date: { kind: 'date' } } },
+      ]
+    expect(feedCollections(collections)).toEqual(['posts'])
+    expect(feedCollections(collections, ['pages', 'news'])).toEqual(['pages'])
+    expect(feedCollections(collections, [])).toEqual([])
+  })
+
+  it('lists the pages in llms.txt, linking their Markdown copies', () => {
+    const txt = llmsTxt({
+      name: 'Studio Rossi',
+      description: 'Architettura a Milano',
+      details: ['Telefono: 02 123'],
+      siteUrl: 'https://a.example',
+      sections: [
+        {
+          title: 'Pagine',
+          items: [
+            { title: 'Home', url: '/' },
+            { title: 'Chi siamo', url: '/chi-siamo', description: 'Lo studio' },
+          ],
+        },
+        { title: 'Vuota', items: [] },
+      ],
+    })
+    expect(txt).toBe(
+      '# Studio Rossi\n\n> Architettura a Milano\n\n- Telefono: 02 123\n\n## Pagine\n\n' +
+        '- [Home](https://a.example/index.md)\n- [Chi siamo](https://a.example/chi-siamo.md): Lo studio\n',
+    )
+    expect(markdownPath('/diario/luce/')).toBe('/diario/luce.md')
+  })
+
+  it('turns a page into Markdown without menus, footers, forms or hidden copies', () => {
+    const html = `<html><head><title>x</title><style>p{}</style></head><body>
+      <header class="mz-n n-1"><a href="/">Logo</a><a href="#lavori">Lavori</a></header>
+      <main><h1>Casa sul <em>lago</em></h1>
+      <p>Un progetto di <strong>luce</strong> e <a href="/progetti">legno</a>, 2026.</p>
+      <div aria-hidden="true"><p>copia del nastro</p></div>
+      <ul><li>Uno</li><li>Due <a href="#x">ancora</a></li></ul>
+      <img src="/media/casa.jpg" alt="La casa al tramonto"><img src="/deco.svg" alt="">
+      <a href="#contatti">Inizia</a><a href="/lavori">Guarda i lavori</a>
+      <form><label>Nome</label><input name="n"></form>
+      <script>alert(1)</script></main>
+      <footer>© Studio</footer></body></html>`
+    expect(htmlToMarkdown(html, 'https://a.example')).toBe(
+      [
+        '# Casa sul *lago*',
+        '',
+        'Un progetto di **luce** e [legno](https://a.example/progetti), 2026.',
+        '',
+        '- Uno',
+        '- Due ancora',
+        '',
+        '![La casa al tramonto](https://a.example/media/casa.jpg) Inizia [Guarda i lavori](https://a.example/lavori)',
+        '',
+      ].join('\n'),
+    )
   })
 })

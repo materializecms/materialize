@@ -237,6 +237,8 @@ export interface CollectionDescription {
   slugField?: string
   localized: boolean
   singleton: boolean
+  /** Its documents have an address on the site. */
+  hasPages?: boolean
   fields: FieldDescription[]
 }
 
@@ -249,6 +251,7 @@ export function describeCollection(collection: Collection): CollectionDescriptio
     slugField: collection.slugField,
     localized: collection.localized,
     singleton: collection.singleton,
+    hasPages: !!collection.url,
     fields: describeFields(collection.fields),
   }
 }

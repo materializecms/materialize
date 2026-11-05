@@ -1,8 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs'
-import { basename, extname, resolve } from 'node:path'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { htmlToMarkdown, markdownPath } from '@materializecms/core/seo'
 import type { AstroIntegration } from 'astro'
-import { getRedirects } from './content.ts'
+import { getRedirects, getSitemapPages, getSiteSeo, hasFeed } from './content.ts'
 import { hasRuntime, loadRuntime, onContentChange } from './runtime.ts'
 
 export type { Entry } from './content.ts'
@@ -73,11 +75,13 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
     layout: options.layout ?? 'src/layouts/Site.astro',
     page: options.page ?? 'src/pages/[...path].astro',
   }
+  let siteUrl: string | undefined
   return {
     name: '@materializecms/astro',
     hooks: {
-      'astro:config:setup': async ({ addMiddleware, config, injectRoute, updateConfig }) => {
+      'astro:config:setup': async ({ addMiddleware, command, config, injectRoute, updateConfig }) => {
         const root = fileURLToPath(config.root)
+        siteUrl = config.site
         // Inside `materialize dev` the runtime is already shared; `astro build` on its own opens the database.
         if (!hasRuntime()) await loadRuntime(root)
         injectRoute({
@@ -99,7 +103,11 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
           ['src/pages', 'public'].some((dir) =>
             ['', '.ts', '.js'].some((ext) => existsSync(resolve(root, dir, `${name}${ext}`))),
           )
-        for (const name of ['sitemap.xml', 'robots.txt']) {
+        // The feed and llms.txt only when they have something to say; in dev always, and they answer 404.
+        const seo = await getSiteSeo().catch(() => ({}) as Awaited<ReturnType<typeof getSiteSeo>>)
+        const feed = command === 'dev' || (await hasFeed().catch(() => false))
+        const llms = command === 'dev' || seo.llms !== false
+        for (const name of ['sitemap.xml', 'robots.txt', ...(feed ? ['rss.xml'] : []), ...(llms ? ['llms.txt'] : [])]) {
           if (own(name)) continue
           injectRoute({
             pattern: `/${name}`,
@@ -119,6 +127,26 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
             ),
           })
         updateConfig({ vite: { plugins: [sitePlugin(root, resolved)] } })
+      },
+      // A Markdown copy of every indexable page next to its HTML (/diario/articolo.md), for AI
+      // assistants; in dev the middleware converts on request.
+      'astro:build:done': async ({ dir, logger }) => {
+        const seo = await getSiteSeo().catch(() => null)
+        if (!seo || seo.llms === false) return
+        const out = fileURLToPath(dir)
+        let written = 0
+        for (const page of await getSitemapPages()) {
+          const clean = page.url.replace(/\/+$/, '')
+          const html = [join(out, clean, 'index.html'), join(out, `${clean || '/index'}.html`)].find((f) =>
+            existsSync(f),
+          )
+          if (!html) continue
+          const target = join(out, markdownPath(page.url))
+          await mkdir(dirname(target), { recursive: true })
+          await writeFile(target, htmlToMarkdown(await readFile(html, 'utf8'), siteUrl))
+          written++
+        }
+        if (written) logger.info(`${written} pagine in Markdown per le AI`)
       },
     },
   }

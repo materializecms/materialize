@@ -4,8 +4,17 @@ import { expandComponents, expandGlobals, type PageNode } from '@materializecms/
  * Everything search engines and social networks read in a page's head: title, description,
  * canonical, robots, sharing cards, other languages and structured data. Put it inside <head>.
  */
-import { headHtml, pageHead } from '@materializecms/core/seo'
-import { type Entry, firstImage, getAlternates, getComponents, getGlobals, getSiteSeo, summaryOf } from '../content.ts'
+import { headHtml, markdownPath, pageHead } from '@materializecms/core/seo'
+import {
+  type Entry,
+  firstImage,
+  getAlternates,
+  getComponents,
+  getGlobals,
+  getSiteSeo,
+  hasFeed,
+  summaryOf,
+} from '../content.ts'
 import { getRuntime } from '../runtime.ts'
 
 interface Props {
@@ -21,6 +30,8 @@ const { entry, title, description, siteName } = Astro.props
 const saved = await getSiteSeo()
 const site = { ...saved, siteName: saved.siteName || siteName }
 const { config } = await getRuntime()
+const locals = Astro.locals as { materializePreview?: boolean; materializeShare?: boolean }
+const live = !locals.materializePreview && !locals.materializeShare
 // Canvas pages: components and shared sections hold most of the images.
 const page = Array.isArray(entry?.data.page)
   ? expandComponents(expandGlobals(entry.data.page as PageNode[], await getGlobals()), await getComponents())
@@ -38,6 +49,8 @@ const html = headHtml(
     publishedAt: entry?.publishedAt,
     description: description ?? (entry ? await summaryOf(entry) : undefined),
     image: entry ? firstImage(page ?? entry.data) : undefined,
+    feed: live && (await hasFeed()) ? '/rss.xml' : undefined,
+    markdown: live && entry?.url && saved.llms !== false ? markdownPath(entry.url) : undefined,
   }),
 )
 ---

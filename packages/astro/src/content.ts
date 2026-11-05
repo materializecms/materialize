@@ -1,7 +1,14 @@
 import type { Collection, Field, Fields, MaterializeConfig, Media } from '@materializecms/core'
 import { mergeTranslation } from '@materializecms/core/i18n'
 import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
-import type { Redirect, SitemapPage, SiteSeo } from '@materializecms/core/seo'
+import {
+  type FeedItem,
+  feedCollections,
+  type LlmsSection,
+  type Redirect,
+  type SitemapPage,
+  type SiteSeo,
+} from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { StoredDocument } from '@materializecms/db'
 import { getRuntime } from './runtime.ts'
@@ -332,6 +339,71 @@ export async function getSitemapPages(): Promise<SitemapPage[]> {
     }
   }
   return pages.sort((a, b) => a.url.localeCompare(b.url))
+}
+
+/** A date for feeds: the document's own date field, or when it was published. */
+function dateOf(collection: Collection, entry: Entry): Date | null {
+  for (const [name, f] of Object.entries(collection.fields)) {
+    const v = entry.data[name]
+    if (f.kind === 'date' && typeof v === 'string' && v) {
+      const d = new Date(v)
+      if (!Number.isNaN(d.getTime())) return d
+    }
+  }
+  return entry.publishedAt
+}
+
+/** The newest published entries of the feed's collections (Impostazioni → SEO), in the main language. */
+export async function getFeedItems(limit = 50): Promise<FeedItem[]> {
+  const { config } = await getRuntime()
+  const cfg = config()
+  const seo = await getSiteSeo()
+  const items: FeedItem[] = []
+  for (const name of feedCollections(cfg.collections, seo.feed)) {
+    const def = collectionOf(cfg, name)
+    for (const entry of await published(name, cfg.locales.default)) {
+      const date = dateOf(def, entry)
+      if (!entry.url || !date || entry.data.seo?.noindex) continue
+      items.push({
+        title: entry.data.seo?.title || entry.title,
+        url: entry.url,
+        date,
+        description: entry.data.seo?.description || (await summaryOf(entry)),
+        image: entry.data.seo?.image ?? firstImage(entry.data),
+      })
+    }
+  }
+  return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, limit)
+}
+
+/** Whether the site has a feed, to announce it in every page's head. */
+export async function hasFeed(): Promise<boolean> {
+  const { config } = await getRuntime()
+  return feedCollections(config().collections, (await getSiteSeo()).feed).length > 0
+}
+
+/** Every indexable page, by collection, with its summary: the body of llms.txt. */
+export async function getLlmsSections(): Promise<LlmsSection[]> {
+  const { config } = await getRuntime()
+  const cfg = config()
+  const templates = await templateIds()
+  const sections: LlmsSection[] = []
+  for (const collection of cfg.collections) {
+    if (!collection.url) continue
+    const items: LlmsSection['items'] = []
+    for (const entry of await published(collection.name, cfg.locales.default)) {
+      if (!entry.url || templates.has(entry.id) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
+      items.push({
+        title: entry.data.seo?.title || entry.title,
+        url: entry.url,
+        description: entry.data.seo?.description || (await summaryOf(entry)),
+      })
+    }
+    // The home page first, then by address.
+    items.sort((a, b) => (a.url === '/' ? -1 : b.url === '/' ? 1 : a.url.localeCompare(b.url)))
+    sections.push({ title: collection.label, items })
+  }
+  return sections
 }
 
 /** The first image in a document's data (a cover, a hero), to share the page when no image is chosen. */
