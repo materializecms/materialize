@@ -153,8 +153,9 @@ export function Review({
                   className="mt-1.5 h-6 text-[12px]"
                   loading={applying === i}
                   onClick={() => void apply(it, i)}
+                  icon={<Wand2 className="size-3" />}
                 >
-                  <Wand2 /> Applica
+                  Applica
                 </Button>
               )}
             </li>

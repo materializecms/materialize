@@ -87,8 +87,15 @@ export function ShareDialog({
         <p className="text-[13px] font-medium">Il link vale</p>
         <div className="flex flex-wrap items-center gap-2">
           <Segmented value={expiry} options={EXPIRY} onChange={setExpiry} size="sm" />
-          <Button variant="primary" size="sm" loading={creating} onClick={() => void create()} className="ml-auto">
-            <Link2 /> Crea e copia il link
+          <Button
+            variant="primary"
+            size="sm"
+            loading={creating}
+            onClick={() => void create()}
+            icon={<Link2 className="size-3.5" />}
+            className="ml-auto"
+          >
+            Crea e copia il link
           </Button>
         </div>
       </div>

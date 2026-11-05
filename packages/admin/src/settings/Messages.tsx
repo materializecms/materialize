@@ -269,8 +269,9 @@ function FormsSettings() {
               onClick={() =>
                 navigator.clipboard?.writeText(current.data.webhookSecret ?? '').then(() => toast('Chiave copiata'))
               }
+              icon={<Copy className="size-3.5" />}
             >
-              <Copy /> Copia
+              Copia
             </Button>
           </div>
           <p className="text-[13px] leading-relaxed text-fg3">

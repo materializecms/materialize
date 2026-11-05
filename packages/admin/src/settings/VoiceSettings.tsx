@@ -76,8 +76,13 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
           le traduzioni e i client AI collegati con MCP. Così i testi suonano uguali, chiunque li scriva.
         </p>
         {editable && (
-          <Button type="button" onClick={() => void suggest()} loading={reading}>
-            <Sparkles /> Ricavala dai testi del sito
+          <Button
+            type="button"
+            onClick={() => void suggest()}
+            loading={reading}
+            icon={<Sparkles className="size-4 text-accent" />}
+          >
+            Ricavala dai testi del sito
           </Button>
         )}
       </div>
