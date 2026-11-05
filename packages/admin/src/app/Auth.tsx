@@ -3,18 +3,25 @@ import { type FormEvent, useState } from 'react'
 import { Button, Input } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 
+/** Blocks of the mark, left to right: the M takes shape, from faint to solid (docs/assets/logo.svg). */
+const MARK: [number, number, number][] = [
+  ...[2, 14.5, 27, 39.5, 52].map((y): [number, number, number] => [2, y, 0.3]),
+  [14.5, 14.5, 0.5],
+  [27, 27, 0.7],
+  [39.5, 14.5, 0.85],
+  ...[2, 14.5, 27, 39.5, 52].map((y): [number, number, number] => [52, y, 1]),
+]
+
+/** Materialize's icon: the mark in white on its violet tile. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <rect width="32" height="32" rx="8" className="fill-accent" />
-      <path
-        d="M9 22V10l7 7 7-7v12"
-        className="stroke-white"
-        strokeWidth="2.6"
-        fill="none"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
+    <svg viewBox="0 0 72 72" className={className} aria-hidden="true">
+      <rect width="72" height="72" rx="17" fill="#5B4BEA" />
+      <g transform="translate(14 14) scale(0.6875)" fill="#fff">
+        {MARK.map(([x, y, o]) => (
+          <rect key={`${x}-${y}`} x={x} y={y} width="10" height="10" rx="2.6" opacity={o} />
+        ))}
+      </g>
     </svg>
   )
 }
