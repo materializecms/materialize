@@ -1,6 +1,6 @@
 {
   "name": "@materializecms/cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Il comando materialize: sviluppo, produzione con aggiornamenti dal pannello, generazione del sito, backup, MCP.",
   "type": "module",
   "license": "MIT",
@@ -18,10 +18,10 @@
     ".": "./src/load-config.ts"
   },
   "dependencies": {
-    "@materializecms/astro": "0.4.0",
-    "@materializecms/core": "0.4.0",
-    "@materializecms/db": "0.4.0",
-    "@materializecms/server": "0.4.0",
+    "@materializecms/astro": "0.5.0",
+    "@materializecms/core": "0.5.0",
+    "@materializecms/db": "0.5.0",
+    "@materializecms/server": "0.5.0",
     "@modelcontextprotocol/sdk": "1.32.2"
   },
   "peerDependencies": {

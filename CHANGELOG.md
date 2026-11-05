@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.5.0 — 2026-11-05
+
 - **Nuovo logo**: una M fatta di blocchi che passano da trasparenti a pieni, perché i contenuti prendono forma. Il nome è in Geist. Lo trovi nel pannello, nella favicon, nella pagina di accesso e nel README; i file sono in `docs/assets`.
 - **Pubblicazione programmata**: scegli quando una pagina o un articolo esce, e se vuoi quando torna bozza da solo (offerte, eventi). Dal pulsante con il calendario accanto a «Pubblica», con scorciatoie come «Domani alle 9». Esce la bozza com'è in quel momento; i campi mancanti vengono segnalati subito, e se al momento di uscire qualcosa non va la pagina resta bozza e il pannello dice perché. Le date compaiono anche negli elenchi.
 - **Link di anteprima da condividere**: un link segreto per far vedere una bozza a un cliente o a un collega senza account, con il design vero del sito. Scade dopo 1, 7 o 30 giorni o quando lo revochi, segue le modifiche, non finisce su Google e mostra un'etichetta «Anteprima». Da «Altre azioni» → «Condividi anteprima».
