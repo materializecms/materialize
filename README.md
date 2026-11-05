@@ -13,6 +13,25 @@ CMS open source per agenzie e freelance: schema dei contenuti in codice, editor 
 
 **Stai scegliendo un CMS?** Il [confronto con WordPress, Webflow, Strapi, Sanity, Ghost e gli altri](docs/confronto.md) dice quando Materialize fa al caso tuo, e quando no.
 
+## Come si presenta
+
+![L'editor visuale: la pagina vera sulla tela, i livelli a sinistra, la pagina a destra](docs/assets/screenshots/01-editor.webp)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/02-contenuto.webp" alt="Modalità Contenuto: le sezioni in ordine e i testi da modificare"><br><sub>Modalità Contenuto: si cambiano testi e immagini, il design resta com'è</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/03-controlli.webp" alt="I controlli della pagina: motori di ricerca, accessibilità, prestazioni"><br><sub>Controlli: motori di ricerca, accessibilità e prestazioni</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/04-assistente.webp" alt="L'assistente AI aperto accanto alla pagina"><br><sub>L'assistente AI modifica la pagina su richiesta</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/05-raccolte.webp" alt="I progetti di una raccolta, in vista a schede"><br><sub>Le raccolte: progetti, articoli, persone</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/06-seo-e-ai.webp" alt="Impostazioni SEO: llms.txt, feed RSS, crawler AI"><br><sub>SEO e ricerche AI: llms.txt, feed RSS, crawler</sub></td>
+    <td width="50%"></td>
+  </tr>
+</table>
+
 ## Un nuovo sito
 
 Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
