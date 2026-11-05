@@ -45,12 +45,14 @@ import {
   createCommentStore,
   createContentStore,
   createMediaStore,
+  createPreviewLinkStore,
   createScheduleStore,
   createSettingsStore,
   createSubmissionStore,
   type Database,
   EmailTakenError,
   type MediaAsset,
+  type PreviewLink,
   SlugTakenError,
   type StoredDocument,
   type User,
@@ -291,6 +293,7 @@ export function createApp(base: ServerContext) {
   const comments = createCommentStore(ctx.database.db)
   const activityLog = createActivityStore(ctx.database.db)
   const schedules = createScheduleStore(ctx.database.db)
+  const previewLinks = createPreviewLinkStore(ctx.database.db)
   const backups = createBackups(ctx.database, () => ctx.config().media.dir)
   const backupSettings = async (): Promise<BackupSettings> => ({
     ...DEFAULT_BACKUPS,
@@ -2773,10 +2776,54 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     })
   })
 
+  // ---------- shared preview links ----------
+
+  const previewJson = (c: Context, link: PreviewLink) => {
+    const path = `/_materialize/share/${link.token}`
+    return { ...link, path, url: new URL(path, publicOrigin(c)).toString() }
+  }
+
+  /** The links that still work for a document, newest first. */
+  app.get('/api/documents/:id/previews', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    return c.json({ items: (await previewLinks.forDocument(existing.id)).map((l) => previewJson(c, l)) })
+  })
+
+  /**
+   * A secret address that shows the latest saved draft with the site's own design, to people
+   * without an account: a client, a colleague. `days` null: until someone revokes it.
+   */
+  app.post('/api/documents/:id/previews', requireUser, async (c) => {
+    const existing = await loadDocument(c.req.param('id'))
+    const input = await body(c, z.object({ days: z.number().int().min(1).max(365).nullable() }))
+    if (!ctx.preview) throw new ApiError(409, 'no_site', 'Questo sito non ha pagine da mostrare in anteprima')
+    if (!collection(existing.collection).url)
+      throw new ApiError(400, 'no_page', 'Questo contenuto non ha una pagina sul sito')
+    const expiresAt = input.days === null ? null : new Date(Date.now() + input.days * 86_400_000)
+    const link = await previewLinks.create({ documentId: existing.id, expiresAt, user: c.get('user') })
+    await record(c, 'document.preview_shared', existing.title, {
+      collection: existing.collection,
+      id: existing.id,
+      expiresAt: expiresAt?.toISOString() ?? null,
+    })
+    return c.json(previewJson(c, link), 201)
+  })
+
+  app.delete('/api/previews/:id', requireUser, async (c) => {
+    const link = await previewLinks.get(c.req.param('id'))
+    if (!link) throw new ApiError(404, 'not_found', 'Link non trovato')
+    const doc = await content.get(link.documentId)
+    await previewLinks.revoke(link.id)
+    await record(c, 'document.preview_revoked', doc?.title ?? '', { id: link.documentId })
+    return c.body(null, 204)
+  })
+  void previewLinks.prune().catch(() => {})
+
   app.delete('/api/documents/:id', requireUser, requireAdmin, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     await content.remove(existing.id)
     await schedules.removeForDocument(existing.id)
+    await previewLinks.removeForDocument(existing.id)
     if (existing.publishedAt) ctx.onPublish?.()
     await record(c, 'document.deleted', existing.title, { collection: existing.collection })
     return c.body(null, 204)

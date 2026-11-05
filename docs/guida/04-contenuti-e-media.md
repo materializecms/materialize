@@ -32,6 +32,18 @@ Per far uscire una pagina o un articolo più tardi, usa il pulsante con il **cal
 
 Il **Registro attività** (Impostazioni → Registro attività) mostra ogni pubblicazione programmata, a nome di chi l'ha programmata.
 
+## Link di anteprima
+
+Per far vedere una bozza a qualcuno che non entra nel pannello, come un cliente o un collega, apri **Altre azioni** (i tre puntini in alto) → **Condividi anteprima**:
+
+- Scegli quanto vale il link: **1 giorno**, **7 giorni**, **30 giorni** o **Senza scadenza**, poi premi **Crea e copia il link** e mandalo come preferisci.
+- Chi lo apre vede la pagina con il design vero del sito, anche se non è ancora pubblicata, con una piccola etichetta «Anteprima · non ancora pubblicata».
+- Il link segue le modifiche: mostra sempre l'ultima versione salvata. Non serve crearne uno nuovo dopo ogni correzione.
+- In **Link attivi** vedi chi l'ha creato, quando scade e quante volte è stato aperto. Il cestino lo **revoca**: da quel momento non si apre più.
+- I motori di ricerca non vedono queste pagine e le visite non contano nelle statistiche.
+
+Chiunque abbia il link può vedere la bozza: mandalo solo a chi deve vederla e revocalo quando non serve più.
+
 ## Cronologia
 
 Ogni salvataggio crea una versione, con la data e il nome di chi l'ha fatta (**Persona rimossa** se nel frattempo il suo account è stato eliminato).

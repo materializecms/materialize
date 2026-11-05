@@ -298,6 +298,52 @@ describe('scheduled publishing', () => {
   })
 })
 
+describe('shared preview links', () => {
+  beforeEach(async () => {
+    // A site that renders pages: the only kind where a preview link means something.
+    app = createApp({ config: () => config, database, preview: true })
+    await signUp()
+  })
+  const create = async (data: Record<string, unknown>) =>
+    (await call('POST', '/api/collections/pages', { data })).body.id as string
+
+  it('makes a secret link that works until it expires or is revoked', async () => {
+    const id = await create({ title: 'Listino', slug: 'listino' })
+    const made = await call('POST', `/api/documents/${id}/previews`, { days: 7 })
+    expect(made.status).toBe(201)
+    expect(made.body.url).toMatch(/^http:\/\/localhost\/_materialize\/share\/[\w-]{32}$/)
+    expect(new Date(made.body.expiresAt).getTime()).toBeGreaterThan(Date.now() + 6 * 86_400_000)
+    expect(made.body.createdByName).toBe('Elena')
+    await call('POST', `/api/documents/${id}/previews`, { days: null })
+    const list = (await call('GET', `/api/documents/${id}/previews`)).body.items
+    expect(list).toHaveLength(2)
+    expect(list[0].expiresAt).toBeNull()
+
+    expect((await call('DELETE', `/api/previews/${made.body.id}`)).status).toBe(204)
+    expect((await call('GET', `/api/documents/${id}/previews`)).body.items).toHaveLength(1)
+    const log = (await call('GET', '/api/activity?group=content')).body.items.map((e: { action: string }) => e.action)
+    expect(log.slice(0, 3)).toEqual(['document.preview_revoked', 'document.preview_shared', 'document.preview_shared'])
+  })
+
+  it('refuses content without a page, a site without pages, and strangers', async () => {
+    const settings = (await call('POST', '/api/collections/settings', { data: { siteName: 'Rossi' } })).body.id
+    expect((await call('POST', `/api/documents/${settings}/previews`, { days: 7 })).body.error.code).toBe('no_page')
+    const id = await create({ title: 'Listino' })
+    app = createApp({ config: () => config, database })
+    expect((await call('POST', `/api/documents/${id}/previews`, { days: 7 })).body.error.code).toBe('no_site')
+    cookie = ''
+    expect((await call('GET', `/api/documents/${id}/previews`)).status).toBe(401)
+  })
+
+  it('forgets the links of a deleted document', async () => {
+    const id = await create({ title: 'Listino' })
+    await call('POST', `/api/documents/${id}/previews`, { days: 1 })
+    await call('DELETE', `/api/documents/${id}`)
+    const { createPreviewLinkStore } = await import('@materializecms/db')
+    expect(await createPreviewLinkStore(database.db).forDocument(id)).toEqual([])
+  })
+})
+
 describe('status page', () => {
   it('confirms the server is up', async () => {
     const res = await app.request('/')

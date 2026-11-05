@@ -7,8 +7,10 @@ import {
   type ContentStore,
   createAuthStore,
   createContentStore,
+  createPreviewLinkStore,
   createSettingsStore,
   openDatabase,
+  type PreviewLinkStore,
   type SettingsStore,
 } from '@materializecms/db'
 
@@ -19,6 +21,8 @@ export interface Runtime {
   auth: AuthStore
   /** Site-wide settings, such as the design theme. */
   settings?: SettingsStore
+  /** Secret links that show a draft to people without an account. */
+  previews?: PreviewLinkStore
 }
 
 // Shared through globalThis: `materialize dev` sets it before starting Astro, and Astro's own
@@ -76,6 +80,7 @@ export function loadRuntime(root: string): Promise<Runtime> {
       content: createContentStore(database.db),
       auth: createAuthStore(database.db),
       settings: createSettingsStore(database.db),
+      previews: createPreviewLinkStore(database.db),
     }
   })()
   holder[KEY] = pending

@@ -127,6 +127,13 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
         text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
         group: 'content',
       }
+    case 'document.preview_shared':
+      return {
+        text: `ha creato un link di anteprima di ${t}${d.expiresAt ? ` valido fino a ${whenDate(String(d.expiresAt))}` : ' senza scadenza'}`,
+        group: 'content',
+      }
+    case 'document.preview_revoked':
+      return { text: `ha revocato un link di anteprima${t ? ` di ${t}` : ''}`, group: 'content' }
     case 'document.schedule_failed':
       return {
         text: `${d.action === 'unpublish' ? 'Rimozione' : 'Pubblicazione'} programmata di ${t} non riuscita: ${String(d.message ?? '')}`,

@@ -4,6 +4,7 @@ import {
   type ContentStore,
   createAuthStore,
   createContentStore,
+  createPreviewLinkStore,
   type Database,
   EmailTakenError,
   openDatabase,
@@ -179,5 +180,25 @@ describe('people and invitations', () => {
 
     expect(await auth.deleteUser(a.id)).toBe(true)
     expect(await auth.countUsers()).toBe(1)
+  })
+})
+
+describe('preview links', () => {
+  it('opens until it expires, counting the visits', async () => {
+    const previews = createPreviewLinkStore(database.db)
+    const user = { id: 'u1', name: 'Elena' }
+    const day = await previews.create({ documentId: 'd1', expiresAt: new Date(Date.now() + 86_400_000), user })
+    const forever = await previews.create({ documentId: 'd1', expiresAt: null, user })
+    expect(day.token).not.toBe(forever.token)
+    expect((await previews.open(day.token))?.id).toBe(day.id)
+    await previews.open(day.token)
+    expect((await previews.get(day.id))?.views).toBe(2)
+
+    const later = new Date(Date.now() + 2 * 86_400_000)
+    expect(await previews.open(day.token, later)).toBeNull()
+    expect((await previews.forDocument('d1', later)).map((l) => l.id)).toEqual([forever.id])
+    expect(await previews.open('not-a-token')).toBeNull()
+    await previews.revoke(forever.id)
+    expect(await previews.open(forever.token)).toBeNull()
   })
 })

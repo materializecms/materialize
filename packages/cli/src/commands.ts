@@ -9,6 +9,7 @@ import {
   createActivityStore,
   createAuthStore,
   createContentStore,
+  createPreviewLinkStore,
   createSettingsStore,
   openDatabase,
 } from '@materializecms/db'
@@ -177,6 +178,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
       content: createContentStore(server.database.db),
       auth: createAuthStore(server.database.db),
       settings,
+      previews: createPreviewLinkStore(server.database.db),
     })
     redirectOf = async (path) => {
       if (/\.[a-z0-9]+$/i.test(path) && !path.endsWith('.html')) return null

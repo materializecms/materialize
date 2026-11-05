@@ -9,6 +9,7 @@ import {
   FileText,
   History as HistoryIcon,
   LayoutTemplate,
+  Link2,
   MoreHorizontal,
   PanelRight,
   Redo2,
@@ -53,6 +54,7 @@ import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
 import { ScheduleMenu } from './ScheduleMenu.tsx'
+import { ShareDialog } from './ShareDialog.tsx'
 import { localeName } from './Sidebar.tsx'
 
 /**
@@ -149,6 +151,7 @@ function Editor({
   const [focusRequest, setFocusRequest] = useState<{ path: string; n: number } | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
   const [panel, setPanel] = usePref<'on' | 'off'>('mz-doc-panel', 'on')
   const blocksField = fields.find((f) => f.kind === 'blocks')
@@ -557,6 +560,21 @@ function Editor({
                       {doc?.publishedAt ? 'Torna bozza, non più visibile online' : 'Non è pubblicato'}
                     </span>
                   </MenuItem>
+                  {schema.preview && (
+                    <MenuItem
+                      icon={<Link2 />}
+                      disabled={!doc?.url}
+                      onClick={() => {
+                        close()
+                        setSharing(true)
+                      }}
+                    >
+                      <span className="block">Condividi anteprima</span>
+                      <span className="block text-[12px] font-normal text-fg3">
+                        {doc?.url ? 'Un link per chi non ha un account' : 'Non ha una pagina sul sito'}
+                      </span>
+                    </MenuItem>
+                  )}
                   <MenuItem
                     icon={<Copy />}
                     disabled={!doc}
@@ -741,6 +759,17 @@ function Editor({
       >
         Non sarà più visibile online e tornerà una bozza. Il contenuto resta qui: puoi ripubblicarlo quando vuoi.
       </Dialog>
+
+      {doc && (
+        <ShareDialog
+          doc={doc}
+          open={sharing}
+          onClose={() => setSharing(false)}
+          // A draft still incomplete can be shown too: that is often why it is shared.
+          ensureSaved={async () => (!doc || dirty ? await save() : doc)}
+          onError={handleError}
+        />
+      )}
 
       <Dialog
         open={confirmDelete}

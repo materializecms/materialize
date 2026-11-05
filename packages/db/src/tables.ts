@@ -222,6 +222,25 @@ export const schedules = sqliteTable(
   (t) => [index('schedules_due').on(t.status, t.runAt), index('schedules_document').on(t.documentId)],
 )
 
+/** Secret links that show a document's latest draft to people without an account. */
+export const previewLinks = sqliteTable(
+  'preview_links',
+  {
+    id: text('id').primaryKey(),
+    documentId: text('document_id').notNull(),
+    token: text('token').notNull().unique(),
+    /** Null: until someone revokes it. */
+    expiresAt: integer('expires_at', { mode: 'timestamp_ms' }),
+    createdBy: text('created_by'),
+    createdByName: text('created_by_name').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /** Last time someone opened it. */
+    viewedAt: integer('viewed_at', { mode: 'timestamp_ms' }),
+    views: integer('views').notNull().default(0),
+  },
+  (t) => [index('preview_links_document').on(t.documentId)],
+)
+
 /** Plain DDL applied on startup; versioned so later releases can add steps. */
 export const MIGRATIONS: string[][] = [
   [
@@ -392,5 +411,19 @@ export const MIGRATIONS: string[][] = [
     )`,
     'CREATE INDEX IF NOT EXISTS schedules_due ON schedules (status, run_at)',
     'CREATE INDEX IF NOT EXISTS schedules_document ON schedules (document_id)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS preview_links (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at INTEGER,
+      created_by TEXT,
+      created_by_name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      viewed_at INTEGER,
+      views INTEGER NOT NULL DEFAULT 0
+    )`,
+    'CREATE INDEX IF NOT EXISTS preview_links_document ON preview_links (document_id)',
   ],
 ]

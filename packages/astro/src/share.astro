@@ -1,0 +1,42 @@
+---
+/**
+ * A shared preview link: the document's latest saved draft, rendered by the site's own catch-all
+ * page, for people without an account. The secret in the address is the only key; search engines
+ * are told to stay away and the visit is not tracked.
+ */
+import { Layout, Page } from 'virtual:materialize/site'
+import Blocks from './components/Blocks.astro'
+import { blocksFieldOf, previewEntry } from './content.ts'
+import { getRuntime } from './runtime.ts'
+
+export const prerender = false
+
+Astro.response.headers.set('cache-control', 'no-store')
+Astro.response.headers.set('x-robots-tag', 'noindex, nofollow')
+Astro.response.headers.set('referrer-policy', 'no-referrer')
+const { content, previews } = await getRuntime()
+const link = previews && Astro.params.token ? await previews.open(Astro.params.token) : null
+const doc = link ? await content.get(link.documentId) : null
+if (!doc)
+  return new Response(
+    '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="robots" content="noindex">' +
+      '<title>Link non valido</title><body style="font:16px/1.5 system-ui;display:grid;place-items:center;min-height:90vh;margin:0;color:#444">' +
+      '<p style="max-width:30em;padding:0 20px;text-align:center">Questo link di anteprima è scaduto o è stato revocato.<br>Chiedi a chi te l’ha mandato un link nuovo.</p>',
+    { status: 404, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } },
+  )
+
+;(Astro.locals as { materializeShare?: boolean }).materializeShare = true
+const draft = await previewEntry(doc.collection, doc.locale, doc.data)
+const entry = { ...draft, id: doc.id, sourceId: doc.sourceId, publishedAt: doc.publishedAt }
+const blocksField = Page ? undefined : await blocksFieldOf(doc.collection)
+---
+
+{
+  Page ? (
+    <Page entry={entry} />
+  ) : (
+    <Layout title={entry.title} entry={entry}>
+      <Blocks blocks={blocksField ? entry.data[blocksField] : []} />
+    </Layout>
+  )
+}

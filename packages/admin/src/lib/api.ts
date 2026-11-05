@@ -231,6 +231,19 @@ export interface StoredDocument extends DocumentSummary {
   schedule?: DocumentSchedule
 }
 
+/** A secret address that shows the latest saved draft to someone without an account. */
+export interface PreviewLink {
+  id: string
+  documentId: string
+  expiresAt: string | null
+  createdByName: string
+  createdAt: string
+  viewedAt: string | null
+  views: number
+  /** Full address, to copy and send. */
+  url: string
+}
+
 export interface Schedule {
   id: string
   documentId: string
@@ -685,6 +698,11 @@ export const api = {
     request<StoredDocument>('PUT', `/documents/${id}/schedule`, { action, at: at?.toISOString() ?? null }),
   schedules: () =>
     request<{ items: (Schedule & { title: string; collection: string; locale: string })[] }>('GET', '/schedules'),
+  previews: (id: string) => request<{ items: PreviewLink[] }>('GET', `/documents/${id}/previews`),
+  /** days null: until someone revokes it. */
+  sharePreview: (id: string, days: number | null) =>
+    request<PreviewLink>('POST', `/documents/${id}/previews`, { days }),
+  revokePreview: (id: string) => request<void>('DELETE', `/previews/${id}`),
   remove: (id: string) => request<void>('DELETE', `/documents/${id}`),
   revisions: (id: string) => request<{ items: Revision[] }>('GET', `/documents/${id}/revisions`),
   restore: (id: string, revision: string) =>

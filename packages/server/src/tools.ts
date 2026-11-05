@@ -320,7 +320,7 @@ export function assistantTools(call: ApiCall, page: { nodes: PageNode[] }, brand
   })
   return [
     ...contentTools(call, getSchema).filter(
-      (t) => t.name !== 'publish_entry' && t.name !== 'unpublish_entry' && t.name !== 'schedule_entry',
+      (t) => !['publish_entry', 'unpublish_entry', 'schedule_entry', 'share_preview'].includes(t.name),
     ),
     ...pageTools({ source, withId: false, brand: async () => brand }),
   ]
@@ -460,6 +460,24 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
           publishAt: doc.schedule.publish?.runAt ?? null,
           unpublishAt: doc.schedule.unpublish?.runAt ?? null,
         }
+      },
+    }),
+    tool({
+      name: 'share_preview',
+      title: 'Creo un link di anteprima',
+      description:
+        'A secret link that shows an entry’s latest saved draft with the site’s design to someone without an account (a client, a colleague). It follows later edits. days: how long it works (default 7), null until revoked.',
+      input: z.object({
+        id: z.string(),
+        days: z.number().int().min(1).max(365).nullable().optional(),
+      }),
+      run: async (input) => {
+        const link = await call<{ url: string; expiresAt: string | null }>(
+          'POST',
+          `/api/documents/${encodeURIComponent(input.id)}/previews`,
+          { days: input.days === undefined ? 7 : input.days },
+        )
+        return { url: link.url, expiresAt: link.expiresAt }
       },
     }),
     tool({

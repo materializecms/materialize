@@ -12,6 +12,8 @@ export interface MaterializeOptions {
   blocks?: string
   /** Site layout, used by pages and by the canvas preview. */
   layout?: string
+  /** The catch-all page that renders every document: shared preview links render drafts with it. */
+  page?: string
 }
 
 const VIRTUAL = 'virtual:materialize/site'
@@ -21,6 +23,7 @@ const RESOLVED = `\0${VIRTUAL}`
 function sitePlugin(root: string, options: Required<MaterializeOptions>) {
   const blocksDir = resolve(root, options.blocks)
   const layout = resolve(root, options.layout)
+  const page = resolve(root, options.page)
   return {
     name: 'materialize:site',
     resolveId: (id: string) => (id === VIRTUAL ? RESOLVED : undefined),
@@ -35,7 +38,9 @@ function sitePlugin(root: string, options: Required<MaterializeOptions>) {
       const layoutImport = existsSync(layout)
         ? `import Layout from ${JSON.stringify(layout)}`
         : `const Layout = () => { throw new Error('Materialize: create ${options.layout} to preview pages') }`
-      return `${imports.join('\n')}\n${layoutImport}\nexport const blocks = { ${entries.join(', ')} }\nexport { Layout }\n`
+      // Without the catch-all page, shared previews fall back to the layout and the blocks.
+      const pageImport = existsSync(page) ? `import Page from ${JSON.stringify(page)}` : 'const Page = null'
+      return `${imports.join('\n')}\n${layoutImport}\n${pageImport}\nexport const blocks = { ${entries.join(', ')} }\nexport { Layout, Page }\n`
     },
     configureServer(server: {
       watcher: { on: (event: string, cb: (path: string) => void) => void }
@@ -63,11 +68,15 @@ function sitePlugin(root: string, options: Required<MaterializeOptions>) {
  * `@materializecms/astro/content`, and the admin previews drafts with the site's real components.
  */
 export default function materialize(options: MaterializeOptions = {}): AstroIntegration {
-  const resolved = { blocks: options.blocks ?? 'src/blocks', layout: options.layout ?? 'src/layouts/Site.astro' }
+  const resolved = {
+    blocks: options.blocks ?? 'src/blocks',
+    layout: options.layout ?? 'src/layouts/Site.astro',
+    page: options.page ?? 'src/pages/[...path].astro',
+  }
   return {
     name: '@materializecms/astro',
     hooks: {
-      'astro:config:setup': async ({ config, injectRoute, updateConfig }) => {
+      'astro:config:setup': async ({ addMiddleware, config, injectRoute, updateConfig }) => {
         const root = fileURLToPath(config.root)
         // Inside `materialize dev` the runtime is already shared; `astro build` on its own opens the database.
         if (!hasRuntime()) await loadRuntime(root)
@@ -75,6 +84,15 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
           pattern: '/_materialize/preview',
           entrypoint: new URL('./preview.astro', import.meta.url),
           prerender: false,
+        })
+        injectRoute({
+          pattern: '/_materialize/share/[token]',
+          entrypoint: new URL('./share.astro', import.meta.url),
+          prerender: false,
+        })
+        addMiddleware({
+          entrypoint: new URL(`./middleware${extname(fileURLToPath(import.meta.url))}`, import.meta.url),
+          order: 'post',
         })
         // A site's own sitemap.xml or robots.txt (in src/pages or public/) wins over these.
         const own = (name: string) =>

@@ -2,7 +2,7 @@
 /**
  * Analytics, tags, pixels and the cookie banner chosen in Impostazioni → Tracciamento e cookie.
  * Put it inside <head>: code that needs consent starts only after the visitor accepts it.
- * Nothing is written in the editor's preview.
+ * Nothing is written in the editor's preview, nor for shared preview links.
  */
 import { normalizeTheme } from '@materializecms/core/page'
 import { trackingHtml } from '@materializecms/core/tracking'
@@ -13,7 +13,8 @@ interface Props {
   lang?: string
 }
 
-const preview = (Astro.locals as { materializePreview?: boolean }).materializePreview === true
+const locals = Astro.locals as { materializePreview?: boolean; materializeShare?: boolean }
+const preview = locals.materializePreview === true || locals.materializeShare === true
 const tracking = preview ? null : await getTracking()
 const theme = normalizeTheme(await getTheme())
 const html = trackingHtml(tracking, { lang: Astro.props.lang, accent: theme.colors.light.accent })
