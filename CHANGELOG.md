@@ -4,6 +4,9 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Panoramica rinnovata**: si apre su quello che c'è da fare (documenti da pubblicare, il rilascio in preparazione, la prossima uscita programmata, i messaggi nuovi), con un riepilogo in una frase, le ultime modifiche e il sito a colpo d'occhio.
+- **Cosa facciamo oggi sul sito?**: in cima alla panoramica chiedi all'AI qualcosa che riguarda tutto il sito, come le descrizioni per Google mancanti o la traduzione delle pagine. Lavora solo in bozza, senza pubblicare né toccare tema e sezioni condivise, e ti elenca le bozze da rivedere.
+- **Barra sopra l'elemento selezionato** nell'editor: AI sul testo, cambia immagine, duplica, sposta su e giù, com'è su mobile, altre azioni ed elimina, senza andare nel pannello a destra.
 - **Import da WordPress con impaginazione AI**: un'opzione in più rifà l'impaginazione di ogni pagina importata con le sezioni della libreria (apertura, colonne, elenchi, inviti all'azione), con gli stessi testi e le stesse immagini, nella bozza. Un controllo confronta parole e immagini prima e dopo: se cambierebbero, la pagina resta com'era.
 - L'import da WordPress conserva le descrizioni (testo alternativo) delle immagini nei contenuti: prima andavano perse.
 - **Tour dell'editor rifatto**: 14 passi invece di 4, e ognuno illumina la zona vera di cui parla (le schede a sinistra si aprono da sole): Contenuto e Design, Livelli, Aggiungi, Stili, Controlli, la tela, le proprietà, i dispositivi, zoom e anteprima, l'assistente AI, cronologia e pubblicazione. Frecce per spostarsi, Esc per uscire, e si rifà da **?** → **Rifai il tour**.

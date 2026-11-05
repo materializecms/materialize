@@ -96,8 +96,14 @@ export function Review({
   return (
     <div className={cx('space-y-2', className)}>
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => void run()} loading={busy} className="flex-1">
-          <Sparkles /> {issues ? 'Rivedi di nuovo' : 'Rivedi con l’AI'}
+        <Button
+          size="sm"
+          onClick={() => void run()}
+          loading={busy}
+          icon={<Sparkles className="size-3.5 text-accent" />}
+          className="flex-1"
+        >
+          {issues ? 'Rivedi di nuovo' : 'Rivedi con l’AI'}
         </Button>
       </div>
       {!issues && !busy && (

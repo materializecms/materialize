@@ -452,6 +452,14 @@ async function streamEvents<E>(path: string, input: unknown, onEvent: (e: E) => 
   }
 }
 
+export type StudioEvent =
+  | { type: 'status'; text: string }
+  | { type: 'tool'; name: string; title: string }
+  | { type: 'touched'; doc: { id: string; collection: string; title: string } }
+  | { type: 'text'; text: string }
+  | { type: 'error'; message: string }
+  | { type: 'done'; runId?: string }
+
 export type ChatEvent =
   | { type: 'status'; text: string }
   | { type: 'tool'; name: string; title: string }
@@ -741,6 +749,12 @@ export const api = {
     onEvent: (e: ChatEvent) => void,
     signal?: AbortSignal,
   ) => streamEvents('/api/ai/chat', input, onEvent, signal),
+  /** A request from the dashboard: the AI works on the site, in drafts only. */
+  studio: (
+    input: { runId?: string; message: string; images?: { mime: 'image/jpeg'; data: string }[] },
+    onEvent: (e: StudioEvent) => void,
+    signal?: AbortSignal,
+  ) => streamEvents('/api/ai/studio', input, onEvent, signal),
   /** A first version of the site from a brief: new drafts, with theme and voice proposed. */
   buildSite: (
     input: {

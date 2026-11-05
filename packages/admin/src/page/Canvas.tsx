@@ -14,7 +14,7 @@ import {
 } from '@materializecms/core/page'
 import { startScenes } from '@materializecms/core/scene'
 import { Bold, ImagePlus, Italic, Link2, Link2Off } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { cx } from '../components/ui.tsx'
 import { EMBED_FRAME } from '../lib/frames.ts'
@@ -175,6 +175,7 @@ export function Canvas({
   data,
   entry,
   frameWidth,
+  selectionBar,
 }: {
   nodes: PageNode[]
   theme: Theme
@@ -222,6 +223,8 @@ export function Canvas({
   entry?: BoundEntry
   /** The page's width on this device (a preset of the device, or the default). */
   frameWidth?: number
+  /** Quick actions shown just above the selected element (one at a time, while not editing). */
+  selectionBar?: ReactNode
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -1303,6 +1306,25 @@ export function Canvas({
                   section={findNode(nodes, selected)?.depth === 0}
                   onStart={startResize}
                 />
+              )}
+            {selectionBar &&
+              mode === 'design' &&
+              !preview &&
+              boxes.sel &&
+              !editing &&
+              !dragging &&
+              !measuring &&
+              selection.length < 2 && (
+                <div
+                  className="absolute z-10 -translate-x-full"
+                  style={{
+                    left: boxes.sel.x + boxes.sel.w + 1,
+                    // Above the element; below it when there is no room at the top.
+                    top: boxes.sel.y > 44 ? boxes.sel.y - 40 : boxes.sel.y + boxes.sel.h + 8,
+                  }}
+                >
+                  {selectionBar}
+                </div>
               )}
             {badge && boxes.sel && (
               <div

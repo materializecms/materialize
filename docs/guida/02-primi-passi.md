@@ -4,7 +4,7 @@
 
 Il pannello si apre su `/admin` del tuo sito. A sinistra c'è il menu:
 
-- **Panoramica**: quante voci ci sono e quante aspettano di essere pubblicate, le **Modifiche recenti** e le **Azioni rapide**, con **Nuova pagina** e **Apri il sito** in alto.
+- **Panoramica**: si apre su quello che c'è da fare. In alto la data e un riepilogo; con l'AI configurata, il campo **Cosa facciamo oggi sul sito?** (vedi [AI e MCP](09-ai-e-mcp.md#richieste-dalla-panoramica)); poi le schede **Da fare**: i documenti da pubblicare, il rilascio in preparazione, la prossima uscita programmata e i messaggi nuovi. Sotto, le **Ultime modifiche**, **Il sito a colpo d'occhio** con i numeri di ogni raccolta e le **Azioni rapide**; in alto **Apri il sito**, **Sito da un brief** e **Nuova pagina**.
 - **Contenuti**: le raccolte del sito. Ogni sito ha almeno **Pagine**; altre raccolte (per esempio Progetti, Diario, Team) dipendono da come è fatto il sito.
 - **Media**: immagini, video e file caricati.
 - **Impostazioni** e **Persone**.

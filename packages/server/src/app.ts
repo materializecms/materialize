@@ -128,6 +128,7 @@ import {
 import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
 import { statusPage } from './status-page.ts'
+import { studioSystem, studioTools } from './studio.ts'
 import { apiCaller, assistantTools, contentTools, pageTools, type SiteSchema } from './tools.ts'
 import { newSecret, otpauthUri, recoveryCodes, verifyCode } from './totp.ts'
 import { type Fetcher, readRest, readWxr, WordPressError, type WpSite } from './wordpress.ts'
@@ -2648,6 +2649,84 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         // What was made before the failure stays, as drafts: the panel lists it. The run ends.
         briefRuns.delete(key)
         await send({ type: 'result', ...result })
+        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'done' })
+      }
+    })
+  })
+
+  /** Requests from the dashboard, per person, kept two hours so the person can answer and go on. */
+  const studioRuns = new Map<string, { conv: Conversation; system: string; at: number }>()
+
+  app.post('/api/ai/studio', requireUser, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        runId: z.string().max(64).optional(),
+        message: z.string().trim().min(1).max(6000),
+        images: z
+          .array(
+            z.object({
+              mime: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+              data: z.base64().max(4_000_000),
+            }),
+          )
+          .max(4)
+          .default([]),
+      }),
+    )
+    const user = c.get('user')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const now = Date.now()
+    for (const [k, v] of studioRuns) if (now - v.at > 2 * 60 * 60 * 1000) studioRuns.delete(k)
+    const runId = input.runId ?? crypto.randomUUID()
+    const key = `${user.id}:${runId}`
+    const found = input.runId ? studioRuns.get(key) : undefined
+    const run =
+      found && found.conv.provider === ai.provider
+        ? found
+        : {
+            conv: { provider: ai.provider, messages: [] } as Conversation,
+            // Fixed for the whole conversation: the model's reasoning is tied to it.
+            system: studioSystem({
+              site: ctx.config().site.name,
+              user: user.name,
+              voice: await voiceText(),
+              limited: await contentOnly(user),
+            }),
+            at: now,
+          }
+    run.at = now
+    studioRuns.set(key, run)
+    const credentials = credentialsOf(c)
+
+    return streamSSE(c, async (stream) => {
+      const send = (data: unknown) => stream.writeSSE({ data: JSON.stringify(data) })
+      const stop = new AbortController()
+      stream.onAbort(() => stop.abort())
+      const seen = new Set<string>()
+      const tools = studioTools(apiCaller(app.fetch, credentials), (doc) => {
+        if (seen.has(doc.id)) return
+        seen.add(doc.id)
+        void send({ type: 'touched', doc })
+      })
+      try {
+        const reply = await runTurn(ai, run.conv, {
+          system: run.system,
+          text: input.message,
+          images: input.images,
+          tools,
+          onEvent: (e) => void send(e),
+          maxSteps: 40,
+          signal: stop.signal,
+        })
+        if (seen.size) await record(c, 'site.ai_request', '', { documents: seen.size })
+        await send({ type: 'text', text: reply })
+        await send({ type: 'done', runId })
+      } catch (error) {
+        if (!(error instanceof AiError)) console.error(error)
+        studioRuns.delete(key)
         await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
         await send({ type: 'done' })
       }

@@ -151,6 +151,11 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `non è riuscito a pubblicare il rilascio ${t}: ${d.message ?? ''}`, group: 'content' }
     case 'release.cancelled':
       return { text: `ha annullato il rilascio ${t}`, group: 'content' }
+    case 'site.ai_request':
+      return {
+        text: `ha chiesto all’AI dalla panoramica: ${d.documents === 1 ? 'un contenuto modificato' : `${d.documents ?? ''} contenuti modificati`} in bozza`,
+        group: 'content',
+      }
     case 'site.generated':
       return {
         text: `ha fatto preparare all’AI ${d.pages === 1 ? 'una pagina' : `${d.pages ?? ''} pagine`} da un brief`,

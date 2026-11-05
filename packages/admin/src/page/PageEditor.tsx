@@ -81,6 +81,7 @@ import { Inspector } from './Inspector.tsx'
 import { Layers } from './Layers.tsx'
 import { type ElementKind, Library } from './Library.tsx'
 import { simplify } from './runs.ts'
+import { SelectionBar } from './SelectionBar.tsx'
 import { SeoPanel } from './SeoPanel.tsx'
 import { ThemePanel } from './ThemePanel.tsx'
 
@@ -1868,6 +1869,29 @@ export function PageEditor({
               rulerGuides={rulerGuides}
               onRulerGuides={setRulerGuides}
               onContextMenu={openMenu}
+              selectionBar={
+                info && selection.length < 2 ? (
+                  <SelectionBar
+                    node={info.node}
+                    first={info.index === 0}
+                    last={info.index === info.siblings.length - 1}
+                    onMobile={
+                      device !== 'mobile'
+                        ? () => {
+                            setDevice('mobile')
+                            setZoom('fit')
+                          }
+                        : undefined
+                    }
+                    onText={(patch) => setProps(info.node.id, patch, `ai:${info.node.id}`)}
+                    onPickImage={() => setPicking({ id: info.node.id, target: 'src' })}
+                    onDuplicate={duplicateSelection}
+                    onMove={(dir) => move(info.node.id, dir)}
+                    onMore={(x, y) => openMenu(info.node.id, x, y)}
+                    onDelete={removeSelection}
+                  />
+                ) : null
+              }
               typeAhead={typeAhead}
               marks={marks}
               onDropNew={(item, target, sectionIndex) => {

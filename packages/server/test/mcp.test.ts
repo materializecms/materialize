@@ -594,3 +594,79 @@ describe('site from a brief', () => {
     }
   })
 })
+
+describe('dashboard request', () => {
+  it('changes drafts and lists them, but cannot publish', async () => {
+    const doc = (await call('POST', '/api/collections/pages', { data: { title: 'Contatti', slug: 'contatti' } })).body
+    const results: string[] = []
+    let step = 0
+    let toolNames: string[] = []
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const parsed = JSON.parse(raw) as {
+          messages: { role: string; content: string }[]
+          tools: { function: { name: string } }[]
+        }
+        toolNames = parsed.tools.map((t) => t.function.name)
+        for (const m of parsed.messages.slice(-2)) if (m.role === 'tool') results.push(m.content)
+        const calls = [
+          [
+            {
+              id: 'a',
+              type: 'function',
+              function: {
+                name: 'update_entry',
+                arguments: JSON.stringify({ id: doc.id, data: { title: 'Scrivici' } }),
+              },
+            },
+            {
+              id: 'b',
+              type: 'function',
+              function: { name: 'publish_entry', arguments: JSON.stringify({ id: doc.id }) },
+            },
+          ],
+        ][step++]
+        res.setHeader('content-type', 'application/json')
+        res.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: calls
+                  ? { role: 'assistant', content: null, tool_calls: calls }
+                  : { role: 'assistant', content: 'Ho cambiato il titolo.' },
+              },
+            ],
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: { provider: 'openai', apiKey: '', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'm' },
+      })
+      const res = await app.request('/api/ai/studio', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie, origin: 'http://localhost' },
+        body: JSON.stringify({ message: 'Chiama la pagina contatti «Scrivici»' }),
+      })
+      const events = (await res.text())
+        .split('\n')
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => JSON.parse(l.slice(5)))
+      expect(toolNames).not.toContain('publish_entry')
+      expect(toolNames).not.toContain('update_theme')
+      expect(results.some((r) => r.includes('There is no tool "publish_entry"'))).toBe(true)
+      expect(events.find((e) => e.type === 'touched')?.doc).toMatchObject({ id: doc.id, title: 'Scrivici' })
+      const after = (await call('GET', `/api/documents/${doc.id}`)).body
+      expect(after).toMatchObject({ title: 'Scrivici', status: 'draft' })
+    } finally {
+      server.close()
+    }
+  })
+})

@@ -37,6 +37,7 @@ Ogni elemento ha anche un tasto rapido: **F** contenitore, **T** testo, **I** im
 - **⌘D** duplica, **⌫** elimina, **⌘G** raggruppa in un contenitore, **⇧⌘G** separa, **⌥↑ ⌥↓** sposta su e giù.
 - **⌘Z** annulla, **⇧⌘Z** ripete.
 - **⌥⌘C** e **⌥⌘V** copiano e incollano lo stile da un elemento all'altro.
+- Sopra l'elemento selezionato compare una **barra di azioni rapide**: ✨ per l'AI sul testo, cambia immagine, duplica, sposta su o giù, **Com'è su mobile** (passa alla vista mobile tenendo la selezione), altre azioni ed elimina. Sparisce mentre scrivi o trascini.
 - Il clic destro apre il menu dell'elemento, con **Blocca** per non spostarlo per sbaglio.
 
 Su Windows usa **Ctrl** al posto di **⌘** e **Alt** al posto di **⌥**.

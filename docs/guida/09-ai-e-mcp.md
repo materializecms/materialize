@@ -20,14 +20,24 @@ L'uso dell'AI si paga al fornitore, in base a quanto si usa. Sotto il modulo, **
 - **SEO**: propone titolo e descrizione della pagina.
 - **Testo alternativo**: descrive un'immagine guardandola. Se c'era già un credito, per esempio «foto di … su Unsplash», lo mantiene in fondo.
 - **Revisione prima di pubblicare**: rilegge la pagina e segnala refusi, grammatica, frasi fuori dalla voce del brand, incoerenze e link che non portano dove dicono, con la correzione da applicare con un clic (vedi [Controlli della pagina](03-editor.md#controlli-della-pagina)).
+- **Richieste dalla panoramica**: a parole, su tutto il sito, in bozza (vedi [sotto](#richieste-dalla-panoramica)).
 - **Sito da un brief**: dalla Panoramica, la prima versione del sito in bozza da poche righe sull'attività (vedi [sotto](#il-sito-da-un-brief)).
 - **Traduzioni**: crea una pagina in un'altra lingua (vedi [Siti in più lingue](05-lingue.md)).
 - **Assistente nell'editor**: dall'icona in alto nell'editor gli chiedi a parole, per esempio «aggiungi una sezione con tre servizi» o «rendi più grandi i titoli». Le modifiche arrivano sulla pagina come bozza, e un solo **⌘Z** le annulla tutte.
 - **Immagini di riferimento**: con il pulsante 🖼 accanto al campo, incollando (⌘V) o trascinando un file nella chat, alleghi fino a 4 immagini, per esempio lo screenshot di un sito che ti piace, un mockup o la foto di uno schizzo. L'assistente ne riprende impaginazione, gerarchia e atmosfera, ma usa le sezioni, i colori e i testi del tuo sito: non copia marchi o testi e non mette l'immagine sulla pagina. Le immagini vengono rimpicciolite prima dell'invio, così costano poco.
 
+## Richieste dalla panoramica
+
+In cima alla **Panoramica** c'è il campo **Cosa facciamo oggi sul sito?**. Lì chiedi a parole qualcosa che riguarda tutto il sito, non una pagina sola: «scrivi la descrizione per Google delle pagine che non ce l'hanno», «controlla i testi del Diario», «prepara una pagina Domande frequenti», «traduci in inglese le pagine principali». Sotto ci sono alcune idee pronte, e puoi allegare fino a 4 immagini.
+
+- L'AI guarda il sito, poi cambia o crea i contenuti. **Tutto resta in bozza**: non può pubblicare, programmare, condividere anteprime, cambiare il tema né toccare menu, piè di pagina condivisi e componenti, che sono online su tutte le pagine insieme. Se la richiesta li riguarda, fa il resto e ti dice cosa sistemare nel pannello.
+- Sotto la risposta compaiono le **Bozze da rivedere**: un clic apre ciascuna nell'editor, dove la Cronologia riporta indietro ogni modifica.
+- Puoi rispondere e chiedere altro nella stessa conversazione; **Nuova richiesta** ricomincia da capo e **Interrompi** la ferma.
+- Segue la [voce del brand](#voce-del-brand). Chi può cambiare solo i contenuti può chiedere solo quello.
+
 ## Il sito da un brief
 
-Per partire da zero, nella **Panoramica** un amministratore trova **Crea con l'AI**. Scrivi in poche righe cosa fa l'attività, per chi, dove e cosa deve ottenere il sito; se vuoi aggiungi fino a due immagini di un sito o di una grafica che ti piace, da cui l'AI prende atmosfera e colori, mai testi o marchi.
+Per partire da zero, nella **Panoramica** un amministratore trova **Sito da un brief**. Scrivi in poche righe cosa fa l'attività, per chi, dove e cosa deve ottenere il sito; se vuoi aggiungi fino a due immagini di un sito o di una grafica che ti piace, da cui l'AI prende atmosfera e colori, mai testi o marchi.
 
 L'AI pianifica un sito piccolo, di solito la home e due-quattro pagine, e le prepara una alla volta con le sezioni della libreria: stessa navigazione in alto e piè di pagina con i link tra le pagine, testi scritti per l'attività e titolo e descrizione per Google. Nella finestra vedi cosa sta facendo e le bozze man mano che nascono; un clic su una bozza la apre nell'editor.
 
