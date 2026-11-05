@@ -129,6 +129,15 @@ export const media = sqliteTable(
 )
 
 /** Messages sent from forms on the site, with what was filled in. */
+export interface SubmissionFile {
+  field: string
+  name: string
+  size: number
+  type: string
+  /** Inside the uploads folder: "<submission id>/<n>-<name>". */
+  path: string
+}
+
 export const submissions = sqliteTable(
   'submissions',
   {
@@ -139,8 +148,18 @@ export const submissions = sqliteTable(
     read: integer('read', { mode: 'boolean' }).notNull().default(false),
     mailed: integer('mailed', { mode: 'boolean' }).notNull().default(false),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /** The form's name when it was sent ("Contatti"). */
+    formName: text('form_name').notNull().default(''),
+    /** Why it looks like spam, in words; null for a real message. */
+    spam: text('spam'),
+    /** Files sent with it, kept privately next to the database. */
+    files: text('files', { mode: 'json' }).$type<SubmissionFile[]>(),
+    /** Hash of what was written: the same message twice in a day is spam. */
+    fingerprint: text('fingerprint'),
+    /** Whether the webhook took it: null when the form has none. */
+    webhook: text('webhook', { enum: ['ok', 'failed'] }),
   },
-  (t) => [index('submissions_created').on(t.createdAt)],
+  (t) => [index('submissions_created').on(t.createdAt), index('submissions_fingerprint').on(t.fingerprint)],
 )
 
 /** Notes left on a page in the editor, pinned to an element or to the whole page. */
@@ -425,5 +444,13 @@ export const MIGRATIONS: string[][] = [
       views INTEGER NOT NULL DEFAULT 0
     )`,
     'CREATE INDEX IF NOT EXISTS preview_links_document ON preview_links (document_id)',
+  ],
+  [
+    "ALTER TABLE submissions ADD COLUMN form_name TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE submissions ADD COLUMN spam TEXT',
+    'ALTER TABLE submissions ADD COLUMN files TEXT',
+    'ALTER TABLE submissions ADD COLUMN fingerprint TEXT',
+    'ALTER TABLE submissions ADD COLUMN webhook TEXT',
+    'CREATE INDEX IF NOT EXISTS submissions_fingerprint ON submissions (fingerprint)',
   ],
 ]

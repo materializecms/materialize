@@ -296,7 +296,7 @@ export function ContentPanel({
                         onChange={(e) => onContent(n.id, { text: e.target.value }, `text:${n.id}`)}
                         className={cx(input, 'h-8 text-[13px] font-medium')}
                       />
-                      {n.inputKind !== 'checkbox' && n.inputKind !== 'select' && (
+                      {n.inputKind !== 'checkbox' && n.inputKind !== 'select' && n.inputKind !== 'file' && (
                         <input
                           aria-label="Testo di esempio del campo"
                           value={n.placeholder ?? ''}

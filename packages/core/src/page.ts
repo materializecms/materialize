@@ -50,6 +50,90 @@ export const UNITS = ['px', '%', 'em', 'rem', 'vw', 'vh', 'ch'] as const
 const LENGTH = /^(-?\d*\.?\d+)(px|%|em|rem|vw|vh|svh|ch)$/
 
 /** A Length as CSS; anything that is not a plain number with a known unit is ignored. */
+/** What a contact form does with what it receives. */
+export interface FormSettings {
+  /** Shown in Impostazioni → Messaggi ("Contatti", "Preventivo"). */
+  name?: string
+  /** Subject of the email that arrives. */
+  subject?: string
+  /** Shown in place of the form once sent. */
+  success?: string
+  /** Who receives it, comma separated; empty: the address in Impostazioni → Email. */
+  to?: string
+  /** An email back to whoever wrote, when the form has an email field. */
+  autoReply?: { subject?: string; text?: string } | null
+  /** Each message is also posted here as JSON (Zapier, Make, n8n…). */
+  webhook?: string
+}
+
+export type FileAccept = 'documents' | 'images' | 'any'
+
+/** File extensions a form's file field takes, by kind. */
+export const FILE_TYPES: Record<FileAccept, string[]> = {
+  documents: [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.odt',
+    '.rtf',
+    '.txt',
+    '.csv',
+    '.xls',
+    '.xlsx',
+    '.ods',
+    '.ppt',
+    '.pptx',
+    '.odp',
+  ],
+  images: ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'],
+  any: [],
+}
+FILE_TYPES.any = [...FILE_TYPES.documents, ...FILE_TYPES.images, '.zip']
+
+/** At most this size for each file sent with a form. */
+export const FORM_FILE_MAX = 10 * 1024 * 1024
+
+/** The name a field's value arrives with: its own name, else its label. */
+export const inputName = (p: Pick<PageNode, 'fieldName' | 'text'>): string =>
+  (p.fieldName || p.text || 'campo').toString().slice(0, 60)
+
+export interface FormField {
+  name: string
+  label: string
+  kind: NonNullable<PageNode['inputKind']>
+  required: boolean
+  options?: string[]
+  accept?: FileAccept
+}
+
+export interface FormDefinition extends FormSettings {
+  id: string
+  fields: FormField[]
+}
+
+/** A form as the server checks it: its settings and the fields inside it, in page order. */
+export function formDefinition(node: PageNode): FormDefinition | null {
+  if (!node.form) return null
+  const fields: FormField[] = []
+  const seen = new Set<string>()
+  walk(node.children ?? [], (n) => {
+    if (n.type !== 'input' || n.hidden) return
+    const name = inputName(n)
+    if (seen.has(name)) return
+    seen.add(name)
+    const kind = n.inputKind ?? 'text'
+    fields.push({
+      name,
+      label: (n.text ?? name).toString(),
+      kind,
+      required: !!n.required,
+      ...(kind === 'select' ? { options: (n.options ?? []).filter(Boolean) } : {}),
+      ...(kind === 'file' ? { accept: n.accept ?? 'any' } : {}),
+    })
+  })
+  return { ...node.form, id: node.id, fields }
+}
+
 export function cssLength(v: Length | null | undefined, fallback = '0px'): string {
   if (v === null || v === undefined || v === '') return fallback
   if (typeof v === 'number') return Number.isFinite(v) ? `${v}px` : fallback
@@ -150,9 +234,11 @@ export interface NodeProps {
   /** Locked in the editor: not picked or moved on the canvas (still in the layers). */
   locked?: boolean
   /** A container that is a contact form: what it sends goes to the panel and by email. */
-  form?: { subject?: string; success?: string } | null
+  form?: FormSettings | null
   // input: a field of a form; its label is `text`
-  inputKind?: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox'
+  inputKind?: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'checkbox' | 'file'
+  /** file: which files it takes. */
+  accept?: FileAccept
   /** The name the value arrives with ("email", "messaggio"). */
   fieldName?: string
   placeholder?: string
@@ -1215,6 +1301,10 @@ const BASE_CSS = `
 .mz-page .mz-field:focus{border-color:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 15%,transparent)}
 .mz-page textarea.mz-field{resize:vertical;min-height:120px}
 .mz-page .mz-check{width:18px;height:18px;accent-color:currentColor}
+.mz-page .mz-file{padding:10px 12px;cursor:pointer}
+.mz-page .mz-file::file-selector-button{font:inherit;color:inherit;background:transparent;border:1px solid var(--mz-field-line);border-radius:var(--mz-field-r);padding:6px 12px;margin-right:12px;cursor:pointer}
+.mz-page .mz-field-error{display:block;font-size:.82em;color:#d4493f;padding-top:2px}
+.mz-page .mz-field[aria-invalid="true"]{border-color:#d4493f}
 .mz-page .mz-form-msg{font-size:.95em;padding-top:4px}
 .mz-page :where(button.mz-n){font:inherit;cursor:pointer;border:none}
 .mz-page .mz-more{display:flex;justify-content:center;width:100%;padding-top:32px}
@@ -1839,7 +1929,8 @@ export function renderSections(
         // A contact form: posted to the server (also without JavaScript); a trap field catches bots.
         const subject = p.form.subject ? `<input type="hidden" name="_subject" value="${esc(p.form.subject)}">` : ''
         const ok = esc(p.form.success || 'Grazie, abbiamo ricevuto il tuo messaggio.')
-        return `<form ${attrs.join(' ')} action="/api/forms/${esc(n.id)}" method="post" data-mz-form="${ok}">${subject}<input type="text" name="_gotcha" class="mz-trap" tabindex="-1" autocomplete="off" aria-hidden="true">${content}</form>${more}`
+        const files = content.includes('type="file"') ? ' enctype="multipart/form-data"' : ''
+        return `<form ${attrs.join(' ')} action="/api/forms/${esc(n.id)}" method="post"${files} data-mz-form="${ok}">${subject}<input type="text" name="_gotcha" class="mz-trap" tabindex="-1" autocomplete="off" aria-hidden="true">${content}</form>${more}`
       }
       return `<${tag} ${attrs.join(' ')}>${content}</${tag}>${more}`
     }
@@ -1878,7 +1969,7 @@ export function renderSections(
     }
     if (n.type === 'input') {
       const kind = p.inputKind ?? 'text'
-      const name = esc((p.fieldName || p.text || 'campo').toString().slice(0, 60))
+      const name = esc(inputName(p))
       const req = p.required ? ' required' : ''
       // On the canvas the fields are pictures of fields: clicking selects them.
       const still = options.editor ? ' tabindex="-1" readonly' : ''
@@ -1893,9 +1984,17 @@ export function renderSections(
         )
           .map((o) => `<option>${esc(o)}</option>`)
           .join('')}</select>`
-      else if (kind === 'checkbox')
-        return `<label ${attrs.join(' ')}><input type="checkbox" class="mz-check" name="${name}" value="sì"${req}${options.editor ? ' tabindex="-1"' : ''}>${label}</label>`
-      else field = `<input class="mz-field" type="${kind}" name="${name}"${ph}${req}${still}>`
+      else if (kind === 'checkbox') {
+        // With an address (the privacy policy), the label opens it in a new tab.
+        const text =
+          p.href && !options.editor
+            ? `<span class="mz-field-label"><a href="${esc(safeHref(p.href))}" target="_blank" rel="noopener">${esc(p.text ?? '')}</a>${p.required ? ' <span aria-hidden="true">*</span>' : ''}</span>`
+            : label
+        return `<label ${attrs.join(' ')}><input type="checkbox" class="mz-check" name="${name}" value="sì"${req}${options.editor ? ' tabindex="-1"' : ''}>${text}</label>`
+      } else if (kind === 'file') {
+        const accept = FILE_TYPES[p.accept ?? 'any'].join(',')
+        field = `<input class="mz-field mz-file" type="file" name="${name}" accept="${accept}"${req}${options.editor ? ' tabindex="-1" disabled' : ''}>`
+      } else field = `<input class="mz-field" type="${kind}" name="${name}"${ph}${req}${still}>`
       return `<label ${attrs.join(' ')}>${label}${field}</label>`
     }
     if (n.type === 'icon') {

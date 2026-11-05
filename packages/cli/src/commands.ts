@@ -331,6 +331,7 @@ async function restore(args: string[]): Promise<void> {
 
   const mediaDir = resolve(config.media.dir)
   const fontsDir = join(dirname(mediaDir), 'fonts')
+  const uploadsDir = join(dirname(mediaDir), 'uploads')
   const db = local ? resolve(config.database.url.slice('file:'.length)) : null
   let kept: string | null = null
   // The images the backup uses, read before it replaces the database (one connection, opened once).
@@ -366,13 +367,18 @@ async function restore(args: string[]): Promise<void> {
       if (media && !media.startsWith('.')) return join(mediaDir, media)
       const font = /^fonts\/(.+)$/.exec(name)?.[1]
       if (font && !font.split('/').some((part) => part === '..' || part.startsWith('.'))) return join(fontsDir, font)
+      // Files sent with the forms: "<message id>/<n>-<name>".
+      const upload = /^uploads\/([\w-]+\/[^/\\]+)$/.exec(name)?.[1]
+      if (upload && !upload.split('/').some((part) => part === '..' || part.startsWith('.')))
+        return join(uploadsDir, upload)
       return null
     })
     const media = written.filter((n) => n.startsWith('media/')).length
+    const uploads = written.filter((n) => n.startsWith('uploads/')).length
     console.log(`  ${ok('✓')} Archivio ripristinato: ${relative(process.cwd(), resolve(file))}`)
     console.log(
       dim(
-        `  ${written.includes('content.db') ? 'Database, ' : ''}${media} file dei media, ${written.length - media - (written.includes('content.db') ? 1 : 0)} file dei caratteri.`,
+        `  ${written.includes('content.db') ? 'Database, ' : ''}${media} file dei media, ${written.length - media - uploads - (written.includes('content.db') ? 1 : 0)} file dei caratteri, ${uploads} allegati dei moduli.`,
       ),
     )
   } else if (db) {

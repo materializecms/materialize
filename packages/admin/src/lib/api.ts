@@ -362,11 +362,25 @@ export type ChatEvent =
 export interface Submission {
   id: string
   form: string
+  /** The form's name when it was sent ("Contatti"). */
+  formName: string
   page: string
   data: Record<string, string>
   read: boolean
   mailed: boolean
+  /** Why it looks like spam; null for a real message. */
+  spam: string | null
+  files: { field: string; name: string; size: number; type: string }[]
+  webhook: 'ok' | 'failed' | null
   createdAt: string
+}
+
+export type SubmissionQuery = {
+  limit?: number
+  offset?: number
+  form?: string
+  status?: 'unread' | 'spam'
+  q?: string
 }
 
 export interface PageComment {
@@ -661,9 +675,22 @@ export const api = {
       }
     }
   },
-  submissions: (params: { limit?: number; offset?: number } = {}) =>
-    request<{ items: Submission[]; total: number; unread: number }>('GET', `/submissions${q(params)}`),
+  submissions: (params: SubmissionQuery = {}) =>
+    request<{
+      items: Submission[]
+      total: number
+      unread: number
+      spam: number
+      forms: { form: string; name: string; total: number }[]
+    }>('GET', `/submissions${q(params)}`),
   markSubmission: (id: string, read: boolean) => request<{ ok: true }>('PATCH', `/submissions/${id}`, { read }),
+  markSpam: (id: string, spam: boolean) => request<{ ok: true }>('PATCH', `/submissions/${id}`, { spam }),
+  /** Address of a file sent with a message (downloaded, never opened in the panel). */
+  submissionFile: (id: string, n: number) => `/api/submissions/${id}/files/${n}`,
+  submissionsCsv: (params: SubmissionQuery = {}) => `/api/submissions/export.csv${q(params)}`,
+  formsSettings: () => request<{ keepMonths: number | null; webhookSecret: string | null }>('GET', '/forms/settings'),
+  saveFormsSettings: (keepMonths: number | null) =>
+    request<{ keepMonths: number | null }>('PUT', '/forms/settings', { keepMonths }),
   removeSubmission: (id: string) => request<void>('DELETE', `/submissions/${id}`),
   templates: () => request<{ templates: Record<string, string> }>('GET', '/templates'),
   seo: () => request<{ seo: SiteSeo }>('GET', '/seo'),

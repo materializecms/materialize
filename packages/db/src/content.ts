@@ -335,7 +335,8 @@ export function createContentStore(db: Db) {
             title: input.title,
             slug: input.slug,
             data: input.data,
-            hasChanges: true,
+            // Back to what is on the site (an undo, say): nothing left to publish.
+            hasChanges: sql`coalesce(${documents.publishedData} != ${JSON.stringify(input.data)}, 1)`,
             updatedAt: new Date(),
             updatedBy: input.userId,
           })

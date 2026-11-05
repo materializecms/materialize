@@ -34,4 +34,10 @@ export {
   type ScheduleStore,
 } from './schedules.ts'
 export { createSettingsStore, type SettingsStore } from './settings.ts'
-export { createSubmissionStore, type Submission, type SubmissionStore } from './submissions.ts'
+export {
+  createSubmissionStore,
+  type Submission,
+  type SubmissionFile,
+  type SubmissionFilter,
+  type SubmissionStore,
+} from './submissions.ts'

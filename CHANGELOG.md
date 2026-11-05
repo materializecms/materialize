@@ -9,6 +9,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 - **Pronto per le ricerche AI**: il sito pubblica `llms.txt`, l'indice per ChatGPT, Claude, Perplexity e gli altri assistenti, e una copia in Markdown di ogni pagina (per esempio `/chi-siamo.md`), più facile da leggere e citare. Si spegne in Impostazioni → SEO.
 - **Feed RSS** su `/rss.xml` con gli ultimi articoli, annunciato in ogni pagina; in Impostazioni → SEO si scelgono le raccolte.
 - **Blocco dei crawler AI più preciso**: blocca solo chi addestra modelli; le ricerche AI (ChatGPT Search, Claude, Perplexity) restano libere, perché portano visitatori. Prima PerplexityBot veniva bloccato.
+- **Moduli più robusti**: antispam senza CAPTCHA (lo spam va in una cartella recuperabile), controlli dei campi anche sul server con il motivo accanto al campo, **file allegati** privati, destinatari per modulo, **risposta automatica** a chi scrive, **webhook** firmato per Zapier, Make e n8n. In Impostazioni → Messaggi: filtri per modulo, da leggere e spam, ricerca, **esportazione CSV** e cancellazione automatica dei messaggi vecchi. La casella da spuntare può aprire l'informativa privacy.
+- Una pagina riportata com'è sul sito (per esempio con ⌘Z) non risulta più «Modifiche da pubblicare».
 
 ## 0.4.0 — 2026-11-03
 

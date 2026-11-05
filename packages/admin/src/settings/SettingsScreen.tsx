@@ -1,11 +1,10 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, Mail, Settings, Trash2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Mail, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { DocumentScreen } from '../app/DocumentScreen.tsx'
-import { cx, EmptyState, IconButton, ScreenHeader, Spinner } from '../components/ui.tsx'
+import { cx, EmptyState, ScreenHeader, Spinner } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
-import { fullDate, relativeTime } from '../lib/format.ts'
 import { navigate } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { About } from './About.tsx'
@@ -13,6 +12,7 @@ import { AiScreen } from './AiSettings.tsx'
 import { ImportWordPress } from './ImportWordPress.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
 import { MailForm } from './MailSettings.tsx'
+import { Messages } from './Messages.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
 import { TrackingSettings } from './TrackingSettings.tsx'
@@ -185,77 +185,5 @@ function SingleDocument({ collection }: { collection: CollectionDescription }) {
       id={list.data?.items[0]?.id ?? null}
       embedded
     />
-  )
-}
-
-function Messages({ canDelete }: { canDelete: boolean }) {
-  const queryClient = useQueryClient()
-  const list = useQuery({ queryKey: ['submissions'], queryFn: () => api.submissions({ limit: 100 }) })
-  const [open, setOpen] = useState<string | null>(null)
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['submissions'] })
-
-  if (list.isLoading) return <Spinner />
-  const items = list.data?.items ?? []
-  if (!items.length)
-    return (
-      <EmptyState icon={<Inbox />} title="Nessun messaggio">
-        Qui arrivano i messaggi dei moduli di contatto del sito.
-      </EmptyState>
-    )
-  return (
-    <ul className="mx-auto max-w-3xl divide-y divide-line px-5 py-4">
-      {items.map((m) => {
-        const from = m.data.nome || m.data.name || m.data.email || 'Messaggio'
-        const preview = m.data.messaggio || m.data.message || Object.values(m.data).join(' · ')
-        const expanded = open === m.id
-        return (
-          <li key={m.id} className="py-3">
-            <div className="flex items-start gap-3">
-              <span className={`mt-1.5 size-2 shrink-0 rounded-full ${m.read ? 'bg-transparent' : 'bg-accent'}`} />
-              <button
-                type="button"
-                className="min-w-0 flex-1 text-left"
-                onClick={() => {
-                  setOpen(expanded ? null : m.id)
-                  if (!m.read) api.markSubmission(m.id, true).then(refresh)
-                }}
-              >
-                <div className="flex items-baseline gap-2">
-                  <span className={`truncate text-[14px] ${m.read ? '' : 'font-semibold'}`}>{from}</span>
-                  <span className="shrink-0 text-[12px] text-fg3" title={fullDate(m.createdAt)}>
-                    {relativeTime(m.createdAt)}
-                  </span>
-                  {m.mailed && <span className="shrink-0 text-[12px] text-fg3">· inviato per email</span>}
-                </div>
-                {!expanded && <p className="truncate text-[13px] text-fg2">{preview}</p>}
-              </button>
-              {canDelete && (
-                <IconButton
-                  label="Elimina il messaggio"
-                  onClick={async () => {
-                    if (!confirm('Eliminare questo messaggio?')) return
-                    await api.removeSubmission(m.id)
-                    refresh()
-                  }}
-                >
-                  <Trash2 />
-                </IconButton>
-              )}
-            </div>
-            {expanded && (
-              <dl className="mt-2 ml-5 space-y-2 rounded-lg border border-line bg-panel2 p-3 text-[14px]">
-                {Object.entries(m.data).map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="text-[12px] font-medium text-fg3">{k}</dt>
-                    <dd className="whitespace-pre-wrap">{v}</dd>
-                  </div>
-                ))}
-                {m.page && <div className="text-[12px] text-fg3">Dalla pagina {m.page}</div>}
-              </dl>
-            )}
-          </li>
-        )
-      })}
-    </ul>
   )
 }

@@ -94,6 +94,7 @@ const CONTENT_KEYS = new Set<string>([
   'locked',
   'form',
   'inputKind',
+  'accept',
   'fieldName',
   'placeholder',
   'required',

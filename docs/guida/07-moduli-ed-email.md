@@ -4,14 +4,55 @@
 
 Nella scheda **Aggiungi** dell'editor ci sono sezioni **Contatti** già con il modulo. Oppure si costruisce a mano: un contenitore con dentro i **campi di un modulo** (tasto **K**) e un pulsante.
 
-Tipi di campo: testo breve, email, telefono, messaggio lungo, scelta da un elenco (una scelta per riga), casella da spuntare. Ogni campo può essere obbligatorio.
+Tipi di campo: testo breve, email, telefono, messaggio lungo, scelta da un elenco (una scelta per riga), casella da spuntare, **file allegato**. Ogni campo può essere obbligatorio.
 
-Il modulo si invia senza ricaricare la pagina, e funziona anche nei browser senza JavaScript.
+Il modulo si invia senza ricaricare la pagina, e funziona anche nei browser senza JavaScript. Il server ricontrolla tutto: se un campo obbligatorio è vuoto, un'email non è valida o un file è del tipo sbagliato, il motivo compare accanto al campo.
+
+### Le impostazioni del modulo
+
+Seleziona il contenitore del modulo: nell'inspector, sotto **Modulo di contatto**, trovi:
+
+- **Nome**: come lo riconosci tra i messaggi, per esempio «Contatti» o «Preventivo».
+- **Oggetto** dell'email che ricevi e **Dopo l'invio**, il messaggio che vede chi ha scritto.
+- **Invia a**: uno o più indirizzi separati da virgole. Vuoto, i messaggi vanno al destinatario di Impostazioni → Email.
+- **Risposta automatica a chi scrive**: un'email con oggetto e testo tuoi, mandata all'indirizzo scritto nel modulo. Non ripete mai ciò che è stato inviato.
+- **Webhook**: ogni messaggio arriva anche a questo indirizzo, in JSON, per collegarlo a Zapier, Make, n8n o a un CRM.
+
+**Invia a** e **Webhook** li cambia solo un amministratore, perché decidono dove finiscono i dati di chi scrive.
+
+### File allegati
+
+Il campo **File allegato** accetta documenti (PDF, Word, Excel, OpenDocument, testo), immagini (JPG, PNG, WebP, HEIC) o entrambi, fino a 10 MB per file. I file restano privati: non stanno nella libreria media e non sono raggiungibili dal sito. Li scarichi aprendo il messaggio; l'email ti avvisa che ci sono.
+
+### Consenso privacy
+
+Aggiungi un campo **Casella da spuntare**, obbligatorio, con un'etichetta come «Ho letto l'informativa privacy», e nel campo **Link** l'indirizzo della pagina dell'informativa (per esempio `/privacy`): l'etichetta la apre in una nuova scheda.
+
+## Spam
+
+Materialize ferma lo spam senza CAPTCHA, quindi senza far perdere tempo a chi scrive davvero:
+
+- un **campo nascosto** che solo i bot compilano: questi messaggi vengono scartati;
+- un modulo compilato in **meno di 3 secondi**;
+- messaggi con **più di tre link** o con **link nascosti** nel testo;
+- lo **stesso messaggio** arrivato due volte nello stesso giorno;
+- al massimo **5 invii al minuto** dallo stesso indirizzo.
+
+Tranne quelli del campo nascosto, i messaggi sospetti vanno nella cartella **Spam** di Impostazioni → Messaggi, con il motivo. Non arrivano per email e non partono verso il webhook. Se uno è finito lì per errore, il pulsante con lo scudo lo rimette tra i messaggi.
 
 ## Dove arrivano i messaggi
 
-- Sempre in **Impostazioni → Messaggi**, con il numero dei non letti accanto alla voce.
+- Sempre in **Impostazioni → Messaggi**, con il numero dei non letti accanto alla voce. Qui li filtri per modulo, **Da leggere** o **Spam**, li cerchi per parola e li esporti in un foglio di calcolo con **CSV** (si apre con Excel, Numbers o Fogli Google).
 - Anche per **email**, se l'invio delle email è configurato (qui sotto).
+- Al **webhook** del modulo, se l'hai indicato.
+
+### Per quanto restano
+
+In fondo a Impostazioni → Messaggi scegli se cancellare da soli i messaggi più vecchi di **6 mesi**, **1 anno** o **2 anni**, con i loro allegati. Il GDPR chiede di conservare i dati personali solo per il tempo che serve.
+
+### Webhook, per chi sviluppa
+
+Il webhook riceve una `POST` con un JSON: `id`, `form` (`id` e `name`), `page`, `data` (i campi), `files` (nome e peso degli allegati, che restano nel pannello) e `createdAt`. L'intestazione `X-Materialize-Signature: sha256=…` è l'HMAC SHA-256 del corpo con la **chiave dei webhook** mostrata agli amministratori in Impostazioni → Messaggi: confrontala per essere sicuro che la chiamata arrivi dal tuo sito. Se il destinatario non risponde, Materialize riprova due volte nei minuti successivi; il messaggio indica se il webhook non è riuscito.
 
 ## Configurare l'email
 

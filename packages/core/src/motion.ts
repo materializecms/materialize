@@ -199,10 +199,13 @@ export interface MotionOptions {
 
 /**
  * Contact forms: sent without leaving the page, with the form's message once received. Without
- * JavaScript the browser posts them itself and comes back with #inviato.
+ * JavaScript the browser posts them itself and comes back with #inviato (or #non-inviato).
+ * Fields the server refuses say why next to themselves; the time spent on the page goes along,
+ * because bots fill a form in a moment.
  */
 function forms(root: ParentNode): () => void {
   const list = [...root.querySelectorAll<HTMLFormElement>('form[data-mz-form]')]
+  const opened = Date.now()
   const done = (form: HTMLFormElement, text: string, failed = false) => {
     let msg = form.querySelector<HTMLElement>(':scope > .mz-form-msg')
     if (!msg) {
@@ -216,26 +219,67 @@ function forms(root: ParentNode): () => void {
     if (!failed)
       for (const el of form.querySelectorAll<HTMLElement>(':scope > :not(.mz-form-msg)')) el.style.display = 'none'
   }
+  const clearErrors = (form: HTMLFormElement) => {
+    for (const el of form.querySelectorAll('.mz-field-error')) el.remove()
+    for (const el of form.querySelectorAll('[aria-invalid]')) el.removeAttribute('aria-invalid')
+  }
+  const showErrors = (form: HTMLFormElement, issues: { field: string; message: string }[]) => {
+    let first: HTMLElement | null = null
+    for (const issue of issues) {
+      const field = [...form.elements].find(
+        (el): el is HTMLInputElement => (el as HTMLInputElement).name === issue.field,
+      )
+      if (!field) continue
+      field.setAttribute('aria-invalid', 'true')
+      const note = document.createElement('span')
+      note.className = 'mz-field-error'
+      note.textContent = issue.message
+      ;(field.closest('label') ?? field).append(note)
+      first ??= field
+    }
+    first?.focus()
+  }
   if (location.hash === '#inviato') for (const f of list) done(f, f.dataset.mzForm ?? '')
+  if (location.hash === '#non-inviato')
+    for (const f of list) done(f, 'Invio non riuscito: controlla i campi e riprova.', true)
   const onSubmit = async (e: Event) => {
     const form = e.target as HTMLFormElement
     if (!list.includes(form)) return
     e.preventDefault()
-    const data = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v)]))
-    data._page = location.pathname
+    clearErrors(form)
+    const data = new FormData(form)
+    data.set('_page', location.pathname)
+    data.set('_t', String(Date.now() - opened))
+    const withFiles = [...data.values()].some((v) => typeof v !== 'string' && v.size > 0)
     const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')
     if (button) button.disabled = true
     try {
       const res = await fetch(form.action, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: { accept: 'application/json', ...(withFiles ? {} : { 'content-type': 'application/json' }) },
+        body: withFiles ? data : JSON.stringify(Object.fromEntries([...data].filter(([, v]) => typeof v === 'string'))),
       })
+      if (res.status === 422) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: { message?: string; issues?: { field: string; message: string }[] }
+        } | null
+        showErrors(form, body?.error?.issues ?? [])
+        done(form, body?.error?.message ?? 'Controlla i campi evidenziati.', true)
+        return
+      }
       if (!res.ok) throw new Error(String(res.status))
       done(form, form.dataset.mzForm ?? '')
     } catch (error) {
-      const tooMany = error instanceof Error && error.message === '429'
-      done(form, tooMany ? 'Troppi invii ravvicinati: riprova tra un minuto.' : 'Invio non riuscito: riprova.', true)
+      const status = error instanceof Error ? error.message : ''
+      done(
+        form,
+        status === '429'
+          ? 'Troppi invii ravvicinati: riprova tra un minuto.'
+          : status === '413'
+            ? 'Gli allegati sono troppo grandi.'
+            : 'Invio non riuscito: riprova.',
+        true,
+      )
     } finally {
       if (button) button.disabled = false
     }

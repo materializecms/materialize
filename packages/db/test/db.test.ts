@@ -44,6 +44,10 @@ describe('documents', () => {
     const edited = await content.update(doc.id, { title: 'Casa', slug: 'home', data: { title: 'Casa', slug: 'home' } })
     expect(edited?.status).toBe('changed')
     expect(edited?.publishedData).toEqual({ title: 'Home', slug: 'home' })
+
+    // Edited back to what is on the site (an undo): nothing left to publish.
+    const back = await content.update(doc.id, { title: 'Home', slug: 'home', data: { title: 'Home', slug: 'home' } })
+    expect(back?.status).toBe('published')
   })
 
   it('rejects a slug already used in the same collection and locale', async () => {

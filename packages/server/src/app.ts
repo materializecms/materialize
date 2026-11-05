@@ -27,7 +27,17 @@ import {
   withLocales,
 } from '@materializecms/core/i18n'
 import { senderDomain } from '@materializecms/core/mail'
-import { normalizeTheme, type PageNode, sameDesign } from '@materializecms/core/page'
+import {
+  type Component,
+  expandComponents,
+  expandGlobals,
+  type FormDefinition,
+  formDefinition,
+  normalizeTheme,
+  type PageNode,
+  sameDesign,
+  walk,
+} from '@materializecms/core/page'
 import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { TRACKING_PATTERNS, type TrackingSettings, trackingBlocks } from '@materializecms/core/tracking'
 import {
@@ -82,6 +92,15 @@ import {
 import { type ArchiveEntry, folderEntries, tarGz } from './archive.ts'
 import { type BackupSettings, createBackups, DEFAULT_BACKUPS } from './backups.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
+import {
+  type FormsSettings,
+  fingerprintOf,
+  readSubmission,
+  removeFiles,
+  saveFiles,
+  sendWebhook,
+  spamReason,
+} from './forms.ts'
 import {
   checkSenderDomain,
   explainMailError,
@@ -144,12 +163,19 @@ const linkPath = (token: string) => `/admin/_invite/${token}`
 /** `viaToken`: signed in with a personal access token (an MCP client, a script) instead of the panel's cookie. */
 type Env = { Variables: { user: User; viaToken?: boolean } }
 
-/** The custom code blocks in a document: it runs on the public site, so only admins may change it. */
+/**
+ * The custom code blocks in a document (it runs on the public site) and where its forms send
+ * their messages: only admins may change them.
+ */
 function embedsOf(value: unknown, out: string[] = []): string[] {
   if (Array.isArray(value)) for (const v of value) embedsOf(v, out)
   else if (value && typeof value === 'object') {
     const node = value as Record<string, unknown>
     if (node.type === 'embed' && typeof node.id === 'string') out.push(`${node.id}:${String(node.html ?? '')}`)
+    // Where a form's messages go: someone who only edits pages must not divert them.
+    const form = node.form as { to?: string; webhook?: string } | null | undefined
+    if (form && typeof node.id === 'string' && (form.to || form.webhook))
+      out.push(`form:${node.id}:${form.to ?? ''}:${form.webhook ?? ''}`)
     for (const v of Object.values(node)) if (v && typeof v === 'object') embedsOf(v, out)
   }
   return out
@@ -416,6 +442,14 @@ export function createApp(base: ServerContext) {
   const files = createMediaFiles(ctx.config().media.dir)
   // Fonts are cached next to the media library (.materialize/fonts by default).
   const fonts = createFonts(join(dirname(resolve(ctx.config().media.dir)), 'fonts'))
+  // Files sent with the site's forms: next to the database, never served by the public site.
+  const uploadsDir = join(dirname(resolve(ctx.config().media.dir)), 'uploads')
+  let formCache: { at: number; forms: Map<string, FormDefinition> } | null = null
+  /** The live site changed: rebuild it, and read its forms again. */
+  const sitePublished = () => {
+    formCache = null
+    ctx.onPublish?.()
+  }
   const app = new Hono<Env>()
 
   const guardEmbeds = (user: User, before: unknown, after: unknown) => {
@@ -424,7 +458,7 @@ export function createApp(base: ServerContext) {
       throw new ApiError(
         403,
         'embed_admin_only',
-        'Solo un amministratore può aggiungere o modificare il codice personalizzato',
+        'Solo un amministratore può modificare il codice personalizzato e dove arrivano i messaggi dei moduli',
       )
   }
 
@@ -757,7 +791,7 @@ export function createApp(base: ServerContext) {
       ? await content.update(existing.id, draft)
       : await content.create({ collection: def.name, locale: lang, ...draft })
     if (doc) await content.publish(doc.id)
-    ctx.onPublish?.()
+    sitePublished()
   }
 
   /** The site's name as set in the panel (the settings singleton, published), else the config's. */
@@ -1296,6 +1330,7 @@ export function createApp(base: ServerContext) {
     const mediaDir = resolve(ctx.config().media.dir)
     entries.push(...(await folderEntries(mediaDir, 'media')))
     entries.push(...(await folderEntries(join(dirname(mediaDir), 'fonts'), 'fonts')))
+    entries.push(...(await folderEntries(uploadsDir, 'uploads')))
     const manifest = join(work, 'materialize.json')
     await writeFile(
       manifest,
@@ -1774,7 +1809,7 @@ export function createApp(base: ServerContext) {
     const input = await body(c, z.object({ theme: z.record(z.string(), z.unknown()) }))
     const theme = normalizeTheme(input.theme)
     await settings.set('theme', theme, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     await record(c, 'settings.theme')
     return c.json({ theme })
   })
@@ -1840,7 +1875,7 @@ export function createApp(base: ServerContext) {
           .map(([id, n]) => [id, n as unknown as PageNode]),
       )
       await settings.set(`globals:${lang}`, words, c.get('user').id)
-      ctx.onPublish?.()
+      sitePublished()
       return c.json({ globals: await globalsIn(lang) })
     }
     const before = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
@@ -1863,7 +1898,7 @@ export function createApp(base: ServerContext) {
       ids.map((id) => (input.globals[id] as PageNode | undefined) ?? { id, type: 'frame' }),
     )
     await settings.set('globals', input.globals, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     return c.json({ globals: input.globals })
   })
 
@@ -2274,61 +2309,251 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     })
   })
 
-  app.post('/api/forms/:form', async (c) => {
-    const form = c.req.param('form').slice(0, 80)
-    const ip = clientIp(c)
-    if (!allowForm(`${ip}:${form}`))
-      throw new ApiError(429, 'too_many_attempts', 'Troppi messaggi: riprova tra un minuto')
-    const isJson = (c.req.header('content-type') ?? '').includes('application/json')
-    const raw = (isJson ? await c.req.json().catch(() => ({})) : await c.req.parseBody()) as Record<string, unknown>
-    const page = typeof raw._page === 'string' ? raw._page.slice(0, 300) : (c.req.header('referer') ?? '').slice(0, 300)
-    // A field people never see: bots fill it in.
-    const trap = typeof raw._gotcha === 'string' && raw._gotcha.length > 0
-    const data: Record<string, string> = {}
-    for (const [k, v] of Object.entries(raw)) {
-      if (k.startsWith('_') || typeof v !== 'string' || Object.keys(data).length >= 30) continue
-      data[k.slice(0, 80)] = v.slice(0, 5000)
-    }
-    if (!trap && Object.values(data).some((v) => v.trim())) {
-      const saved = await submissions.add({ form, page, data })
-      const mail = await settings.get<MailSettings>('mail')
-      if (isConfigured(mail) && mail.to) {
-        const replyTo = Object.entries(data).find(([k, v]) => /mail/i.test(k) && /^[^\s@]+@[^\s@]+$/.test(v))?.[1]
-        sendMail(mail, {
-          to: mail.to,
-          subject: `Nuovo messaggio dal sito${typeof raw._subject === 'string' ? `: ${raw._subject.slice(0, 120)}` : ''}`,
-          text: submissionText(page, data),
-          replyTo,
-        })
-          .then(() => submissions.markMailed(saved.id))
-          .catch((error) => console.error('Materialize: email not sent', error))
+  // ---------- forms ----------
+
+  /**
+   * Every form on the published site, by id, as the server checks it: canvas pages with their
+   * shared sections and components expanded, like the site renders them. Kept a minute.
+   */
+  const publishedForms = async (): Promise<Map<string, FormDefinition>> => {
+    if (formCache && Date.now() - formCache.at < 60_000) return formCache.forms
+    const forms = new Map<string, FormDefinition>()
+    const globals = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
+    const components = (await settings.get<Record<string, Component>>('components')) ?? {}
+    const collect = (nodes: PageNode[]) =>
+      walk(expandComponents(expandGlobals(nodes, globals), components), (n) => {
+        const def = formDefinition(n)
+        if (def && !forms.has(def.id)) forms.set(def.id, def)
+      })
+    for (const def of ctx.config().collections) {
+      const pageFields = Object.entries(def.fields)
+        .filter(([, f]) => f.kind === 'page')
+        .map(([name]) => name)
+      if (!pageFields.length) continue
+      for (const doc of await content.published(def.name)) {
+        for (const name of pageFields) {
+          const nodes = doc.publishedData?.[name]
+          if (Array.isArray(nodes)) collect(nodes as PageNode[])
+        }
       }
     }
-    // Without JavaScript the browser posted the form itself: back to the page, marked as sent.
-    if (!isJson) {
+    collect(Object.values(globals))
+    formCache = { at: Date.now(), forms }
+    return forms
+  }
+
+  const formsSettings = async (): Promise<FormsSettings> => (await settings.get<FormsSettings>('forms')) ?? {}
+  /** The secret that signs webhook calls, made the first time it is needed. */
+  const webhookSecret = async () => {
+    const current = await formsSettings()
+    if (current.webhookSecret) return current.webhookSecret
+    const secret = `whsec_${randomBytes(24).toString('base64url')}`
+    await settings.set('forms', { ...current, webhookSecret: secret })
+    return secret
+  }
+
+  app.post(
+    '/api/forms/:form',
+    bodyLimit({
+      maxSize: 25 * 1024 * 1024,
+      onError: () => {
+        throw new ApiError(413, 'file_too_large', 'Gli allegati sono troppo grandi')
+      },
+    }),
+    async (c) => {
+      const form = c.req.param('form').slice(0, 80)
+      const ip = clientIp(c)
+      if (!allowForm(`${ip}:${form}`))
+        throw new ApiError(429, 'too_many_attempts', 'Troppi messaggi: riprova tra un minuto')
+      const type = c.req.header('content-type') ?? ''
+      const isJson = type.includes('application/json')
+      const wantsJson = isJson || (c.req.header('accept') ?? '').includes('application/json')
+      const raw = (isJson ? await c.req.json().catch(() => ({})) : await c.req.parseBody()) as Record<string, unknown>
+      const page =
+        typeof raw._page === 'string' ? raw._page.slice(0, 300) : (c.req.header('referer') ?? '').slice(0, 300)
       const back = (c.req.header('referer') ?? '/').split('#')[0]
-      return c.redirect(`${back}#inviato`, 303)
-    }
-    return c.json({ ok: true })
+      // A field people never see: bots fill it in. They get the same answer as everyone.
+      if (typeof raw._gotcha === 'string' && raw._gotcha.length > 0)
+        return wantsJson ? c.json({ ok: true }) : c.redirect(`${back}#inviato`, 303)
+
+      const def = (await publishedForms()).get(form) ?? null
+      const { data, files, issues } = await readSubmission(raw, def)
+      if (issues.length) {
+        if (!wantsJson) return c.redirect(`${back}#non-inviato`, 303)
+        return c.json({ error: { code: 'invalid', message: 'Controlla i campi evidenziati', issues } }, 422)
+      }
+      if (!Object.values(data).some((v) => v.trim()) && !files.length)
+        return wantsJson ? c.json({ ok: true }) : c.redirect(`${back}#inviato`, 303)
+
+      const elapsed = typeof raw._t === 'string' && /^\d+$/.test(raw._t) ? Number(raw._t) : null
+      const fingerprint = fingerprintOf(form, data)
+      const spam =
+        spamReason(data, elapsed) ??
+        ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? 'Messaggio ripetuto' : null)
+      const formName = def?.name?.trim() || def?.subject?.trim() || ''
+      const saved = await submissions.add({ form, formName, page, data, spam, fingerprint })
+      if (files.length) await submissions.setFiles(saved.id, await saveFiles(uploadsDir, saved.id, files))
+
+      // Spam stays in the panel, recoverable, but nobody is notified.
+      if (!spam) {
+        const mail = await settings.get<MailSettings>('mail')
+        const to = (def?.to || mail?.to || '').trim()
+        const sender = Object.entries(data).find(
+          ([k, v]) =>
+            (def?.fields.find((f) => f.name === k)?.kind === 'email' || /mail/i.test(k)) && /^[^\s@]+@[^\s@]+$/.test(v),
+        )?.[1]
+        if (isConfigured(mail) && to) {
+          const subject = def?.subject || (typeof raw._subject === 'string' ? raw._subject.slice(0, 120) : '')
+          const attached = files.length
+            ? `\n\nAllegati (${files.map((f) => f.name).join(', ')}): li trovi in Impostazioni → Messaggi.`
+            : ''
+          sendMail(mail, {
+            to,
+            subject: `Nuovo messaggio dal sito${subject ? `: ${subject}` : ''}`,
+            text: submissionText(page, data) + attached,
+            replyTo: sender,
+          })
+            .then(() => submissions.markMailed(saved.id))
+            .catch((error) => console.error('Materialize: email not sent', error))
+          // An answer to whoever wrote: the site's own words only, never what was sent.
+          if (sender && def?.autoReply?.text?.trim())
+            sendMail(mail, {
+              to: sender,
+              subject: def.autoReply.subject?.trim() || 'Abbiamo ricevuto il tuo messaggio',
+              text: def.autoReply.text,
+              replyTo: to.split(',')[0]?.trim(),
+            }).catch((error) => console.error('Materialize: automatic reply not sent', error))
+        }
+        if (def?.webhook) {
+          const payload = {
+            id: saved.id,
+            form: { id: form, name: formName },
+            page,
+            data,
+            files: files.map((f) => ({ field: f.field, name: f.name, size: f.bytes.length })),
+            createdAt: saved.createdAt.toISOString(),
+          }
+          void webhookSecret()
+            .then((secret) => sendWebhook(def.webhook as string, payload, secret))
+            .then((ok) => submissions.setWebhook(saved.id, ok ? 'ok' : 'failed'))
+            .catch((error) => console.error('Materialize: webhook not sent', error))
+        }
+      }
+      // Without JavaScript the browser posted the form itself: back to the page, marked as sent.
+      return wantsJson ? c.json({ ok: true }) : c.redirect(`${back}#inviato`, 303)
+    },
+  )
+
+  const filterOf = (c: Context) => ({
+    form: c.req.query('form') || undefined,
+    status: (['unread', 'spam'] as const).find((s) => s === c.req.query('status')),
+    q: c.req.query('q')?.slice(0, 200) || undefined,
   })
 
   app.get('/api/submissions', requireUser, async (c) => {
     const limit = Math.min(Number(c.req.query('limit') ?? 50), 200)
     const offset = Math.max(Number(c.req.query('offset') ?? 0), 0)
-    return c.json(await submissions.list(limit, offset))
+    return c.json({
+      ...(await submissions.list(limit, offset, filterOf(c))),
+      forms: await submissions.forms(),
+    })
+  })
+
+  /** The messages as a spreadsheet (one column per field), with the filters of the list. */
+  app.get('/api/submissions/export.csv', requireUser, async (c) => {
+    const { items } = await submissions.list(10_000, 0, filterOf(c))
+    const fields = [...new Set(items.flatMap((m) => Object.keys(m.data)))]
+    const cell = (v: string) => {
+      // A leading =, +, - or @ would run as a formula in a spreadsheet.
+      const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v
+      return /[",\n;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+    }
+    const rows = [
+      ['Data', 'Modulo', 'Pagina', ...fields],
+      ...items.map((m) => [
+        m.createdAt.toISOString(),
+        m.formName || m.form,
+        m.page,
+        ...fields.map((f) => m.data[f] ?? ''),
+      ]),
+    ]
+    await record(c, 'message.exported', '', { count: items.length })
+    // With the byte order mark, Excel reads accented letters right.
+    return new Response(`﻿${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`, {
+      headers: {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': `attachment; filename="messaggi-${new Date().toISOString().slice(0, 10)}.csv"`,
+        'cache-control': 'no-store',
+      },
+    })
   })
 
   app.patch('/api/submissions/:id', requireUser, async (c) => {
-    const input = await body(c, z.object({ read: z.boolean() }))
-    await submissions.markRead(c.req.param('id'), input.read)
+    const input = await body(c, z.object({ read: z.boolean().optional(), spam: z.boolean().optional() }))
+    const id = c.req.param('id')
+    if (input.read !== undefined) await submissions.markRead(id, input.read)
+    if (input.spam !== undefined) await submissions.markSpam(id, input.spam ? 'Segnato a mano' : null)
     return c.json({ ok: true })
+  })
+
+  /** A file sent with a message: always downloaded, never opened in the panel's own page. */
+  app.get('/api/submissions/:id/files/:n', requireUser, async (c) => {
+    const message = await submissions.get(c.req.param('id'))
+    const file = message?.files[Number(c.req.param('n'))]
+    if (!message || !file) throw new ApiError(404, 'not_found', 'File non trovato')
+    const bytes = await readFile(join(uploadsDir, file.path)).catch(() => null)
+    if (!bytes) throw new ApiError(404, 'not_found', 'Il file non c’è più')
+    return new Response(bytes, {
+      headers: {
+        'content-type': 'application/octet-stream',
+        'content-disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+        'x-content-type-options': 'nosniff',
+        'cache-control': 'no-store',
+      },
+    })
   })
 
   app.delete('/api/submissions/:id', requireUser, requireAdmin, async (c) => {
     await submissions.remove(c.req.param('id'))
+    await removeFiles(uploadsDir, c.req.param('id'))
     await record(c, 'message.deleted')
     return c.body(null, 204)
   })
+
+  /** How long messages are kept, and the key to check webhook calls (admins only see the key). */
+  app.get('/api/forms/settings', requireUser, async (c) => {
+    const current = await formsSettings()
+    const admin = c.get('user').role === 'admin'
+    return c.json({
+      keepMonths: current.keepMonths ?? null,
+      webhookSecret: admin ? await webhookSecret() : null,
+    })
+  })
+
+  app.put('/api/forms/settings', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ keepMonths: z.number().int().min(1).max(120).nullable() }))
+    const current = await formsSettings()
+    await settings.set('forms', { ...current, keepMonths: input.keepMonths ?? undefined }, c.get('user').id)
+    await record(c, 'settings.forms', '', { keepMonths: input.keepMonths })
+    void pruneMessages()
+    return c.json({ keepMonths: input.keepMonths })
+  })
+
+  /** Deletes the messages older than the kept months, with their files. */
+  const pruneMessages = async () => {
+    const months = (await formsSettings()).keepMonths
+    if (!months) return 0
+    const before = new Date()
+    before.setMonth(before.getMonth() - months)
+    const old = await submissions.olderThan(before)
+    for (const m of old) {
+      await submissions.remove(m.id)
+      await removeFiles(uploadsDir, m.id)
+    }
+    return old.length
+  }
+  setTimeout(() => void pruneMessages().catch(() => {}), 10_000).unref?.()
+  setInterval(() => void pruneMessages().catch(() => {}), 6 * 3_600_000).unref?.()
 
   // Who may change what: editors limited to contents, if the admins want so.
   app.get('/api/editorial', requireUser, async (c) =>
@@ -2395,7 +2620,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       }),
     )
     await settings.set('tracking', input.tracking, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     await record(c, 'settings.tracking', '', {
       services: trackingBlocks(input.tracking).map((b) => b.name),
     })
@@ -2408,7 +2633,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.put('/api/seo', requireUser, requireAdmin, async (c) => {
     const input = await body(c, z.object({ seo: siteSeoSchema }))
     await settings.set('seo', input.seo, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     await record(c, 'settings.seo')
     return c.json({ seo: input.seo })
   })
@@ -2437,7 +2662,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       .map((r) => ({ ...r, from: normalizePath(r.from), to: /^https?:\/\//.test(r.to) ? r.to : normalizePath(r.to) }))
       .filter((r, i, all) => r.from !== r.to && all.findIndex((o) => o.from === r.from) === i)
     await settings.set('redirects', redirects, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     await record(c, 'settings.redirects', '', { count: redirects.length })
     return c.json({ redirects })
   })
@@ -2448,7 +2673,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.put('/api/templates', requireUser, async (c) => {
     const input = await body(c, z.object({ templates: z.record(z.string(), z.string()) }))
     await settings.set('templates', input.templates, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     return c.json({ templates: input.templates })
   })
 
@@ -2462,7 +2687,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     if (JSON.stringify(before) !== JSON.stringify(input.components) && (await contentOnly(c.get('user'))))
       throw designLocked()
     await settings.set('components', input.components, c.get('user').id)
-    ctx.onPublish?.()
+    sitePublished()
     return c.json({ components: input.components })
   })
 
@@ -2621,13 +2846,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         await settings.set('redirects', next, userId)
     }
     const doc = (await content.publish(existing.id, userId, data)) as StoredDocument
-    ctx.onPublish?.()
+    sitePublished()
     return { doc, url: after }
   }
 
   const unpublishDocument = async (existing: StoredDocument, userId: string | undefined) => {
     const doc = (await content.unpublish(existing.id, userId)) as StoredDocument
-    if (existing.publishedAt) ctx.onPublish?.()
+    if (existing.publishedAt) sitePublished()
     return doc
   }
 
@@ -2826,7 +3051,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     await content.remove(existing.id)
     await schedules.removeForDocument(existing.id)
     await previewLinks.removeForDocument(existing.id)
-    if (existing.publishedAt) ctx.onPublish?.()
+    if (existing.publishedAt) sitePublished()
     await record(c, 'document.deleted', existing.title, { collection: existing.collection })
     return c.body(null, 204)
   })
@@ -2879,7 +3104,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const value = { default: input.default, available: [...new Set(input.available)] }
     await settings.set('locales', value, c.get('user').id)
     languages = value
-    ctx.onPublish?.()
+    sitePublished()
     await record(c, 'settings.languages', value.available.join(', '))
     return c.json({ locales: ctx.config().locales, documents: await countsByLocale() })
   })
@@ -3224,7 +3449,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     void runImport(held.site, plan, deps)
       .then(async (result) => {
         await settings.set('imports:media', known, user.id)
-        if (result.created.some((d) => d.published) || result.redirects) ctx.onPublish?.()
+        if (result.created.some((d) => d.published) || result.redirects) sitePublished()
         await activityLog.record({
           userId: user.id,
           userName: user.name,
