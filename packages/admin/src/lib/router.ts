@@ -6,6 +6,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'media' }
   | { name: 'people' }
+  | { name: 'releases' }
   /** A built-in tab, or the name of a single-document collection (site settings, contacts…). */
   | {
       name: 'settings'
@@ -37,6 +38,7 @@ export function parse(pathname: string): Route {
   // Collection names cannot start with "_", so built-in screens never clash with them.
   if (collection === '_media') return { name: 'media' }
   if (collection === '_people') return { name: 'people' }
+  if (collection === '_releases') return { name: 'releases' }
   if (collection === '_settings')
     return {
       name: 'settings',
@@ -71,6 +73,8 @@ export function href(route: Route): string {
       return `${BASE}/_media`
     case 'people':
       return `${BASE}/_people`
+    case 'releases':
+      return `${BASE}/_releases`
     case 'settings':
       return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni', voice: 'voce' }[route.tab as string] ?? route.tab}` : ''}`
     case 'invite':

@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Rilasci**: raccogli più pagine e articoli che devono uscire insieme, per un lancio o una campagna, e pubblicali con un clic o a un'ora stabilita. Nello stesso momento si possono togliere dal sito le pagine vecchie. Tutto o niente: se una pagina non è pronta non esce niente, e il pannello dice quale e perché. Dalla nuova voce **Rilasci** nella barra laterale, o da Altre azioni → Aggiungi a un rilascio.
+- Nelle finestre il cursore va subito nel campo da compilare.
 - **Il sito da un brief**: dalla Panoramica, **Crea con l'AI**. Descrivi l'attività in poche righe, se vuoi con un'immagine di riferimento, e l'AI prepara le pagine con le sezioni della libreria, con menu, piè di pagina, testi e descrizioni per Google. Tutto resta in bozza; le pagine esistenti, i menu condivisi e il sito online non vengono toccati. Colori, caratteri e voce del brand arrivano come proposta da applicare con un clic. Dove mancano informazioni (prezzi, indirizzo, telefono) lascia un segnaposto tra parentesi quadre invece di inventare, e puoi rispondere all'AI per chiedere altro.
 - Le risposte dell'assistente mostrano grassetti ed elenchi, invece di asterischi e trattini.
 - **Revisione AI prima di pubblicare**: nella scheda Controlli (e in Altre azioni per gli articoli) **Rivedi con l'AI** rilegge la pagina e segnala refusi, grammatica, frasi fuori dalla voce del brand, incoerenze e link che non portano dove dicono. Ogni segnalazione ha la correzione, da applicare con un clic e annullare con ⌘Z.

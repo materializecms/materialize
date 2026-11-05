@@ -514,7 +514,11 @@ export function Dialog({
   useEffect(() => {
     if (!open) return
     const before = document.activeElement as HTMLElement | null
-    panel.current?.querySelector<HTMLElement>('[data-autofocus], input, button')?.focus()
+    // The marked field first, wherever it is; otherwise the first field or button.
+    const target =
+      panel.current?.querySelector<HTMLElement>('[data-autofocus]') ??
+      panel.current?.querySelector<HTMLElement>('input, button')
+    target?.focus()
     return () => {
       if (before?.isConnected) before.focus()
     }

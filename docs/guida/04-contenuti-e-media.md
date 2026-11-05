@@ -32,6 +32,19 @@ Per far uscire una pagina o un articolo più tardi, usa il pulsante con il **cal
 
 Il **Registro attività** (Impostazioni → Registro attività) mostra ogni pubblicazione programmata, a nome di chi l'ha programmata.
 
+## Rilasci: più pagine che escono insieme
+
+Per un lancio, una nuova collezione o una campagna servono spesso più pagine online nello stesso momento, e magari una vecchia da togliere. Un **rilascio** le raccoglie:
+
+- Da una pagina: **Altre azioni → Aggiungi a un rilascio**, scegli un rilascio o creane uno nuovo e cosa succede alla pagina: **Pubblica questa bozza** o **Togli dal sito**. Nell'intestazione compare il nome del rilascio, o la data di uscita.
+- Dalla barra laterale, **Rilasci** mostra i rilasci in preparazione: con **Aggiungi** cerchi pagine e articoli, il menu di ogni riga cambia l'azione e la crocetta la toglie dal rilascio. Il nome si cambia cliccandoci sopra.
+- **Pubblica tutto ora** fa uscire tutto subito. **Programma** sceglie giorno e ora, come per una pagina singola: escono le bozze come sono in quel momento, a nome di chi l'ha programmato.
+- **Tutto o niente**: se una pagina non è pronta (un campo obbligatorio vuoto, per esempio), non esce niente. Le pagine con un problema sono segnalate in rosso, e un rilascio programmato che non riesce resta lì con il motivo: sistema e programma di nuovo.
+- Una pagina sta in un solo rilascio alla volta: aggiungerla a un altro la sposta. Fino all'uscita resta com'è, e puoi continuare a modificarla.
+- Il cestino annulla il rilascio: le pagine restano come sono, si scioglie solo il gruppo. I rilasci usciti restano in fondo alla schermata, in **Già usciti**.
+
+Anche l'AI può usarli, con gli strumenti MCP `list_releases`, `create_release`, `add_to_release`, `publish_release` e `schedule_release`.
+
 ## Link di anteprima
 
 Per far vedere una bozza a qualcuno che non entra nel pannello, come un cliente o un collega, apri **Altre azioni** (i tre puntini in alto) → **Condividi anteprima**:

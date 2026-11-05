@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /**
  * Content is stored as validated JSON: the schema lives in code, so changing fields never needs a migration.
@@ -220,8 +220,8 @@ export const activity = sqliteTable(
 
 /**
  * What happens to a document at a set time: published, or taken off the site. One pending row per
- * document and action; done, failed and cancelled rows stay as a record. `releaseId` will group
- * several into one release.
+ * document and action; done, failed and cancelled rows stay as a record. (`releaseId` is unused:
+ * releases keep their own time.)
  */
 export const schedules = sqliteTable(
   'schedules',
@@ -239,6 +239,43 @@ export const schedules = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   },
   (t) => [index('schedules_due').on(t.status, t.runAt), index('schedules_document').on(t.documentId)],
+)
+
+/**
+ * Several changes that go on the site together: published by hand or at a set time, all or
+ * nothing. Published, failed and cancelled releases stay as a record.
+ */
+export const releases = sqliteTable(
+  'releases',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    status: text('status', { enum: ['open', 'published', 'failed', 'cancelled'] }).notNull(),
+    /** When it goes out by itself; null: when someone publishes it. */
+    runAt: integer('run_at', { mode: 'timestamp_ms' }),
+    /** Why it did not go out, in words for the panel. */
+    error: text('error'),
+    createdBy: text('created_by'),
+    createdByName: text('created_by_name').notNull().default(''),
+    /** Who set the time, in whose name it goes out. */
+    scheduledBy: text('scheduled_by'),
+    scheduledByName: text('scheduled_by_name').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    publishedAt: integer('published_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('releases_status').on(t.status, t.runAt)],
+)
+
+/** The documents in a release, each with what happens to it. */
+export const releaseItems = sqliteTable(
+  'release_items',
+  {
+    releaseId: text('release_id').notNull(),
+    documentId: text('document_id').notNull(),
+    action: text('action', { enum: ['publish', 'unpublish'] }).notNull(),
+    addedAt: integer('added_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.releaseId, t.documentId] }), index('release_items_document').on(t.documentId)],
 )
 
 /** Secret links that show a document's latest draft to people without an account. */
@@ -452,5 +489,29 @@ export const MIGRATIONS: string[][] = [
     'ALTER TABLE submissions ADD COLUMN fingerprint TEXT',
     'ALTER TABLE submissions ADD COLUMN webhook TEXT',
     'CREATE INDEX IF NOT EXISTS submissions_fingerprint ON submissions (fingerprint)',
+  ],
+  [
+    `CREATE TABLE IF NOT EXISTS releases (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      run_at INTEGER,
+      error TEXT,
+      created_by TEXT,
+      created_by_name TEXT NOT NULL DEFAULT '',
+      scheduled_by TEXT,
+      scheduled_by_name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      published_at INTEGER
+    )`,
+    'CREATE INDEX IF NOT EXISTS releases_status ON releases (status, run_at)',
+    `CREATE TABLE IF NOT EXISTS release_items (
+      release_id TEXT NOT NULL,
+      document_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      added_at INTEGER NOT NULL,
+      PRIMARY KEY (release_id, document_id)
+    )`,
+    'CREATE INDEX IF NOT EXISTS release_items_document ON release_items (document_id)',
   ],
 ]

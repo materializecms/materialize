@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   PanelRight,
   Redo2,
+  Rocket,
   Sparkles,
   Trash2,
   Undo2,
@@ -59,6 +60,7 @@ import { Review } from '../page/Review.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
+import { ReleaseChip, ReleaseDialog } from './ReleaseDialog.tsx'
 import { ScheduleMenu } from './ScheduleMenu.tsx'
 import { ShareDialog } from './ShareDialog.tsx'
 import { localeName } from './Sidebar.tsx'
@@ -158,6 +160,7 @@ function Editor({
   const [publishing, setPublishing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [releasing, setReleasing] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const aiReady = useAiReady()
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
@@ -603,6 +606,20 @@ function Editor({
                       <span className="block text-[12px] font-normal text-fg3">Refusi, voce, incoerenze, link</span>
                     </MenuItem>
                   )}
+                  {!collection.singleton && (
+                    <MenuItem
+                      icon={<Rocket />}
+                      onClick={() => {
+                        close()
+                        setReleasing(true)
+                      }}
+                    >
+                      <span className="block">{doc?.release ? 'Rilascio' : 'Aggiungi a un rilascio'}</span>
+                      <span className="block text-[12px] font-normal text-fg3">
+                        {doc?.release ? `In «${doc.release.name}»` : 'Esce insieme ad altre pagine'}
+                      </span>
+                    </MenuItem>
+                  )}
                   {schema.preview && (
                     <MenuItem
                       icon={<Link2 />}
@@ -659,6 +676,7 @@ function Editor({
                 </div>
               )}
             </Popover>
+            {doc?.release && <ReleaseChip release={doc.release} onClick={() => setReleasing(true)} />}
             {!collection.singleton && (
               <ScheduleMenu
                 doc={doc}
@@ -847,6 +865,17 @@ function Editor({
           <Review docId={doc?.id} data={history.value} onApply={(next) => set(next, 'ai:review')} />
         </div>
       </Dialog>
+
+      {doc && !collection.singleton && (
+        <ReleaseDialog
+          doc={doc}
+          open={releasing}
+          onClose={() => setReleasing(false)}
+          ensureSaved={async () => (!doc || dirty ? await save() : doc)}
+          onChange={(release) => setDoc((d) => (d ? { ...d, release } : d))}
+          onError={handleError}
+        />
+      )}
 
       {doc && (
         <ShareDialog

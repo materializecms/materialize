@@ -230,6 +230,8 @@ export interface StoredDocument extends DocumentSummary {
   issues?: ValidationIssue[]
   /** When it goes on or off the site by itself, and the last scheduled action that failed. */
   schedule?: DocumentSchedule
+  /** The release it goes out with, if any. */
+  release?: { id: string; name: string; runAt: string | null; action?: 'publish' | 'unpublish' } | null
 }
 
 /** A secret address that shows the latest saved draft to someone without an account. */
@@ -267,6 +269,32 @@ export interface Schedule {
   status: 'pending' | 'done' | 'failed' | 'cancelled'
   error: string | null
   createdByName: string
+}
+
+export interface ReleaseItem {
+  documentId: string
+  action: 'publish' | 'unpublish'
+  title: string
+  collection: string
+  locale: string
+  status: DocumentStatus
+  /** What stops it from going out, in words. */
+  problem: string | null
+}
+
+export interface Release {
+  id: string
+  name: string
+  status: 'open' | 'published' | 'failed' | 'cancelled'
+  runAt: string | null
+  error: string | null
+  createdByName: string
+  scheduledByName: string
+  createdAt: string
+  publishedAt: string | null
+  items: ReleaseItem[]
+  /** Every document can go out. */
+  ready: boolean
 }
 
 export interface DocumentSchedule {
@@ -778,6 +806,18 @@ export const api = {
   /** When a document goes on (publish) or off (unpublish) the site by itself; null cancels. */
   schedule: (id: string, action: 'publish' | 'unpublish', at: Date | null) =>
     request<StoredDocument>('PUT', `/documents/${id}/schedule`, { action, at: at?.toISOString() ?? null }),
+  releases: () => request<{ releases: Release[]; published: Release[] }>('GET', '/releases'),
+  createRelease: (name: string) => request<Release>('POST', '/releases', { name }),
+  renameRelease: (id: string, name: string) => request<Release>('PATCH', `/releases/${id}`, { name }),
+  cancelRelease: (id: string) => request<void>('DELETE', `/releases/${id}`),
+  putReleaseItem: (id: string, documentId: string, action: 'publish' | 'unpublish') =>
+    request<Release>('PUT', `/releases/${id}/items/${documentId}`, { action }),
+  removeReleaseItem: (id: string, documentId: string) =>
+    request<Release>('DELETE', `/releases/${id}/items/${documentId}`),
+  /** Everything goes out now, or nothing (the error says why). */
+  publishRelease: (id: string) => request<Release>('POST', `/releases/${id}/publish`),
+  scheduleRelease: (id: string, at: Date | null) =>
+    request<Release>('PUT', `/releases/${id}/schedule`, { at: at?.toISOString() ?? null }),
   schedules: () =>
     request<{ items: (Schedule & { title: string; collection: string; locale: string })[] }>('GET', '/schedules'),
   previews: (id: string) => request<{ items: PreviewLink[] }>('GET', `/documents/${id}/previews`),

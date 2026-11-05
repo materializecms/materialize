@@ -119,7 +119,8 @@ export function ScheduleMenu({
   )
 }
 
-function When({
+/** A date and time to pick, with quick choices; shared with releases. */
+export function When({
   title,
   hint,
   current,
@@ -130,7 +131,7 @@ function When({
 }: {
   title: string
   hint: string
-  current: Schedule | null
+  current: Pick<Schedule, 'runAt' | 'createdByName'> | null
   disabled?: boolean
   disabledHint?: string
   onSet: (at: Date | null) => Promise<void>

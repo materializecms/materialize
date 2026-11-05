@@ -57,6 +57,7 @@ import {
   createContentStore,
   createMediaStore,
   createPreviewLinkStore,
+  createReleaseStore,
   createScheduleStore,
   createSettingsStore,
   createSubmissionStore,
@@ -64,6 +65,7 @@ import {
   EmailTakenError,
   type MediaAsset,
   type PreviewLink,
+  type Release,
   SlugTakenError,
   type StoredDocument,
   type User,
@@ -324,6 +326,7 @@ export function createApp(base: ServerContext) {
   const comments = createCommentStore(ctx.database.db)
   const activityLog = createActivityStore(ctx.database.db)
   const schedules = createScheduleStore(ctx.database.db)
+  const releases = createReleaseStore(ctx.database.db)
   const previewLinks = createPreviewLinkStore(ctx.database.db)
   const backups = createBackups(ctx.database, () => ctx.config().media.dir)
   const backupSettings = async (): Promise<BackupSettings> => ({
@@ -601,6 +604,14 @@ export function createApp(base: ServerContext) {
       issues: check && !check.ok ? check.issues : [],
       /** When it goes on or off the site by itself, and the last scheduled action that failed. */
       schedule: await schedules.forDocument(doc.id),
+      /** The release it goes out with, if any. */
+      release: await releases
+        .forDocument(doc.id)
+        .then((r) =>
+          r
+            ? { id: r.id, name: r.name, runAt: r.runAt, action: r.items.find((i) => i.documentId === doc.id)?.action }
+            : null,
+        ),
     }
   }
 
@@ -1060,7 +1071,7 @@ export function createApp(base: ServerContext) {
   const ACTIVITY_GROUPS: Record<string, string[]> = {
     access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.', 'password.'],
     people: ['user.'],
-    content: ['document.', 'media.', 'message.'],
+    content: ['document.', 'release.', 'site.', 'media.', 'message.'],
     settings: ['settings.', 'backup.', 'update.'],
   }
 
@@ -3249,6 +3260,16 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     return c.json(await toJson(existing))
   })
 
+  /** Why a document's draft cannot go on the site now, in words; null when it can. */
+  const publishProblem = (doc: StoredDocument): string | null => {
+    const def = ctx.config().collections.find((x) => x.name === doc.collection)
+    if (!def) return 'La raccolta non esiste più'
+    const check = validate(def, prepare(def, doc.data))
+    if (check.ok) return null
+    const fields = [...new Set(check.issues.map((i) => def.fields[i.path.split('.')[0] ?? '']?.label ?? i.path))]
+    return `Alcuni campi vanno completati${fields.length ? `: ${fields.join(', ')}` : ''}`
+  }
+
   /**
    * Runs the actions whose time has come, as the person who set them. A server that was off at the
    * time catches up when it starts. A publication whose fields are no longer complete fails with a
@@ -3279,19 +3300,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         }
         try {
           if (item.action === 'publish') {
-            const def = ctx.config().collections.find((x) => x.name === existing.collection)
-            const check = def ? validate(def, prepare(def, existing.data)) : null
-            if (!def || !check?.ok) {
-              const fields =
-                def && check && !check.ok
-                  ? [...new Set(check.issues.map((i) => def.fields[i.path.split('.')[0] ?? '']?.label ?? i.path))].join(
-                      ', ',
-                    )
-                  : ''
-              throw new Error(
-                def ? `Alcuni campi vanno completati${fields ? `: ${fields}` : ''}` : 'La raccolta non esiste più',
-              )
-            }
+            const problem = publishProblem(existing)
+            if (problem) throw new Error(problem)
             const { doc, url } = await publishDocument(existing, item.createdBy ?? undefined)
             await schedules.finish(item.id, 'done')
             await note('document.published', doc.title, { collection: doc.collection, id: doc.id, url })
@@ -3311,6 +3321,10 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             message,
           })
         }
+      }
+      for (const release of await releases.due(now)) {
+        const by = release.scheduledBy ? { id: release.scheduledBy, name: release.scheduledByName } : null
+        if (await releaseOut(release, by)) ran++
       }
     } catch (error) {
       console.error('Materialize: scheduled publishing failed', error)
@@ -3333,6 +3347,191 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         return doc ? [{ ...i, title: doc.title, collection: doc.collection, locale: doc.locale }] : []
       }),
     })
+  })
+
+  // ---------- releases ----------
+
+  type ReleaseProblem = { documentId: string; title: string; message: string }
+
+  /** What stops a release from going out: every document must be ready, or none goes. */
+  const releaseProblems = async (release: Release): Promise<ReleaseProblem[]> => {
+    const out: ReleaseProblem[] = []
+    for (const item of release.items) {
+      const doc = await content.get(item.documentId)
+      if (!doc) out.push({ documentId: item.documentId, title: '', message: 'La pagina non esiste più' })
+      else if (item.action === 'publish') {
+        const message = publishProblem(doc)
+        if (message) out.push({ documentId: doc.id, title: doc.title, message })
+      }
+    }
+    if (!release.items.length) out.push({ documentId: '', title: '', message: 'Il rilascio è vuoto' })
+    return out
+  }
+
+  /**
+   * Puts a release on the site: checked first, all or nothing. Returns whether it went out; when
+   * it did not, the release is marked failed with the reason, and the panel shows it.
+   */
+  const releaseOut = async (release: Release, by: { id: string; name: string } | null): Promise<boolean> => {
+    const note = (action: string, target: string, detail: Record<string, unknown>) =>
+      activityLog
+        .record({ userId: by?.id ?? null, userName: by?.name ?? '', action, target, detail, ip: null })
+        .catch((error) => console.error('Materialize: activity not recorded', error))
+    const problems = await releaseProblems(release)
+    if (problems.length) {
+      const message = problems.map((p) => (p.title ? `${p.title}: ${p.message}` : p.message)).join('; ')
+      await releases.finish(release.id, 'failed', message)
+      await note('release.failed', release.name, { id: release.id, message })
+      return false
+    }
+    const done: string[] = []
+    try {
+      for (const item of release.items) {
+        const doc = await content.get(item.documentId)
+        if (!doc) continue
+        if (item.action === 'publish') {
+          await publishDocument(doc, by?.id)
+          await schedules.cancel(doc.id, 'publish')
+        } else if (doc.publishedAt) {
+          await unpublishDocument(doc, by?.id)
+          await schedules.cancel(doc.id, 'unpublish')
+        }
+        done.push(doc.title)
+      }
+    } catch (error) {
+      const why = error instanceof Error && error.message ? error.message : 'Errore imprevisto'
+      const message = `${why}${done.length ? ` (già uscite: ${done.join(', ')})` : ''}`
+      await releases.finish(release.id, 'failed', message)
+      await note('release.failed', release.name, { id: release.id, message })
+      return false
+    }
+    await releases.finish(release.id, 'published')
+    await note('release.published', release.name, { id: release.id, items: release.items.length })
+    return true
+  }
+
+  /** A release as the panel shows it: each document with its title, state and what stops it. */
+  const releaseJson = async (release: Release) => {
+    const problems = release.status === 'published' ? [] : await releaseProblems(release)
+    const items = []
+    for (const item of release.items) {
+      const doc = await content.get(item.documentId)
+      if (!doc) continue
+      items.push({
+        ...item,
+        title: doc.title,
+        collection: doc.collection,
+        locale: doc.locale,
+        status: doc.status,
+        problem: problems.find((p) => p.documentId === doc.id)?.message ?? null,
+      })
+    }
+    return { ...release, items, ready: problems.length === 0 }
+  }
+
+  const loadRelease = async (id: string) => {
+    const release = await releases.get(id)
+    if (!release) throw new ApiError(404, 'not_found', 'Questo rilascio non esiste')
+    return release
+  }
+  const openRelease = async (id: string) => {
+    const release = await loadRelease(id)
+    if (release.status === 'published' || release.status === 'cancelled')
+      throw new ApiError(409, 'release_closed', 'Questo rilascio è già uscito o è stato annullato')
+    return release
+  }
+
+  app.get('/api/releases', requireUser, async (c) => {
+    const { active, done } = await releases.list()
+    return c.json({
+      releases: await Promise.all(active.map(releaseJson)),
+      published: await Promise.all(done.map(releaseJson)),
+    })
+  })
+
+  app.post('/api/releases', requireUser, async (c) => {
+    const input = await body(c, z.object({ name: z.string().trim().min(1).max(120) }))
+    const release = await releases.create(input.name, c.get('user'))
+    await record(c, 'release.created', release.name, { id: release.id })
+    return c.json(await releaseJson(release), 201)
+  })
+
+  app.get('/api/releases/:id', requireUser, async (c) =>
+    c.json(await releaseJson(await loadRelease(c.req.param('id')))),
+  )
+
+  app.patch('/api/releases/:id', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    const input = await body(c, z.object({ name: z.string().trim().min(1).max(120) }))
+    await releases.rename(release.id, input.name)
+    return c.json(await releaseJson(await loadRelease(release.id)))
+  })
+
+  /** Cancels a release: its documents stay as they are. */
+  app.delete('/api/releases/:id', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    await releases.finish(release.id, 'cancelled')
+    await record(c, 'release.cancelled', release.name, { id: release.id })
+    return c.body(null, 204)
+  })
+
+  /** Adds a document (or changes what happens to it): it leaves any other release. */
+  app.put('/api/releases/:id/items/:documentId', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    const doc = await loadDocument(c.req.param('documentId'))
+    const input = await body(c, z.object({ action: z.enum(['publish', 'unpublish']).default('publish') }))
+    if (input.action === 'unpublish' && !doc.publishedAt)
+      throw new ApiError(409, 'not_published', 'La pagina non è sul sito: non c’è niente da togliere')
+    await releases.put(release.id, doc.id, input.action)
+    await record(c, 'release.item_added', doc.title, { id: release.id, release: release.name, action: input.action })
+    return c.json(await releaseJson(await loadRelease(release.id)))
+  })
+
+  app.delete('/api/releases/:id/items/:documentId', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    await releases.remove(release.id, c.req.param('documentId'))
+    return c.json(await releaseJson(await loadRelease(release.id)))
+  })
+
+  /** Everything in the release goes on the site now, or nothing does (the reasons come back). */
+  app.post('/api/releases/:id/publish', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    const problems = await releaseProblems(release)
+    if (problems.length)
+      return c.json(
+        {
+          error: {
+            code: 'release_not_ready',
+            message: 'Alcune pagine non sono pronte: non è uscito niente',
+            problems,
+          },
+        },
+        422,
+      )
+    const user = c.get('user')
+    const ok = await releaseOut(release, user)
+    const after = await loadRelease(release.id)
+    if (!ok) throw new ApiError(422, 'release_failed', after.error ?? 'Il rilascio non è uscito')
+    return c.json(await releaseJson(after))
+  })
+
+  /** When the release goes out by itself; at null: only by hand. Checked now, and again at that moment. */
+  app.put('/api/releases/:id/schedule', requireUser, async (c) => {
+    const release = await openRelease(c.req.param('id'))
+    const input = await body(c, z.object({ at: z.iso.datetime({ offset: true }).nullable() }))
+    const user = c.get('user')
+    if (input.at === null) {
+      await releases.schedule(release.id, null, null)
+      await record(c, 'release.schedule_cancelled', release.name, { id: release.id })
+      return c.json(await releaseJson(await loadRelease(release.id)))
+    }
+    const at = new Date(input.at)
+    if (at.getTime() <= Date.now() + 30_000)
+      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
+    if (!release.items.length) throw new ApiError(400, 'empty_release', 'Aggiungi prima qualcosa al rilascio')
+    await releases.schedule(release.id, at, user)
+    await record(c, 'release.scheduled', release.name, { id: release.id, at: at.toISOString() })
+    return c.json(await releaseJson(await loadRelease(release.id)))
   })
 
   // ---------- shared preview links ----------
@@ -3382,6 +3581,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const existing = await loadDocument(c.req.param('id'))
     await content.remove(existing.id)
     await schedules.removeForDocument(existing.id)
+    await releases.removeDocument(existing.id)
     await previewLinks.removeForDocument(existing.id)
     if (existing.publishedAt) sitePublished()
     await record(c, 'document.deleted', existing.title, { collection: existing.collection })

@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   LogOut,
   Newspaper,
+  Rocket,
   Search,
   Settings,
   SlidersHorizontal,
@@ -24,6 +25,7 @@ import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
+import { useReleases } from './ReleasesScreen.tsx'
 
 export function collectionIcon(c: CollectionDescription): ReactNode {
   const n = c.name
@@ -69,6 +71,7 @@ export function Sidebar() {
   const route = useRoute()
   const queryClient = useQueryClient()
   const tint = useCollectionTint()
+  const releases = useReleases()
   const overview = useOverview()
   const current = 'collection' in route ? route.collection : null
   const [profile, setProfile] = useState(false)
@@ -135,6 +138,16 @@ export function Sidebar() {
               </TintIcon>
             </NavItem>
           ))}
+        <NavItem
+          route={{ name: 'releases' }}
+          active={route.name === 'releases'}
+          label="Rilasci"
+          count={releases.data?.releases.length || undefined}
+        >
+          <TintIcon color="#f97316" size="sm">
+            <Rocket />
+          </TintIcon>
+        </NavItem>
         <div className={sectionLabel}>Libreria</div>
         <NavItem route={{ name: 'media' }} active={route.name === 'media'} label="Media" count={overview.data?.media}>
           <TintIcon color="#0ea5e9" size="sm">

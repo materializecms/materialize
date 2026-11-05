@@ -374,3 +374,105 @@ describe('admin app', () => {
     await rm(dir, { recursive: true })
   })
 })
+
+describe('releases', () => {
+  beforeEach(async () => {
+    await signUp()
+  })
+  const inMinutes = (m: number) => new Date(Date.now() + m * 60_000)
+  const create = async (data: Record<string, unknown>) =>
+    (await call('POST', '/api/collections/pages', { data })).body.id as string
+  const status = async (id: string) => (await call('GET', `/api/documents/${id}`)).body.status
+
+  it('puts several pages on the site together, and takes one off at the same moment', async () => {
+    const old = await create({ title: 'Vecchia promo' })
+    await call('POST', `/api/documents/${old}/publish`)
+    const a = await create({ title: 'Nuova collezione' })
+    const b = await create({ title: 'Lookbook' })
+    const release = (await call('POST', '/api/releases', { name: 'Collezione inverno' })).body
+    expect(release).toMatchObject({ name: 'Collezione inverno', status: 'open', ready: false })
+    await call('PUT', `/api/releases/${release.id}/items/${a}`, { action: 'publish' })
+    await call('PUT', `/api/releases/${release.id}/items/${b}`, {})
+    const listed = (await call('PUT', `/api/releases/${release.id}/items/${old}`, { action: 'unpublish' })).body
+    expect(listed.items.map((i: { title: string }) => i.title)).toEqual([
+      'Nuova collezione',
+      'Lookbook',
+      'Vecchia promo',
+    ])
+    expect(listed.ready).toBe(true)
+    expect((await call('GET', `/api/documents/${a}`)).body.release).toMatchObject({
+      name: 'Collezione inverno',
+      action: 'publish',
+    })
+
+    const out = await call('POST', `/api/releases/${release.id}/publish`)
+    expect(out.status).toBe(200)
+    expect(out.body.status).toBe('published')
+    expect([await status(a), await status(b), await status(old)]).toEqual(['published', 'published', 'draft'])
+    expect((await call('GET', `/api/documents/${a}`)).body.release).toBeNull()
+    expect((await call('GET', '/api/releases')).body.published).toHaveLength(1)
+    // Gone out: it cannot change any more.
+    expect((await call('PUT', `/api/releases/${release.id}/items/${a}`, {})).body.error.code).toBe('release_closed')
+  })
+
+  it('publishes nothing when one page is not ready, saying which and why', async () => {
+    const a = await create({ title: 'Pronta' })
+    const b = await create({ blocks: [{ _type: 'hero', _key: 'k' }] })
+    const release = (await call('POST', '/api/releases', { name: 'Lancio' })).body
+    await call('PUT', `/api/releases/${release.id}/items/${a}`, {})
+    const listed = (await call('PUT', `/api/releases/${release.id}/items/${b}`, {})).body
+    expect(listed.ready).toBe(false)
+    expect(listed.items[1].problem).toMatch(/Alcuni campi vanno completati/)
+    const res = await call('POST', `/api/releases/${release.id}/publish`)
+    expect(res.status).toBe(422)
+    expect(res.body.error.problems).toHaveLength(1)
+    expect(await status(a)).toBe('draft')
+    expect((await call('PUT', `/api/releases/${release.id}/items/${a}`, { action: 'unpublish' })).body.error.code).toBe(
+      'not_published',
+    )
+  })
+
+  it('goes out by itself at the set time, or fails as a whole and can be fixed', async () => {
+    const a = await create({ title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k', title: 'Luce' }] })
+    const b = await create({ title: 'Regole' })
+    const release = (await call('POST', '/api/releases', { name: 'Saldi' })).body
+    expect(
+      (await call('PUT', `/api/releases/${release.id}/schedule`, { at: inMinutes(60).toISOString() })).body.error.code,
+    ).toBe('empty_release')
+    await call('PUT', `/api/releases/${release.id}/items/${a}`, {})
+    await call('PUT', `/api/releases/${release.id}/items/${b}`, {})
+    const set = await call('PUT', `/api/releases/${release.id}/schedule`, { at: inMinutes(60).toISOString() })
+    expect(set.body.scheduledByName).toBe('Elena')
+
+    // Broken meanwhile: at that time nothing goes out, and the reason stays to read.
+    await call('PUT', `/api/documents/${a}`, { data: { title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k' }] } })
+    expect(await app.runSchedules(inMinutes(30))).toBe(0)
+    expect(await app.runSchedules(inMinutes(61))).toBe(0)
+    const failed = (await call('GET', `/api/releases/${release.id}`)).body
+    expect(failed.status).toBe('failed')
+    expect(failed.error).toMatch(/^Saldi: Alcuni campi vanno completati/)
+    expect([await status(a), await status(b)]).toEqual(['draft', 'draft'])
+
+    // Fixed and scheduled again.
+    await call('PUT', `/api/documents/${a}`, {
+      data: { title: 'Saldi', blocks: [{ _type: 'hero', _key: 'k', title: 'Luce' }] },
+    })
+    await call('PUT', `/api/releases/${release.id}/schedule`, { at: inMinutes(90).toISOString() })
+    expect(await app.runSchedules(inMinutes(91))).toBe(1)
+    expect([await status(a), await status(b)]).toEqual(['published', 'published'])
+    const log = (await call('GET', '/api/activity?group=content')).body.items.map((i: { action: string }) => i.action)
+    expect(log).toContain('release.published')
+  })
+
+  it('keeps a page in one release at a time, and cancelling leaves pages as they are', async () => {
+    const a = await create({ title: 'Pagina' })
+    const one = (await call('POST', '/api/releases', { name: 'Uno' })).body
+    const two = (await call('POST', '/api/releases', { name: 'Due' })).body
+    await call('PUT', `/api/releases/${one.id}/items/${a}`, {})
+    await call('PUT', `/api/releases/${two.id}/items/${a}`, {})
+    expect((await call('GET', `/api/releases/${one.id}`)).body.items).toHaveLength(0)
+    expect((await call('DELETE', `/api/releases/${two.id}`)).status).toBe(204)
+    expect((await call('GET', '/api/releases')).body.releases.map((r: { name: string }) => r.name)).toEqual(['Uno'])
+    expect(await status(a)).toBe('draft')
+  })
+})

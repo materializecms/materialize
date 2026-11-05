@@ -128,6 +128,29 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
         text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
         group: 'content',
       }
+    case 'release.created':
+      return { text: `ha creato il rilascio ${t}`, group: 'content' }
+    case 'release.item_added':
+      return {
+        text: `ha messo ${t} nel rilascio «${d.release ?? ''}»${d.action === 'unpublish' ? ', da togliere dal sito' : ''}`,
+        group: 'content',
+      }
+    case 'release.scheduled':
+      return {
+        text: `ha programmato il rilascio ${t}${d.at ? ` per ${whenDate(String(d.at))}` : ''}`,
+        group: 'content',
+      }
+    case 'release.schedule_cancelled':
+      return { text: `ha annullato l’ora di uscita del rilascio ${t}`, group: 'content' }
+    case 'release.published':
+      return {
+        text: `ha pubblicato il rilascio ${t}${typeof d.items === 'number' ? ` (${d.items === 1 ? 'una pagina' : `${d.items} pagine`})` : ''}`,
+        group: 'content',
+      }
+    case 'release.failed':
+      return { text: `non è riuscito a pubblicare il rilascio ${t}: ${d.message ?? ''}`, group: 'content' }
+    case 'release.cancelled':
+      return { text: `ha annullato il rilascio ${t}`, group: 'content' }
     case 'site.generated':
       return {
         text: `ha fatto preparare all’AI ${d.pages === 1 ? 'una pagina' : `${d.pages ?? ''} pagine`} da un brief`,

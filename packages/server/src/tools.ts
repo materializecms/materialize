@@ -321,7 +321,15 @@ export function assistantTools(call: ApiCall, page: { nodes: PageNode[] }, brand
   })
   return [
     ...contentTools(call, getSchema).filter(
-      (t) => !['publish_entry', 'unpublish_entry', 'schedule_entry', 'share_preview'].includes(t.name),
+      (t) =>
+        ![
+          'publish_entry',
+          'unpublish_entry',
+          'schedule_entry',
+          'share_preview',
+          'publish_release',
+          'schedule_release',
+        ].includes(t.name),
     ),
     ...pageTools({ source, withId: false, brand: async () => brand }),
   ]
@@ -482,6 +490,56 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
         )
         return { url: link.url, expiresAt: link.expiresAt }
       },
+    }),
+    tool({
+      name: 'list_releases',
+      title: 'Guardo i rilasci',
+      description:
+        'Releases: groups of entries that go on (or off) the site together, all or nothing, by hand or at a set time. Each with its entries, whether it is ready and what stops it.',
+      input: z.object({}),
+      readOnly: true,
+      run: () => call('GET', '/api/releases'),
+    }),
+    tool({
+      name: 'create_release',
+      title: 'Creo un rilascio',
+      description: 'A new, empty release with a name (e.g. "Collezione inverno"). Add entries with add_to_release.',
+      input: z.object({ name: z.string().min(1).max(120) }),
+      run: (input) => call('POST', '/api/releases', input),
+    }),
+    tool({
+      name: 'add_to_release',
+      title: 'Aggiungo al rilascio',
+      description:
+        'Puts an entry in a release: its draft is published when the release goes out (action "publish"), or it is taken off the site (action "unpublish"). An entry is in one release at a time. remove: true takes it out of the release.',
+      input: z.object({
+        release: z.string().describe('The release id'),
+        id: z.string().describe('The entry id'),
+        action: z.enum(['publish', 'unpublish']).default('publish'),
+        remove: z.boolean().optional(),
+      }),
+      run: (input) =>
+        input.remove
+          ? call('DELETE', `/api/releases/${encodeURIComponent(input.release)}/items/${encodeURIComponent(input.id)}`)
+          : call('PUT', `/api/releases/${encodeURIComponent(input.release)}/items/${encodeURIComponent(input.id)}`, {
+              action: input.action,
+            }),
+    }),
+    tool({
+      name: 'publish_release',
+      title: 'Pubblico il rilascio',
+      description:
+        'Puts everything in a release on the public site now. All entries must be ready, or nothing goes out and the reasons come back.',
+      input: z.object({ release: z.string() }),
+      run: (input) => call('POST', `/api/releases/${encodeURIComponent(input.release)}/publish`),
+    }),
+    tool({
+      name: 'schedule_release',
+      title: 'Programmo il rilascio',
+      description:
+        'Sets when a release goes out by itself, as an ISO date with time zone, e.g. 2026-11-10T09:00:00+01:00; at null: only by hand. The drafts as they are at that moment go out.',
+      input: z.object({ release: z.string(), at: z.string().nullable() }),
+      run: (input) => call('PUT', `/api/releases/${encodeURIComponent(input.release)}/schedule`, { at: input.at }),
     }),
     tool({
       name: 'list_translations',

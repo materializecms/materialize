@@ -27,6 +27,14 @@ export { type Database, type Db, openDatabase } from './database.ts'
 export { createMediaStore, type MediaAsset, type MediaStore } from './media.ts'
 export { createPreviewLinkStore, type PreviewLink, type PreviewLinkStore } from './previews.ts'
 export {
+  createReleaseStore,
+  type Release,
+  type ReleaseAction,
+  type ReleaseItem,
+  type ReleaseStatus,
+  type ReleaseStore,
+} from './releases.ts'
+export {
   createScheduleStore,
   type DocumentSchedule,
   type Schedule,

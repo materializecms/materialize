@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { FileText, Images, Monitor, Moon, Plus, Search, Settings, Sun, UserRound } from 'lucide-react'
+import { FileText, Images, Monitor, Moon, Plus, Rocket, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
@@ -93,6 +93,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         icon: <Images />,
         group: 'Vai a',
         run: () => navigate({ name: 'media' }),
+      })
+    }
+    if (match('Rilasci lancio insieme')) {
+      out.push({
+        id: 'go:releases',
+        label: 'Rilasci',
+        icon: <Rocket />,
+        group: 'Vai a',
+        run: () => navigate({ name: 'releases' }),
       })
     }
     if (user.role === 'admin' && match('Persone inviti utenti')) {
