@@ -64,6 +64,7 @@ type CollectionInfo = {
   titleField?: string
   slugField?: string
 }
+export type SiteSchema = Schema
 type Schema = {
   site: { name: string }
   locales: { default: string; available: string[] }

@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Import da WordPress con impaginazione AI**: un'opzione in più rifà l'impaginazione di ogni pagina importata con le sezioni della libreria (apertura, colonne, elenchi, inviti all'azione), con gli stessi testi e le stesse immagini, nella bozza. Un controllo confronta parole e immagini prima e dopo: se cambierebbero, la pagina resta com'era.
+- L'import da WordPress conserva le descrizioni (testo alternativo) delle immagini nei contenuti: prima andavano perse.
 - **Tour dell'editor rifatto**: 14 passi invece di 4, e ognuno illumina la zona vera di cui parla (le schede a sinistra si aprono da sole): Contenuto e Design, Livelli, Aggiungi, Stili, Controlli, la tela, le proprietà, i dispositivi, zoom e anteprima, l'assistente AI, cronologia e pubblicazione. Frecce per spostarsi, Esc per uscire, e si rifà da **?** → **Rifai il tour**.
 - **Rilasci**: raccogli più pagine e articoli che devono uscire insieme, per un lancio o una campagna, e pubblicali con un clic o a un'ora stabilita. Nello stesso momento si possono togliere dal sito le pagine vecchie. Tutto o niente: se una pagina non è pronta non esce niente, e il pannello dice quale e perché. Dalla nuova voce **Rilasci** nella barra laterale, o da Altre azioni → Aggiungi a un rilascio.
 - Nelle finestre il cursore va subito nel campo da compilare.

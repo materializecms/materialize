@@ -95,7 +95,7 @@ import {
 } from './ai.ts'
 import { type ArchiveEntry, folderEntries, tarGz } from './archive.ts'
 import { type BackupSettings, createBackups, DEFAULT_BACKUPS } from './backups.ts'
-import { type BriefResult, briefSystem, briefTools } from './brief.ts'
+import { type BriefResult, briefSystem, briefTools, plain } from './brief.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import {
   type FormsSettings,
@@ -128,7 +128,7 @@ import {
 import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
 import { statusPage } from './status-page.ts'
-import { apiCaller, assistantTools } from './tools.ts'
+import { apiCaller, assistantTools, contentTools, pageTools, type SiteSchema } from './tools.ts'
 import { newSecret, otpauthUri, recoveryCodes, verifyCode } from './totp.ts'
 import { type Fetcher, readRest, readWxr, WordPressError, type WpSite } from './wordpress.ts'
 import {
@@ -137,6 +137,8 @@ import {
   type ImportPlan,
   type ImportProgress,
   optionsOf,
+  relayoutProblem,
+  restoreAlts,
   runImport,
   sourcesFor,
   suggest,
@@ -3862,6 +3864,68 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     })
   })
 
+  /** The caller's credentials, for tools that go through the API as them. */
+  const credentialsOf = (c: Context): Record<string, string> => {
+    const authorization = c.req.header('authorization')
+    const cookie = c.req.header('cookie')
+    return authorization ? { authorization } : cookie ? { cookie } : {}
+  }
+
+  /**
+   * An imported page laid out again by the AI with the section library, in its draft. The texts
+   * and images must stay the same (checked after): otherwise the page is left as it was.
+   */
+  const relayoutPage = async (
+    ai: Awaited<ReturnType<typeof readyAi>>,
+    id: string,
+    user: { id: string; name: string },
+    credentials: Record<string, string>,
+  ): Promise<string | null> => {
+    const doc = await content.get(id)
+    if (!doc) return 'la pagina non c’è più'
+    const def = collection(doc.collection)
+    const field = Object.entries(def.fields).find(([, f]) => f.kind === 'page')?.[0]
+    const before = field && Array.isArray(doc.data[field]) ? (doc.data[field] as PageNode[]) : null
+    if (!field || !before?.length) return 'la pagina è vuota'
+    const page = { nodes: before }
+    const call = apiCaller(app.fetch, credentials)
+    const getSchema = () => call<SiteSchema>('GET', '/api/schema')
+    const tools = [
+      ...contentTools(call, getSchema).filter((t) => ['list_library', 'get_theme'].includes(t.name)),
+      ...pageTools({
+        withId: false,
+        brand: async () => ctx.config().site.name,
+        source: async () => ({
+          load: async () => page.nodes,
+          save: async (nodes) => {
+            page.nodes = nodes
+          },
+        }),
+      }),
+    ]
+    const system = `You redesign one page of the website "${ctx.config().site.name}", just imported from WordPress into Materialize. Its content arrived as a plain column of texts, images and buttons, one section per heading. Rebuild it so it looks designed, with the section library.
+
+How: read the page (get_page) and the library (list_library); replace the plain sections with library sections (edit_page: add_section, then fill them; remove what you replace and the library sample nodes you do not use); read the page again at the end and fix what is left.
+
+Rules:
+- Keep every text word for word: you may split it across sections, change its style (title, body, eyebrow) or turn a list into cards, but do not rewrite, shorten or translate it.
+- Keep every image (same src and alt) and every button with its link.
+- Add no text of your own: no new headings, slogans, labels or facts. Library sample texts and pictures you do not replace with the page's own content must be removed.
+- Do not add a menu or a footer: the site has its own.
+- Keep it simple: a clear opening, then sections that follow the page's order.
+When done, reply with one short sentence.`
+    await runTurn(
+      ai,
+      { provider: ai.provider, messages: [] },
+      { system, text: `Lay out the page "${doc.title}".`, tools, onEvent: () => {}, maxSteps: 30 },
+    )
+    const problem = relayoutProblem(before, page.nodes)
+    if (problem) return problem
+    const draft = draftData(def, { ...doc.data, [field]: restoreAlts(before, page.nodes).map(plain) })
+    await content.update(doc.id, { ...draft, userId: user.id })
+    return null
+  }
+
   app.post('/api/import/wordpress/run', requireUser, requireSession, requireAdmin, async (c) => {
     const target = z.object({ collection: z.string(), fields: z.record(z.string(), z.string()) }).nullable()
     const input = await body(
@@ -3876,10 +3940,12 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           locale: z.string().optional(),
           categories: z.record(z.string(), z.string()).optional(),
           fallbackCategory: z.string().optional(),
+          aiLayout: z.boolean().optional(),
         }),
       }),
     )
     const held = wpSites.get(input.token)
+    const ai = input.plan.aiLayout ? await readyAi() : null
     if (!held) throw new ApiError(409, 'import_expired', 'Read the site again')
     const lang = locale(input.plan.locale)
     const plan = { ...input.plan, locale: lang } as ImportPlan
@@ -3895,6 +3961,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       problems: [],
       media: { downloaded: 0, failed: 0, reasons: {} },
       redirects: 0,
+      relaid: 0,
       at: Date.now(),
     }
     wpJobs.set(id, job)
@@ -3981,6 +4048,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         return list.length - before
       },
       onProgress: (p) => Object.assign(job, p),
+      relayout: ai ? (doc) => relayoutPage(ai, doc.id, user, credentialsOf(c)) : undefined,
     }
     void runImport(held.site, plan, deps)
       .then(async (result) => {
@@ -3991,7 +4059,12 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           userName: user.name,
           action: 'import.wordpress',
           target: held.site.name,
-          detail: { created: result.created.length, media: result.media.downloaded, redirects: result.redirects },
+          detail: {
+            created: result.created.length,
+            media: result.media.downloaded,
+            redirects: result.redirects,
+            ...(result.relaid ? { relaid: result.relaid } : {}),
+          },
           ip: null,
         })
       })

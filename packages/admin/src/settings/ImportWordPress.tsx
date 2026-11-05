@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CircleCheck, FileUp, Globe, Import } from 'lucide-react'
+import { CircleAlert, CircleCheck, FileUp, Globe, Import, Sparkles } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
+import { useAiReady } from '../components/AiMenu.tsx'
 import { Button, cx, Input, Segmented, Switch, toast } from '../components/ui.tsx'
 import { api, type WpAnalysis, type WpPlan, type WpProgress, type WpSource, type WpTarget } from '../lib/api.ts'
 import { navigate } from '../lib/router.ts'
@@ -199,6 +200,14 @@ function Plan({
   const [pages, setPages] = useState<WpTarget | null>(analysis.counts.pages ? analysis.suggestions.pages : null)
   const [publish, setPublish] = useState(true)
   const [redirects, setRedirects] = useState(true)
+  const aiReady = useAiReady()
+  const [aiLayout, setAiLayout] = useState(false)
+  // Pages whose content goes on the canvas: the ones the AI can lay out again.
+  const canvasPages =
+    !!pages &&
+    Object.entries(pages.fields).some(
+      ([field, source]) => source === 'content' && analysis.fields[pages.collection]?.[field]?.kind === 'page',
+    )
   const [categories, setCategories] = useState<Record<string, string>>({})
   const [fallback, setFallback] = useState('')
   const [busy, setBusy] = useState(false)
@@ -231,6 +240,7 @@ function Plan({
           analysis.categories.map((c) => [c, categories[c] ?? autoMatch(c)]).filter(([, v]) => v),
         ),
         fallbackCategory: fallback || undefined,
+        aiLayout: aiReady && canvasPages && aiLayout,
       }
       onStarted((await api.importWordPress(analysis.token, plan)).job)
     } catch (error) {
@@ -330,6 +340,21 @@ function Plan({
             </span>
           </span>
         </label>
+        {aiReady && canvasPages && (
+          <label className="flex items-start gap-3">
+            <Switch checked={aiLayout} label="Impaginazione con l’AI" onChange={setAiLayout} />
+            <span className="text-[13px] leading-relaxed">
+              <span className="flex items-center gap-1.5 font-medium">
+                <Sparkles className="size-3.5 text-accent" /> Rifai l’impaginazione delle pagine con l’AI
+              </span>
+              <span className="text-fg3">
+                Dopo l’import, l’AI ricompone ogni pagina con le sezioni della libreria, con gli stessi testi e le
+                stesse immagini, nella bozza: online resta la versione semplice finché non pubblichi. Se cambierebbe i
+                testi, la pagina resta com’era. Usa il modello principale: una richiesta per pagina, qualche minuto.
+              </span>
+            </span>
+          </label>
+        )}
       </section>
 
       <div className="flex justify-end gap-2">
@@ -451,7 +476,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
   }, [id, queryClient])
 
   if (!p) return null
-  const running = p.phase === 'media' || p.phase === 'content'
+  const running = p.phase === 'media' || p.phase === 'content' || p.phase === 'layout'
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0
   const labelOf = (name: string) => schema.collections.find((c) => c.name === name)?.label ?? name
   return (
@@ -459,7 +484,13 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       {running ? (
         <section className="space-y-2 rounded-lg border border-line bg-panel p-5">
           <div className="flex justify-between text-[14px]">
-            <span className="font-medium">{p.phase === 'media' ? 'Scarico le immagini' : 'Creo i contenuti'}</span>
+            <span className="font-medium">
+              {p.phase === 'media'
+                ? 'Scarico le immagini'
+                : p.phase === 'layout'
+                  ? 'L’AI rifà l’impaginazione delle pagine'
+                  : 'Creo i contenuti'}
+            </span>
             <span className="tabular-nums text-fg3">
               {p.done} di {p.total}
             </span>
@@ -482,6 +513,9 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
             {p.created.length} contenuti importati ({p.created.filter((d) => d.published).length} pubblicati),{' '}
             {p.media.downloaded} immagini nella libreria
             {p.media.failed ? ` (${p.media.failed} non scaricabili)` : ''}, {p.redirects} reindirizzamenti.
+            {p.relaid
+              ? ` L’AI ha rifatto l’impaginazione di ${p.relaid === 1 ? 'una pagina' : `${p.relaid} pagine`}: è nella bozza, da rivedere e pubblicare.`
+              : ''}
           </p>
         </section>
       )}

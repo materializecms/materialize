@@ -5,7 +5,7 @@ import {
   type ConvertContext,
   htmlToPage,
   htmlToRichText,
-  imagesIn,
+  imageAltsIn,
   mainContent,
   originalOf,
   plain,
@@ -49,6 +49,8 @@ export interface ImportPlan {
   /** For a choice field: WordPress category → option value; unmatched ones take `fallback`. */
   categories?: Record<string, string>
   fallbackCategory?: string
+  /** Pages built on the canvas are laid out again by the AI with the section library (drafts). */
+  aiLayout?: boolean
 }
 
 /** Which sources fit a field of this kind. */
@@ -133,7 +135,7 @@ export function matchOption(name: string, options: { value: string; label: strin
 }
 
 export interface ImportProgress {
-  phase: 'media' | 'content' | 'done' | 'failed'
+  phase: 'media' | 'content' | 'layout' | 'done' | 'failed'
   done: number
   total: number
   created: { id: string; collection: string; title: string; published: boolean }[]
@@ -141,6 +143,8 @@ export interface ImportProgress {
   problems: { title: string; reason: string }[]
   media: { downloaded: number; failed: number; reasons: Record<string, number> }
   redirects: number
+  /** Pages the AI laid out again. */
+  relaid: number
   error?: string
 }
 
@@ -161,6 +165,8 @@ export interface ImportDeps {
   /** The address a document will have, from its data. */
   urlOf: (def: Collection, data: Record<string, unknown>) => string | null
   addRedirects: (moves: { from: string; to: string }[]) => Promise<number>
+  /** The AI lays a page out again in its draft; a reason when it was left as it was. */
+  relayout?: (doc: { id: string; collection: string; title: string }) => Promise<null | string>
   onProgress: (p: ImportProgress) => void
 }
 
@@ -194,6 +200,7 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
     problems: [],
     media: { downloaded: 0, failed: 0, reasons: {} },
     redirects: 0,
+    relaid: 0,
   }
   const report = () => deps.onProgress({ ...progress })
   const targetOf = (item: WpItem) => (item.kind === 'post' ? plan.posts : plan.pages)
@@ -217,7 +224,11 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
   for (const item of items) {
     const t = targetOf(item) as ImportTarget
     const fields = Object.values(t.fields)
-    if (fields.includes('content')) for (const src of imagesIn(item.html)) wanted.set(new URL(src, site.url).href, '')
+    if (fields.includes('content'))
+      for (const [src, alt] of imageAltsIn(item.html)) {
+        const url = new URL(src, site.url).href
+        if (!wanted.get(url)) wanted.set(url, alt)
+      }
     if (fields.includes('featured') && item.featured?.url)
       wanted.set(new URL(item.featured.url, site.url).href, item.featured.alt)
   }
@@ -290,6 +301,8 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
   const moves: { from: string; to: string }[] = []
   // Addresses taken by this import: WordPress allows the same slug under different parent pages.
   const taken = new Map<string, Set<string>>()
+  // Canvas pages filled from the content: the ones the AI may lay out again.
+  const canvas: { id: string; collection: string; title: string }[] = []
   for (const entry of plans) {
     const { item, t, def } = entry
     let { slug, url } = entry
@@ -332,6 +345,8 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
           progress.problems.push({ title: doc.title, reason: 'importato come bozza: ha campi da completare' })
         }
       progress.created.push({ id: doc.id, collection: def.name, title: doc.title, published })
+      if (Object.entries(t.fields).some(([name, source]) => source === 'content' && def.fields[name]?.kind === 'page'))
+        canvas.push({ id: doc.id, collection: def.name, title: doc.title })
       const from = pathOf(item.link, site.url)
       if (published && from && url && from !== url) moves.push({ from, to: url })
     } catch (error) {
@@ -342,6 +357,29 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
     }
   }
   if (plan.redirects && moves.length) progress.redirects = await deps.addRedirects(moves)
+
+  // 4. The AI lays the pages out again, one at a time, in their drafts: what WordPress had stays
+  // published until someone publishes the new layout.
+  if (plan.aiLayout && deps.relayout && canvas.length) {
+    progress.phase = 'layout'
+    progress.done = 0
+    progress.total = canvas.length
+    report()
+    for (const doc of canvas) {
+      try {
+        const why = await deps.relayout(doc)
+        if (why) progress.problems.push({ title: doc.title, reason: `impaginazione semplice lasciata: ${why}` })
+        else progress.relaid++
+      } catch (error) {
+        progress.problems.push({
+          title: doc.title,
+          reason: `l’AI non ha rifatto l’impaginazione: ${(error as Error).message}`,
+        })
+      }
+      progress.done++
+      report()
+    }
+  }
   progress.phase = 'done'
   report()
   return progress
@@ -413,3 +451,70 @@ async function valueFor(
 }
 
 export { fold }
+
+/** The words of a page (texts and buttons), lowercase, three letters or more. */
+function wordsOf(nodes: PageNode[]): Set<string> {
+  const out = new Set<string>()
+  const go = (list: PageNode[]) => {
+    for (const n of list) {
+      if (!n.hidden) {
+        const text = [n.text, ...(n.runs ?? []).map((r) => r.t)].filter(Boolean).join(' ')
+        for (const w of text.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? []) out.add(w)
+      }
+      if (n.children) go(n.children)
+    }
+  }
+  go(nodes)
+  return out
+}
+
+function imagesOf(nodes: PageNode[]): Set<string> {
+  const out = new Set<string>()
+  const go = (list: PageNode[]) => {
+    for (const n of list) {
+      if (n.type === 'image' && n.src && !n.hidden) out.add(n.src)
+      if (n.bgImage?.src) out.add(n.bgImage.src)
+      if (n.children) go(n.children)
+    }
+  }
+  go(nodes)
+  return out
+}
+
+/**
+ * Whether a page laid out again by the AI still says what it said: no text lost, nothing made up
+ * (library sample texts left behind count as made up), every image still there. A reason when not.
+ */
+export function relayoutProblem(before: PageNode[], after: PageNode[]): string | null {
+  const was = wordsOf(before)
+  const now = wordsOf(after)
+  if (!now.size) return 'la pagina sarebbe rimasta vuota'
+  const lost = [...was].filter((w) => !now.has(w)).length
+  const added = [...now].filter((w) => !was.has(w)).length
+  if (lost > Math.max(3, was.size * 0.1)) return 'l’AI avrebbe tolto parte del testo'
+  if (added > Math.max(8, was.size * 0.15)) return 'l’AI avrebbe aggiunto testi che non c’erano'
+  const pictures = imagesOf(after)
+  if ([...imagesOf(before)].some((src) => !pictures.has(src))) return 'l’AI avrebbe tolto delle immagini'
+  return null
+}
+
+/** Descriptions the page had for its images, put back where the new layout left them empty. */
+export function restoreAlts(before: PageNode[], after: PageNode[]): PageNode[] {
+  const alts = new Map<string, string>()
+  const read = (list: PageNode[]) => {
+    for (const n of list) {
+      if (n.type === 'image' && n.src && n.alt) alts.set(n.src, n.alt)
+      if (n.bgImage?.src && n.bgImage.alt) alts.set(n.bgImage.src, n.bgImage.alt)
+      if (n.children) read(n.children)
+    }
+  }
+  read(before)
+  const fix = (n: PageNode): PageNode => {
+    let out = n
+    if (n.type === 'image' && n.src && !n.alt?.trim() && alts.has(n.src)) out = { ...out, alt: alts.get(n.src) }
+    if (n.bgImage?.src && !n.bgImage.alt?.trim() && alts.has(n.bgImage.src))
+      out = { ...out, bgImage: { ...n.bgImage, alt: alts.get(n.bgImage.src) ?? '' } }
+    return n.children ? { ...out, children: n.children.map(fix) } : out
+  }
+  return after.map(fix)
+}

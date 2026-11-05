@@ -336,3 +336,110 @@ describe('import plan', () => {
     expect(result.skipped.map((s) => s.title)).toEqual(['Contatti'])
   })
 })
+
+describe('AI layout after the import', () => {
+  const t = (id: string, text: string) => ({ id, type: 'text' as const, text })
+  const before = [
+    {
+      id: 's',
+      type: 'frame' as const,
+      children: [
+        t('a', 'Studio di architettura a Milano'),
+        t('b', 'Progettiamo case e uffici con luce naturale'),
+        { id: 'i', type: 'image' as const, src: '/media/casa.jpg', alt: 'Casa' },
+      ],
+    },
+  ]
+
+  it('accepts the same words in a new layout, and refuses lost, made-up or missing pieces', async () => {
+    const { relayoutProblem } = await import('../src/wpimport.ts')
+    const laid = [
+      { id: 'h', type: 'frame' as const, section: 'hero.split', children: [t('x', 'Studio di architettura a Milano')] },
+      {
+        id: 'f',
+        type: 'frame' as const,
+        children: [
+          t('y', 'Progettiamo case e uffici con luce naturale'),
+          { id: 'j', type: 'image' as const, src: '/media/casa.jpg', alt: 'Casa' },
+        ],
+      },
+    ]
+    expect(relayoutProblem(before, laid)).toBeNull()
+    const lost = [{ ...laid[0], children: [t('x', 'Studio')] }, laid[1]] as typeof laid
+    expect(relayoutProblem(before, [lost[0] as (typeof laid)[0]])).toMatch(/tolto parte del testo/)
+    const sample = [
+      ...laid,
+      t('z', 'Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt labore'),
+    ]
+    expect(relayoutProblem(before, sample)).toMatch(/aggiunto testi/)
+    const noImage = [laid[0], { ...laid[1], children: [t('y', 'Progettiamo case e uffici con luce naturale')] }]
+    expect(relayoutProblem(before, noImage as typeof laid)).toMatch(/tolto delle immagini/)
+  })
+
+  it('runs once per canvas page, and keeps the reason when a page is left as it was', async () => {
+    const { runImport } = await import('../src/wpimport.ts')
+    const item = (id: string, kind: 'post' | 'page', title: string) => ({
+      sourceId: id,
+      kind,
+      title,
+      slug: id,
+      status: 'publish' as const,
+      date: '2026-01-01T00:00:00.000Z',
+      link: `https://s.example/${id}/`,
+      html: '<p>Testo</p>',
+      excerpt: '',
+      categories: [],
+      tags: [],
+    })
+    const asked: string[] = []
+    let n = 0
+    const result = await runImport(
+      {
+        name: 'S',
+        url: 'https://s.example',
+        items: [item('a', 'page', 'Uno'), item('b', 'page', 'Due'), item('c', 'post', 'Articolo')],
+      },
+      {
+        posts: { collection: 'posts', fields: { title: 'title', slug: 'slug', body: 'content' } },
+        pages: { collection: 'pages', fields: { title: 'title', slug: 'slug', page: 'content' } },
+        publish: false,
+        redirects: false,
+        locale: 'it',
+        aiLayout: true,
+      },
+      {
+        collections: config.collections,
+        saveImage: async () => ({ error: 'no' }),
+        fetchPage: async () => null,
+        exists: async () => false,
+        titles: async () => new Map(),
+        create: async (_def, data) => ({ id: String(++n), title: String(data.title), url: `/${data.slug}` }),
+        publish: async () => {},
+        urlOf: (_d, data) => `/${data.slug}`,
+        addRedirects: async () => 0,
+        onProgress: () => {},
+        relayout: async (doc) => {
+          asked.push(doc.title)
+          return doc.title === 'Due' ? 'l’AI avrebbe tolto parte del testo' : null
+        },
+      },
+    )
+    expect(asked).toEqual(['Uno', 'Due'])
+    expect(result.relaid).toBe(1)
+    expect(result.problems.map((p) => p.reason)).toEqual([
+      'impaginazione semplice lasciata: l’AI avrebbe tolto parte del testo',
+    ])
+  })
+})
+
+describe('image descriptions', () => {
+  it('keep the alternative text written on WordPress, in pages and articles', async () => {
+    const { imageAltsIn } = await import('../src/wordpress.ts')
+    const html =
+      '<figure class="wp-block-cover"><img src="https://s.example/giardino.png" alt="Un giardino al tramonto"/></figure><p>Testo</p>'
+    const page = htmlToPage(html, 'Home', ctx)
+    expect(JSON.stringify(page)).toContain('"alt":"Un giardino al tramonto"')
+    expect(JSON.stringify(htmlToRichText(html, ctx))).toContain('"alt":"Un giardino al tramonto"')
+    expect(imageAltsIn(html).get('https://s.example/giardino.png')).toBe('Un giardino al tramonto')
+  })
+})

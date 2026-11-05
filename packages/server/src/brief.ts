@@ -28,7 +28,7 @@ type Schema = {
 }
 
 /** What a page may not carry when the AI makes it: links to shared content that is live. */
-function plain(n: PageNode): PageNode {
+export function plain(n: PageNode): PageNode {
   const { global: _g, component: _c, overrides: _o, ...rest } = n as PageNode & Record<string, unknown>
   return { ...(rest as PageNode), children: n.children?.map(plain) }
 }

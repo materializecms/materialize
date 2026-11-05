@@ -319,6 +319,23 @@ export function imagesIn(html: string): string[] {
   return [...new Set(out)]
 }
 
+/** The alternative text written on WordPress, trimmed. */
+const altOf = (img: DomNode) => (img.attribs?.alt ?? '').replace(/\s+/g, ' ').trim().slice(0, 500)
+
+/** Each image address in some HTML with its alternative text, for the library. */
+export function imageAltsIn(html: string): Map<string, string> {
+  const out = new Map<string, string>()
+  const walk = (n: DomNode) => {
+    if (n.name === 'img') {
+      const src = imageSrc(n)
+      if (src && !out.get(src)) out.set(src, altOf(n))
+    }
+    for (const c of n.children ?? []) walk(c)
+  }
+  walk(parse(html))
+  return out
+}
+
 function imageSrc(img: DomNode): string | undefined {
   const a = img.attribs ?? {}
   // Lazy-loading plugins keep the real address aside.
@@ -407,7 +424,7 @@ type Piece =
       style: 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'quote' | 'li' | 'caption'
       runs: ReturnType<typeof runsOf>
     }
-  | { kind: 'image'; src: string }
+  | { kind: 'image'; src: string; alt: string }
   | { kind: 'button'; text: string; href: string }
 
 /** The content of some HTML in reading order: titles, paragraphs, list items, quotes, images, buttons. */
@@ -439,7 +456,7 @@ function pieces(html: string, ctx: ConvertContext): Piece[] {
       if (img && !textOf(n).trim()) {
         flush()
         const src = imageSrc(img)
-        if (src) out.push({ kind: 'image', src })
+        if (src) out.push({ kind: 'image', src, alt: altOf(img) })
         return
       }
       inlineBuffer.push(n)
@@ -448,7 +465,7 @@ function pieces(html: string, ctx: ConvertContext): Piece[] {
     flush()
     if (name === 'img') {
       const src = imageSrc(n)
-      if (src) out.push({ kind: 'image', src })
+      if (src) out.push({ kind: 'image', src, alt: altOf(n) })
       return
     }
     if (/^h[1-6]$/.test(name)) {
@@ -461,7 +478,7 @@ function pieces(html: string, ctx: ConvertContext): Piece[] {
       // Images inside a paragraph come out on their own.
       for (const img of allImgs(n)) {
         const src = imageSrc(img)
-        if (src) out.push({ kind: 'image', src })
+        if (src) out.push({ kind: 'image', src, alt: altOf(img) })
       }
       const runs = runsOf(n.children ?? [], ctx)
       if (runs.length)
@@ -523,7 +540,7 @@ export function htmlToRichText(html: string, ctx: ConvertContext): RichText {
   for (const p of pieces(html, ctx)) {
     if (p.kind === 'image') {
       const img = ctx.image(p.src)
-      if (img) out.push({ type: 'image', children: [], image: img })
+      if (img) out.push({ type: 'image', children: [], image: { ...img, alt: p.alt || img.alt } })
     } else if (p.kind === 'button') {
       out.push({ type: 'paragraph', children: [{ text: p.text, bold: true, href: p.href }] })
     } else if (p.style === 'h1' || p.style === 'h2')
@@ -577,7 +594,7 @@ export function htmlToPage(html: string, title: string, ctx: ConvertContext): Pa
           type: 'image',
           name: 'Immagine',
           src: img.src,
-          alt: img.alt,
+          alt: p.alt || img.alt,
           ratio: img.width && img.height ? `${img.width}/${img.height}` : '16/9',
           radius: 'card',
           width: 'fill',

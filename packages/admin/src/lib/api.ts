@@ -197,10 +197,12 @@ export interface WpPlan {
   locale?: string
   categories?: Record<string, string>
   fallbackCategory?: string
+  /** Pages on the canvas laid out again by the AI with the section library. */
+  aiLayout?: boolean
 }
 
 export interface WpProgress {
-  phase: 'media' | 'content' | 'done' | 'failed'
+  phase: 'media' | 'content' | 'layout' | 'done' | 'failed'
   done: number
   total: number
   created: { id: string; collection: string; title: string; published: boolean }[]
@@ -208,6 +210,8 @@ export interface WpProgress {
   problems: { title: string; reason: string }[]
   media: { downloaded: number; failed: number; reasons: Record<string, number> }
   redirects: number
+  /** Pages the AI laid out again. */
+  relaid?: number
   error?: string
 }
 

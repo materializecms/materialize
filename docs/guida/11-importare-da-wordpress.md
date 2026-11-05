@@ -27,4 +27,12 @@ Gli indirizzi che esistono già in Materialize non vengono sovrascritti.
 
 Le pagine arrivano con i **contenuti in ordine**, una sezione per ogni titolo principale, ma con un'impaginazione semplice. Il design si rifà sulla tela con l'editor, partendo dalle sezioni della libreria.
 
+### Impaginazione con l'AI
+
+Se l'AI è configurata (Impostazioni → AI e MCP), prima di importare puoi accendere **Rifai l'impaginazione delle pagine con l'AI**. Dopo l'import, l'AI ricompone ogni pagina con le sezioni della libreria: un'apertura con titolo e immagine, i servizi in colonne, gli elenchi come schede o spunte, gli inviti all'azione.
+
+- **Stessi testi e stesse immagini**: l'AI non riscrive e non aggiunge niente, sposta solo il contenuto nelle sezioni. Un controllo confronta le parole e le immagini prima e dopo: se ne mancano o ne compaiono di nuove, la pagina resta con l'impaginazione semplice e il resoconto dice perché. Le descrizioni delle immagini restano.
+- **Nella bozza**: se hai scelto di pubblicare, online va la versione semplice; quella dell'AI è nella bozza, segnata «Modifiche da pubblicare», da rivedere e pubblicare quando ti convince.
+- Una pagina alla volta, con il modello principale: per un sito di qualche pagina servono pochi minuti. Il consumo lo vedi in Impostazioni → AI e MCP.
+
 Le immagini SVG non vengono importate, per sicurezza: il pannello lo dice e spiega perché.
