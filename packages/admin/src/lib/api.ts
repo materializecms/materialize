@@ -366,6 +366,60 @@ export type TextAction =
   | 'alt'
 
 /** What the assistant reports while it works, then its answer and the changed page. */
+export interface BuiltPage {
+  id: string
+  collection: string
+  title: string
+  url: string | null
+}
+
+export type SiteEvent =
+  | { type: 'status'; text: string }
+  | { type: 'tool'; name: string; title: string }
+  | { type: 'created'; doc: BuiltPage }
+  | { type: 'result'; created: BuiltPage[]; theme: Theme | null; voice: BrandVoice | null }
+  | { type: 'text'; text: string }
+  | { type: 'error'; message: string }
+  /** With the run's id when the person can answer the AI and go on. */
+  | { type: 'done'; runId?: string }
+
+/** A POST answered with server-sent events: "data: {...}" lines, a blank line after each. */
+async function streamEvents<E>(path: string, input: unknown, onEvent: (e: E) => void, signal?: AbortSignal) {
+  let res: Response
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+      signal,
+    })
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') throw error
+    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+  }
+  if (!res.ok || !res.body) throw errorFrom(res.status, await res.json().catch(() => null))
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += value
+    let end = buffer.indexOf('\n\n')
+    while (end >= 0) {
+      const chunk = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      const data = chunk
+        .split('\n')
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => l.slice(5).trimStart())
+        .join('\n')
+      if (data) onEvent(JSON.parse(data) as E)
+      end = buffer.indexOf('\n\n')
+    }
+  }
+}
+
 export type ChatEvent =
   | { type: 'status'; text: string }
   | { type: 'tool'; name: string; title: string }
@@ -642,7 +696,7 @@ export const api = {
   createToken: (name: string) => request<{ token: string; record: ApiToken }>('POST', '/tokens', { name }),
   revokeToken: (id: string) => request<{ ok: true }>('DELETE', `/tokens/${id}`),
   /** A turn with the assistant: events arrive as the server sends them. */
-  chat: async (
+  chat: (
     input: {
       chatId?: string
       message: string
@@ -654,42 +708,19 @@ export const api = {
     },
     onEvent: (e: ChatEvent) => void,
     signal?: AbortSignal,
-  ) => {
-    let res: Response
-    try {
-      res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(input),
-        signal,
-      })
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') throw error
-      throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
-    }
-    if (!res.ok || !res.body) throw errorFrom(res.status, await res.json().catch(() => null))
-    // Server-sent events: "data: {...}" lines, a blank line after each.
-    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
-    let buffer = ''
-    for (;;) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += value
-      let end = buffer.indexOf('\n\n')
-      while (end >= 0) {
-        const chunk = buffer.slice(0, end)
-        buffer = buffer.slice(end + 2)
-        const data = chunk
-          .split('\n')
-          .filter((l) => l.startsWith('data:'))
-          .map((l) => l.slice(5).trimStart())
-          .join('\n')
-        if (data) onEvent(JSON.parse(data) as ChatEvent)
-        end = buffer.indexOf('\n\n')
-      }
-    }
-  },
+  ) => streamEvents('/api/ai/chat', input, onEvent, signal),
+  /** A first version of the site from a brief: new drafts, with theme and voice proposed. */
+  buildSite: (
+    input: {
+      brief?: string
+      runId?: string
+      message?: string
+      theme: boolean
+      images?: { mime: 'image/jpeg'; data: string }[]
+    },
+    onEvent: (e: SiteEvent) => void,
+    signal?: AbortSignal,
+  ) => streamEvents('/api/ai/site', input, onEvent, signal),
   submissions: (params: SubmissionQuery = {}) =>
     request<{
       items: Submission[]

@@ -1,9 +1,11 @@
-import { ArrowRight, ArrowUpRight, ImagePlus, Images, Plus, SlidersHorizontal, UserPlus } from 'lucide-react'
-import type { CSSProperties, ReactNode } from 'react'
+import { ArrowRight, ArrowUpRight, ImagePlus, Images, Plus, SlidersHorizontal, Sparkles, UserPlus } from 'lucide-react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
+import { useAiReady } from '../components/AiMenu.tsx'
 import { Button, cx, Spinner, StatusBadge, TintIcon } from '../components/ui.tsx'
 import { type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { href, navigate, type Route } from '../lib/router.ts'
+import { BriefDialog } from './BriefDialog.tsx'
 import { useSession } from './context.ts'
 import { collectionIcon, useCollectionTint, useOverview } from './Sidebar.tsx'
 
@@ -32,6 +34,9 @@ export function Overview() {
   const { schema, user } = useSession()
   const overview = useOverview()
   const tint = useCollectionTint()
+  const aiReady = useAiReady()
+  const [briefOpen, setBriefOpen] = useState(false)
+  const canBuild = aiReady && user.role === 'admin'
   const lists = schema.collections.filter((c) => !c.singleton)
   const singletons = schema.collections.filter((c) => c.singleton)
   const pages = lists.find((c) => /page|pagin/.test(c.name)) ?? lists[0]
@@ -64,10 +69,15 @@ export function Overview() {
                     : `Ci sono ${toPublish} documenti da pubblicare.`}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button icon={<ArrowUpRight className="size-4" />} onClick={() => window.open('/', '_blank', 'noopener')}>
               Apri il sito
             </Button>
+            {canBuild && (
+              <Button icon={<Sparkles className="size-4 text-accent" />} onClick={() => setBriefOpen(true)}>
+                Crea con l’AI
+              </Button>
+            )}
             {pages && (
               <Button
                 variant="primary"
@@ -202,6 +212,7 @@ export function Overview() {
           </aside>
         </div>
       </div>
+      {canBuild && <BriefDialog open={briefOpen} onClose={() => setBriefOpen(false)} />}
     </div>
   )
 }

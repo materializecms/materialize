@@ -136,8 +136,13 @@ export async function runTurn(
     tools: SiteTool[]
     onEvent: (e: AiEvent) => void
     maxSteps?: number
+    /** Stops before the next step (the person closed the panel or pressed stop). */
+    signal?: AbortSignal
   },
 ): Promise<string> {
+  const stopped = () => {
+    if (input.signal?.aborted) throw new AiError('Interrotto.')
+  }
   const images = input.images ?? []
   const byName = new Map(input.tools.map((t) => [t.name, t]))
   const runTool = async (name: string, raw: unknown): Promise<{ text: string; error: boolean }> => {
@@ -172,6 +177,7 @@ export async function runTurn(
         : input.text,
     })
     for (let step = 0; step < maxSteps; step++) {
+      stopped()
       const reply = await openaiChat(s, { messages: [{ role: 'system', content: input.system }, ...messages], tools })
       messages.push(reply)
       if (!reply.tool_calls?.length) return (reply.content ?? '').trim()
@@ -217,6 +223,7 @@ export async function runTurn(
   // forward step by step.
   const system = [{ type: 'text' as const, text: input.system, cache_control: { type: 'ephemeral' as const } }]
   for (let step = 0; step < maxSteps; step++) {
+    stopped()
     const message = await claude(s, {
       max_tokens: 16000,
       output_config: { effort: 'medium' },
@@ -361,7 +368,7 @@ async function openaiChat(s: AiSettings, body: { messages: unknown[]; tools?: un
 
 // ---------- translation ----------
 
-const languageName = (code: string) => {
+export const languageName = (code: string) => {
   try {
     return `${new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code} (${code})`
   } catch {

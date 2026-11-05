@@ -4,6 +4,7 @@ import { ArrowUp, ImagePlus, Loader2, RotateCcw, Sparkles, Square, Wrench, X } f
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { useAiReady } from '../components/AiMenu.tsx'
+import { Prose } from '../components/Prose.tsx'
 import { cx, IconButton, toast } from '../components/ui.tsx'
 import { api, type ChatEvent } from '../lib/api.ts'
 import { navigate } from '../lib/router.ts'
@@ -20,7 +21,7 @@ const MAX_PICTURES = 4
 const MAX_SIDE = 1600
 
 /** A picture as a JPEG of at most MAX_SIDE pixels (transparent parts on white). */
-async function shrink(file: File): Promise<{ data: string; url: string }> {
+export async function shrink(file: File): Promise<{ data: string; url: string }> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
@@ -228,9 +229,7 @@ export function AssistantPanel({
               {it.text}
             </div>
           ) : it.kind === 'assistant' ? (
-            <div key={it.id} className="text-[13px] leading-relaxed whitespace-pre-wrap">
-              {it.text}
-            </div>
+            <Prose key={it.id} text={it.text} className="text-[13px] leading-relaxed" />
           ) : it.kind === 'step' ? (
             <div
               key={it.id}

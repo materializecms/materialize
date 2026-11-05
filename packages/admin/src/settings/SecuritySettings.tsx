@@ -128,6 +128,11 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
         text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
         group: 'content',
       }
+    case 'site.generated':
+      return {
+        text: `ha fatto preparare all’AI ${d.pages === 1 ? 'una pagina' : `${d.pages ?? ''} pagine`} da un brief`,
+        group: 'content',
+      }
     case 'document.reviewed':
       return {
         text: `ha fatto rivedere ${t} all’AI${typeof d.issues === 'number' ? `: ${d.issues === 1 ? 'un suggerimento' : `${d.issues} suggerimenti`}` : ''}`,

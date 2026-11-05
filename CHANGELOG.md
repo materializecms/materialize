@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Il sito da un brief**: dalla Panoramica, **Crea con l'AI**. Descrivi l'attività in poche righe, se vuoi con un'immagine di riferimento, e l'AI prepara le pagine con le sezioni della libreria, con menu, piè di pagina, testi e descrizioni per Google. Tutto resta in bozza; le pagine esistenti, i menu condivisi e il sito online non vengono toccati. Colori, caratteri e voce del brand arrivano come proposta da applicare con un clic. Dove mancano informazioni (prezzi, indirizzo, telefono) lascia un segnaposto tra parentesi quadre invece di inventare, e puoi rispondere all'AI per chiedere altro.
+- Le risposte dell'assistente mostrano grassetti ed elenchi, invece di asterischi e trattini.
 - **Revisione AI prima di pubblicare**: nella scheda Controlli (e in Altre azioni per gli articoli) **Rivedi con l'AI** rilegge la pagina e segnala refusi, grammatica, frasi fuori dalla voce del brand, incoerenze e link che non portano dove dicono. Ogni segnalazione ha la correzione, da applicare con un clic e annullare con ⌘Z.
 - **Voce del brand per l'AI**: in Impostazioni → Voce del brand scrivi chi siete, il tono, come vi rivolgete a chi legge, le parole da usare ed evitare e un testo d'esempio. L'AI la segue in ogni testo che scrive: pulsante ✨, assistente, traduzioni e client MCP. Il pulsante **Ricavala dai testi del sito** la propone leggendo le pagine pubblicate.
 ## 0.5.0 — 2026-11-05

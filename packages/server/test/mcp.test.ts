@@ -497,3 +497,100 @@ describe('AI review', () => {
     }
   })
 })
+
+describe('site from a brief', () => {
+  it('makes new drafts only, and proposes theme and voice without applying them', async () => {
+    const existing = (
+      await call('POST', '/api/collections/pages', {
+        data: { title: 'Vecchia', slug: 'vecchia', page: [{ id: 'x', type: 'frame', children: [] }] },
+      })
+    ).body
+    let createdId = ''
+    const toolResults: string[] = []
+    const call_ = (id: string, name: string, args: unknown) => ({
+      id,
+      type: 'function',
+      function: { name, arguments: JSON.stringify(args) },
+    })
+    let step = 0
+    let system = ''
+    const server = createServer((req, res) => {
+      let raw = ''
+      req.on('data', (chunk) => {
+        raw += chunk
+      })
+      req.on('end', () => {
+        const { messages } = JSON.parse(raw) as { messages: { role: string; content: string }[] }
+        system = messages[0]?.content ?? ''
+        for (const m of messages.slice(-3)) if (m.role === 'tool') toolResults.push(m.content)
+        const last = messages.at(-1)
+        if (step === 2 && last?.role === 'tool') createdId = JSON.parse(last.content).id
+        const steps = [
+          () => [
+            call_('a', 'propose_theme', { display: 'Fraunces', colors: { light: { accent: '#b4532a' } } }),
+            call_('b', 'propose_voice', { about: 'Panificio a Bologna', tones: ['Amichevole'], address: 'tu' }),
+          ],
+          () => [call_('c', 'create_entry', { collection: 'pages', data: { title: 'Home', slug: 'home' } })],
+          () => [
+            call_('d', 'edit_page', { id: createdId, operations: [{ op: 'add_section', key: 'nav.classic' }] }),
+            call_('e', 'edit_page', { id: existing.id, operations: [{ op: 'remove', nodeId: 'x' }] }),
+            call_('f', 'update_entry', { id: existing.id, data: { title: 'Cambiata' } }),
+          ],
+        ]
+        const next = steps[step++]
+        res.setHeader('content-type', 'application/json')
+        res.end(
+          JSON.stringify({
+            choices: [
+              {
+                message: next
+                  ? { role: 'assistant', content: null, tool_calls: next() }
+                  : { role: 'assistant', content: 'Ho preparato la home.' },
+              },
+            ],
+          }),
+        )
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const { port } = server.address() as AddressInfo
+      await call('PUT', '/api/ai', {
+        ai: { provider: 'openai', apiKey: '', baseUrl: `http://127.0.0.1:${port}/v1`, model: 'm' },
+      })
+      const themeBefore = (await call('GET', '/api/theme')).body.theme
+      const res = await app.request('/api/ai/site', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie, origin: 'http://localhost' },
+        body: JSON.stringify({ brief: 'Un panificio di quartiere a Bologna, pane a lievito madre e colazioni.' }),
+      })
+      expect(res.status).toBe(200)
+      const events = (await res.text())
+        .split('\n')
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => JSON.parse(l.slice(5)))
+      const result = events.find((e) => e.type === 'result')
+      expect(events.find((e) => e.type === 'created')?.doc.title).toBe('Home')
+      expect(result.created).toHaveLength(1)
+      expect(result.theme.display).toBe('Fraunces')
+      expect(result.theme.colors.light.accent).toBe('#b4532a')
+      expect(result.voice).toMatchObject({ about: 'Panificio a Bologna', address: 'tu' })
+      expect(events.at(-1)).toMatchObject({ type: 'done', runId: expect.any(String) })
+      expect(system).toContain('Existing entries: pages: "Vecchia" (slug vecchia)')
+      expect(system).toContain('Write every text in Italian')
+
+      // The new draft has the section; nothing else changed.
+      const home = (await call('GET', `/api/documents/${createdId}`)).body
+      expect(home.status).toBe('draft')
+      expect(home.data.page[0].section).toBe('nav.classic')
+      const old = (await call('GET', `/api/documents/${existing.id}`)).body
+      expect(old.title).toBe('Vecchia')
+      expect(old.data.page).toHaveLength(1)
+      expect(toolResults.filter((t) => t.includes('only the drafts you created'))).toHaveLength(2)
+      expect((await call('GET', '/api/theme')).body.theme).toEqual(themeBefore)
+      expect((await call('GET', '/api/voice')).body.voice).toEqual({})
+    } finally {
+      server.close()
+    }
+  })
+})

@@ -86,12 +86,14 @@ import {
   complete,
   EMPTY_AI,
   isReady,
+  languageName,
   publicAi,
   runTurn,
   translateTexts,
 } from './ai.ts'
 import { type ArchiveEntry, folderEntries, tarGz } from './archive.ts'
 import { type BackupSettings, createBackups, DEFAULT_BACKUPS } from './backups.ts'
+import { type BriefResult, briefSystem, briefTools } from './brief.ts'
 import { createFonts, FONT_FILE, FONT_ID } from './fonts.ts'
 import {
   type FormsSettings,
@@ -2515,6 +2517,126 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         chats.delete(key)
         await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
         await send({ type: 'done', chatId })
+      }
+    })
+  })
+
+  // A first version of the site from a few lines about the business: new drafts only, theme and
+  // voice proposed. Admins, since the proposal touches the design of the whole site.
+  /** Runs of the site builder, per person, kept two hours: the person may answer the AI and go on. */
+  const briefRuns = new Map<
+    string,
+    { conv: Conversation; system: string; result: BriefResult; askVoice: boolean; theme: boolean; at: number }
+  >()
+
+  app.post('/api/ai/site', requireUser, requireSession, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z
+        .object({
+          brief: z.string().trim().min(20, 'Scrivi qualche riga in più sull’attività').max(6000).optional(),
+          /** A reply in a run already started, with its id. */
+          runId: z.string().max(64).optional(),
+          message: z.string().trim().min(1).max(4000).optional(),
+          theme: z.boolean().default(true),
+          images: z
+            .array(
+              z.object({
+                mime: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+                data: z.base64().max(4_000_000),
+              }),
+            )
+            .max(2)
+            .default([]),
+        })
+        .refine((v) => (v.runId ? !!v.message : !!v.brief), { message: 'Scrivi il brief' }),
+    )
+    const user = c.get('user')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const now = Date.now()
+    for (const [k, v] of briefRuns) if (now - v.at > 2 * 60 * 60 * 1000) briefRuns.delete(k)
+    const runId = input.runId ?? crypto.randomUUID()
+    const key = `${user.id}:${runId}`
+    let run = input.runId ? briefRuns.get(key) : undefined
+    if (input.runId && (!run || run.conv.provider !== ai.provider))
+      throw new ApiError(409, 'run_expired', 'Questa conversazione non c’è più: parti da un nuovo brief')
+
+    if (!run) {
+      const config = ctx.config()
+      const pageCollections = config.collections.filter(
+        (d) => !d.singleton && Object.values(d.fields).some((f) => f.kind === 'page'),
+      )
+      if (!pageCollections.length)
+        throw new ApiError(400, 'no_pages', 'Il sito non ha una raccolta di pagine costruite sulla tela')
+      const locale = config.locales.default
+      const existing: string[] = []
+      for (const d of config.collections.filter((x) => !x.singleton)) {
+        const { items } = await content.list(d.name, { locale, limit: 100 })
+        for (const i of items) existing.push(`${d.name}: "${i.title}"${i.slug ? ` (slug ${i.slug})` : ''}`)
+      }
+      // Fixed for the whole run, like the assistant's: the model's reasoning is tied to them.
+      const voice = await voiceText()
+      const askVoice = !voice
+      run = {
+        conv: { provider: ai.provider, messages: [] },
+        system: briefSystem({
+          site: config.site.name,
+          language: languageName(locale),
+          collections: pageCollections.map((d) => `${d.name} (${d.label ?? d.name})`).join(', '),
+          existing: existing.length ? existing.join('; ') : 'none: the site is empty',
+          voice,
+          askVoice,
+          theme: input.theme,
+        }),
+        result: { created: [], theme: null, voice: null },
+        askVoice,
+        theme: input.theme,
+        at: now,
+      }
+    }
+    const current = run
+    current.at = now
+    briefRuns.set(key, current)
+
+    const auth: Record<string, string> = {}
+    const authorization = c.req.header('authorization')
+    const cookie = c.req.header('cookie')
+    if (authorization) auth.authorization = authorization
+    else if (cookie) auth.cookie = cookie
+
+    return streamSSE(c, async (stream) => {
+      const send = (data: unknown) => stream.writeSSE({ data: JSON.stringify(data) })
+      const stop = new AbortController()
+      stream.onAbort(() => stop.abort())
+      const { tools, result } = briefTools(apiCaller(app.fetch, auth), {
+        askVoice: current.askVoice,
+        result: current.result,
+        onCreated: (doc) => void send({ type: 'created', doc }),
+      })
+      const before = result.created.length
+      try {
+        const reply = await runTurn(ai, current.conv, {
+          system: current.system,
+          text: input.runId ? (input.message ?? '') : `<brief>\n${input.brief}\n</brief>`,
+          images: input.images,
+          tools: current.theme ? tools : tools.filter((t) => t.name !== 'propose_theme'),
+          onEvent: (e) => void send(e),
+          maxSteps: 80,
+          signal: stop.signal,
+        })
+        if (result.created.length > before)
+          await record(c, 'site.generated', '', { pages: result.created.length - before })
+        await send({ type: 'result', ...result })
+        await send({ type: 'text', text: reply })
+        await send({ type: 'done', runId })
+      } catch (error) {
+        if (!(error instanceof AiError)) console.error(error)
+        // What was made before the failure stays, as drafts: the panel lists it. The run ends.
+        briefRuns.delete(key)
+        await send({ type: 'result', ...result })
+        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'done' })
       }
     })
   })
