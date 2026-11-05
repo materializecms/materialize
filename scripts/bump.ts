@@ -37,7 +37,7 @@ async function main() {
   const changelog = stampChangelog(
     await readFile(changelogPath, 'utf8'),
     version,
-    new Date().toISOString().slice(0, 10),
+    new Date().toLocaleDateString('sv'),
   )
 
   for (const file of await manifests()) {
