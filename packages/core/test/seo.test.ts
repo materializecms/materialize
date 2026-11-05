@@ -133,11 +133,11 @@ describe('checks', () => {
       ],
     },
   ]
-  it('finds missing alt texts, broken links and a missing description', () => {
+  it('finds broken links and a missing description (alt texts are in the accessibility checks)', () => {
     const checks = pageChecks({ title: 'Una pagina di prova', url: '/', nodes, knownUrls: ['/'] })
     const ids = checks.filter((c) => c.level !== 'ok').map((c) => c.id)
     expect(ids).toContain('description')
-    expect(ids).toContain('alt:i')
+    expect(ids).not.toContain('alt:i')
     expect(ids).toContain('link:/manca')
     expect(checks.find((c) => c.id === 'h1')?.level).toBe('ok')
   })

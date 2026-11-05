@@ -525,8 +525,6 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
 
   if (input.nodes) {
     let h1 = 0
-    let lastLevel = 0
-    let skipped: PageNode | null = null
     let extraH1: PageNode | null = null
     let words = 0
     let firstImage = false
@@ -550,25 +548,9 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
             h1++
             if (h1 === 2) extraH1 = n
           }
-          if (level) {
-            if (lastLevel && level > lastLevel + 1 && !skipped) skipped = n
-            lastLevel = level
-          }
           for (const r of n.runs ?? []) checkLink(r.href, n)
         }
-        if (n.type === 'image') {
-          if (n.src) firstImage = true
-          if (n.src && !n.alt?.trim())
-            add(
-              `alt:${n.id}`,
-              'warning',
-              `Immagine senza descrizione: ${n.name || 'immagine'}`,
-              'Serve a chi non vede e a Google Immagini.',
-              n.id,
-            )
-        }
-        if (n.type === 'button' && !n.text?.trim() && !n.submit)
-          add(`btn:${n.id}`, 'warning', 'Pulsante senza testo', undefined, n.id)
+        if (n.type === 'image' && n.src) firstImage = true
         if (!n.submit) checkLink(n.href, n)
         if (n.children) walk(n.children)
       }
@@ -593,15 +575,6 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
         (extraH1 as PageNode | null)?.id,
       )
     else add('h1', 'ok', 'Un solo titolo principale (H1)')
-    const skip = skipped as PageNode | null
-    if (skip)
-      add(
-        'levels',
-        'warning',
-        'Livelli dei titoli saltati',
-        'Per esempio da Titolo 1 a Titolo 3 senza un Titolo 2.',
-        skip.id,
-      )
     if (words < 150)
       add('words', 'warning', `Poco testo (${words} parole)`, 'Le pagine con almeno 300 parole si posizionano meglio.')
     else add('words', 'ok', `${words} parole`)

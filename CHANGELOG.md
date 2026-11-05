@@ -10,6 +10,7 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 - **Feed RSS** su `/rss.xml` con gli ultimi articoli, annunciato in ogni pagina; in Impostazioni → SEO si scelgono le raccolte.
 - **Blocco dei crawler AI più preciso**: blocca solo chi addestra modelli; le ricerche AI (ChatGPT Search, Claude, Perplexity) restano libere, perché portano visitatori. Prima PerplexityBot veniva bloccato.
 - **Moduli più robusti**: antispam senza CAPTCHA (lo spam va in una cartella recuperabile), controlli dei campi anche sul server con il motivo accanto al campo, **file allegati** privati, destinatari per modulo, **risposta automatica** a chi scrive, **webhook** firmato per Zapier, Make e n8n. In Impostazioni → Messaggi: filtri per modulo, da leggere e spam, ricerca, **esportazione CSV** e cancellazione automatica dei messaggi vecchi. La casella da spuntare può aprire l'informativa privacy.
+- **Controllo di accessibilità e prestazioni**: la scheda SEO dell'editor diventa **Controlli**, con tre gruppi. Accessibilità: contrasto dei testi misurato sulla pagina vera (WCAG), immagini senza descrizione, pulsanti e icone senza nome, campi senza etichetta, link poco chiari, titoli saltati, video senza pausa. Prestazioni: file da altri siti, GIF e video pesanti, video senza copertina, troppe scene 3D, script esterni, troppi caratteri. Prima di pubblicare, i problemi seri vengono elencati.
 - Una pagina riportata com'è sul sito (per esempio con ⌘Z) non risulta più «Modifiche da pubblicare».
 
 ## 0.4.0 — 2026-11-03

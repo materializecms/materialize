@@ -123,8 +123,10 @@ export function SettingsScreen({ tab }: { tab?: string }) {
           className="shrink-0 border-line md:w-52 md:overflow-y-auto md:border-r md:p-3 max-md:flex max-md:gap-1.5 max-md:overflow-x-auto max-md:border-b max-md:px-4 max-md:py-2.5 max-md:[scrollbar-width:none]"
         >
           {groups.map((g) => (
-            <div key={g.title} className="md:mb-4 max-md:contents">
-              <div className="px-2.5 pb-1 text-[12px] font-medium text-fg3 max-md:hidden">{g.title}</div>
+            <div key={g.title} className="md:mb-5 max-md:contents">
+              <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg uppercase max-md:hidden">
+                {g.title}
+              </div>
               <div className="flex flex-col gap-0.5 max-md:contents">{g.items.map(item)}</div>
             </div>
           ))}

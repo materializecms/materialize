@@ -508,7 +508,8 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
         </div>
       )}
       {docText && (
-        <div className="-mb-1 flex justify-end gap-1">
+        // On a narrow panel the two buttons go on two lines instead of out of its edge.
+        <div className="-mb-1 flex min-w-0 flex-wrap justify-end gap-x-1 gap-y-0.5">
           <AiButton
             action="seo_title"
             text={docText()}

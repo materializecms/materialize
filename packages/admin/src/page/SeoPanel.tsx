@@ -1,13 +1,15 @@
-import type { PageNode } from '@materializecms/core/page'
+import type { PageNode, Theme } from '@materializecms/core/page'
+import type { MediaInfo } from '@materializecms/core/quality'
 import { pageChecks, type SeoCheck, type SiteSeo } from '@materializecms/core/seo'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, TriangleAlert } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { Button, cx } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { useForm } from '../fields/form-context.ts'
 import { api, type Data, type FieldDescription } from '../lib/api.ts'
+import { qualityOf } from './quality.ts'
 
 const ICON = {
   error: <CircleAlert className="size-3.5 text-danger" />,
@@ -15,14 +17,25 @@ const ICON = {
   ok: <CircleCheck className="size-3.5 text-ok" />,
 }
 
+/** The library's files by address, with size and type: what the performance checks weigh. */
+export function useMediaInfo(): Record<string, MediaInfo> {
+  const media = useQuery({ queryKey: ['media-info'], queryFn: () => api.media({ limit: 100 }), staleTime: 60_000 })
+  return useMemo(
+    () => Object.fromEntries((media.data?.items ?? []).map((m) => [m.url, { size: m.size, mime: m.mime }])),
+    [media.data],
+  )
+}
+
 /**
- * The checks of a page for search engines, worst first, and the fields that fix them (title,
+ * The checks of a page, worst first: search engines, accessibility (with the contrast of the
+ * texts measured on the canvas) and performance, and the fields that fix the SEO ones (title,
  * description, image). In Design those fields are already in the page panel on the right: then
  * `onEditFields` is given and leads there, so they are never shown twice.
  */
 export function SeoPanel({
   nodes,
   data,
+  theme,
   seoField,
   onChange,
   onSelect,
@@ -30,6 +43,7 @@ export function SeoPanel({
 }: {
   nodes: PageNode[]
   data: Data
+  theme?: Theme
   seoField?: FieldDescription
   onChange: (next: Data, group?: string) => void
   /** Selects the element a check points to. */
@@ -59,8 +73,21 @@ export function SeoPanel({
       }),
     [docTitle, docUrl, seo, site, nodes, urls],
   )
-  const errors = checks.filter((c) => c.level === 'error').length
-  const warnings = checks.filter((c) => c.level === 'warning').length
+  const media = useMediaInfo()
+  // Measured once the canvas has drawn the change.
+  const [quality, setQuality] = useState(() => qualityOf(nodes, { media, theme }))
+  useEffect(() => {
+    const t = setTimeout(() => setQuality(qualityOf(nodes, { media, theme })), 400)
+    return () => clearTimeout(t)
+  }, [nodes, media, theme])
+  const groups = [
+    { title: 'Motori di ricerca', checks },
+    { title: 'Accessibilità', checks: quality.accessibility },
+    { title: 'Prestazioni', checks: quality.performance },
+  ]
+  const all = groups.flatMap((g) => g.checks)
+  const errors = all.filter((c) => c.level === 'error').length
+  const warnings = all.filter((c) => c.level === 'warning').length
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -74,34 +101,15 @@ export function SeoPanel({
             warnings && `${warnings} ${warnings === 1 ? 'consiglio' : 'consigli'}`,
           ]
             .filter(Boolean)
-            .join(' · ') || 'La pagina è pronta per i motori di ricerca.'}
+            .join(' · ') || 'La pagina è pronta: motori di ricerca, accessibilità e prestazioni.'}
         </div>
       </div>
-      <ul className="space-y-0.5 p-1.5">
-        {checks.map((c: SeoCheck) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              disabled={!c.nodeId}
-              onClick={() => c.nodeId && onSelect(c.nodeId)}
-              className={cx(
-                'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left',
-                c.nodeId && 'hover:bg-hover',
-              )}
-            >
-              <span className="mt-0.5 shrink-0">{ICON[c.level]}</span>
-              <span className="min-w-0">
-                <span className={cx('block text-[12.5px] leading-snug', c.level === 'ok' && 'text-fg2')}>
-                  {c.label}
-                </span>
-                {c.detail && c.level !== 'ok' && (
-                  <span className="block text-[11.5px] leading-snug text-fg3">{c.detail}</span>
-                )}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {groups.map((g) => (
+        <section key={g.title} className="border-b border-line last:border-b-0">
+          <h3 className="px-3.5 pt-3 pb-1 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">{g.title}</h3>
+          <CheckList checks={g.checks} onSelect={onSelect} />
+        </section>
+      ))}
       {seoField && !onEditFields && (
         <div className="border-t border-line px-3.5 py-4">
           <FieldsForm fields={[seoField]} value={data} onChange={onChange} path={[]} />
@@ -118,5 +126,33 @@ export function SeoPanel({
         </div>
       )}
     </div>
+  )
+}
+
+function CheckList({ checks, onSelect }: { checks: SeoCheck[]; onSelect: (id: string) => void }) {
+  return (
+    <ul className="space-y-0.5 p-1.5 pt-0">
+      {checks.map((c) => (
+        <li key={c.id}>
+          <button
+            type="button"
+            disabled={!c.nodeId}
+            onClick={() => c.nodeId && onSelect(c.nodeId)}
+            className={cx(
+              'flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left',
+              c.nodeId && 'hover:bg-hover',
+            )}
+          >
+            <span className="mt-0.5 shrink-0">{ICON[c.level]}</span>
+            <span className="min-w-0">
+              <span className={cx('block text-[12.5px] leading-snug', c.level === 'ok' && 'text-fg2')}>{c.label}</span>
+              {c.detail && c.level !== 'ok' && (
+                <span className="block text-[11.5px] leading-snug text-fg3">{c.detail}</span>
+              )}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }

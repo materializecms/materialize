@@ -1,3 +1,5 @@
+import type { PageNode } from '@materializecms/core/page'
+import type { MediaInfo, QualityCheck } from '@materializecms/core/quality'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -50,6 +52,7 @@ import { useHistory } from '../lib/history.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
 import { PageEditor } from '../page/PageEditor.tsx'
+import { qualityOf } from '../page/quality.ts'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
 import { LanguageMenu } from './LanguageMenu.tsx'
@@ -153,6 +156,8 @@ function Editor({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [confirmUnpublish, setConfirmUnpublish] = useState(false)
+  /** Serious accessibility or performance problems found when publishing a canvas page. */
+  const [problems, setProblems] = useState<QualityCheck[] | null>(null)
   const [panel, setPanel] = usePref<'on' | 'off'>('mz-doc-panel', 'on')
   const blocksField = fields.find((f) => f.kind === 'blocks')
   const pageField = fields.find((f) => f.kind === 'page')
@@ -251,7 +256,27 @@ function Editor({
     return () => clearTimeout(t)
   }, [doc, dirty, saving, save])
 
-  const publish = async () => {
+  /**
+   * Publishes; a canvas page with serious accessibility or performance problems asks first, once
+   * (`anyway` skips the question). Warnings never stop it.
+   */
+  const publish = async (anyway?: boolean) => {
+    if (pageField && anyway !== true) {
+      const nodes = history.value[pageField.name]
+      if (Array.isArray(nodes)) {
+        const media = queryClient.getQueryData<{ items: { url: string; size: number; mime: string }[] }>(['media-info'])
+        const info: Record<string, MediaInfo> = Object.fromEntries(
+          (media?.items ?? []).map((m) => [m.url, { size: m.size, mime: m.mime }]),
+        )
+        const { accessibility, performance } = qualityOf(nodes as PageNode[], { media: info })
+        const serious = [...accessibility, ...performance].filter((c) => c.level === 'error')
+        if (serious.length) {
+          setProblems(serious)
+          return
+        }
+      }
+    }
+    setProblems(null)
     setPublishing(true)
     try {
       let target = doc
@@ -632,7 +657,7 @@ function Editor({
                 <Button onClick={() => void save()} loading={saving} className="ml-1">
                   Salva bozza
                 </Button>
-                <Button variant="primary" onClick={publish} loading={publishing}>
+                <Button variant="primary" onClick={() => void publish()} loading={publishing}>
                   Pubblica
                 </Button>
               </>
@@ -640,7 +665,7 @@ function Editor({
               <Button
                 variant="primary"
                 className="ml-1 min-w-24"
-                onClick={publish}
+                onClick={() => void publish()}
                 loading={publishing}
                 disabled={upToDate}
                 icon={upToDate ? <Check className="size-4" /> : undefined}
@@ -735,6 +760,39 @@ function Editor({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={!!problems}
+        onClose={() => setProblems(null)}
+        title={`Prima di pubblicare: ${problems?.length === 1 ? 'un problema' : `${problems?.length} problemi`}`}
+        width={460}
+        footer={
+          <>
+            <Button
+              onClick={() => {
+                setProblems(null)
+                window.dispatchEvent(new Event('mz:open-checks'))
+              }}
+              data-autofocus
+            >
+              Vedi i controlli
+            </Button>
+            <Button variant="primary" onClick={() => void publish(true)}>
+              Pubblica lo stesso
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-relaxed">
+          Alcune persone potrebbero non riuscire a usare bene la pagina, o la pagina si apre lentamente:
+        </p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px]">
+          {problems?.slice(0, 5).map((p) => (
+            <li key={p.id}>{p.label}</li>
+          ))}
+          {(problems?.length ?? 0) > 5 && <li>e altri {(problems?.length ?? 0) - 5}</li>}
+        </ul>
+      </Dialog>
 
       <Dialog
         open={confirmUnpublish}

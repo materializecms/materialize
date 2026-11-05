@@ -8,7 +8,7 @@ L'editor mostra la pagina vera, come apparirà sul sito, e la modifichi direttam
   - **Livelli**: l'elenco di tutto ciò che c'è nella pagina, uno dentro l'altro;
   - **Aggiungi**: sezioni pronte ed elementi da mettere sulla pagina;
   - **Stili**: colori, caratteri e impostazioni di tutto il sito;
-  - **SEO**: i controlli della pagina per i motori di ricerca (vedi [SEO](06-seo.md)).
+  - **Controlli**: motori di ricerca, accessibilità e prestazioni della pagina (vedi [Controlli della pagina](#controlli-della-pagina)).
 
   Il pannello si allarga trascinandone il bordo destro, fino a 440 px, e il browser se lo ricorda; un doppio clic sul bordo lo riporta com'era.
 - **Al centro**, la **tela**: la pagina.
@@ -92,6 +92,20 @@ Vale per tutto il sito:
 - **colori** con nome, uno per il tema chiaro e uno per lo scuro;
 - **caratteri**: qualsiasi Google Font (circa 2000). Materialize li scarica una volta e li serve dal tuo sito, così i visitatori non contattano Google;
 - angoli, larghezze di tablet e mobile, scorrimento morbido, cursore personalizzato, transizioni tra le pagine.
+
+## Controlli della pagina
+
+La scheda **Controlli** a sinistra (nella modalità Contenuto è accanto a Sezioni) controlla la pagina mentre la modifichi, in tre gruppi. Un clic su un problema seleziona l'elemento da sistemare.
+
+- **Motori di ricerca**: titolo e descrizione, un solo titolo principale, collegamenti a pagine che non esistono, quantità di testo, immagine per la condivisione (vedi [SEO](06-seo.md)).
+- **Accessibilità**, per chi usa un lettore di schermo, la tastiera o vede meno bene:
+  - **testi poco leggibili** sul loro sfondo, misurati sulla pagina vera con la regola WCAG: almeno 4,5:1, oppure 3:1 per i testi grandi. I testi sopra una foto, un video o una scena 3D non si possono misurare e vanno guardati a occhio;
+  - immagini senza descrizione, pulsanti e icone cliccabili senza nome, campi dei moduli senza etichetta;
+  - link e pulsanti poco chiari, come «clicca qui» o «scopri di più»;
+  - livelli dei titoli saltati e video che si muovono da soli senza i comandi per fermarli.
+- **Prestazioni**, perché la pagina si apra in fretta anche sul telefono: immagini o video presi da altri siti (non vengono ottimizzati), GIF e video pesanti, video senza copertina, più di due scene 3D o WebGL, script esterni nel codice personalizzato, più di tre caratteri diversi, pagine con moltissimi elementi.
+
+**Prima di pubblicare**, se la pagina ha problemi seri di accessibilità o di prestazioni, Materialize li elenca e chiede se pubblicare lo stesso o vederli. I consigli non fermano mai la pubblicazione.
 
 ## Esportare per il cliente
 

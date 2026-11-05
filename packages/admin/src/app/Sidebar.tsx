@@ -60,7 +60,8 @@ export const localeName = (code: string) => {
   }
 }
 
-const sectionLabel = 'px-2 pt-5 pb-1.5 text-[12px] font-medium text-fg3'
+/** Group titles: small capitals, so they never read as one more item. */
+const sectionLabel = 'px-2 pt-5 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg uppercase'
 
 export function Sidebar() {
   const { schema, user, locale, setLocale, openPalette } = useSession()

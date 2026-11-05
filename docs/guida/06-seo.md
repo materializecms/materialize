@@ -4,9 +4,9 @@ Materialize prepara da solo quello che serve ai motori di ricerca: titoli e desc
 
 ## Per ogni pagina
 
-Nell'editor, la scheda **SEO** a sinistra:
+Nell'editor, la scheda **Controlli** a sinistra:
 
-- **controlli** sulla pagina: titolo e descrizione della lunghezza giusta, immagine di condivisione, un solo titolo principale, testi alternativi delle immagini e altro. Quando è tutto in ordine compare **Tutto a posto**;
+- **controlli** sulla pagina: titolo e descrizione della lunghezza giusta, immagine di condivisione, un solo titolo principale, collegamenti a pagine che non esistono e altro, insieme a quelli di accessibilità e prestazioni (vedi [Controlli della pagina](03-editor.md#controlli-della-pagina)). Quando è tutto in ordine compare **Tutto a posto**;
 - **titolo** e **descrizione** che compaiono su Google, con l'anteprima di come appariranno su Google e quando la pagina viene condivisa;
 - **immagine per la condivisione** per WhatsApp, LinkedIn, Facebook.
 

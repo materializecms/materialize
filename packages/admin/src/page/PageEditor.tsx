@@ -38,6 +38,7 @@ import {
   Image as ImageIcon,
   Keyboard,
   Layers as LayersIcon,
+  ListChecks,
   ListOrdered,
   Maximize,
   MessageSquare,
@@ -49,7 +50,6 @@ import {
   Plus,
   Rows3,
   Ruler,
-  Search,
   Shapes,
   Smartphone,
   Sparkles,
@@ -485,6 +485,15 @@ export function PageEditor({
   const [fitZoom, setFitZoom] = useState(1)
   const [tab, setTab] = usePref<Tab>('mz-page-tab', 'layers')
   const [contentTab, setContentTab] = usePref<'sections' | 'seo'>('mz-content-tab', 'sections')
+  // "Vedi i controlli" from the dialog before publishing.
+  useEffect(() => {
+    const open = () => {
+      setTab('seo')
+      setContentTab('seo')
+    }
+    window.addEventListener('mz:open-checks', open)
+    return () => window.removeEventListener('mz:open-checks', open)
+  }, [setTab, setContentTab])
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [startBlank, setStartBlank] = useState(false)
   const [tourPref, setTourPref] = usePref<'todo' | 'done'>('mz-tour', 'todo')
@@ -1328,7 +1337,7 @@ export function PageEditor({
               {(
                 [
                   ['sections', 'Sezioni', <ListOrdered key="s" />],
-                  ['seo', 'SEO', <Search key="q" />],
+                  ['seo', 'Controlli', <ListChecks key="q" />],
                 ] as const
               ).map(([value, label, icon]) => (
                 <button
@@ -1336,7 +1345,7 @@ export function PageEditor({
                   type="button"
                   onClick={() => setContentTab(value)}
                   className={cx(
-                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
+                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
                     contentTab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
                   )}
                 >
@@ -1358,6 +1367,7 @@ export function PageEditor({
               <SeoPanel
                 nodes={nodes}
                 data={data}
+                theme={theme}
                 seoField={otherFields.find((f) => f.kind === 'seo')}
                 onChange={onChange}
                 onSelect={(id) => {
@@ -1392,21 +1402,23 @@ export function PageEditor({
                 window.addEventListener('pointerup', up)
               }}
             />
-            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
+            {/* Narrow panel: the tabs drop their icons, so the highlight keeps room around the words. */}
+            <div className="@container flex h-11 shrink-0 items-center gap-0.5 border-b border-line px-2 @min-[16rem]:gap-1">
               {(
                 [
                   ['layers', 'Livelli', <LayersIcon key="l" />],
                   ['add', 'Aggiungi', <Plus key="a" />],
                   ['styles', 'Stili', <Palette key="s" />],
-                  ['seo', 'SEO', <Search key="q" />],
+                  ['seo', 'Controlli', <ListChecks key="q" />],
                 ] as const
               ).map(([value, label, icon]) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setTab(value)}
+                  title={label}
                   className={cx(
-                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
+                    'flex h-7 min-w-0 flex-auto items-center justify-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[12.5px] font-medium text-ellipsis whitespace-nowrap transition-colors @min-[16rem]:px-2.5 [&_svg]:hidden [&_svg]:size-3.5 @min-[23rem]:[&_svg]:block',
                     tab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
                   )}
                 >
@@ -1484,6 +1496,7 @@ export function PageEditor({
               <SeoPanel
                 nodes={nodes}
                 data={data}
+                theme={theme}
                 seoField={otherFields.find((f) => f.kind === 'seo')}
                 onChange={onChange}
                 onSelect={(id) => {
