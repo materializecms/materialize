@@ -509,7 +509,10 @@ function Editor({
           />
 
           {(blocksField || pageField) && !contentOnly && (
-            <div className="lg:absolute lg:left-1/2 lg:-translate-x-1/2 max-lg:ml-auto max-lg:shrink-0">
+            <div
+              data-tour="mode"
+              className="lg:absolute lg:left-1/2 lg:-translate-x-1/2 max-lg:ml-auto max-lg:shrink-0"
+            >
               <Segmented
                 value={mode}
                 onChange={chooseMode}
@@ -551,6 +554,7 @@ function Editor({
             {pageField && doc && (
               <IconButton
                 label="Cronologia"
+                data-tour="history"
                 active={historyOpen}
                 onClick={() => {
                   setHistoryOpen(!historyOpen)
@@ -700,6 +704,7 @@ function Editor({
             ) : (
               <Button
                 variant="primary"
+                data-tour="publish"
                 className="ml-1 min-w-24"
                 onClick={() => void publish()}
                 loading={publishing}

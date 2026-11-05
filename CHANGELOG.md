@@ -4,6 +4,7 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Tour dell'editor rifatto**: 14 passi invece di 4, e ognuno illumina la zona vera di cui parla (le schede a sinistra si aprono da sole): Contenuto e Design, Livelli, Aggiungi, Stili, Controlli, la tela, le proprietà, i dispositivi, zoom e anteprima, l'assistente AI, cronologia e pubblicazione. Frecce per spostarsi, Esc per uscire, e si rifà da **?** → **Rifai il tour**.
 - **Rilasci**: raccogli più pagine e articoli che devono uscire insieme, per un lancio o una campagna, e pubblicali con un clic o a un'ora stabilita. Nello stesso momento si possono togliere dal sito le pagine vecchie. Tutto o niente: se una pagina non è pronta non esce niente, e il pannello dice quale e perché. Dalla nuova voce **Rilasci** nella barra laterale, o da Altre azioni → Aggiungi a un rilascio.
 - Nelle finestre il cursore va subito nel campo da compilare.
 - **Il sito da un brief**: dalla Panoramica, **Crea con l'AI**. Descrivi l'attività in poche righe, se vuoi con un'immagine di riferimento, e l'AI prepara le pagine con le sezioni della libreria, con menu, piè di pagina, testi e descrizioni per Google. Tutto resta in bozza; le pagine esistenti, i menu condivisi e il sito online non vengono toccati. Colori, caratteri e voce del brand arrivano come proposta da applicare con un clic. Dove mancano informazioni (prezzi, indirizzo, telefono) lascia un segnaposto tra parentesi quadre invece di inventare, e puoi rispondere all'AI per chiedere altro.

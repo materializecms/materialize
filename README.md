@@ -208,7 +208,7 @@ Sulla tela:
 - ⇧ clic (sulla tela o nei livelli) seleziona più elementi, e così un riquadro trascinato dalla tela vuota o dallo sfondo di una sezione (con ⇧, ovunque): le modifiche di stile valgono per tutti; ⌘A seleziona gli elementi vicini; trascinandone uno si spostano tutti insieme;
 - righelli in pixel della pagina lungo i bordi della tela, con la selezione evidenziata (⇧R per mostrarli o nasconderli);
 - pannello sinistro allargabile trascinandone il bordo (fino a 440 px, ricordato dal browser);
-- larghezze di prova per ogni dispositivo e tutti i dispositivi affiancati; ⌥⌘C / ⌥⌘V copia e incolla lo stile; ? mostra tutte le scorciatoie, e la prima volta un breve tour presenta l’editor;
+- larghezze di prova per ogni dispositivo e tutti i dispositivi affiancati; ⌥⌘C / ⌥⌘V copia e incolla lo stile; ? mostra tutte le scorciatoie; la prima volta un tour di 14 passi illumina una zona dell’editor alla volta (e apre da solo le schede che spiega), e si rifà dalle scorciatoie;
 - ⌘G raggruppa la selezione in un contenitore, ⇧⌘G lo separa; ⌘D duplica, ⌫ elimina;
 - allinea e distribuisci (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): gli elementi liberi si spostano, quelli in colonna o in riga si allineano tramite il loro contenitore;
 - trascinando un elemento libero compaiono le guide magnetiche verso i bordi e i centri del contenitore e degli elementi vicini (⌘ per spostarlo senza agganci); tenendo premuto ⌥ si vedono le distanze dall’elemento sotto il puntatore.

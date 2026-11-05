@@ -18,7 +18,7 @@ L'editor mostra la pagina vera, come apparirà sul sito, e la modifichi direttam
   - al centro, il dispositivo (desktop, tablet, mobile), la larghezza, tutti affiancati ed **Esporta**;
   - a destra, lo zoom, **?** per le scorciatoie, i righelli, l'assistente AI, i commenti, la prova delle animazioni e **Anteprima**, per provare la pagina come sul sito.
 
-La prima volta un breve tour presenta l'editor.
+La prima volta un **tour** presenta l'editor in 14 passi: scurisce lo schermo e illumina una zona alla volta (Contenuto e Design, le quattro schede a sinistra, che apre da solo, la barra per aggiungere, la tela, il pannello delle proprietà, dispositivi, zoom e anteprima, assistente AI, cronologia e pubblicazione). Ci si sposta con ← → o con i pulsanti, Esc lo chiude. Per rifarlo: **?** (o il pulsante con la tastiera in alto) → **Rifai il tour**.
 
 ## Aggiungere
 

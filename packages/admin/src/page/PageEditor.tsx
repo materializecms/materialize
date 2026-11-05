@@ -1380,6 +1380,7 @@ export function PageEditor({
           </aside>
         ) : (
           <aside
+            data-tour="left"
             className="relative flex shrink-0 flex-col border-r border-line bg-panel max-md:hidden"
             style={{ width: leftWidth }}
           >
@@ -1404,7 +1405,10 @@ export function PageEditor({
               }}
             />
             {/* Narrow panel: the tabs drop their icons, so the highlight keeps room around the words. */}
-            <div className="@container flex h-11 shrink-0 items-center gap-0.5 border-b border-line px-2 @min-[16rem]:gap-1">
+            <div
+              data-tour="left-tabs"
+              className="@container flex h-11 shrink-0 items-center gap-0.5 border-b border-line px-2 @min-[16rem]:gap-1"
+            >
               {(
                 [
                   ['layers', 'Livelli', <LayersIcon key="l" />],
@@ -1536,10 +1540,10 @@ export function PageEditor({
           </div>
         )}
         {/* center: toolbar and canvas */}
-        <div className="flex min-w-0 flex-1 flex-col max-md:hidden">
+        <div data-tour="center" className="flex min-w-0 flex-1 flex-col max-md:hidden">
           <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line overflow-x-auto bg-panel px-3 [scrollbar-width:none]">
             {mode === 'design' && (
-              <div className={TOOL_GROUP}>
+              <div data-tour="add-bar" className={TOOL_GROUP}>
                 <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">Aggiungi</span>
                 {(
                   [
@@ -1601,7 +1605,7 @@ export function PageEditor({
               </span>
             )}
             <div className="flex-1" />
-            <div className="flex items-center gap-1">
+            <div data-tour="devices" className="flex items-center gap-1">
               <Segmented
                 size="sm"
                 value={device}
@@ -1641,7 +1645,7 @@ export function PageEditor({
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-0.5">
-              <div className={TOOL_GROUP}>
+              <div data-tour="zoom" className={TOOL_GROUP}>
                 <IconButton
                   label="Riduci lo zoom"
                   onClick={() =>
@@ -1678,6 +1682,7 @@ export function PageEditor({
               </IconButton>
               <button
                 type="button"
+                data-tour="ai"
                 title="Assistente AI"
                 onClick={() => {
                   setAssisting(!assisting)
@@ -1729,6 +1734,7 @@ export function PageEditor({
               </IconButton>
               <button
                 type="button"
+                data-tour="preview"
                 onClick={() => setPreviewing(!previewing)}
                 title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
                 className={cx(
@@ -1890,6 +1896,7 @@ export function PageEditor({
 
         {/* right: element or page */}
         <aside
+          data-tour="inspector"
           className={cx(
             'shrink-0 border-l border-line bg-panel',
             assisting ? 'w-[340px] overflow-hidden' : 'w-[288px] overflow-y-auto',
@@ -2056,7 +2063,13 @@ export function PageEditor({
         </aside>
 
         <ContextMenu at={menu} items={menu ? menuItems() : []} onClose={() => setMenu(null)} />
-        <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+        <ShortcutsDialog
+          open={showShortcuts}
+          onClose={() => setShowShortcuts(false)}
+          onTour={() => {
+            setTourPref('todo')
+          }}
+        />
         <ExportDialog
           open={exporting}
           onClose={() => setExporting(false)}
@@ -2071,7 +2084,19 @@ export function PageEditor({
             alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
           }}
         />
-        {tourPref === 'todo' && mode === 'design' && <Tour onDone={() => setTourPref('done')} />}
+        {tourPref === 'todo' && mode === 'design' && !preview && (
+          <Tour
+            onDone={() => {
+              setTourPref('done')
+              // Where a first page starts: the sections to add.
+              setTab('add')
+            }}
+            onTab={(t) => {
+              setTab(t)
+              setSelected(null)
+            }}
+          />
+        )}
         <MediaPicker
           open={!!picking}
           onClose={() => setPicking(null)}
