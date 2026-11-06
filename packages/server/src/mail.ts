@@ -41,7 +41,14 @@ export function publicMail(m: MailSettings | null) {
 
 export async function sendMail(
   m: MailSettings,
-  message: { to: string; subject: string; text: string; replyTo?: string },
+  message: {
+    to: string
+    subject: string
+    text: string
+    html?: string
+    replyTo?: string
+    headers?: Record<string, string>
+  },
 ): Promise<void> {
   const transport = nodemailer.createTransport({
     host: m.host,

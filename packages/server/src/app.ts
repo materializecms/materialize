@@ -35,10 +35,11 @@ import {
   formDefinition,
   normalizeTheme,
   type PageNode,
+  richTextHtml,
   sameDesign,
   walk,
 } from '@materializecms/core/page'
-import { addMove, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
+import { addMove, feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { TRACKING_PATTERNS, type TrackingSettings, trackingBlocks } from '@materializecms/core/tracking'
 import {
   DEFAULT_UPDATES,
@@ -56,6 +57,7 @@ import {
   createCommentStore,
   createContentStore,
   createMediaStore,
+  createNewsletterStore,
   createPreviewLinkStore,
   createReleaseStore,
   createScheduleStore,
@@ -64,6 +66,7 @@ import {
   type Database,
   EmailTakenError,
   type MediaAsset,
+  type Newsletter,
   type PreviewLink,
   type Release,
   SlugTakenError,
@@ -117,6 +120,16 @@ import {
 } from './mail.ts'
 import { createMcpServer } from './mcp.ts'
 import { createMediaFiles, fileBody, MAX_UPLOAD, MediaError, mediaUrl, type Output } from './media.ts'
+import {
+  confirmEmail,
+  langOf,
+  linkSignature,
+  newsletterHtml,
+  newsletterText,
+  PIXEL,
+  parseSubscribersCsv,
+  validLink,
+} from './newsletter.ts'
 import {
   DEFAULT_OFFSITE,
   newRecoveryKey,
@@ -330,6 +343,7 @@ export function createApp(base: ServerContext) {
   const activityLog = createActivityStore(ctx.database.db)
   const schedules = createScheduleStore(ctx.database.db)
   const releases = createReleaseStore(ctx.database.db)
+  const newsletter = createNewsletterStore(ctx.database.db)
   const previewLinks = createPreviewLinkStore(ctx.database.db)
   const backups = createBackups(ctx.database, () => ctx.config().media.dir)
   const backupSettings = async (): Promise<BackupSettings> => ({
@@ -649,7 +663,10 @@ export function createApp(base: ServerContext) {
   app.use('*', secureHeaders())
   // Requests with a bearer token carry no cookie, so a forged form cannot ride on them.
   const checkOrigin = csrf()
-  app.use('/api/*', (c, next) => (bearerOf(c) ? next() : checkOrigin(c, next)))
+  app.use('/api/*', (c, next) =>
+    // Leaving the newsletter with one click from the email app comes with no Origin: the token is the proof.
+    bearerOf(c) || c.req.path.startsWith('/api/newsletter/unsubscribe/') ? next() : checkOrigin(c, next),
+  )
   // Answers change with every edit: browsers must not reuse them.
   app.use('/api/*', async (c, next) => {
     await next()
@@ -1074,7 +1091,7 @@ export function createApp(base: ServerContext) {
   const ACTIVITY_GROUPS: Record<string, string[]> = {
     access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.', 'password.'],
     people: ['user.'],
-    content: ['document.', 'release.', 'site.', 'media.', 'message.'],
+    content: ['document.', 'release.', 'site.', 'newsletter.', 'import.', 'media.', 'message.'],
     settings: ['settings.', 'backup.', 'update.'],
   }
 
@@ -2821,6 +2838,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       const spam =
         spamReason(data, elapsed) ??
         ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? 'Messaggio ripetuto' : null)
+      // A signup form: no message, a subscriber waiting to confirm. Spam gets the same answer.
+      if (def?.newsletter) {
+        if (!spam) await signUp(c, def, data, page)
+        return wantsJson ? c.json({ ok: true }) : c.redirect(`${back}#inviato`, 303)
+      }
       const formName = def?.name?.trim() || def?.subject?.trim() || ''
       const saved = await submissions.add({ form, formName, page, data, spam, fingerprint })
       if (files.length) await submissions.setFiles(saved.id, await saveFiles(uploadsDir, saved.id, files))
@@ -3622,6 +3644,576 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     return c.json(await releaseJson(await loadRelease(release.id)))
   })
 
+  // ---------- newsletter ----------
+
+  const escapeHtml = (v: string) =>
+    v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  type NewsletterSettings = { footer?: string; tracking?: boolean; origin?: string }
+  const newsletterSettings = async (): Promise<NewsletterSettings> =>
+    (await settings.get<NewsletterSettings>('newsletter')) ?? {}
+  /** The secret that signs tracked links, made the first time it is needed. */
+  const newsletterSecret = async () => {
+    const found = await settings.get<string>('newsletter:secret')
+    if (found) return found
+    const secret = randomBytes(24).toString('base64url')
+    await settings.set('newsletter:secret', secret)
+    return secret
+  }
+  /** Where links in newsletters point: the site's address, or the one last used in the panel. */
+  const newsletterOrigin = async (c?: Context) => {
+    if (c) {
+      const origin = publicOrigin(c)
+      const current = await newsletterSettings()
+      if (current.origin !== origin) await settings.set('newsletter', { ...current, origin })
+      return origin
+    }
+    const site = ctx.config().site.url
+    try {
+      if (site) return new URL(site).origin
+    } catch {}
+    return (await newsletterSettings()).origin ?? 'http://localhost:4321'
+  }
+  const accentColor = async () => normalizeTheme(await settings.get('theme')).colors.light.accent
+  const allowSignup = createLimiter(5, 60_000)
+
+  /** A signup from a form: the email field, a name if there is one, and the confirmation email. */
+  const signUp = async (c: Context, def: FormDefinition, data: Record<string, string>, page: string) => {
+    const field = def.fields.find((f) => f.kind === 'email') ?? def.fields.find((f) => /mail/i.test(f.name))
+    const email = (field ? data[field.name] : '')?.trim().toLowerCase() ?? ''
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    if (!allowSignup(`${clientIp(c)}:newsletter`)) return
+    const nameField = def.fields.find((f) => f.kind !== 'email' && /^(nome|name|first.?name)$/i.test(f.name))
+    const { subscriber, confirm } = await newsletter.subscribe({
+      email,
+      name: nameField ? data[nameField.name] : '',
+      locale: langOf(c.req.header('accept-language')),
+      source: page || def.name || def.id,
+    })
+    if (!confirm) return
+    const mail = await settings.get<MailSettings>('mail')
+    if (!isConfigured(mail)) {
+      console.warn('Materialize: a newsletter signup waits for confirmation, but email is not set up')
+      return
+    }
+    const url = `${await newsletterOrigin()}/api/newsletter/confirm/${subscriber.token}`
+    const message = confirmEmail({
+      site: ctx.config().site.name,
+      url,
+      accent: await accentColor(),
+      locale: subscriber.locale,
+    })
+    await sendMail(mail, { to: email, ...message }).catch((error) =>
+      console.error('Materialize: confirmation email not sent', error),
+    )
+  }
+
+  /** A small page for people coming from an email link: no panel, the site's name and a sentence. */
+  const notice = (c: Context, lang: 'it' | 'en', title: string, text: string, form?: string) =>
+    c.html(
+      `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#18181b}main{max-width:420px;margin:24px;padding:32px;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0 0 16px;line-height:1.6;color:#52525b}button{padding:11px 18px;border:0;border-radius:8px;background:#18181b;color:#fff;font:inherit;font-weight:600;cursor:pointer}a{color:inherit}</style></head>
+<body><main><p style="font-weight:700;color:#18181b">${escapeHtml(ctx.config().site.name)}</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(text)}</p>${form ?? ''}<p><a href="/">${lang === 'it' ? 'Vai al sito' : 'Go to the site'}</a></p></main></body></html>`,
+    )
+
+  app.get('/api/newsletter/confirm/:token', async (c) => {
+    const lang = langOf(c.req.header('accept-language'))
+    const found = await newsletter.confirm(c.req.param('token'))
+    if (!found)
+      return notice(
+        c,
+        lang,
+        lang === 'it' ? 'Link non valido' : 'Link not valid',
+        lang === 'it'
+          ? 'Questo link non funziona più. Iscriviti di nuovo dal sito, se vuoi ricevere la newsletter.'
+          : 'This link no longer works. Sign up again on the site if you want the newsletter.',
+      )
+    return notice(
+      c,
+      langOf(found.locale),
+      langOf(found.locale) === 'it' ? 'Iscrizione confermata' : 'Subscription confirmed',
+      langOf(found.locale) === 'it'
+        ? `Da ora riceverai la newsletter di ${ctx.config().site.name} a ${found.email}. Puoi disiscriverti quando vuoi, dal link in fondo a ogni email.`
+        : `From now on you will get the ${ctx.config().site.name} newsletter at ${found.email}. You can unsubscribe whenever you like, from the link at the bottom of every email.`,
+    )
+  })
+
+  // A page with a button, so that link scanners opening the address do not unsubscribe anyone;
+  // email apps' one-click unsubscribe posts to the same address (RFC 8058).
+  app.get('/api/newsletter/unsubscribe/:token', async (c) => {
+    const found = await newsletter.byToken(c.req.param('token'))
+    const lang = langOf(found?.locale ?? c.req.header('accept-language'))
+    if (!found)
+      return notice(
+        c,
+        lang,
+        lang === 'it' ? 'Link non valido' : 'Link not valid',
+        lang === 'it' ? 'Questo link non funziona.' : 'This link does not work.',
+      )
+    if (found.status === 'unsubscribed')
+      return notice(
+        c,
+        lang,
+        lang === 'it' ? 'Sei già disiscritto' : 'You are already unsubscribed',
+        lang === 'it'
+          ? `${found.email} non riceve più la newsletter.`
+          : `${found.email} no longer gets the newsletter.`,
+      )
+    const send = c.req.query('s') ?? ''
+    return notice(
+      c,
+      lang,
+      lang === 'it' ? 'Disiscriviti dalla newsletter' : 'Unsubscribe from the newsletter',
+      lang === 'it'
+        ? `${found.email} non riceverà più la newsletter di ${ctx.config().site.name}.`
+        : `${found.email} will no longer get the ${ctx.config().site.name} newsletter.`,
+      `<form method="post"><input type="hidden" name="s" value="${escapeHtml(send)}"><p><button type="submit">${lang === 'it' ? 'Disiscrivimi' : 'Unsubscribe me'}</button></p></form>`,
+    )
+  })
+
+  app.post('/api/newsletter/unsubscribe/:token', async (c) => {
+    const found = await newsletter.byToken(c.req.param('token'))
+    const lang = langOf(found?.locale ?? c.req.header('accept-language'))
+    if (!found) return notice(c, lang, lang === 'it' ? 'Link non valido' : 'Link not valid', '')
+    const form = (await c.req.parseBody().catch(() => ({}))) as Record<string, unknown>
+    const send = typeof form.s === 'string' ? form.s : (c.req.query('s') ?? '')
+    if (found.status !== 'unsubscribed') {
+      await newsletter.unsubscribe(found.id)
+      const sent = send ? await newsletter.send(send) : null
+      if (sent && sent.subscriberId === found.id) await newsletter.track(sent.id, 'unsubscribe')
+    }
+    return notice(
+      c,
+      lang,
+      lang === 'it' ? 'Fatto: sei disiscritto' : 'Done: you are unsubscribed',
+      lang === 'it'
+        ? 'Non riceverai più la newsletter. Se cambi idea, puoi iscriverti di nuovo dal sito.'
+        : 'You will not get the newsletter any more. If you change your mind, you can sign up again on the site.',
+    )
+  })
+
+  /** Statistics: the picture that tells the email was opened. */
+  app.get('/api/newsletter/o/:send', async (c) => {
+    const id = c.req.param('send').replace(/\.gif$/, '')
+    if ((await newsletterSettings()).tracking !== false && (await newsletter.send(id)))
+      await newsletter.track(id, 'open')
+    return c.body(new Uint8Array(PIXEL), 200, { 'content-type': 'image/gif', 'cache-control': 'no-store' })
+  })
+
+  /** Statistics: a link followed, then on to where it points (only addresses this site signed). */
+  app.get('/api/newsletter/c/:send', async (c) => {
+    const id = c.req.param('send')
+    const url = c.req.query('u') ?? ''
+    if (!/^https?:\/\//i.test(url) || !validLink(id, url, c.req.query('s') ?? '', await newsletterSecret()))
+      return c.text('Link not valid', 400)
+    if (await newsletter.send(id)) await newsletter.track(id, 'click')
+    return c.redirect(url, 302)
+  })
+
+  // ----- panel: subscribers -----
+
+  app.get('/api/subscribers', requireUser, async (c) => {
+    const status = c.req.query('status')
+    return c.json(
+      await newsletter.subscribers({
+        status: status === 'pending' || status === 'active' || status === 'unsubscribed' ? status : undefined,
+        search: c.req.query('search') || undefined,
+        limit: Math.min(200, Number(c.req.query('limit') ?? 50)),
+        offset: Number(c.req.query('offset') ?? 0),
+      }),
+    )
+  })
+
+  /** Someone added by hand gets the confirmation email too: consent is theirs to give. */
+  app.post('/api/subscribers', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ email: z.email(), name: z.string().trim().max(120).optional() }))
+    const { subscriber, confirm } = await newsletter.subscribe({ ...input, source: 'panel', locale: null })
+    let mailed = false
+    if (confirm) {
+      const mail = await settings.get<MailSettings>('mail')
+      if (isConfigured(mail)) {
+        const url = `${await newsletterOrigin(c)}/api/newsletter/confirm/${subscriber.token}`
+        await sendMail(mail, {
+          to: subscriber.email,
+          ...confirmEmail({
+            site: ctx.config().site.name,
+            url,
+            accent: await accentColor(),
+            locale: ctx.config().locales.default,
+          }),
+        })
+        mailed = true
+      }
+    }
+    await record(c, 'newsletter.subscriber_added', subscriber.email)
+    return c.json({ subscriber, mailed }, 201)
+  })
+
+  app.delete('/api/subscribers/:id', requireUser, requireAdmin, async (c) => {
+    const found = await newsletter.subscriber(c.req.param('id'))
+    if (!found) throw new ApiError(404, 'not_found', 'Questo iscritto non esiste')
+    await newsletter.removeSubscriber(found.id)
+    await record(c, 'newsletter.subscriber_removed', found.email)
+    return c.body(null, 204)
+  })
+
+  app.post('/api/subscribers/import', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ csv: z.string().max(5_000_000) }))
+    const rows = parseSubscribersCsv(input.csv)
+    if (!rows.length) throw new ApiError(422, 'no_addresses', 'Nel file non ho trovato indirizzi email')
+    const result = await newsletter.importMany(rows)
+    await record(c, 'newsletter.imported', '', result)
+    return c.json({ found: rows.length, ...result })
+  })
+
+  app.get('/api/subscribers/export.csv', requireUser, requireAdmin, async (c) => {
+    const cell = (v: string) => {
+      const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v
+      return /[",;\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+    }
+    const rows = (await newsletter.allSubscribers()).map((s) =>
+      [
+        s.email,
+        s.name,
+        s.status,
+        s.source,
+        s.createdAt.toISOString(),
+        s.confirmedAt?.toISOString() ?? '',
+        s.unsubscribedAt?.toISOString() ?? '',
+      ]
+        .map(cell)
+        .join(','),
+    )
+    const csv = `﻿email,name,status,source,created,confirmed,unsubscribed\n${rows.join('\n')}\n`
+    await record(c, 'newsletter.exported', '', { subscribers: rows.length })
+    return c.body(csv, 200, {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': 'attachment; filename="iscritti.csv"',
+    })
+  })
+
+  app.get('/api/newsletter/settings', requireUser, async (c) => {
+    const s = await newsletterSettings()
+    return c.json({ footer: s.footer ?? '', tracking: s.tracking !== false })
+  })
+
+  app.put('/api/newsletter/settings', requireUser, requireAdmin, async (c) => {
+    const input = await body(c, z.object({ footer: z.string().max(1000), tracking: z.boolean() }))
+    await settings.set('newsletter', { ...(await newsletterSettings()), ...input })
+    await record(c, 'settings.newsletter')
+    return c.json(input)
+  })
+
+  // ----- panel: newsletters -----
+
+  const newsletterJson = async (n: Newsletter) => ({ ...n, stats: await newsletter.stats(n.id) })
+  const loadNewsletter = async (id: string) => {
+    const found = await newsletter.get(id)
+    if (!found) throw new ApiError(404, 'not_found', 'Questa newsletter non esiste')
+    return found
+  }
+  const editable = (n: Newsletter) => {
+    if (n.status === 'sending' || n.status === 'sent')
+      throw new ApiError(409, 'newsletter_sent', 'Questa newsletter è già partita: non si può più cambiare')
+  }
+  const newsletterBody = z.object({
+    subject: z.string().trim().min(1).max(200),
+    preheader: z.string().max(200).default(''),
+    body: z.array(z.record(z.string(), z.unknown())).max(2000).default([]),
+  })
+
+  app.get('/api/newsletters', requireUser, async (c) =>
+    c.json({ newsletters: await Promise.all((await newsletter.list()).map(newsletterJson)) }),
+  )
+
+  app.post('/api/newsletters', requireUser, async (c) => {
+    const input = await body(c, newsletterBody)
+    const created = await newsletter.create({ ...input, user: c.get('user') })
+    await record(c, 'newsletter.created', created.subject)
+    return c.json(await newsletterJson(created), 201)
+  })
+
+  app.get('/api/newsletters/:id', requireUser, async (c) =>
+    c.json(await newsletterJson(await loadNewsletter(c.req.param('id')))),
+  )
+
+  app.put('/api/newsletters/:id', requireUser, async (c) => {
+    const found = await loadNewsletter(c.req.param('id'))
+    editable(found)
+    const input = await body(c, newsletterBody)
+    await newsletter.update(found.id, input)
+    return c.json(await newsletterJson(await loadNewsletter(found.id)))
+  })
+
+  app.delete('/api/newsletters/:id', requireUser, async (c) => {
+    const found = await loadNewsletter(c.req.param('id'))
+    if (found.status === 'sending')
+      throw new ApiError(409, 'newsletter_sending', 'La newsletter sta partendo: aspetta che finisca')
+    await newsletter.remove(found.id)
+    await record(c, 'newsletter.deleted', found.subject)
+    return c.body(null, 204)
+  })
+
+  /** The email for one send: links, picture and unsubscribe address made for that person. */
+  const composeNewsletter = async (
+    n: Newsletter,
+    send: { id: string; token: string; locale: string | null } | null,
+  ) => {
+    const origin = await newsletterOrigin()
+    const s = await newsletterSettings()
+    const tracking = !!send && s.tracking !== false
+    const secret = tracking ? await newsletterSecret() : ''
+    const unsubscribeUrl = send
+      ? `${origin}/api/newsletter/unsubscribe/${send.token}?s=${encodeURIComponent(send.id)}`
+      : `${origin}/api/newsletter/unsubscribe/prova`
+    const content = {
+      site: ctx.config().site.name,
+      siteUrl: origin,
+      subject: n.subject,
+      preheader: n.preheader,
+      body: n.body,
+      accent: await accentColor(),
+      footer: s.footer ?? '',
+      unsubscribeUrl,
+      locale: send?.locale ?? ctx.config().locales.default,
+      ...(tracking && send
+        ? {
+            openUrl: `${origin}/api/newsletter/o/${send.id}.gif`,
+            link: (href: string) =>
+              `${origin}/api/newsletter/c/${send.id}?u=${encodeURIComponent(href)}&s=${linkSignature(send.id, href, secret)}`,
+          }
+        : {}),
+    }
+    return {
+      subject: n.subject,
+      html: newsletterHtml(content),
+      text: newsletterText(content),
+      headers: (send
+        ? { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+        : {}) as Record<string, string>,
+    }
+  }
+
+  const readyMail = async () => {
+    const mail = await settings.get<MailSettings>('mail')
+    if (!isConfigured(mail))
+      throw new ApiError(400, 'mail_not_configured', 'Per inviare la newsletter serve l’email: Impostazioni → Email')
+    return mail
+  }
+
+  /** A try, to the person writing it (or another address): nothing is counted. */
+  app.post('/api/newsletters/:id/test', requireUser, async (c) => {
+    const found = await loadNewsletter(c.req.param('id'))
+    const input = await body(c, z.object({ to: z.email().optional() }))
+    const mail = await readyMail()
+    await newsletterOrigin(c)
+    const message = await composeNewsletter(found, null)
+    await sendMail(mail, { to: input.to ?? c.get('user').email, ...message, subject: `[Prova] ${message.subject}` })
+    return c.json({ ok: true })
+  })
+
+  app.post('/api/newsletters/:id/send', requireUser, async (c) => {
+    const found = await loadNewsletter(c.req.param('id'))
+    editable(found)
+    await readyMail()
+    await newsletterOrigin(c)
+    const { counts } = await newsletter.subscribers({ limit: 1 })
+    if (!counts.active) throw new ApiError(400, 'no_subscribers', 'Non ci sono ancora iscritti attivi')
+    await newsletter.setStatus(found.id, 'sending', { runAt: new Date(), error: null })
+    await record(c, 'newsletter.sent', found.subject, { subscribers: counts.active })
+    void runNewsletters()
+    return c.json(await newsletterJson(await loadNewsletter(found.id)))
+  })
+
+  app.put('/api/newsletters/:id/schedule', requireUser, async (c) => {
+    const found = await loadNewsletter(c.req.param('id'))
+    editable(found)
+    const input = await body(c, z.object({ at: z.iso.datetime({ offset: true }).nullable() }))
+    if (input.at === null) {
+      await newsletter.setStatus(found.id, 'draft', { runAt: null })
+      return c.json(await newsletterJson(await loadNewsletter(found.id)))
+    }
+    const at = new Date(input.at)
+    if (at.getTime() <= Date.now() + 30_000)
+      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
+    await readyMail()
+    await newsletterOrigin(c)
+    await newsletter.setStatus(found.id, 'scheduled', { runAt: at, error: null })
+    await record(c, 'newsletter.scheduled', found.subject, { at: at.toISOString() })
+    return c.json(await newsletterJson(await loadNewsletter(found.id)))
+  })
+
+  /** An article becomes a newsletter: its title, its summary, its text and a link to read it on the site. */
+  app.post('/api/newsletters/from-document', requireUser, async (c) => {
+    const input = await body(c, z.object({ id: z.string() }))
+    const doc = await loadDocument(input.id)
+    const def = collection(doc.collection)
+    const data = (doc.publishedData ?? doc.data) as Record<string, unknown>
+    const fieldOf = (kind: string) => Object.entries(def.fields).find(([, f]) => f.kind === kind)?.[0]
+    const rich = fieldOf('richText')
+    const summary = Object.entries(def.fields).find(
+      ([n, f]) => f.kind === 'text' && /excerpt|summary|sommario|riassunto|descr/i.test(n),
+    )?.[0]
+    const seo = (fieldOf('seo') ? data[fieldOf('seo') as string] : null) as { description?: string } | null
+    const preheader = (summary ? String(data[summary] ?? '') : '') || seo?.description || ''
+    const blocks = rich && Array.isArray(data[rich]) ? [...(data[rich] as unknown[])] : []
+    const url = (() => {
+      try {
+        return publicUrl(def, doc.locale, data)
+      } catch {
+        return null
+      }
+    })()
+    if (!blocks.length && preheader) blocks.push({ type: 'paragraph', children: [{ text: preheader }] })
+    if (url)
+      blocks.push({
+        type: 'paragraph',
+        children: [
+          { text: langOf(doc.locale) === 'it' ? 'Leggi sul sito →' : 'Read it on the site →', href: url, bold: true },
+        ],
+      })
+    const created = await newsletter.create({
+      subject: doc.title,
+      preheader: preheader.slice(0, 200),
+      body: blocks,
+      user: c.get('user'),
+    })
+    await record(c, 'newsletter.created', created.subject, { from: doc.id })
+    return c.json(await newsletterJson(created), 201)
+  })
+
+  /** A draft written by the AI from the latest articles, in the brand voice, with a link to each. */
+  app.post('/api/ai/newsletter', requireUser, async (c) => {
+    const input = await body(
+      c,
+      z.object({ count: z.number().int().min(1).max(10).default(3), note: z.string().max(1000).optional() }),
+    )
+    const user = c.get('user')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    const ai = await readyAi()
+    const config = ctx.config()
+    const lang = config.locales.default
+    const items: { title: string; url: string; text: string; date: number }[] = []
+    for (const name of feedCollections(config.collections)) {
+      const def = collection(name)
+      for (const doc of await content.published(name)) {
+        if (doc.locale !== lang) continue
+        const data = (doc.publishedData ?? {}) as Record<string, unknown>
+        let url: string | null = null
+        try {
+          url = publicUrl(def, lang, data)
+        } catch {}
+        if (!url) continue
+        const text = Object.entries(def.fields)
+          .filter(([, f]) => f.kind === 'text' || f.kind === 'richText')
+          .map(([n]) =>
+            ((f) => (typeof f === 'string' ? f : Array.isArray(f) ? richTextHtml(f).replace(/<[^>]+>/g, ' ') : ''))(
+              data[n],
+            ),
+          )
+          .join('\n')
+          .replace(/\s+/g, ' ')
+          .slice(0, 2500)
+        items.push({ title: doc.title, url, text, date: (doc.publishedAt ?? doc.updatedAt).getTime() })
+      }
+    }
+    items.sort((a, b) => b.date - a.date)
+    const latest = items.slice(0, input.count)
+    if (!latest.length) throw new ApiError(400, 'no_articles', 'Non ci sono ancora articoli pubblicati da raccontare')
+    const voice = await voiceText()
+    const system = `${voice ? `${voice}\n\n` : ''}You write the email newsletter of the website "${config.site.name}", in ${languageName(lang)}. You get its latest articles; write a short newsletter that makes people want to read them: a subject (at most 70 characters), a preheader (one sentence, at most 120 characters), an opening of one or two sentences, then for each article a heading with its title and two or three sentences on why it is worth reading, ending with a link to it. Use only facts from the articles. Reply with JSON only: {"subject": "...", "preheader": "...", "blocks": [{"type": "paragraph"|"heading", "text": "...", "link": {"text": "...", "href": "..."}?}]}.`
+    const prompt = `${input.note ? `<note>${input.note}</note>\n` : ''}${latest.map((a) => `<article title="${a.title.replace(/"/g, "'")}" url="${a.url}">\n${a.text}\n</article>`).join('\n')}`
+    const reply = await complete(ai, { system, prompt }).catch(aiFailed)
+    let parsed: {
+      subject?: string
+      preheader?: string
+      blocks?: { type?: string; text?: string; link?: { text?: string; href?: string } }[]
+    }
+    try {
+      parsed = JSON.parse(reply.replace(/^```(?:json)?\s*|\s*```$/g, ''))
+    } catch {
+      throw new ApiError(422, 'ai_failed', 'La risposta dell’AI non era leggibile: riprova')
+    }
+    const known = new Set(latest.map((a) => a.url))
+    const blocks: unknown[] = []
+    for (const b of parsed.blocks ?? []) {
+      const text = (b.text ?? '').trim()
+      const children: { text: string; href?: string; bold?: boolean }[] = text ? [{ text }] : []
+      if (b.link?.href && known.has(b.link.href) && b.link.text)
+        children.push({ text: `${text ? ' ' : ''}${b.link.text.trim()}`, href: b.link.href, bold: true })
+      if (!children.length) continue
+      blocks.push(b.type === 'heading' ? { type: 'heading', level: 2, children } : { type: 'paragraph', children })
+    }
+    const created = await newsletter.create({
+      subject: (parsed.subject ?? '').trim().slice(0, 200) || latest[0]?.title || config.site.name,
+      preheader: (parsed.preheader ?? '').trim().slice(0, 200),
+      body: blocks,
+      user,
+    })
+    await record(c, 'newsletter.created', created.subject, { ai: true })
+    return c.json(await newsletterJson(created), 201)
+  })
+
+  /**
+   * Sends what is due: scheduled newsletters whose time has come and those a stopped server left
+   * halfway. One email at a time, a short pause between them, so the email service keeps up.
+   */
+  let newslettersRunning = false
+  const runNewsletters = async (now = new Date(), pause = 120): Promise<number> => {
+    if (newslettersRunning) return 0
+    newslettersRunning = true
+    let sent = 0
+    try {
+      for (const n of await newsletter.due(now)) {
+        const mail = await settings.get<MailSettings>('mail')
+        if (!isConfigured(mail)) {
+          await newsletter.setStatus(n.id, 'failed', { error: 'L’email non è configurata' })
+          continue
+        }
+        if (n.status === 'scheduled') await newsletter.setStatus(n.id, 'sending')
+        await newsletter.prepare(n.id)
+        for (;;) {
+          const batch = await newsletter.pending(n.id, 50)
+          if (!batch.length) break
+          for (const item of batch) {
+            const who = await newsletter.subscriber(item.subscriberId)
+            if (!who || who.status !== 'active') {
+              await newsletter.markSend(item.id, 'failed', 'Non più iscritto')
+              continue
+            }
+            try {
+              const message = await composeNewsletter(n, { id: item.id, token: who.token, locale: who.locale })
+              await sendMail(mail, { to: who.email, ...message })
+              await newsletter.markSend(item.id, 'sent')
+              sent++
+            } catch (error) {
+              await newsletter.markSend(
+                item.id,
+                'failed',
+                error instanceof Error ? error.message.slice(0, 300) : 'Errore',
+              )
+            }
+            if (pause) await new Promise((r) => setTimeout(r, pause))
+          }
+        }
+        const stats = await newsletter.stats(n.id)
+        const allFailed = stats.total > 0 && stats.sent === 0
+        await newsletter.setStatus(n.id, allFailed ? 'failed' : 'sent', {
+          sentAt: new Date(),
+          error: allFailed ? 'Nessun invio riuscito: controlla Impostazioni → Email' : null,
+        })
+      }
+      // Signups never confirmed are dropped after a week.
+      await newsletter.dropUnconfirmed(new Date(now.getTime() - 7 * 86_400_000))
+    } catch (error) {
+      console.error('Materialize: newsletter sending failed', error)
+    } finally {
+      newslettersRunning = false
+    }
+    return sent
+  }
+  setInterval(() => void runNewsletters(), 30_000).unref?.()
+
   // ---------- shared preview links ----------
 
   const previewJson = (c: Context, link: PreviewLink) => {
@@ -4343,5 +4935,5 @@ When done, reply with one short sentence.`
   })
 
   // runSchedules: for the tests, which cannot wait for the clock.
-  return Object.assign(app, { runSchedules })
+  return Object.assign(app, { runSchedules, runNewsletters })
 }

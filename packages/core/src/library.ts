@@ -296,6 +296,45 @@ const B = (_role: string, name: string, text: string, variant: PageNode['variant
 })
 
 /** Builds a section from the library ("hero.split"); `brand` replaces the sample studio name. */
+/**
+ * A real newsletter signup: email and consent, sent to the newsletter (the address gets a link to
+ * confirm), not to Impostazioni → Messaggi.
+ */
+function signupForm(p: P): PageNode {
+  const input = (label: string, fieldName: string, inputKind: PageNode['inputKind'], q: P = {}): PageNode => ({
+    id: newId(),
+    type: 'input',
+    name: label,
+    text: label,
+    fieldName,
+    inputKind,
+    width: 'fill',
+    ...q,
+  })
+  return F(
+    'Iscrizione',
+    {
+      gap: 12,
+      width: 'fill',
+      form: {
+        name: 'Newsletter',
+        newsletter: true,
+        success: 'Quasi fatto: controlla la posta e conferma l’iscrizione dal link che ti abbiamo mandato.',
+      },
+      ...p,
+    },
+    [
+      F('Riga', { layout: 'row', gap: 10, align: 'end', wrap: true }, [
+        input('La tua email', 'email', 'email', { required: true, placeholder: 'nome@example.com' }),
+        B('cta', 'Pulsante', 'Iscriviti', 'primary', { submit: true, width: 'hug' }),
+      ]),
+      input('Acconsento a ricevere la newsletter e ho letto l’informativa privacy', 'privacy', 'checkbox', {
+        required: true,
+      }),
+    ],
+  )
+}
+
 export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
   const S = (n: string, p: P, k: PageNode[]) => F(n, { section: key, scheme: 'default', size: 'm', gap: 48, ...p }, k)
   const mono = (t: string) => T('n', 'Numero', t, 'eyebrow', { color: 'muted' })
@@ -1147,18 +1186,7 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
     return S('Invito', { align: 'center', gap: 18, size: 'm' }, [
       T('title', 'Titolo', 'Ricevi i nuovi progetti', 'h2', { talign: 'center' }),
       T('subtitle', 'Sottotitolo', 'Una email al mese, niente di più.', 'body', { color: 'muted', talign: 'center' }),
-      F('Modulo', { layout: 'row', gap: 10, width: 'hug', wrap: true, justify: 'center', padY: 8 }, [
-        T('fi', 'Campo', 'La tua email', 'small', {
-          color: 'muted',
-          bg: 'surface',
-          padX: 18,
-          padY: 14,
-          radius: 'btn',
-          width: 'fixed',
-          fixedW: 280,
-        }),
-        B('cta', 'Pulsante', 'Iscriviti', 'primary'),
-      ]),
+      signupForm({ maxW: 460, align: 'center' }),
     ])
   if (key === 'divider.statement')
     return S('Separatore', { align: 'center', size: 'l' }, [
@@ -2088,17 +2116,7 @@ function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[
         F('Riga', { layout: 'row', justify: 'between', align: 'end', gap: 32, wrap: true }, [
           F('Iscrizione', { gap: 12, maxW: 460 }, [
             T('h', 'Titolo', 'Una email al mese con i nuovi progetti.', 'h3'),
-            F('Modulo', { layout: 'row', gap: 8, wrap: true }, [
-              T('fi', 'Campo', 'La tua email', 'small', {
-                color: 'muted',
-                bg: 'surface',
-                padX: 16,
-                padY: 12,
-                radius: 'btn',
-                width: 'fill',
-              }),
-              B('cta', 'Pulsante', 'Iscriviti', 'primary'),
-            ]),
+            signupForm({}),
           ]),
           logo(),
         ]),

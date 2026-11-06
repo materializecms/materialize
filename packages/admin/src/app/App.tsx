@@ -7,6 +7,7 @@ import { setLang, t, useLang } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { href, navigate, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
+import { NewsletterScreen } from '../newsletter/NewsletterScreen.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
 import { TwoFactorSetup } from '../people/Security.tsx'
@@ -17,6 +18,7 @@ import { CommandPalette } from './CommandPalette.tsx'
 import { type Session, SessionContext } from './context.ts'
 import { DocumentScreen, openedAsNew } from './DocumentScreen.tsx'
 import { Overview } from './Overview.tsx'
+import { PanelTour } from './PanelTour.tsx'
 import { ReleasesScreen } from './ReleasesScreen.tsx'
 import { SetupWizard } from './Setup.tsx'
 import { Sidebar } from './Sidebar.tsx'
@@ -120,6 +122,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
     route.name === 'media' ||
     route.name === 'people' ||
     route.name === 'releases' ||
+    route.name === 'newsletter' ||
     route.name === 'settings' ||
     route.name === 'invite'
       ? undefined
@@ -179,6 +182,8 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
             <PeopleScreen />
           ) : route.name === 'releases' ? (
             <ReleasesScreen />
+          ) : route.name === 'newsletter' ? (
+            <NewsletterScreen view={route.view} />
           ) : route.name === 'settings' ? (
             <SettingsScreen tab={route.tab} />
           ) : !collection ? (
@@ -195,6 +200,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
         </main>
       </div>
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
+      <PanelTour onHome={route.name === 'home'} />
     </SessionContext.Provider>
   )
 }
@@ -252,7 +258,8 @@ function RequiredTwoFactor() {
 }
 
 /** Built-in screens typed by hand without the "_" (/admin/media): used when no collection has the name. */
-const BUILT_IN: Record<string, 'media' | 'people' | 'releases' | 'settings'> = {
+const BUILT_IN: Record<string, 'media' | 'people' | 'releases' | 'settings' | 'newsletter'> = {
+  newsletter: 'newsletter',
   releases: 'releases',
   rilasci: 'releases',
   media: 'media',

@@ -7,6 +7,8 @@ export type Route =
   | { name: 'media' }
   | { name: 'people' }
   | { name: 'releases' }
+  /** Newsletters (list), subscribers, or one newsletter being written. */
+  | { name: 'newsletter'; view?: 'subscribers' | (string & {}) }
   /** A built-in tab, or the name of a single-document collection (site settings, contacts…). */
   | {
       name: 'settings'
@@ -39,6 +41,7 @@ export function parse(pathname: string): Route {
   if (collection === '_media') return { name: 'media' }
   if (collection === '_people') return { name: 'people' }
   if (collection === '_releases') return { name: 'releases' }
+  if (collection === '_newsletter') return { name: 'newsletter', view: id === 'iscritti' ? 'subscribers' : id }
   if (collection === '_settings')
     return {
       name: 'settings',
@@ -75,6 +78,8 @@ export function href(route: Route): string {
       return `${BASE}/_people`
     case 'releases':
       return `${BASE}/_releases`
+    case 'newsletter':
+      return `${BASE}/_newsletter${route.view ? `/${route.view === 'subscribers' ? 'iscritti' : route.view}` : ''}`
     case 'settings':
       return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni', voice: 'voce' }[route.tab as string] ?? route.tab}` : ''}`
     case 'invite':

@@ -41,6 +41,8 @@ const SETTINGS: Record<string, string> = {
   tracking: 'tracciamento e cookie',
   updates: 'gli aggiornamenti automatici',
   voice: 'la voce del brand',
+  forms: 'la conservazione dei messaggi',
+  newsletter: 'le impostazioni della newsletter',
 }
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */
@@ -151,6 +153,36 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `non è riuscito a pubblicare il rilascio ${t}: ${d.message ?? ''}`, group: 'content' }
     case 'release.cancelled':
       return { text: `ha annullato il rilascio ${t}`, group: 'content' }
+    case 'import.wordpress':
+      return {
+        text: `ha importato da WordPress ${t || 'un sito'}${typeof d.created === 'number' ? `: ${d.created === 1 ? 'un contenuto' : `${d.created} contenuti`}` : ''}${typeof d.media === 'number' && d.media ? `, ${d.media} immagini` : ''}${typeof d.relaid === 'number' ? `, ${d.relaid} rifatte con l’AI` : ''}`,
+        group: 'content',
+      }
+    case 'newsletter.created':
+      return { text: `ha creato la newsletter ${t}${d.ai ? ' con l’AI' : ''}`, group: 'content' }
+    case 'newsletter.deleted':
+      return { text: `ha eliminato la newsletter ${t}`, group: 'content' }
+    case 'newsletter.sent':
+      return {
+        text: `ha inviato la newsletter ${t}${typeof d.subscribers === 'number' ? ` a ${d.subscribers === 1 ? 'un iscritto' : `${d.subscribers} iscritti`}` : ''}`,
+        group: 'content',
+      }
+    case 'newsletter.scheduled':
+      return {
+        text: `ha programmato la newsletter ${t}${d.at ? ` per ${whenDate(String(d.at))}` : ''}`,
+        group: 'content',
+      }
+    case 'newsletter.subscriber_added':
+      return { text: `ha aggiunto ${t} agli iscritti alla newsletter`, group: 'content' }
+    case 'newsletter.subscriber_removed':
+      return { text: `ha eliminato l’iscritto ${t} e i suoi dati`, group: 'content' }
+    case 'newsletter.imported':
+      return {
+        text: `ha importato ${typeof d.added === 'number' ? d.added : ''} iscritti alla newsletter da un CSV`,
+        group: 'content',
+      }
+    case 'newsletter.exported':
+      return { text: 'ha esportato l’elenco degli iscritti alla newsletter', group: 'content' }
     case 'site.ai_request':
       return {
         text: `ha chiesto all’AI dalla panoramica: ${d.documents === 1 ? 'un contenuto modificato' : `${d.documents ?? ''} contenuti modificati`} in bozza`,
@@ -191,6 +223,11 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `ha caricato ${t}`, group: 'content' }
     case 'media.deleted':
       return { text: `ha eliminato il file ${t}`, group: 'content' }
+    case 'message.exported':
+      return {
+        text: `ha esportato ${typeof d.count === 'number' ? (d.count === 1 ? 'un messaggio' : `${d.count} messaggi`) : 'i messaggi'} in CSV`,
+        group: 'content',
+      }
     case 'message.deleted':
       return { text: 'ha eliminato un messaggio ricevuto', group: 'content' }
     case 'backup.created':

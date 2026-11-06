@@ -1,5 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
-import { FileText, Images, Monitor, Moon, Plus, Rocket, Search, Settings, Sun, UserRound } from 'lucide-react'
+import { Compass, FileText, Images, Monitor, Moon, Plus, Rocket, Search, Settings, Sun, UserRound } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
@@ -7,6 +7,7 @@ import { api } from '../lib/api.ts'
 import { useTheme } from '../lib/prefs.ts'
 import { navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
+import { startPanelTour } from './PanelTour.tsx'
 import { collectionIcon } from './Sidebar.tsx'
 
 interface Command {
@@ -93,6 +94,15 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         icon: <Images />,
         group: 'Vai a',
         run: () => navigate({ name: 'media' }),
+      })
+    }
+    if (match('Tour del pannello guida aiuto')) {
+      out.push({
+        id: 'go:tour',
+        label: 'Tour del pannello',
+        icon: <Compass />,
+        group: 'Vai a',
+        run: () => startPanelTour(),
       })
     }
     if (match('Rilasci lancio insieme')) {

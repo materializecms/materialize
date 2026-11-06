@@ -3,12 +3,14 @@ import {
   ArrowUpRight,
   BookOpen,
   Briefcase,
+  Compass,
   FileText,
   Folder,
   Globe,
   Images,
   LayoutGrid,
   LogOut,
+  Mail,
   Newspaper,
   Rocket,
   Search,
@@ -26,6 +28,7 @@ import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
+import { startPanelTour } from './PanelTour.tsx'
 import { useReleases } from './ReleasesScreen.tsx'
 
 export function collectionIcon(c: CollectionDescription): ReactNode {
@@ -106,6 +109,7 @@ export function Sidebar() {
       <div className="px-3 pt-1 pb-1">
         <button
           type="button"
+          data-tour="search"
           onClick={openPalette}
           className="flex h-8 w-full items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-fg3 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-colors hover:border-line2 hover:text-fg2"
         >
@@ -123,61 +127,74 @@ export function Sidebar() {
             </TintIcon>
           </NavItem>
         </div>
-        <div className={sectionLabel}>{t('Contenuti')}</div>
-        {schema.collections
-          .filter((c) => !c.singleton)
-          .map((c) => (
-            <NavItem
-              key={c.name}
-              route={{ name: 'collection', collection: c.name }}
-              active={current === c.name}
-              label={c.label}
-              count={countOf(c.name)}
-            >
-              <TintIcon color={tint(c.name)} size="sm">
-                {collectionIcon(c)}
-              </TintIcon>
-            </NavItem>
-          ))}
-        <NavItem
-          route={{ name: 'releases' }}
-          active={route.name === 'releases'}
-          label={t('Rilasci')}
-          count={releases.data?.releases.length || undefined}
-        >
-          <TintIcon color="#f97316" size="sm">
-            <Rocket />
-          </TintIcon>
-        </NavItem>
-        <div className={sectionLabel}>{t('Libreria')}</div>
-        <NavItem
-          route={{ name: 'media' }}
-          active={route.name === 'media'}
-          label={t('Media')}
-          count={overview.data?.media}
-        >
-          <TintIcon color="#0ea5e9" size="sm">
-            <Images />
-          </TintIcon>
-        </NavItem>
-        <div className={sectionLabel}>{t('Gestione')}</div>
-        <NavItem
-          route={update ? { name: 'settings', tab: 'updates' } : { name: 'settings' }}
-          active={route.name === 'settings'}
-          label={t('Impostazioni')}
-          note={update ? t('È disponibile Materialize {version}', { version: update }) : undefined}
-        >
-          <TintIcon color="#64748b" size="sm">
-            <Settings />
-          </TintIcon>
-        </NavItem>
-        {user.role === 'admin' && (
-          <NavItem route={{ name: 'people' }} active={route.name === 'people'} label={t('Persone')}>
-            <TintIcon color="#8b5cf6" size="sm">
-              <UserRound />
+        <div data-tour="nav-content">
+          <div className={sectionLabel}>{t('Contenuti')}</div>
+          {schema.collections
+            .filter((c) => !c.singleton)
+            .map((c) => (
+              <NavItem
+                key={c.name}
+                route={{ name: 'collection', collection: c.name }}
+                active={current === c.name}
+                label={c.label}
+                count={countOf(c.name)}
+              >
+                <TintIcon color={tint(c.name)} size="sm">
+                  {collectionIcon(c)}
+                </TintIcon>
+              </NavItem>
+            ))}
+        </div>
+        <div data-tour="nav-publish">
+          <NavItem
+            route={{ name: 'releases' }}
+            active={route.name === 'releases'}
+            label={t('Rilasci')}
+            count={releases.data?.releases.length || undefined}
+          >
+            <TintIcon color="#f97316" size="sm">
+              <Rocket />
             </TintIcon>
           </NavItem>
-        )}
+          <NavItem route={{ name: 'newsletter' }} active={route.name === 'newsletter'} label="Newsletter">
+            <TintIcon color="#ec4899" size="sm">
+              <Mail />
+            </TintIcon>
+          </NavItem>
+        </div>
+        <div data-tour="nav-media">
+          <div className={sectionLabel}>{t('Libreria')}</div>
+          <NavItem
+            route={{ name: 'media' }}
+            active={route.name === 'media'}
+            label={t('Media')}
+            count={overview.data?.media}
+          >
+            <TintIcon color="#0ea5e9" size="sm">
+              <Images />
+            </TintIcon>
+          </NavItem>
+        </div>
+        <div data-tour="nav-manage">
+          <div className={sectionLabel}>{t('Gestione')}</div>
+          <NavItem
+            route={update ? { name: 'settings', tab: 'updates' } : { name: 'settings' }}
+            active={route.name === 'settings'}
+            label={t('Impostazioni')}
+            note={update ? t('È disponibile Materialize {version}', { version: update }) : undefined}
+          >
+            <TintIcon color="#64748b" size="sm">
+              <Settings />
+            </TintIcon>
+          </NavItem>
+          {user.role === 'admin' && (
+            <NavItem route={{ name: 'people' }} active={route.name === 'people'} label={t('Persone')}>
+              <TintIcon color="#8b5cf6" size="sm">
+                <UserRound />
+              </TintIcon>
+            </NavItem>
+          )}
+        </div>
       </nav>
 
       <div className="space-y-1 px-3 pb-3">
@@ -218,7 +235,10 @@ export function Sidebar() {
           </Popover>
         )}
 
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-panel p-1 shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
+        <div
+          data-tour="me"
+          className="flex items-center gap-1 rounded-lg border border-line bg-panel p-1 shadow-[0_1px_2px_rgb(10_10_11/0.04)]"
+        >
           <Popover
             side="top"
             width={216}
@@ -251,6 +271,15 @@ export function Sidebar() {
                   }}
                 >
                   {t('Il tuo profilo')}
+                </MenuItem>
+                <MenuItem
+                  icon={<Compass />}
+                  onClick={() => {
+                    close()
+                    startPanelTour()
+                  }}
+                >
+                  Tour del pannello
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem icon={<LogOut />} onClick={logout}>

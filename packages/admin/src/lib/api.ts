@@ -1,4 +1,4 @@
-import type { CollectionDescription, FieldDescription, ValidationIssue } from '@materializecms/core'
+import type { CollectionDescription, FieldDescription, RichText, ValidationIssue } from '@materializecms/core'
 import type { BoundEntry, Component, PageNode, Theme } from '@materializecms/core/page'
 import type { Redirect, SiteSeo } from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
@@ -301,6 +301,42 @@ export interface Release {
   items: ReleaseItem[]
   /** Every document can go out. */
   ready: boolean
+}
+
+export interface Subscriber {
+  id: string
+  email: string
+  name: string
+  status: 'pending' | 'active' | 'unsubscribed'
+  source: string
+  createdAt: string
+  confirmedAt: string | null
+  unsubscribedAt: string | null
+}
+
+export interface NewsletterStats {
+  total: number
+  sent: number
+  failed: number
+  pending: number
+  opened: number
+  clicked: number
+  unsubscribed: number
+}
+
+export interface Newsletter {
+  id: string
+  subject: string
+  preheader: string
+  body: RichText
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed'
+  runAt: string | null
+  error: string | null
+  createdByName: string
+  createdAt: string
+  updatedAt: string
+  sentAt: string | null
+  stats: NewsletterStats
 }
 
 export interface DocumentSchedule {
@@ -826,6 +862,35 @@ export const api = {
   /** When a document goes on (publish) or off (unpublish) the site by itself; null cancels. */
   schedule: (id: string, action: 'publish' | 'unpublish', at: Date | null) =>
     request<StoredDocument>('PUT', `/documents/${id}/schedule`, { action, at: at?.toISOString() ?? null }),
+  subscribers: (params: { status?: Subscriber['status']; search?: string; limit?: number; offset?: number } = {}) =>
+    request<{ items: Subscriber[]; total: number; counts: Record<Subscriber['status'], number> }>(
+      'GET',
+      `/subscribers${q(params)}`,
+    ),
+  addSubscriber: (input: { email: string; name?: string }) =>
+    request<{ subscriber: Subscriber; mailed: boolean }>('POST', '/subscribers', input),
+  removeSubscriber: (id: string) => request<void>('DELETE', `/subscribers/${id}`),
+  importSubscribers: (csv: string) =>
+    request<{ found: number; added: number; skipped: number; unsubscribed: number }>('POST', '/subscribers/import', {
+      csv,
+    }),
+  subscribersCsv: () => '/api/subscribers/export.csv',
+  newsletterSettings: () => request<{ footer: string; tracking: boolean }>('GET', '/newsletter/settings'),
+  saveNewsletterSettings: (input: { footer: string; tracking: boolean }) =>
+    request<{ footer: string; tracking: boolean }>('PUT', '/newsletter/settings', input),
+  newsletters: () => request<{ newsletters: Newsletter[] }>('GET', '/newsletters'),
+  newsletter: (id: string) => request<Newsletter>('GET', `/newsletters/${id}`),
+  createNewsletter: (input: { subject: string; preheader?: string; body?: RichText }) =>
+    request<Newsletter>('POST', '/newsletters', input),
+  newsletterFromDocument: (id: string) => request<Newsletter>('POST', '/newsletters/from-document', { id }),
+  aiNewsletter: (input: { count?: number; note?: string }) => request<Newsletter>('POST', '/ai/newsletter', input),
+  saveNewsletter: (id: string, input: { subject: string; preheader: string; body: RichText }) =>
+    request<Newsletter>('PUT', `/newsletters/${id}`, input),
+  removeNewsletter: (id: string) => request<void>('DELETE', `/newsletters/${id}`),
+  testNewsletter: (id: string, to?: string) => request<{ ok: true }>('POST', `/newsletters/${id}/test`, { to }),
+  sendNewsletter: (id: string) => request<Newsletter>('POST', `/newsletters/${id}/send`),
+  scheduleNewsletter: (id: string, at: Date | null) =>
+    request<Newsletter>('PUT', `/newsletters/${id}/schedule`, { at: at?.toISOString() ?? null }),
   releases: () => request<{ releases: Release[]; published: Release[] }>('GET', '/releases'),
   createRelease: (name: string) => request<Release>('POST', '/releases', { name }),
   renameRelease: (id: string, name: string) => request<Release>('PATCH', `/releases/${id}`, { name }),

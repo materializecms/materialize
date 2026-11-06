@@ -134,7 +134,11 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
             />
           ) : (
             <>
-              <div role="tablist" aria-label="Stato" className="flex gap-1">
+              <div
+                role="tablist"
+                aria-label="Stato"
+                className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none]"
+              >
                 {(
                   [
                     ['all', 'Tutti', list.data?.items.length ?? 0],
@@ -150,7 +154,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                     aria-selected={filter === value}
                     onClick={() => setFilter(value)}
                     className={cx(
-                      'inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors',
+                      'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors',
                       filter === value ? 'bg-fg text-bg' : 'text-fg2 hover:bg-hover hover:text-fg',
                     )}
                   >

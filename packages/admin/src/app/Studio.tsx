@@ -1,9 +1,9 @@
 // biome-ignore-all lint/suspicious/noArrayIndexKey: the thread only grows
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, FileText, ImagePlus, Loader2, RotateCcw, Square, X } from 'lucide-react'
+import { FileText, ImagePlus, Loader2, RotateCcw, Sparkles, Square, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Prose } from '../components/Prose.tsx'
-import { cx, toast } from '../components/ui.tsx'
+import { Button, cx, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
@@ -164,21 +164,19 @@ export function Studio() {
           <span className="flex-1" />
           <span className="text-[12px] text-fg3 max-sm:hidden">{t('Tutto resta in bozza')}</span>
           {busy ? (
-            <button
-              type="button"
-              onClick={() => abort.current?.abort()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line2 px-3 text-[13px] font-medium hover:bg-hover [&_svg]:size-3"
-            >
-              <Square /> {t('Interrompi')}
-            </button>
+            <Button size="sm" icon={<Square className="size-3" />} onClick={() => abort.current?.abort()}>
+              {t('Interrompi')}
+            </Button>
           ) : (
-            <button
+            <Button
               type="submit"
+              size="sm"
+              variant="primary"
               disabled={!text.trim()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-semibold text-accent-fg hover:brightness-110 disabled:opacity-40 [&_svg]:size-3.5"
+              icon={<Sparkles className="size-3.5" />}
             >
-              <ArrowUp /> {t('Prepara')}
-            </button>
+              {t('Prepara')}
+            </Button>
           )}
         </div>
       </form>

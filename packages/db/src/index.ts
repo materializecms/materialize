@@ -25,6 +25,15 @@ export {
 } from './content.ts'
 export { type Database, type Db, openDatabase } from './database.ts'
 export { createMediaStore, type MediaAsset, type MediaStore } from './media.ts'
+export {
+  createNewsletterStore,
+  type Newsletter,
+  type NewsletterStats,
+  type NewsletterStatus,
+  type NewsletterStore,
+  type Subscriber,
+  type SubscriberStatus,
+} from './newsletter.ts'
 export { createPreviewLinkStore, type PreviewLink, type PreviewLinkStore } from './previews.ts'
 export {
   createReleaseStore,

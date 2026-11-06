@@ -25,6 +25,7 @@ Questa guida è per chi crea e gestisce siti con Materialize: agenzie, freelance
 11. [Importare da WordPress](11-importare-da-wordpress.md)
 12. [Aggiornamenti e backup](12-aggiornamenti-e-backup.md)
 13. [Problemi comuni](13-problemi-comuni.md)
+14. [Newsletter](14-newsletter.md): iscritti con doppia conferma, invio, statistiche
 
 ## Per chi sviluppa
 

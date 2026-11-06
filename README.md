@@ -15,7 +15,7 @@ CMS open source per agenzie e freelance: schema dei contenuti in codice, editor 
 
 ## Come si presenta
 
-![L'editor visuale: la pagina vera sulla tela, i livelli a sinistra, la pagina a destra](docs/assets/screenshots/01-editor.webp)
+![L'editor visuale: la pagina vera sulla tela con un titolo selezionato e le sue azioni rapide, i livelli a sinistra, le proprietà a destra](docs/assets/screenshots/01-editor.webp)
 
 <table>
   <tr>
@@ -28,6 +28,10 @@ CMS open source per agenzie e freelance: schema dei contenuti in codice, editor 
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/screenshots/06-seo-e-ai.webp" alt="Impostazioni SEO: llms.txt, feed RSS, crawler AI"><br><sub>SEO e ricerche AI: llms.txt, feed RSS, crawler</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/07-panoramica.webp" alt="La panoramica: la richiesta all'AI, le cose da fare, le ultime modifiche"><br><sub>La panoramica: cosa c'è da fare, e una richiesta all'AI su tutto il sito</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/screenshots/08-newsletter.webp" alt="Una newsletter in scrittura: oggetto, anteprima, testo, prova e invio"><br><sub>La newsletter: scrivi, prova su di te, invia o programma</sub></td>
     <td width="50%"></td>
   </tr>
 </table>
@@ -118,6 +122,8 @@ La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso
 - **Stile di ogni blocco**: sfondo, spazio sopra e sotto, animazione all'ingresso (con anteprima) e ancora per i link interni. Le scelte sono nomi del tema del sito, non colori liberi: le pagine restano coerenti chiunque le modifichi.
 - **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
 - **Pubblicazione programmata**: dal pulsante con il calendario accanto a «Pubblica» si sceglie quando una pagina esce (con scorciatoie come «Domani alle 9») e, se serve, quando torna bozza da sola, per un'offerta o un evento. Esce la bozza com'è in quel momento, a nome di chi l'ha programmata. I campi mancanti vengono segnalati subito; se al momento di uscire la pagina non è più completa, non viene pubblicata e il pannello spiega perché. Un server spento a quell'ora recupera appena riparte. Gli elenchi mostrano la data accanto allo stato, e l'AI può programmare con lo strumento MCP `schedule_entry`.
+- **Tour del pannello**: la prima volta un tour illumina una zona alla volta (panoramica, richiesta all'AI, cose da fare, contenuti, rilasci e newsletter, media, impostazioni, ricerca ⌘K, profilo); si rifà dal menu del profilo o cercando «tour». Usa lo stesso componente del tour dell'editor, che salta da solo i passi di ciò che non c'è (per esempio l'AI spenta).
+- **Newsletter** (barra laterale → Newsletter): iscrizioni dal sito con doppia conferma via email (due sezioni pronte nella libreria, o qualsiasi modulo con «Iscrive alla newsletter»), elenco degli iscritti con import CSV da Mailchimp o Brevo ed export. Newsletter vuote, da un articolo o scritte dall'AI dagli ultimi articoli con la voce del brand; prova a sé stessi, invio subito o programmato, una email alla volta e con ripresa dopo un riavvio. Ogni email ha il link per disiscriversi (anche con un clic dall'app di posta, RFC 8058) e i dati del mittente; statistiche di aperture e clic, con link firmati, spegnibili. Usa l'email di Impostazioni → Email. API `/api/newsletters`, `/api/subscribers`.
 - **Rilasci** (barra laterale → Rilasci, o Altre azioni → Aggiungi a un rilascio): più pagine e articoli che escono insieme, subito o a un'ora stabilita, e pagine vecchie da togliere dal sito nello stesso momento. Tutto o niente: se una pagina non è pronta non esce niente, e il pannello dice quale e perché. Una pagina sta in un solo rilascio alla volta; annullare un rilascio lascia le pagine come sono. API `/api/releases`, strumenti MCP `list_releases`, `create_release`, `add_to_release`, `publish_release`, `schedule_release`.
 - **Link di anteprima da condividere**: da «Altre azioni» → «Condividi anteprima» si crea un link segreto che mostra la bozza con il design vero del sito a chi non ha un account, come un cliente o un collega. Vale 1, 7 o 30 giorni, o finché non lo revochi; segue le modifiche, perché mostra sempre l'ultima versione salvata. Porta un'etichetta «Anteprima», non è indicizzato dai motori di ricerca e non conta nelle statistiche. Il pannello dice quante volte è stato aperto, e l'AI può crearne uno con lo strumento MCP `share_preview`.
 - **Controlli della pagina** (scheda Controlli dell'editor): motori di ricerca, **accessibilità** (contrasto dei testi misurato sulla tela con la regola WCAG 4,5:1 e 3:1, immagini senza descrizione, pulsanti, icone e campi senza nome, link poco chiari, titoli saltati, video senza pausa) e **prestazioni** (file da altri siti, GIF e video pesanti, video senza copertina, troppe scene 3D, script esterni, troppi caratteri, pagine enormi). Un clic seleziona l'elemento da sistemare; prima di pubblicare, i problemi seri vengono elencati con «Pubblica lo stesso».
@@ -380,6 +386,6 @@ In quest'ordine:
 
 1. **Il pannello anche in inglese**: pannello, messaggi del server e del terminale, email e guida, con la lingua scelta da ogni persona. I contenuti del sito sono già in più lingue.
 2. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
-3. **Più avanti**: newsletter e iscritti, vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
+3. **Più avanti**: vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
 
 Per ora non sono in programma estensioni e plugin, né più siti in una sola installazione. Quello che è già uscito è nel [CHANGELOG](CHANGELOG.md).

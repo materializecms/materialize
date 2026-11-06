@@ -50,6 +50,17 @@ export function FormSection({
       />
       {f ? (
         <>
+          <Toggle
+            label="Iscrive alla newsletter"
+            checked={!!f.newsletter}
+            onChange={(v) => set({ newsletter: v || undefined }, 'fnews')}
+          />
+          {f.newsletter && (
+            <p className="text-[11.5px] leading-relaxed text-fg3">
+              Serve un campo Email. Chi invia riceve un link per confermare e diventa iscritto (Newsletter → Iscritti);
+              niente arriva in Messaggi. Aggiungi una casella per il consenso alla privacy.
+            </p>
+          )}
           <Row label="Nome" hint="Come lo riconosci in Impostazioni → Messaggi">
             <input
               aria-label="Nome del modulo"
@@ -59,25 +70,29 @@ export function FormSection({
               className={input}
             />
           </Row>
-          <Row label="Oggetto" hint="L’oggetto dell’email che ricevi">
-            <input
-              aria-label="Oggetto dell’email"
-              value={f.subject ?? ''}
-              onChange={(e) => set({ subject: e.target.value }, 'fsub')}
-              className={input}
-            />
-          </Row>
-          <Row label="Invia a" hint="Indirizzi separati da virgole; vuoto, quello di Impostazioni → Email">
-            <input
-              aria-label="Chi riceve i messaggi"
-              value={f.to ?? ''}
-              placeholder="Impostazioni → Email"
-              disabled={!admin}
-              title={admin ? undefined : 'Solo un amministratore può cambiarlo'}
-              onChange={(e) => set({ to: e.target.value }, 'fto')}
-              className={`${input} disabled:opacity-60`}
-            />
-          </Row>
+          {!f.newsletter && (
+            <>
+              <Row label="Oggetto" hint="L’oggetto dell’email che ricevi">
+                <input
+                  aria-label="Oggetto dell’email"
+                  value={f.subject ?? ''}
+                  onChange={(e) => set({ subject: e.target.value }, 'fsub')}
+                  className={input}
+                />
+              </Row>
+              <Row label="Invia a" hint="Indirizzi separati da virgole; vuoto, quello di Impostazioni → Email">
+                <input
+                  aria-label="Chi riceve i messaggi"
+                  value={f.to ?? ''}
+                  placeholder="Impostazioni → Email"
+                  disabled={!admin}
+                  title={admin ? undefined : 'Solo un amministratore può cambiarlo'}
+                  onChange={(e) => set({ to: e.target.value }, 'fto')}
+                  className={`${input} disabled:opacity-60`}
+                />
+              </Row>
+            </>
+          )}
           <Row label="Dopo l’invio">
             <input
               aria-label="Messaggio dopo l’invio"
@@ -87,58 +102,63 @@ export function FormSection({
               className={input}
             />
           </Row>
-          <Toggle
-            label="Risposta automatica a chi scrive"
-            checked={!!f.autoReply}
-            onChange={(v) =>
-              set(
-                {
-                  autoReply: v
-                    ? {
-                        subject: 'Abbiamo ricevuto il tuo messaggio',
-                        text: 'Grazie per averci scritto: ti rispondiamo il prima possibile.',
-                      }
-                    : null,
-                },
-                'fauto',
-              )
-            }
-          />
-          {f.autoReply && (
-            <div className="space-y-1.5">
-              <input
-                aria-label="Oggetto della risposta automatica"
-                value={f.autoReply.subject ?? ''}
-                onChange={(e) => set({ autoReply: { ...f.autoReply, subject: e.target.value } }, 'fautos')}
-                className={`${input} w-full`}
+          {!f.newsletter && (
+            <>
+              <Toggle
+                label="Risposta automatica a chi scrive"
+                checked={!!f.autoReply}
+                onChange={(v) =>
+                  set(
+                    {
+                      autoReply: v
+                        ? {
+                            subject: 'Abbiamo ricevuto il tuo messaggio',
+                            text: 'Grazie per averci scritto: ti rispondiamo il prima possibile.',
+                          }
+                        : null,
+                    },
+                    'fauto',
+                  )
+                }
               />
-              <textarea
-                aria-label="Testo della risposta automatica"
-                value={f.autoReply.text ?? ''}
-                rows={4}
-                onChange={(e) => set({ autoReply: { ...f.autoReply, text: e.target.value } }, 'fautot')}
-                className={area}
-              />
+              {f.autoReply && (
+                <div className="space-y-1.5">
+                  <input
+                    aria-label="Oggetto della risposta automatica"
+                    value={f.autoReply.subject ?? ''}
+                    onChange={(e) => set({ autoReply: { ...f.autoReply, subject: e.target.value } }, 'fautos')}
+                    className={`${input} w-full`}
+                  />
+                  <textarea
+                    aria-label="Testo della risposta automatica"
+                    value={f.autoReply.text ?? ''}
+                    rows={4}
+                    onChange={(e) => set({ autoReply: { ...f.autoReply, text: e.target.value } }, 'fautot')}
+                    className={area}
+                  />
+                  <p className="text-[11.5px] leading-relaxed text-fg3">
+                    Arriva all’email scritta nel modulo, con le tue parole soltanto: non ripete ciò che è stato inviato.
+                  </p>
+                </div>
+              )}
+              <Row label="Webhook" hint="Ogni messaggio arriva anche qui, in JSON: Zapier, Make, n8n…">
+                <input
+                  aria-label="Indirizzo del webhook"
+                  value={f.webhook ?? ''}
+                  placeholder="https://hooks.zapier.com/…"
+                  disabled={!admin}
+                  title={admin ? undefined : 'Solo un amministratore può cambiarlo'}
+                  onChange={(e) => set({ webhook: e.target.value.trim() }, 'fhook')}
+                  className={`${input} font-mono disabled:opacity-60`}
+                />
+              </Row>
               <p className="text-[11.5px] leading-relaxed text-fg3">
-                Arriva all’email scritta nel modulo, con le tue parole soltanto: non ripete ciò che è stato inviato.
+                Aggiungi dentro i campi (Campo · K) e un pulsante con “Invia il modulo”. I messaggi arrivano in
+                Impostazioni → Messaggi e, se l’email è configurata, nella tua casella. Lo spam si ferma da solo, senza
+                CAPTCHA.
               </p>
-            </div>
+            </>
           )}
-          <Row label="Webhook" hint="Ogni messaggio arriva anche qui, in JSON: Zapier, Make, n8n…">
-            <input
-              aria-label="Indirizzo del webhook"
-              value={f.webhook ?? ''}
-              placeholder="https://hooks.zapier.com/…"
-              disabled={!admin}
-              title={admin ? undefined : 'Solo un amministratore può cambiarlo'}
-              onChange={(e) => set({ webhook: e.target.value.trim() }, 'fhook')}
-              className={`${input} font-mono disabled:opacity-60`}
-            />
-          </Row>
-          <p className="text-[11.5px] leading-relaxed text-fg3">
-            Aggiungi dentro i campi (Campo · K) e un pulsante con “Invia il modulo”. I messaggi arrivano in Impostazioni
-            → Messaggi e, se l’email è configurata, nella tua casella. Lo spam si ferma da solo, senza CAPTCHA.
-          </p>
         </>
       ) : (
         <p className="text-[11.5px] leading-relaxed text-fg3">

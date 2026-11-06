@@ -64,6 +64,8 @@ export interface FormSettings {
   autoReply?: { subject?: string; text?: string } | null
   /** Each message is also posted here as JSON (Zapier, Make, n8n…). */
   webhook?: string
+  /** Signs up to the newsletter instead of sending a message: the email field gets a confirmation link. */
+  newsletter?: boolean
 }
 
 export type FileAccept = 'documents' | 'images' | 'any'

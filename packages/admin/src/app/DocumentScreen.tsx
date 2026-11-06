@@ -779,7 +779,7 @@ function Editor({
         ) : (
           <div className="flex min-h-0 flex-1">
             <div className="min-w-0 flex-1 overflow-y-auto">
-              <div className="mx-auto max-w-[720px] px-8 pt-10 pb-32">
+              <div className="mx-auto max-w-[720px] px-4 pt-6 pb-32 sm:px-8 sm:pt-10">
                 {titleDef && (
                   <TitleInput
                     value={typeof titleValue === 'string' ? titleValue : ''}
@@ -1094,7 +1094,8 @@ function InfoPanel({
   const publicUrl = doc.url && schema.site.url ? new URL(doc.url, schema.site.url).toString() : null
 
   return (
-    <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel">
+    // On phones the form takes the whole width: details and history are for larger screens.
+    <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel max-md:hidden">
       <section className="border-b border-line px-4 py-3.5">
         <h2 className="mb-1.5 text-[13px] font-medium text-fg3">Documento</h2>
         <div className={row}>

@@ -70,7 +70,7 @@ export function Overview() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1080px] space-y-8 px-4 pt-8 pb-20 sm:px-8 sm:pt-12">
-        <header className="flex flex-wrap items-end justify-between gap-6">
+        <header data-tour="overview-head" className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-[13px] font-medium text-fg3 first-letter:uppercase">
               {today} · {schema.site.name}
@@ -109,10 +109,18 @@ export function Overview() {
           </div>
         </header>
 
-        {aiReady && <Studio />}
+        {aiReady && (
+          <div data-tour="studio">
+            <Studio />
+          </div>
+        )}
 
         {(waiting.length > 0 || release || next || unread > 0) && (
-          <section aria-label={t('Da fare')} className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
+          <section
+            data-tour="todo"
+            aria-label={t('Da fare')}
+            className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3"
+          >
             {waiting.length > 0 && (
               <Todo label={t('Da pubblicare')} color="var(--accent)">
                 <ul className="space-y-1">
@@ -188,7 +196,10 @@ export function Overview() {
         )}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section className="rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
+          <section
+            data-tour="recent"
+            className="rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)]"
+          >
             <h2 className="flex h-12 items-center border-b border-line px-4 text-[14px] font-semibold">
               {t('Ultime modifiche')}
             </h2>

@@ -55,7 +55,7 @@ Legenda: **Sì** di serie · **Plugin** con estensioni o servizi aggiuntivi · *
 | Importazione da WordPress                   | Sì, con impaginazione AI              | —                                                 | Parziale                                                        | Parziale                                          | No                                       | No                                    | Sì                     |
 | Plugin ed estensioni                        | No                                    | Sì, migliaia                                      | App e integrazioni                                              | App                                               | Sì                                       | Sì                                    | Integrazioni           |
 | E-commerce                                  | No                                    | Plugin (WooCommerce)                              | Webflow sì, Framer con integrazioni                             | Sì                                                | Dipende dal sito                         | Dipende dal sito                      | Abbonamenti            |
-| Newsletter e iscritti                       | No (in programma)                     | Plugin                                            | No                                                              | Sì                                                | No                                       | No                                    | Sì                     |
+| Newsletter e iscritti                       | Sì, con doppia conferma e statistiche | Plugin                                            | No                                                              | Sì                                                | No                                       | No                                    | Sì                     |
 | Più siti in un'installazione                | No                                    | Sì (multisite)                                    | Sì (un abbonamento per sito)                                    | Sì                                                | Sì                                       | Sì                                    | No                     |
 | Modifica insieme in tempo reale             | No                                    | No (rinviata da WordPress 7.0 e 7.1)              | Sì (Webflow dal 2026)                                           | No                                                | No                                       | Sanity sì                             | No                     |
 
@@ -80,7 +80,7 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 
 ## Cosa arriverà
 
-Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: pannello anche in inglese; più avanti newsletter, vendita semplice e collaborazione in tempo reale.
+Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: pannello anche in inglese; più avanti vendita semplice e collaborazione in tempo reale.
 
 ## Fonti
 

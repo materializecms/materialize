@@ -280,6 +280,70 @@ export const releaseItems = sqliteTable(
   (t) => [primaryKey({ columns: [t.releaseId, t.documentId] }), index('release_items_document').on(t.documentId)],
 )
 
+/** People who asked to receive the newsletter: pending until they confirm by email. */
+export const subscribers = sqliteTable(
+  'subscribers',
+  {
+    id: text('id').primaryKey(),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull().default(''),
+    status: text('status', { enum: ['pending', 'active', 'unsubscribed'] }).notNull(),
+    /** Their language, for the emails the site sends them. */
+    locale: text('locale'),
+    /** Where they signed up: a form, "import", "panel". */
+    source: text('source').notNull().default(''),
+    /** The secret in their confirm and unsubscribe links. */
+    token: text('token').notNull().unique(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    /** When they confirmed: the consent, with the page they signed up on. */
+    confirmedAt: integer('confirmed_at', { mode: 'timestamp_ms' }),
+    unsubscribedAt: integer('unsubscribed_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('subscribers_status').on(t.status)],
+)
+
+/** A newsletter: written, tried, then sent to every active subscriber, now or at a set time. */
+export const newsletters = sqliteTable(
+  'newsletters',
+  {
+    id: text('id').primaryKey(),
+    subject: text('subject').notNull(),
+    /** The line some email apps show after the subject. */
+    preheader: text('preheader').notNull().default(''),
+    body: text('body', { mode: 'json' }).$type<unknown[]>().notNull(),
+    status: text('status', { enum: ['draft', 'scheduled', 'sending', 'sent', 'failed'] }).notNull(),
+    runAt: integer('run_at', { mode: 'timestamp_ms' }),
+    error: text('error'),
+    createdBy: text('created_by'),
+    createdByName: text('created_by_name').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+    sentAt: integer('sent_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('newsletters_status').on(t.status, t.runAt)],
+)
+
+/** One newsletter to one subscriber: sent or not, and whether it was opened and clicked. */
+export const newsletterSends = sqliteTable(
+  'newsletter_sends',
+  {
+    id: text('id').primaryKey(),
+    newsletterId: text('newsletter_id').notNull(),
+    subscriberId: text('subscriber_id').notNull(),
+    email: text('email').notNull(),
+    status: text('status', { enum: ['pending', 'sent', 'failed'] }).notNull(),
+    error: text('error'),
+    sentAt: integer('sent_at', { mode: 'timestamp_ms' }),
+    openedAt: integer('opened_at', { mode: 'timestamp_ms' }),
+    clickedAt: integer('clicked_at', { mode: 'timestamp_ms' }),
+    unsubscribedAt: integer('unsubscribed_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    uniqueIndex('newsletter_sends_pair').on(t.newsletterId, t.subscriberId),
+    index('newsletter_sends_status').on(t.newsletterId, t.status),
+  ],
+)
+
 /** Secret links that show a document's latest draft to people without an account. */
 export const previewLinks = sqliteTable(
   'preview_links',
@@ -517,4 +581,48 @@ export const MIGRATIONS: string[][] = [
     'CREATE INDEX IF NOT EXISTS release_items_document ON release_items (document_id)',
   ],
   ['ALTER TABLE users ADD COLUMN locale TEXT'],
+  [
+    `CREATE TABLE IF NOT EXISTS subscribers (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL,
+      locale TEXT,
+      source TEXT NOT NULL DEFAULT '',
+      token TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL,
+      confirmed_at INTEGER,
+      unsubscribed_at INTEGER
+    )`,
+    'CREATE INDEX IF NOT EXISTS subscribers_status ON subscribers (status)',
+    `CREATE TABLE IF NOT EXISTS newsletters (
+      id TEXT PRIMARY KEY,
+      subject TEXT NOT NULL,
+      preheader TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL,
+      status TEXT NOT NULL,
+      run_at INTEGER,
+      error TEXT,
+      created_by TEXT,
+      created_by_name TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      sent_at INTEGER
+    )`,
+    'CREATE INDEX IF NOT EXISTS newsletters_status ON newsletters (status, run_at)',
+    `CREATE TABLE IF NOT EXISTS newsletter_sends (
+      id TEXT PRIMARY KEY,
+      newsletter_id TEXT NOT NULL,
+      subscriber_id TEXT NOT NULL,
+      email TEXT NOT NULL,
+      status TEXT NOT NULL,
+      error TEXT,
+      sent_at INTEGER,
+      opened_at INTEGER,
+      clicked_at INTEGER,
+      unsubscribed_at INTEGER
+    )`,
+    'CREATE UNIQUE INDEX IF NOT EXISTS newsletter_sends_pair ON newsletter_sends (newsletter_id, subscriber_id)',
+    'CREATE INDEX IF NOT EXISTS newsletter_sends_status ON newsletter_sends (newsletter_id, status)',
+  ],
 ]
