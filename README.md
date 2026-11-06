@@ -376,8 +376,10 @@ Si può fare tutto anche a mano: `npm run release`, `npm run smoke`, poi `npm ru
 
 ## Prossimi passi
 
-1. Editor: libreria di sezioni pronte con più varianti, modifica collaborativa in tempo reale, commenti.
-2. Traduzioni collegate tra loro, invio delle email (inviti e password) tramite SMTP o un servizio esterno.
-3. Media su storage esterno (S3, R2) e CDN, documenti oltre alle immagini.
-4. Server MCP e funzioni AI.
-5. Rilasci automatici (changelog, pubblicazione da CI) e una guida al deploy su hosting comuni.
+In quest'ordine:
+
+1. **Il pannello anche in inglese**: pannello, messaggi del server e del terminale, email e guida, con la lingua scelta da ogni persona. I contenuti del sito sono già in più lingue.
+2. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
+3. **Più avanti**: newsletter e iscritti, vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
+
+Per ora non sono in programma estensioni e plugin, né più siti in una sola installazione. Quello che è già uscito è nel [CHANGELOG](CHANGELOG.md).

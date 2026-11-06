@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/materializecms/materialize/main/docs/assets/logo-icon.svg" alt="Materialize" width="48" height="48">
+
 # @materializecms/astro
 
 L'integrazione Astro di Materialize: il sito dai contenuti pubblicati e l'anteprima delle bozze sulla tela.

@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/materializecms/materialize/main/docs/assets/logo-icon.svg" alt="Materialize" width="48" height="48">
+
 # @materializecms/admin
 
 Il pannello di Materialize già compilato: contenuti, editor visuale sulla tela, media, impostazioni.

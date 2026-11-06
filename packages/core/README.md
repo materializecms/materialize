@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/materializecms/materialize/main/docs/assets/logo-icon.svg" alt="Materialize" width="48" height="48">
+
 # @materializecms/core
 
 Il modello dei contenuti di Materialize: raccolte, campi, validazione, libreria di sezioni, SEO.

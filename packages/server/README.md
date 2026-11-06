@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/materializecms/materialize/main/docs/assets/logo-icon.svg" alt="Materialize" width="48" height="48">
+
 # @materializecms/server
 
 Il server di Materialize: API, accessi, media, backup, aggiornamenti dal pannello e server MCP.

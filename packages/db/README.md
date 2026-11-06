@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/materializecms/materialize/main/docs/assets/logo-icon.svg" alt="Materialize" width="48" height="48">
+
 # @materializecms/db
 
 Il database di Materialize: contenuti con bozze, pubblicazione e revisioni, utenti e sessioni (SQLite o libSQL).
