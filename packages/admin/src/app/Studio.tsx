@@ -5,14 +5,15 @@ import { useEffect, useRef, useState } from 'react'
 import { Prose } from '../components/Prose.tsx'
 import { cx, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { shrink } from '../page/Assistant.tsx'
 
-const IDEAS = [
-  'Scrivi la descrizione per Google delle pagine che non ce l’hanno',
-  'Controlla i testi del Diario: refusi e frasi poco chiare',
-  'Prepara una pagina «Domande frequenti» con i dubbi che rispondiamo più spesso',
-  'Traduci in inglese le pagine principali',
+const ideas = () => [
+  t('Scrivi la descrizione per Google delle pagine che non ce l’hanno'),
+  t('Controlla i testi del Diario: refusi e frasi poco chiare'),
+  t('Prepara una pagina «Domande frequenti» con i dubbi che rispondiamo più spesso'),
+  t('Traduci in inglese le pagine principali'),
 ]
 
 type Item = { me: boolean; text: string } | { step: string }
@@ -38,11 +39,11 @@ export function Studio() {
   const send = async (message: string) => {
     if (!message.trim() || busy) return
     const images = pictures.map((p) => ({ mime: 'image/jpeg' as const, data: p.data }))
-    setThread((t) => [...t, { me: true, text: message.trim() }])
+    setThread((list) => [...list, { me: true, text: message.trim() }])
     setText('')
     setPictures([])
     setBusy(true)
-    setStep('Leggo la richiesta…')
+    setStep(t('Leggo la richiesta…'))
     const controller = new AbortController()
     abort.current = controller
     try {
@@ -52,15 +53,15 @@ export function Studio() {
           if (e.type === 'status') setStep(e.text.split('\n')[0] ?? '')
           else if (e.type === 'tool') setStep(`${e.title}…`)
           else if (e.type === 'touched') setTouched((list) => [...list.filter((d) => d.id !== e.doc.id), e.doc])
-          else if (e.type === 'text') setThread((t) => [...t, { me: false, text: e.text }])
-          else if (e.type === 'error') setThread((t) => [...t, { step: e.message }])
+          else if (e.type === 'text') setThread((list) => [...list, { me: false, text: e.text }])
+          else if (e.type === 'error') setThread((list) => [...list, { step: e.message }])
           else if (e.type === 'done') setRunId(e.runId ?? null)
         },
         controller.signal,
       )
     } catch (error) {
       if ((error as Error).name !== 'AbortError')
-        setThread((t) => [...t, { step: error instanceof Error ? error.message : 'Errore' }])
+        setThread((list) => [...list, { step: error instanceof Error ? error.message : t('Errore') }])
     } finally {
       abort.current = null
       setBusy(false)
@@ -89,7 +90,7 @@ export function Studio() {
         className="rounded-2xl border border-accent/30 bg-panel p-1.5 shadow-[0_0_0_5px_color-mix(in_oklab,var(--accent)_7%,transparent),0_12px_32px_rgb(10_10_11/0.08)]"
       >
         <label htmlFor="studio-ask" className="sr-only">
-          Cosa facciamo oggi sul sito?
+          {t('Cosa facciamo oggi sul sito?')}
         </label>
         <textarea
           id="studio-ask"
@@ -106,8 +107,8 @@ export function Studio() {
           }}
           placeholder={
             started
-              ? 'Rispondi o chiedi altro…'
-              : 'Cosa facciamo oggi sul sito? Es. «Scrivi un articolo sul nuovo progetto, con le foto caricate ieri»'
+              ? t('Rispondi o chiedi altro…')
+              : t('Cosa facciamo oggi sul sito? Es. «Scrivi un articolo sul nuovo progetto, con le foto caricate ieri»')
           }
           className="block w-full resize-none bg-transparent px-3 py-2.5 text-[14.5px] leading-relaxed outline-none placeholder:text-fg3"
         />
@@ -117,7 +118,7 @@ export function Studio() {
               <img src={p.url} alt="" className="size-8 rounded-md object-cover ring-1 ring-line" />
               <button
                 type="button"
-                aria-label="Togli l’immagine"
+                aria-label={t('Togli l’immagine')}
                 onClick={() => setPictures((list) => list.filter((_, j) => j !== i))}
                 className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-fg text-bg"
               >
@@ -131,7 +132,7 @@ export function Studio() {
             onClick={() => file.current?.click()}
             className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-fg2 hover:bg-hover hover:text-fg disabled:opacity-40 [&_svg]:size-4"
           >
-            <ImagePlus /> Immagine
+            <ImagePlus /> {t('Immagine')}
           </button>
           <input
             ref={file}
@@ -145,7 +146,7 @@ export function Studio() {
                   const small = await shrink(f)
                   setPictures((list) => [...list, small].slice(0, 4))
                 } catch {
-                  toast('Non riesco a leggere questa immagine', 'error')
+                  toast(t('Non riesco a leggere questa immagine'), 'error')
                 }
               }
               e.target.value = ''
@@ -157,18 +158,18 @@ export function Studio() {
               onClick={restart}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
             >
-              <RotateCcw /> Nuova richiesta
+              <RotateCcw /> {t('Nuova richiesta')}
             </button>
           )}
           <span className="flex-1" />
-          <span className="text-[12px] text-fg3 max-sm:hidden">Tutto resta in bozza</span>
+          <span className="text-[12px] text-fg3 max-sm:hidden">{t('Tutto resta in bozza')}</span>
           {busy ? (
             <button
               type="button"
               onClick={() => abort.current?.abort()}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line2 px-3 text-[13px] font-medium hover:bg-hover [&_svg]:size-3"
             >
-              <Square /> Interrompi
+              <Square /> {t('Interrompi')}
             </button>
           ) : (
             <button
@@ -176,7 +177,7 @@ export function Studio() {
               disabled={!text.trim()}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-semibold text-accent-fg hover:brightness-110 disabled:opacity-40 [&_svg]:size-3.5"
             >
-              <ArrowUp /> Prepara
+              <ArrowUp /> {t('Prepara')}
             </button>
           )}
         </div>
@@ -184,7 +185,7 @@ export function Studio() {
 
       {!started && (
         <div className="flex flex-wrap gap-1.5">
-          {IDEAS.map((idea) => (
+          {ideas().map((idea) => (
             <button
               key={idea}
               type="button"
@@ -218,13 +219,13 @@ export function Studio() {
           {busy && (
             <p className="flex items-center gap-2 text-[13px] text-fg2">
               <Loader2 className="size-3.5 shrink-0 animate-spin text-accent" />
-              <span className="line-clamp-1">{step || 'Lavoro…'}</span>
+              <span className="line-clamp-1">{step || t('Lavoro…')}</span>
             </p>
           )}
           {touched.length > 0 && (
             <div>
               <h3 className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg3 uppercase">
-                Bozze da rivedere
+                {t('Bozze da rivedere')}
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {touched.map((d) => (
@@ -236,7 +237,7 @@ export function Studio() {
                       'inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[13px] font-medium hover:border-accent/50 hover:bg-hover [&_svg]:size-3.5 [&_svg]:text-fg3',
                     )}
                   >
-                    <FileText /> {d.title || 'Senza titolo'}
+                    <FileText /> {d.title || t('Senza titolo')}
                   </button>
                 ))}
               </div>

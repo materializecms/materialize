@@ -12,6 +12,8 @@ export interface User {
   role: Role
   /** Signs in with a code from an authenticator app too. */
   twoFactor: boolean
+  /** The panel's language ("it", "en"); null: the browser's. */
+  locale: string | null
 }
 
 /** A signed-in device, as listed in Profilo → Sicurezza. */
@@ -31,6 +33,7 @@ const toUser = (row: UserRow): User => ({
   name: row.name,
   role: row.role,
   twoFactor: !!row.totpSecret,
+  locale: row.locale ?? null,
 })
 
 export interface Member extends User {
@@ -90,7 +93,7 @@ export function createAuthStore(db: Db) {
         role: input.role,
       }
       await db.insert(users).values({ ...user, passwordHash: input.passwordHash, createdAt: new Date() })
-      return { ...user, twoFactor: false }
+      return { ...user, twoFactor: false, locale: null }
     },
 
     async findForLogin(email: string): Promise<(User & { passwordHash: string }) | null> {
@@ -344,9 +347,13 @@ export function createAuthStore(db: Db) {
     },
 
     /** Changes name, role or email; an email someone else already uses raises EmailTakenError. */
-    async updateUser(id: string, input: { name?: string; role?: Role; email?: string }): Promise<User | null> {
-      const change: { name?: string; role?: Role; email?: string } = {}
+    async updateUser(
+      id: string,
+      input: { name?: string; role?: Role; email?: string; locale?: string | null },
+    ): Promise<User | null> {
+      const change: { name?: string; role?: Role; email?: string; locale?: string | null } = {}
       if (input.name !== undefined) change.name = input.name.trim()
+      if (input.locale !== undefined) change.locale = input.locale
       if (input.role !== undefined) change.role = input.role
       if (input.email !== undefined) {
         const email = input.email.trim().toLowerCase()

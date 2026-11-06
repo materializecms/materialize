@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import type { DocumentStatus } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { type Theme, useTheme } from '../lib/prefs.ts'
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ')
@@ -202,7 +203,7 @@ export function StatusBadge({ status, short }: { status: DocumentStatus; short?:
       )}
     >
       <span className={cx('size-1.5 rounded-full', info.dot)} />
-      {short ? info.short : info.label}
+      {t(short ? info.short : info.label)}
     </span>
   )
 }
@@ -217,12 +218,15 @@ const THEMES: { value: Theme; label: string; icon: ReactNode }[] = [
 export function ThemeSwitch({ compact }: { compact?: boolean }) {
   const [theme, setTheme] = useTheme()
   if (compact) {
-    const i = THEMES.findIndex((t) => t.value === theme)
+    const i = THEMES.findIndex((th) => th.value === theme)
     const current = THEMES[i] ?? THEMES[2]
     const next = THEMES[(i + 1) % THEMES.length] ?? THEMES[0]
     return (
       <IconButton
-        label={`${current?.label} · passa a ${next?.label.toLowerCase()}`}
+        label={t('{current} · passa a {next}', {
+          current: t(current?.label ?? ''),
+          next: t(next?.label ?? '').toLowerCase(),
+        })}
         onClick={() => next && setTheme(next.value)}
       >
         {current?.icon}
@@ -230,23 +234,23 @@ export function ThemeSwitch({ compact }: { compact?: boolean }) {
     )
   }
   return (
-    <div role="radiogroup" aria-label="Tema" className="inline-flex rounded-md bg-seg p-0.5">
-      {THEMES.map((t) => (
+    <div role="radiogroup" aria-label={t('Tema')} className="inline-flex rounded-md bg-seg p-0.5">
+      {THEMES.map((th) => (
         // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
         <button
-          key={t.value}
+          key={th.value}
           type="button"
           role="radio"
-          aria-checked={theme === t.value}
-          title={t.label}
-          aria-label={t.label}
-          onClick={() => setTheme(t.value)}
+          aria-checked={theme === th.value}
+          title={t(th.label)}
+          aria-label={t(th.label)}
+          onClick={() => setTheme(th.value)}
           className={cx(
             'inline-flex h-6 w-7 items-center justify-center rounded-[5px] transition-colors [&_svg]:size-3.5',
-            theme === t.value ? 'bg-panel text-fg shadow-sm' : 'text-fg3 hover:text-fg',
+            theme === th.value ? 'bg-panel text-fg shadow-sm' : 'text-fg3 hover:text-fg',
           )}
         >
-          {t.icon}
+          {th.icon}
         </button>
       ))}
     </div>
@@ -526,7 +530,7 @@ export function Dialog({
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[14vh] backdrop-blur-[2px]">
-      <button type="button" aria-label="Chiudi" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <button type="button" aria-label={t('Chiudi')} className="absolute inset-0 cursor-default" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"

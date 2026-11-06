@@ -1591,7 +1591,14 @@ export function createApp(base: ServerContext) {
   })
 
   app.patch('/api/auth/me', requireUser, async (c) => {
-    const input = await body(c, z.object({ name: z.string().trim().min(1).max(80) }))
+    const input = await body(
+      c,
+      z.object({
+        name: z.string().trim().min(1).max(80).optional(),
+        /** The panel's language; null: follow the browser. */
+        locale: z.enum(['it', 'en']).nullable().optional(),
+      }),
+    )
     return c.json({ user: await auth.updateUser(c.get('user').id, input) })
   })
 

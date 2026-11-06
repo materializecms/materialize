@@ -5,6 +5,7 @@ import { useAiReady } from '../components/AiMenu.tsx'
 import { Button, cx, Spinner, StatusBadge, TintIcon } from '../components/ui.tsx'
 import { api, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
+import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { href, navigate, type Route } from '../lib/router.ts'
 import { BriefDialog } from './BriefDialog.tsx'
 import { useSession } from './context.ts'
@@ -15,10 +16,10 @@ import { Studio } from './Studio.tsx'
 function greeting(name: string) {
   const hour = new Date().getHours()
   const first = name.split(' ')[0] ?? name
-  if (hour < 5) return `Buonanotte, ${first}`
-  if (hour < 13) return `Buongiorno, ${first}`
-  if (hour < 18) return `Buon pomeriggio, ${first}`
-  return `Buonasera, ${first}`
+  if (hour < 5) return t('Buonanotte, {name}', { name: first })
+  if (hour < 13) return t('Buongiorno, {name}', { name: first })
+  if (hour < 18) return t('Buon pomeriggio, {name}', { name: first })
+  return t('Buonasera, {name}', { name: first })
 }
 
 /** Plain links that open in-app, or in a new tab with ⌘. */
@@ -57,11 +58,13 @@ export function Overview() {
   const next = schedules.data?.items[0] ?? null
   const unread = messages.data?.unread ?? 0
   const lastMessage = messages.data?.items[0] ?? null
-  const today = new Intl.DateTimeFormat('it', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+  const today = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(
+    new Date(),
+  )
   const summary = [
-    toPublish ? (toPublish === 1 ? 'un documento da pubblicare' : `${toPublish} documenti da pubblicare`) : '',
-    release ? (release.status === 'failed' ? 'un rilascio non uscito' : 'un rilascio in preparazione') : '',
-    unread ? (unread === 1 ? 'un messaggio nuovo' : `${unread} messaggi nuovi`) : '',
+    toPublish ? tn(toPublish, 'un documento da pubblicare', '{n} documenti da pubblicare') : '',
+    release ? (release.status === 'failed' ? t('un rilascio non uscito') : t('un rilascio in preparazione')) : '',
+    unread ? tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi') : '',
   ].filter(Boolean)
 
   return (
@@ -75,19 +78,21 @@ export function Overview() {
             <h1 className="mt-1 text-[30px] leading-tight font-semibold tracking-[-0.03em]">{greeting(user.name)}</h1>
             <p className="mt-1.5 text-[14px] text-fg2">
               {overview.isPending
-                ? 'Un attimo…'
+                ? t('Un attimo…')
                 : summary.length
-                  ? `Ti aspettano ${summary.length === 1 ? summary[0] : `${summary.slice(0, -1).join(', ')} e ${summary.at(-1)}`}.`
-                  : 'Tutto il sito è pubblicato e aggiornato.'}
+                  ? t('Ti aspettano {list}.', {
+                      list: new Intl.ListFormat(intlLocale(), { type: 'conjunction' }).format(summary),
+                    })
+                  : t('Tutto il sito è pubblicato e aggiornato.')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button icon={<ArrowUpRight className="size-4" />} onClick={() => window.open('/', '_blank', 'noopener')}>
-              Apri il sito
+              {t('Apri il sito')}
             </Button>
             {canBuild && (
               <Button icon={<Sparkles className="size-4 text-accent" />} onClick={() => setBriefOpen(true)}>
-                Sito da un brief
+                {t('Sito da un brief')}
               </Button>
             )}
             {pages && (
@@ -96,7 +101,9 @@ export function Overview() {
                 icon={<Plus className="size-4" />}
                 onClick={() => navigate({ name: 'new', collection: pages.name })}
               >
-                {/page|pagin/.test(pages.name) ? 'Nuova pagina' : `Aggiungi in ${pages.label}`}
+                {/page|pagin/.test(pages.name)
+                  ? t('Nuova pagina')
+                  : t('Aggiungi in {collection}', { collection: pages.label })}
               </Button>
             )}
           </div>
@@ -105,9 +112,9 @@ export function Overview() {
         {aiReady && <Studio />}
 
         {(waiting.length > 0 || release || next || unread > 0) && (
-          <section aria-label="Da fare" className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
+          <section aria-label={t('Da fare')} className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
             {waiting.length > 0 && (
-              <Todo label="Da pubblicare" color="var(--accent)">
+              <Todo label={t('Da pubblicare')} color="var(--accent)">
                 <ul className="space-y-1">
                   {waiting.map((d) => {
                     const c = schema.collections.find((x) => x.name === d.collection)
@@ -125,50 +132,55 @@ export function Overview() {
                   })}
                 </ul>
                 {toPublish > waiting.length && (
-                  <p className="text-[12.5px] text-fg3">e altri {toPublish - waiting.length} negli elenchi</p>
+                  <p className="text-[12.5px] text-fg3">
+                    {t('e altri {n} negli elenchi', { n: toPublish - waiting.length })}
+                  </p>
                 )}
               </Todo>
             )}
             {release && (
-              <Todo label={release.status === 'failed' ? 'Rilascio non uscito' : 'Rilascio'} color="#f97316">
+              <Todo label={release.status === 'failed' ? t('Rilascio non uscito') : t('Rilascio')} color="#f97316">
                 <p className="font-semibold">{release.name}</p>
                 <p className="text-[13px] text-fg2">
                   {release.status === 'failed'
-                    ? (release.error ?? 'Qualcosa non era pronto.')
-                    : `${release.items.length === 1 ? '1 pagina' : `${release.items.length} pagine`}, ${
-                        release.runAt ? `esce ${whenDate(release.runAt)}` : 'senza data di uscita'
-                      }${release.ready ? '' : ': qualcosa non è ancora pronto'}.`}
+                    ? (release.error ?? t('Qualcosa non era pronto.'))
+                    : [
+                        tn(release.items.length, '1 pagina', '{n} pagine'),
+                        release.runAt ? t('esce {when}', { when: whenDate(release.runAt) }) : t('senza data di uscita'),
+                      ].join(', ') + (release.ready ? '.' : t(': qualcosa non è ancora pronto.'))}
                 </p>
                 <a {...go({ name: 'releases' })} className="text-[13px] font-medium text-accent hover:underline">
-                  {release.runAt && release.status !== 'failed' ? 'Apri i rilasci →' : 'Programma l’uscita →'}
+                  {release.runAt && release.status !== 'failed' ? t('Apri i rilasci →') : t('Programma l’uscita →')}
                 </a>
               </Todo>
             )}
             {next && (
-              <Todo label="In uscita" color="#0ea5e9">
+              <Todo label={t('In uscita')} color="#0ea5e9">
                 <p className="font-semibold">{next.title}</p>
                 <p className="text-[13px] text-fg2">
-                  {next.action === 'publish' ? 'Esce' : 'Si toglie dal sito'} {whenDate(next.runAt)}
+                  {next.action === 'publish'
+                    ? t('Esce {when}', { when: whenDate(next.runAt) })
+                    : t('Si toglie dal sito {when}', { when: whenDate(next.runAt) })}
                   {schedules.data && schedules.data.items.length > 1
-                    ? `, poi altre ${schedules.data.items.length - 1} programmazioni`
+                    ? t(', poi altre {n} programmazioni', { n: schedules.data.items.length - 1 })
                     : ''}
                   .
                 </p>
               </Todo>
             )}
             {unread > 0 && (
-              <Todo label="Messaggi" color="#10b981">
-                <p className="font-semibold">{unread === 1 ? 'Un messaggio nuovo' : `${unread} messaggi nuovi`}</p>
+              <Todo label={t('Messaggi')} color="#10b981">
+                <p className="font-semibold">{tn(unread, 'Un messaggio nuovo', '{n} messaggi nuovi')}</p>
                 {lastMessage && (
                   <p className="line-clamp-2 text-[13px] text-fg2">
-                    {lastMessage.formName || 'Modulo'}, {relativeTime(lastMessage.createdAt)}
+                    {lastMessage.formName || t('Modulo')}, {relativeTime(lastMessage.createdAt)}
                   </p>
                 )}
                 <a
                   {...go({ name: 'settings', tab: 'messages' })}
                   className="text-[13px] font-medium text-accent hover:underline"
                 >
-                  Leggi →
+                  {t('Leggi →')}
                 </a>
               </Todo>
             )}
@@ -178,14 +190,14 @@ export function Overview() {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
           <section className="rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
             <h2 className="flex h-12 items-center border-b border-line px-4 text-[14px] font-semibold">
-              Ultime modifiche
+              {t('Ultime modifiche')}
             </h2>
             {overview.isPending ? (
               <div className="flex justify-center py-12">
                 <Spinner />
               </div>
             ) : !overview.data?.recent.length ? (
-              <p className="px-4 py-10 text-center text-fg2">Ancora nessun documento: crea la prima pagina.</p>
+              <p className="px-4 py-10 text-center text-fg2">{t('Ancora nessun documento: crea la prima pagina.')}</p>
             ) : (
               <ul>
                 {overview.data.recent.map((doc) => {
@@ -221,7 +233,7 @@ export function Overview() {
           </section>
 
           <aside className="space-y-3">
-            <h2 className="px-1 text-[14px] font-semibold">Il sito a colpo d’occhio</h2>
+            <h2 className="px-1 text-[14px] font-semibold">{t('Il sito a colpo d’occhio')}</h2>
             <div className="grid grid-cols-2 gap-2">
               {lists.map((c) => {
                 const row = counts.find((r) => r.collection === c.name)
@@ -240,8 +252,8 @@ export function Overview() {
                       {overview.isPending ? '–' : total}
                     </span>
                     <span className="mt-1 block text-[12px] text-fg3">
-                      {total - (row?.drafts ?? 0)} online
-                      {row?.drafts ? ` · ${row.drafts} in bozza` : ''}
+                      {t('{n} online', { n: total - (row?.drafts ?? 0) })}
+                      {row?.drafts ? ` · ${t('{n} in bozza', { n: row.drafts })}` : ''}
                     </span>
                   </a>
                 )
@@ -249,27 +261,27 @@ export function Overview() {
               <a {...go({ name: 'media' })} className="rounded-xl border border-line bg-panel p-3 hover:border-line2">
                 <span className="flex items-center gap-2 text-[12.5px] font-medium text-fg2">
                   <span aria-hidden="true" className="size-2 rounded-[2px] bg-[#0ea5e9]" />
-                  Media
+                  {t('Media')}
                 </span>
                 <span className="mt-1 block text-[24px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
                   {overview.data?.media ?? '–'}
                 </span>
-                <span className="mt-1 block text-[12px] text-fg3">immagini</span>
+                <span className="mt-1 block text-[12px] text-fg3">{t('immagini')}</span>
               </a>
             </div>
-            <h2 className="px-1 pt-3 text-[14px] font-semibold">Azioni rapide</h2>
+            <h2 className="px-1 pt-3 text-[14px] font-semibold">{t('Azioni rapide')}</h2>
             {lists.slice(0, 3).map((c) => (
               <Action
                 key={c.name}
                 route={{ name: 'new', collection: c.name }}
                 icon={<Plus />}
                 color={tint(c.name)}
-                title={`Aggiungi in ${c.label}`}
+                title={t('Aggiungi in {collection}', { collection: c.label })}
               />
             ))}
-            <Action route={{ name: 'media' }} icon={<ImagePlus />} color="#0ea5e9" title="Carica immagini" />
+            <Action route={{ name: 'media' }} icon={<ImagePlus />} color="#0ea5e9" title={t('Carica immagini')} />
             {user.role === 'admin' && (
-              <Action route={{ name: 'people' }} icon={<UserPlus />} color="#8b5cf6" title="Invita una persona" />
+              <Action route={{ name: 'people' }} icon={<UserPlus />} color="#8b5cf6" title={t('Invita una persona')} />
             )}
             {singletons.map((c) => (
               <Action

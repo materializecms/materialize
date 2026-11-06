@@ -61,6 +61,8 @@ export const users = sqliteTable('users', {
   totpLastStep: integer('totp_last_step'),
   /** Hashes of the unused recovery codes. */
   recoveryCodes: text('recovery_codes', { mode: 'json' }).$type<string[]>(),
+  /** The panel's language for this person ("it", "en"); null: the browser's. */
+  locale: text('locale'),
 })
 
 /** Only a SHA-256 hash of each session token is stored. */
@@ -514,4 +516,5 @@ export const MIGRATIONS: string[][] = [
     )`,
     'CREATE INDEX IF NOT EXISTS release_items_document ON release_items (document_id)',
   ],
+  ['ALTER TABLE users ADD COLUMN locale TEXT'],
 ]

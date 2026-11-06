@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Compass, Menu } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
-import { ApiError, api } from '../lib/api.ts'
+import { ApiError, api, type User } from '../lib/api.ts'
+import { setLang, t, useLang } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { href, navigate, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
@@ -21,6 +22,12 @@ import { SetupWizard } from './Setup.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
 export function App() {
+  // The whole panel is drawn again in the new language when it changes.
+  const lang = useLang()
+  return <Routed key={lang} />
+}
+
+function Routed() {
   const route = useRoute()
   // One-time links work without signing in, so they come before everything else.
   if (route.name === 'invite') return <InviteScreen token={route.token} />
@@ -55,7 +62,20 @@ function SignedIn() {
   // The site requires two-step verification: nothing else until it is on.
   if (me.data.needsTwoFactor) return <RequiredTwoFactor />
   if (!schema.data) return <Loading />
-  return <Workspace user={me.data.user} schema={schema.data} />
+  return (
+    <>
+      <WithLanguage locale={me.data.user.locale} />
+      <Workspace user={me.data.user} schema={schema.data} />
+    </>
+  )
+}
+
+/** The language the person chose for the panel, once they are signed in. */
+function WithLanguage({ locale }: { locale: User['locale'] }) {
+  useEffect(() => {
+    if (locale !== undefined) setLang(locale)
+  }, [locale])
+  return null
 }
 
 function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
@@ -129,7 +149,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
             {drawer && (
               <button
                 type="button"
-                aria-label="Chiudi il menu"
+                aria-label={t('Chiudi il menu')}
                 onClick={() => setDrawer(false)}
                 className="fixed inset-0 z-40 bg-black/40 md:hidden"
               />
@@ -191,10 +211,10 @@ function Fatal({ message }: { message: string }) {
   return (
     <div className="flex h-full flex-1 items-center justify-center p-6">
       <div className="max-w-sm text-center">
-        <div className="text-[15px] font-semibold">Qualcosa non va</div>
+        <div className="text-[15px] font-semibold">{t('Qualcosa non va')}</div>
         <p className="mt-1 text-fg2">{message}</p>
         <button type="button" className="mt-4 text-accent hover:underline" onClick={() => location.assign('/admin/')}>
-          Ricarica
+          {t('Ricarica')}
         </button>
       </div>
     </div>
@@ -208,9 +228,11 @@ function RequiredTwoFactor() {
     <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
       <div className="mz-card w-full max-w-[468px]">
         <Logo className="mb-6 size-9" />
-        <h1 className="text-[20px] font-semibold tracking-tight">Attiva la verifica in due passaggi</h1>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Attiva la verifica in due passaggi')}</h1>
         <p className="mt-1 mb-6 text-fg2">
-          Questo sito la richiede a tutti: oltre alla password, per entrare servirà un codice dall’app del telefono.
+          {t(
+            'Questo sito la richiede a tutti: oltre alla password, per entrare servirà un codice dall’app del telefono.',
+          )}
         </p>
         <TwoFactorSetup onDone={() => void queryClient.invalidateQueries()} />
         <button
@@ -222,7 +244,7 @@ function RequiredTwoFactor() {
             location.assign('/admin/')
           }}
         >
-          Esci
+          {t('Esci')}
         </button>
       </div>
     </div>
@@ -248,11 +270,11 @@ function NotFound({ name }: { name: string }) {
   }, [screen])
   if (screen) return null
   return (
-    <EmptyState icon={<Compass />} title="Questa pagina del pannello non esiste">
-      <p>L’indirizzo potrebbe essere sbagliato, oppure la sezione è stata tolta.</p>
+    <EmptyState icon={<Compass />} title={t('Questa pagina del pannello non esiste')}>
+      <p>{t('L’indirizzo potrebbe essere sbagliato, oppure la sezione è stata tolta.')}</p>
       <div className="mt-4 flex justify-center">
         <Button variant="primary" onClick={() => navigate({ name: 'home' })}>
-          Torna alla panoramica
+          {t('Torna alla panoramica')}
         </Button>
       </div>
     </EmptyState>

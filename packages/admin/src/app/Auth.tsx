@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 import { Button, Input } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
+import { LANGS, lang, setLang, t, tx } from '../lib/i18n.ts'
 
 /** Blocks of the mark, left to right: the M takes shape, from faint to solid (docs/assets/logo.svg). */
 const MARK: [number, number, number][] = [
@@ -86,8 +87,8 @@ export function AuthScreen() {
     <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
       <form onSubmit={submit} className="mz-card w-full max-w-[388px]">
         <Logo className="mb-6 size-9" />
-        <h1 className="text-[20px] font-semibold tracking-tight">Accedi</h1>
-        <p className="mt-1 mb-6 text-fg2">Inserisci le tue credenziali per continuare.</p>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Accedi')}</h1>
+        <p className="mt-1 mb-6 text-fg2">{t('Inserisci le tue credenziali per continuare.')}</p>
         <div className="space-y-3.5">
           <label className="block">
             <span className={label}>Email</span>
@@ -102,13 +103,13 @@ export function AuthScreen() {
           </label>
           <label className="block">
             <span className="mb-1.5 flex items-baseline justify-between text-[13px] font-medium text-fg2">
-              Password
+              {t('Password')}
               <button
                 type="button"
                 className="text-[13px] font-normal text-accent hover:underline"
                 onClick={() => setForgot(true)}
               >
-                Password dimenticata?
+                {t('Password dimenticata?')}
               </button>
             </span>
             <Input
@@ -126,7 +127,7 @@ export function AuthScreen() {
           </p>
         )}
         <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-          Accedi
+          {t('Accedi')}
         </Button>
         {/* Who makes it, without the version: a public page should not tell which one is running. */}
         <p className="mt-10 text-center text-[12px] text-fg3">
@@ -136,9 +137,10 @@ export function AuthScreen() {
             rel="noreferrer"
             className="hover:text-fg2 hover:underline"
           >
-            Materialize · CMS open source
+            {t('Materialize · CMS open source')}
           </a>
         </p>
+        <LanguageSwitch />
       </form>
     </div>
   )
@@ -157,21 +159,24 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   const back = (
     <button type="button" className="mt-4 text-[13px] text-fg2 hover:text-fg" onClick={onBack}>
-      Torna all’accesso
+      {t('Torna all’accesso')}
     </button>
   )
 
   if (recovery.data && !recovery.data.mail)
     return (
       <div>
-        <h1 className="text-[20px] font-semibold tracking-tight">Password dimenticata</h1>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Password dimenticata')}</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-fg2">
-          Questo sito non ha ancora l’invio delle email, quindi il link non può arrivarti per posta. Chiedi a un
-          amministratore: dalla pagina Persone crea un link per una nuova password.
+          {t(
+            'Questo sito non ha ancora l’invio delle email, quindi il link non può arrivarti per posta. Chiedi a un amministratore: dalla pagina Persone crea un link per una nuova password.',
+          )}
         </p>
         <p className="mt-3 text-[14px] leading-relaxed text-fg2">
-          Se sei l’unico amministratore, chi gestisce il server può creare il link con il comando{' '}
-          <code className="font-mono text-[13px]">materialize reset-password</code> seguito dalla tua email.
+          {tx(
+            'Se sei l’unico amministratore, chi gestisce il server può creare il link con il comando {command} seguito dalla tua email.',
+            { command: <code className="font-mono text-[13px]">materialize reset-password</code> },
+          )}
         </p>
         {back}
       </div>
@@ -180,13 +185,15 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
   if (sent)
     return (
       <div>
-        <h1 className="text-[20px] font-semibold tracking-tight">Controlla la posta</h1>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Controlla la posta')}</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-fg2">
-          Se <strong className="font-semibold text-fg">{email.trim()}</strong> ha un account, tra poco riceverai
-          un’email con il link per scegliere una nuova password. Il link vale un’ora.
+          {tx(
+            'Se {email} ha un account, tra poco riceverai un’email con il link per scegliere una nuova password. Il link vale un’ora.',
+            { email: <strong className="font-semibold text-fg">{email.trim()}</strong> },
+          )}
         </p>
         <p className="mt-3 text-[13px] leading-relaxed text-fg3">
-          Non arriva? Guarda anche nello spam, oppure chiedi a un amministratore.
+          {t('Non arriva? Guarda anche nello spam, oppure chiedi a un amministratore.')}
         </p>
         {back}
       </div>
@@ -208,9 +215,9 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
 
   return (
     <form onSubmit={submit}>
-      <h1 className="text-[20px] font-semibold tracking-tight">Password dimenticata</h1>
+      <h1 className="text-[20px] font-semibold tracking-tight">{t('Password dimenticata')}</h1>
       <p className="mt-1 mb-6 text-fg2">
-        Scrivi l’email del tuo account: ti mandiamo un link per sceglierne una nuova.
+        {t('Scrivi l’email del tuo account: ti mandiamo un link per sceglierne una nuova.')}
       </p>
       <label className="block">
         <span className={label}>Email</span>
@@ -229,7 +236,7 @@ function ForgotPassword({ initialEmail, onBack }: { initialEmail: string; onBack
         </p>
       )}
       <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-        Mandami il link
+        {t('Mandami il link')}
       </Button>
       {back}
     </form>
@@ -259,11 +266,11 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
 
   return (
     <form onSubmit={submit}>
-      <h1 className="text-[20px] font-semibold tracking-tight">Verifica in due passaggi</h1>
+      <h1 className="text-[20px] font-semibold tracking-tight">{t('Verifica in due passaggi')}</h1>
       <p className="mt-1 mb-6 text-fg2">
         {recovery
-          ? 'Scrivi uno dei codici di riserva che hai salvato: ognuno vale una volta.'
-          : 'Apri l’app di autenticazione e scrivi il codice di 6 cifre.'}
+          ? t('Scrivi uno dei codici di riserva che hai salvato: ognuno vale una volta.')
+          : t('Apri l’app di autenticazione e scrivi il codice di 6 cifre.')}
       </p>
       <Input
         key={recovery ? 'r' : 'c'}
@@ -272,7 +279,7 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
         inputMode={recovery ? 'text' : 'numeric'}
         autoComplete="one-time-code"
         placeholder={recovery ? 'abcd-efgh' : '123456'}
-        aria-label={recovery ? 'Codice di riserva' : 'Codice'}
+        aria-label={recovery ? t('Codice di riserva') : t('Codice')}
         required
         autoFocus
         className="font-mono tracking-[0.2em]"
@@ -283,11 +290,11 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
         </p>
       )}
       <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-        Continua
+        {t('Continua')}
       </Button>
       <div className="mt-4 flex justify-between text-[13px]">
         <button type="button" className="text-fg2 hover:text-fg" onClick={onBack}>
-          Indietro
+          {t('Indietro')}
         </button>
         <button
           type="button"
@@ -298,9 +305,30 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
             setError(null)
           }}
         >
-          {recovery ? 'Usa il codice dell’app' : 'Usa un codice di riserva'}
+          {recovery ? t('Usa il codice dell’app') : t('Usa un codice di riserva')}
         </button>
       </div>
     </form>
+  )
+}
+
+/** Before signing in: the panel follows the browser, and this changes it. */
+export function LanguageSwitch() {
+  const current = lang()
+  return (
+    <div className="mt-3 flex justify-center gap-3 text-[12px]">
+      {LANGS.map((l) => (
+        <button
+          key={l.value}
+          type="button"
+          lang={l.value}
+          aria-pressed={l.value === current}
+          onClick={() => setLang(l.value)}
+          className={l.value === current ? 'font-medium text-fg2' : 'text-fg3 hover:text-fg2 hover:underline'}
+        >
+          {l.label}
+        </button>
+      ))}
+    </div>
   )
 }

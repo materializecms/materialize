@@ -17,6 +17,8 @@ export interface User {
   /** Signs in with a code from an authenticator app too. */
   twoFactor?: boolean
   role: 'admin' | 'editor'
+  /** The panel's language; null: the browser's. */
+  locale?: 'it' | 'en' | null
 }
 
 export interface Member extends User {
@@ -862,7 +864,8 @@ export const api = {
     ),
   acceptInvite: (token: string, input: { name?: string; password: string }) =>
     request<SignIn>('POST', `/invites/${token}/accept`, input),
-  updateMe: (input: { name: string }) => request<{ user: User }>('PATCH', '/auth/me', input),
+  updateMe: (input: { name?: string; locale?: 'it' | 'en' | null }) =>
+    request<{ user: User }>('PATCH', '/auth/me', input),
   changeEmail: (input: { email: string; password: string }) => request<{ user: User }>('POST', '/auth/email', input),
   changePassword: (input: { current: string; next: string }) => request<{ ok: true }>('POST', '/auth/password', input),
   media: (params: { search?: string; limit?: number; offset?: number }) =>

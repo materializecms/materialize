@@ -20,6 +20,7 @@ import {
 import { type ReactNode, useState } from 'react'
 import { cx, Kbd, MenuItem, MenuSeparator, Popover, ThemeSwitch, TintIcon, tintOf } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
+import { intlLocale, t } from '../lib/i18n.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
@@ -55,7 +56,7 @@ export function useOverview() {
 
 export const localeName = (code: string) => {
   try {
-    const name = new Intl.DisplayNames(['it'], { type: 'language' }).of(code) ?? code
+    const name = new Intl.DisplayNames([intlLocale()], { type: 'language' }).of(code) ?? code
     return name.charAt(0).toUpperCase() + name.slice(1)
   } catch {
     return code
@@ -96,7 +97,7 @@ export function Sidebar() {
             className="inline-flex items-center gap-1 text-[12px] text-fg3 hover:text-accent"
           >
             <span className="size-1.5 rounded-full bg-ok" />
-            Visita il sito
+            {t('Visita il sito')}
             <ArrowUpRight className="size-3" />
           </a>
         </div>
@@ -109,20 +110,20 @@ export function Sidebar() {
           className="flex h-8 w-full items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-fg3 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-colors hover:border-line2 hover:text-fg2"
         >
           <Search className="size-3.5" />
-          <span className="flex-1 text-left">Cerca o vai a…</span>
+          <span className="flex-1 text-left">{t('Cerca o vai a…')}</span>
           <Kbd>⌘K</Kbd>
         </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
         <div className="pt-3">
-          <NavItem route={{ name: 'home' }} active={route.name === 'home'} label="Panoramica">
+          <NavItem route={{ name: 'home' }} active={route.name === 'home'} label={t('Panoramica')}>
             <TintIcon color="var(--text2)" size="sm">
               <LayoutGrid />
             </TintIcon>
           </NavItem>
         </div>
-        <div className={sectionLabel}>Contenuti</div>
+        <div className={sectionLabel}>{t('Contenuti')}</div>
         {schema.collections
           .filter((c) => !c.singleton)
           .map((c) => (
@@ -141,32 +142,37 @@ export function Sidebar() {
         <NavItem
           route={{ name: 'releases' }}
           active={route.name === 'releases'}
-          label="Rilasci"
+          label={t('Rilasci')}
           count={releases.data?.releases.length || undefined}
         >
           <TintIcon color="#f97316" size="sm">
             <Rocket />
           </TintIcon>
         </NavItem>
-        <div className={sectionLabel}>Libreria</div>
-        <NavItem route={{ name: 'media' }} active={route.name === 'media'} label="Media" count={overview.data?.media}>
+        <div className={sectionLabel}>{t('Libreria')}</div>
+        <NavItem
+          route={{ name: 'media' }}
+          active={route.name === 'media'}
+          label={t('Media')}
+          count={overview.data?.media}
+        >
           <TintIcon color="#0ea5e9" size="sm">
             <Images />
           </TintIcon>
         </NavItem>
-        <div className={sectionLabel}>Gestione</div>
+        <div className={sectionLabel}>{t('Gestione')}</div>
         <NavItem
           route={update ? { name: 'settings', tab: 'updates' } : { name: 'settings' }}
           active={route.name === 'settings'}
-          label="Impostazioni"
-          note={update ? `È disponibile Materialize ${update}` : undefined}
+          label={t('Impostazioni')}
+          note={update ? t('È disponibile Materialize {version}', { version: update }) : undefined}
         >
           <TintIcon color="#64748b" size="sm">
             <Settings />
           </TintIcon>
         </NavItem>
         {user.role === 'admin' && (
-          <NavItem route={{ name: 'people' }} active={route.name === 'people'} label="Persone">
+          <NavItem route={{ name: 'people' }} active={route.name === 'people'} label={t('Persone')}>
             <TintIcon color="#8b5cf6" size="sm">
               <UserRound />
             </TintIcon>
@@ -198,7 +204,7 @@ export function Sidebar() {
                   <MenuItem
                     key={l}
                     checked={l === locale}
-                    hint={l === schema.locales.default ? 'principale' : undefined}
+                    hint={l === schema.locales.default ? t('principale') : undefined}
                     onClick={() => {
                       setLocale(l)
                       close()
@@ -229,7 +235,7 @@ export function Sidebar() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] leading-tight font-medium">{user.name}</span>
                   <span className="block truncate text-[12px] text-fg3">
-                    {user.role === 'admin' ? 'Amministratore' : 'Editor'}
+                    {user.role === 'admin' ? t('Amministratore') : t('Editor')}
                   </span>
                 </span>
               </button>
@@ -244,11 +250,11 @@ export function Sidebar() {
                     setProfile(true)
                   }}
                 >
-                  Il tuo profilo
+                  {t('Il tuo profilo')}
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem icon={<LogOut />} onClick={logout}>
-                  Esci
+                  {t('Esci')}
                 </MenuItem>
               </div>
             )}
