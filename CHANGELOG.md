@@ -4,10 +4,12 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.7.0 — 2026-11-06
+
 - **Tour del pannello**: la prima volta che entri, un tour mostra il pannello una zona alla volta, come quello dell'editor. Si rifà dal menu del profilo (**Tour del pannello**) o cercando «tour» con ⌘K.
 - **Newsletter**: raccogli iscritti dal sito con doppia conferma via email, importali da Mailchimp o Brevo, scrivi la newsletter da zero, da un articolo o con l'AI dagli ultimi articoli, provala su di te e mandala subito o a un'ora stabilita. Ogni email ha il link per disiscriversi; per ogni invio vedi aperture e clic. Nuova voce **Newsletter** nella barra laterale.
 - Le sezioni «Invito → Newsletter» e «Footer → Con iscrizione» della libreria hanno un modulo vero, collegato alla newsletter.
-- **Pannello in inglese, prima parte**: ognuno sceglie la lingua del pannello nel profilo; per ora sono tradotti accesso, barra laterale, panoramica e profilo.
+- **Pannello in inglese, prima parte**: ognuno può scegliere l'inglese nel profilo (o nella pagina di accesso); per ora sono tradotti accesso, barra laterale, panoramica e profilo. Finché la traduzione non è completa il pannello parte in italiano per tutti.
 ## 0.6.0 — 2026-11-06
 
 - **Panoramica rinnovata**: si apre su quello che c'è da fare (documenti da pubblicare, il rilascio in preparazione, la prossima uscita programmata, i messaggi nuovi), con un riepilogo in una frase, le ultime modifiche e il sito a colpo d'occhio.

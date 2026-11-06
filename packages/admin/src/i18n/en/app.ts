@@ -158,7 +158,7 @@ export const app: Record<string, string> = {
   'È l’indirizzo con cui entri nel pannello.': 'It is the address you sign in to the panel with.',
   'Conferma con la tua password': 'Confirm with your password',
   'Lingua del pannello': 'Panel language',
-  'Come il browser': 'Like the browser',
+  Predefinita: 'Default',
   'Cambia password': 'Change password',
   'Password attuale': 'Current password',
   'Nuova password, almeno 10 caratteri': 'New password, at least 10 characters',

@@ -120,7 +120,7 @@ export function ProfileDialog({ open, onClose }: { open: boolean; onClose: () =>
               }}
               options={[
                 ...LANGS.map((l) => ({ value: l.value, label: l.label })),
-                { value: 'auto', label: t('Come il browser') },
+                { value: 'auto', label: t('Predefinita') },
               ]}
             />
           </div>

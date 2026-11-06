@@ -312,7 +312,7 @@ export function TwoFactorStep({ ticket, onDone, onBack }: { ticket: string; onDo
   )
 }
 
-/** Before signing in: the panel follows the browser, and this changes it. */
+/** Before signing in: the panel starts in Italian, and this switches it. */
 export function LanguageSwitch() {
   const current = lang()
   return (

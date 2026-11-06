@@ -15,18 +15,18 @@ export const LANGS: { value: Lang; label: string }[] = [
 
 const KEY = 'mz-lang'
 
-/** The browser's language, when the person has not chosen one: Italian for Italian, English for the rest. */
-export function browserLang(): Lang {
-  const list = typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language])
-  return list.some((l) => l?.toLowerCase().startsWith('it')) ? 'it' : 'en'
-}
+/**
+ * Until the whole panel is translated, it starts in Italian for everyone: English is a choice
+ * (the profile, the sign-in page), never a half-translated surprise for an English browser.
+ */
+const DEFAULT: Lang = 'it'
 
 function initial(): Lang {
   try {
     const saved = localStorage.getItem(KEY)
     if (saved === 'it' || saved === 'en') return saved
   } catch {}
-  return browserLang()
+  return DEFAULT
 }
 
 let current: Lang = initial()
@@ -41,7 +41,7 @@ export function setLang(next: Lang | null) {
     if (next) localStorage.setItem(KEY, next)
     else localStorage.removeItem(KEY)
   } catch {}
-  const value = next ?? browserLang()
+  const value = next ?? DEFAULT
   if (value === current) return
   current = value
   if (typeof document !== 'undefined') document.documentElement.lang = value
