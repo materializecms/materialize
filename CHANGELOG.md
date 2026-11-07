@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.8.0 — 2026-11-07
+
 - **Un documento alla volta**: se un'altra persona sta modificando la pagina che apri, la vedi in sola lettura con chi ci lavora e da quanto, e puoi prendere il controllo. Nessuno sovrascrive più il lavoro di un altro senza saperlo, nemmeno da due schede.
 - **Sezioni con effetti**: nuova categoria **Effetti** nella libreria, con 7 sezioni pronte che usano le scene WebGL e il 3D: apertura su aurora, apertura con seta, logo 3D (carica il tuo SVG), oggetto 3D (scegli un modello `.glb`), numeri sul globo, immagine animata e invito con particelle. Si trovano anche cercando «webgl».
 - Nuovo schema di colori **Scuro** per le sezioni: resta scuro con il testo chiaro in qualsiasi tema.
