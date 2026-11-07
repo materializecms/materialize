@@ -68,6 +68,7 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 - Vuoi lavorare con **Astro e TypeScript**, con lo schema dei contenuti nel repository come il resto del codice.
 - Vuoi usare **l'AI sui contenuti** (scrittura, traduzioni, SEO, pagine da un'immagine di riferimento) pagando solo quello che usi, o con un modello locale.
 - Hai un sito WordPress da **migrare** e vuoi portare articoli, immagini, SEO e reindirizzamenti.
+- Vuoi **effetti WebGL e 3D** (sfondi animati, il logo del cliente in cromo o vetro, modelli `.glb`) senza servizi esterni né codice: ci sono già come sezioni pronte, leggere e con una versione ferma per chi riduce il movimento.
 
 ## Quando scegliere altro
 

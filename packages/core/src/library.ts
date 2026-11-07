@@ -1,4 +1,4 @@
-import { newId, type PageNode, type TextStyle } from './page.ts'
+import { newId, type PageNode, type SceneConfig, type TextStyle } from './page.ts'
 
 /**
  * Ready-made sections, by category and variant: the canvas library. Each build returns fresh ids;
@@ -151,6 +151,19 @@ const RAW: [string, string, [string, string, string][]][] = [
     ],
   ],
   [
+    'effects',
+    'Effetti',
+    [
+      ['aurora', 'Apertura su aurora', 'hero apertura sfondo animato webgl movimento'],
+      ['silk', 'Apertura con seta', 'hero apertura webgl animazione'],
+      ['logo', 'Logo 3D', 'tre d 3d marchio cromo vetro oro webgl'],
+      ['object', 'Oggetto 3D', 'tre d 3d prodotto modello glb webgl'],
+      ['globe', 'Numeri sul globo', 'statistiche mondo webgl'],
+      ['image', 'Immagine animata', 'foto effetto distorsione webgl'],
+      ['cta', 'Invito con particelle', 'call to action webgl animazione'],
+    ],
+  ],
+  [
     'footer',
     'Footer',
     [
@@ -227,6 +240,13 @@ export const LIBRARY_THUMBS: Record<string, string> = {
   'cta.newsletter': '30,16,60,7,i;36,28,48,3,m;30,40,42,9,s;76,40,16,9,a',
   'divider.statement': '14,24,92,8,i;24,36,72,8,i',
   'divider.line': '8,35,104,1.5,m',
+  'effects.aurora': '0,0,120,72,a;24,20,72,8,w;34,33,52,3,w;50,42,20,7,i',
+  'effects.silk': '8,16,46,8,i;8,28,38,3,m;8,34,34,3,m;8,44,16,7,a;64,8,48,56,a',
+  'effects.logo': '8,22,44,7,i;8,33,38,3,m;8,39,30,3,m;72,12,30,48,s;80,22,14,28,i',
+  'effects.object': '0,0,120,72,s;8,22,40,7,i;8,33,36,3,m;8,41,16,6,a;62,8,50,56,a',
+  'effects.globe': '0,0,120,72,i;8,14,30,8,w;8,26,30,3,w;8,40,30,8,w;8,52,30,3,w;60,8,52,56,a',
+  'effects.image': '8,8,40,6,i;8,20,104,44,a;8,66,30,3,m',
+  'effects.cta': '0,0,120,72,a;30,22,60,8,w;38,35,44,3,w;50,45,20,7,i',
   'footer.big': '0,0,120,72,i;8,14,80,14,w;8,44,40,3,w;72,44,10,3,w;86,44,10,3,w;100,44,10,3,w',
 }
 
@@ -294,6 +314,25 @@ const B = (_role: string, name: string, text: string, variant: PageNode['variant
   radius: 'btn',
   ...p,
 })
+
+/** A WebGL scene as an element: an animated picture, a 3D object. */
+const scene = (name: string, cfg: SceneConfig, p: P = {}): PageNode => ({
+  id: newId(),
+  type: 'scene',
+  name,
+  scene: cfg,
+  ratio: '16/9',
+  radius: 'card',
+  width: 'fill',
+  ...p,
+})
+
+/** Scene colors that start from the section's own background, so its text stays readable. */
+const BG: [string, string, string] = ['bg', 'accent', 'surface']
+
+/** A sample mark for the 3D logo, an arch, until someone uploads theirs. */
+const ARCH =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M12 90V46a38 38 0 0 1 76 0v44H68V48a18 18 0 0 0-36 0v42z"/></svg>'
 
 /** Builds a section from the library ("hero.split"); `brand` replaces the sample studio name. */
 /**
@@ -737,6 +776,182 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
         F('Azioni', { layout: 'row', gap: 10, width: 'hug', align: 'center' }, [
           B('cta', 'Pulsante', 'Contatti', 'ghost', { padY: 10, padX: 18 }),
           B('menu', 'Pulsante', 'Menu', 'secondary', { padY: 10, padX: 18 }),
+        ]),
+      ],
+    )
+  if (key === 'effects.aurora')
+    return S(
+      'Apertura su aurora',
+      {
+        scheme: 'dark',
+        align: 'center',
+        gap: 24,
+        size: 'l',
+        scene: { preset: 'aurora', colors: ['bg', 'accent', 'accent'], speed: 0.5, intensity: 0.8 },
+        bgDim: 0.35,
+      },
+      [
+        F('Testo', { gap: 22, align: 'center', maxW: 820, padY: 72, anim: 'up', stagger: true }, [
+          T('eyebrow', 'Etichetta', 'Studio di architettura · Milano', 'eyebrow', { color: 'muted', talign: 'center' }),
+          T('title', 'Titolo', 'La luce è il primo materiale.', 'display', { talign: 'center' }),
+          T(
+            'subtitle',
+            'Sottotitolo',
+            'Progettiamo case e luoghi di lavoro luminosi, sostenibili e costruiti per durare.',
+            'body',
+            { color: 'muted', talign: 'center', maxW: 540 },
+          ),
+          F('Azioni', { layout: 'row', gap: 12, width: 'hug', wrap: true, justify: 'center', padY: 8 }, [
+            B('cta', 'Pulsante', 'Scopri i progetti', 'primary'),
+            B('cta2', 'Pulsante', 'Lo studio', 'ghost'),
+          ]),
+        ]),
+      ],
+    )
+  if (key === 'effects.silk')
+    return S(
+      'Apertura con seta',
+      { layout: 'row', gap: 64, align: 'center', size: 'l', over: { mobile: { layout: 'col', gap: 40 } } },
+      [
+        F('Testo', { gap: 24, anim: 'up', stagger: true }, [
+          T('eyebrow', 'Etichetta', 'Studio di architettura · Milano', 'eyebrow', { color: 'muted' }),
+          T('title', 'Titolo', 'Spazi che si muovono con te.', 'display'),
+          T('subtitle', 'Sottotitolo', 'Case e luoghi di lavoro pensati per cambiare con chi li abita.', 'body', {
+            color: 'muted',
+            maxW: 480,
+          }),
+          F('Azioni', { layout: 'row', gap: 12, width: 'hug', wrap: true, padY: 8 }, [
+            B('cta', 'Pulsante', 'Scopri i progetti', 'primary'),
+          ]),
+        ]),
+        scene(
+          'Sfondo animato',
+          { preset: 'silk', colors: BG, speed: 0.5, intensity: 0.9 },
+          { ratio: '4/5', anim: 'fade' },
+        ),
+      ],
+    )
+  if (key === 'effects.logo')
+    return S('Logo 3D', { layout: 'row', gap: 56, align: 'center', over: { mobile: { layout: 'col', gap: 32 } } }, [
+      F('Testo', { gap: 20 }, [
+        T('eyebrow', 'Etichetta', 'Il marchio', 'eyebrow', { color: 'muted' }),
+        T('title', 'Titolo', 'Un segno che si riconosce da lontano.', 'h1'),
+        T(
+          'subtitle',
+          'Sottotitolo',
+          'Carica il tuo logo in SVG nel pannello a destra: diventa un oggetto in cromo, vetro o oro che segue il mouse.',
+          'body',
+          { color: 'muted', maxW: 460 },
+        ),
+      ]),
+      scene(
+        'Logo 3D',
+        {
+          preset: 'shapes',
+          shape: 'logo',
+          svg: ARCH,
+          material: 'chrome',
+          lighting: 'studio',
+          rotate: 0.6,
+          transparent: true,
+        },
+        { ratio: '1/1', radius: 0, alt: 'Il marchio dello studio' },
+      ),
+    ])
+  if (key === 'effects.object')
+    return S(
+      'Oggetto 3D',
+      { scheme: 'surface', layout: 'row', gap: 56, align: 'center', over: { mobile: { layout: 'col', gap: 32 } } },
+      [
+        F('Testo', { gap: 20 }, [
+          T('eyebrow', 'Etichetta', 'Collezione', 'eyebrow', { color: 'muted' }),
+          T('title', 'Titolo', 'Guardalo da ogni lato.', 'h1'),
+          T(
+            'subtitle',
+            'Sottotitolo',
+            'Carica un modello .glb nei Media e sceglilo qui: si gira con il mouse e con lo scorrimento della pagina.',
+            'body',
+            { color: 'muted', maxW: 460 },
+          ),
+          F('Azioni', { layout: 'row', gap: 12, width: 'hug', padY: 8 }, [
+            B('cta', 'Pulsante', 'Scopri di più', 'primary'),
+          ]),
+        ]),
+        scene(
+          'Oggetto 3D',
+          {
+            preset: 'model',
+            model: null,
+            shape: 'gem',
+            material: 'glass',
+            lighting: 'soft',
+            rotate: 0.5,
+            transparent: true,
+          },
+          { ratio: '1/1', radius: 0, alt: 'L’oggetto in tre dimensioni' },
+        ),
+      ],
+    )
+  if (key === 'effects.globe')
+    return S(
+      'Numeri sul globo',
+      { scheme: 'dark', layout: 'row', gap: 56, align: 'center', over: { mobile: { layout: 'col', gap: 32 } } },
+      [
+        F('Numeri', { gap: 28, anim: 'up', stagger: true }, [
+          T('title', 'Titolo', 'Progetti in dodici paesi.', 'h1'),
+          F('Numero', { gap: 6, topline: true, padY: 16 }, [
+            T('v', 'Valore', '120+', 'display'),
+            T('l', 'Descrizione', 'progetti consegnati in quindici anni', 'body', { color: 'muted' }),
+          ]),
+          F('Numero', { gap: 6, topline: true, padY: 16 }, [
+            T('v', 'Valore', '12', 'display'),
+            T('l', 'Descrizione', 'paesi in cui abbiamo costruito', 'body', { color: 'muted' }),
+          ]),
+        ]),
+        scene(
+          'Globo',
+          { preset: 'globe', colors: BG, speed: 0.6 },
+          { ratio: '1/1', radius: 0, alt: 'Un globo che ruota' },
+        ),
+      ],
+    )
+  if (key === 'effects.image')
+    return S('Immagine animata', { gap: 28 }, [
+      F('Testo', { gap: 12, maxW: 640 }, [
+        T('title', 'Titolo', 'Materia che si muove.', 'h1'),
+        T(
+          'subtitle',
+          'Sottotitolo',
+          'Scegli una foto nel pannello a destra: al passaggio del mouse si piega come un tessuto.',
+          'body',
+          { color: 'muted' },
+        ),
+      ]),
+      scene(
+        'Immagine animata',
+        { preset: 'distort', colors: BG, image: null, intensity: 0.7 },
+        { ratio: '21/9', over: { mobile: { ratio: '4/3' } } },
+      ),
+    ])
+  if (key === 'effects.cta')
+    return S(
+      'Invito con particelle',
+      {
+        scheme: 'dark',
+        align: 'center',
+        gap: 22,
+        size: 'l',
+        scene: { preset: 'particles', colors: BG, speed: 0.5, intensity: 0.7 },
+      },
+      [
+        T('title', 'Titolo', 'Hai un progetto in mente?', 'h1', { talign: 'center', maxW: 760 }),
+        T('subtitle', 'Sottotitolo', 'Partiamo da un sopralluogo e da una conversazione.', 'body', {
+          color: 'muted',
+          talign: 'center',
+          maxW: 520,
+        }),
+        F('Azioni', { layout: 'row', gap: 12, width: 'hug', wrap: true, justify: 'center', padY: 10 }, [
+          B('cta', 'Pulsante', 'Parliamone', 'primary'),
         ]),
       ],
     )

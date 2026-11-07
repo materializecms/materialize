@@ -903,6 +903,7 @@ export function Inspector({
                 { value: 'surface', label: 'Superficie' },
                 { value: 'inverse', label: 'Inverso' },
                 { value: 'accent', label: 'Accento' },
+                { value: 'dark', label: 'Scuro' },
               ]}
             />
           </Row>
@@ -942,17 +943,24 @@ export function Inspector({
             )}
           </Row>
         )}
-        {isSec && node.bgImage?.src && (
-          <Row label="Oscura" hint="Scurisce la foto perché il testo resti leggibile">
+        {isSec && (node.bgImage?.src || node.scene) && (
+          <Row
+            label="Oscura"
+            hint={
+              node.bgImage?.src
+                ? 'Scurisce la foto perché il testo resti leggibile'
+                : 'Scurisce lo sfondo animato perché il testo resti leggibile'
+            }
+          >
             <input
               type="range"
               min={0}
               max={0.85}
               step={0.05}
-              value={node.bgDim ?? 0.45}
+              value={node.bgDim ?? (node.bgImage?.src ? 0.45 : 0)}
               onChange={(e) => onContent({ bgDim: Number(e.target.value) }, `dim:${node.id}`)}
               className="flex-1 accent-[var(--accent)]"
-              aria-label="Oscura la foto"
+              aria-label={node.bgImage?.src ? 'Oscura la foto' : 'Oscura lo sfondo animato'}
             />
           </Row>
         )}

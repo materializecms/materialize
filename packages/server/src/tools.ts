@@ -79,7 +79,7 @@ Every node has an "id" (keep existing ids; new nodes may omit it, one is assigne
 Common properties:
 - Layout of a frame: layout "col" | "row" | "grid", cols (grid columns), gap (px), align "start"|"center"|"end"|"stretch", justify "start"|"center"|"end"|"between", wrap.
 - Size: width "fill"|"hug"|"fixed" with fixedW, maxW, h (px or "60vh"), minH (percent of screen height, sections), padX/padY (px), size "xs"|"s"|"m"|"l" (a section's vertical padding).
-- Look: bg (theme token or CSS color), scheme "default"|"surface"|"inverse"|"accent" (a section's color scheme), radius (px | "btn" | "card"), border, shadow "none"|"sm"|"lg", gradient, bgImage {src, alt}, bgDim 0-1.
+- Look: bg (theme token or CSS color), scheme "default"|"surface"|"inverse"|"accent"|"dark" (a section's color scheme; "dark" stays dark with light text in any theme), radius (px | "btn" | "card"), border, shadow "none"|"sm"|"lg", gradient, bgImage {src, alt}, bgDim 0-1.
 - Text ("text"): text (plain) or runs [{t, b?, i?, href?}], style "display"|"h1"|"h2"|"h3"|"body"|"small"|"eyebrow"|"logo"|"button", tag "h1".."h4"|"p" (HTML element, defaults from style), color, talign "left"|"center"|"right", fontSize, weight, upper, italic.
 - Button ("button"): text, href, variant "primary"|"secondary"|"ghost", newTab.
 - Image ("image"): src (a URL from the media library, e.g. /media/photo.jpg), alt, ratio ("16/9", "1/1"…), fit "cover"|"contain".

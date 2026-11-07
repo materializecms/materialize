@@ -370,3 +370,21 @@ describe('menus and headings', () => {
     expect(html).toContain('href="#x"')
   })
 })
+
+describe('effects', () => {
+  it('keeps a dark section dark with light text in a light and a dark theme', () => {
+    const cta = buildSection('effects.cta')
+    for (const mode of ['light', 'dark'] as const) {
+      const { css } = renderSections([cta], { ...DEFAULT_THEME, mode })
+      expect(css).toContain('#1b1a18')
+      expect(css).toContain('#ffffff')
+    }
+  })
+
+  it('dims an animated background only when asked', () => {
+    const aurora = buildSection('effects.aurora')
+    expect(renderSections([aurora], DEFAULT_THEME).html).toContain('mz-bgdim')
+    const plain = { ...aurora, bgDim: undefined }
+    expect(renderSections([plain], DEFAULT_THEME).html).not.toContain('mz-bgdim')
+  })
+})

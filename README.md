@@ -32,7 +32,7 @@ CMS open source per agenzie e freelance: schema dei contenuti in codice, editor 
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/screenshots/08-newsletter.webp" alt="Una newsletter in scrittura: oggetto, anteprima, testo, prova e invio"><br><sub>La newsletter: scrivi, prova su di te, invia o programma</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/assets/screenshots/09-effetti.webp" alt="La categoria Effetti della libreria accanto a un'apertura su sfondo aurora animato"><br><sub>Effetti: sfondi animati, logo e oggetti 3D come sezioni pronte</sub></td>
   </tr>
 </table>
 
@@ -190,7 +190,7 @@ Il codice di statistica e marketing resta fermo finché il visitatore non accett
 
 ## L’editor delle pagine
 
-Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, immagini, pulsanti, video, codice, scene WebGL), partendo da una libreria di oltre 100 sezioni. Ogni elemento ha:
+Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, immagini, pulsanti, video, codice, scene WebGL), partendo da una libreria di oltre 100 sezioni, tra cui la categoria **Effetti**: aperture su sfondi animati, logo e oggetti 3D, globo, immagini che si piegano al mouse, inviti su particelle. Ogni elemento ha:
 
 - **design libero**: disposizione in riga, colonna o griglia, posizione libera e livelli, colori e sfumature, tipografia per elemento, bordi, ombre, fusione, filtri ed effetto vetro, con modifiche separate per tablet e mobile;
 - **interazioni**: all’apertura, all’ingresso nello schermo, con lo scroll, al passaggio o al movimento del mouse, al clic; testi che entrano per parole o lettere, contatori, parallasse, elementi fissi durante lo scroll, nastri scorrevoli;

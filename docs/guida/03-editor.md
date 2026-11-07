@@ -24,7 +24,7 @@ La prima volta un **tour** presenta l'editor in 14 passi: scurisce lo schermo e 
 
 Dalla scheda **Aggiungi**:
 
-- **Sezioni**: oltre 100 sezioni pronte in 24 categorie (navigazione, hero, chi siamo, servizi, progetti, testimonianze, team, FAQ, contatti, footer…). Si trascinano sulla tela o si aggiungono con un clic. Prendono i colori e i caratteri del tuo sito.
+- **Sezioni**: oltre 100 sezioni pronte in 25 categorie (navigazione, hero, chi siamo, servizi, progetti, testimonianze, team, FAQ, contatti, effetti, footer…). Si trascinano sulla tela o si aggiungono con un clic. Prendono i colori e i caratteri del tuo sito.
 - **Elementi**: contenitore, testo, immagine, pulsante, video, icona o forma, campo di un modulo, scena WebGL, codice, selettore della lingua.
 
 Ogni elemento ha anche un tasto rapido: **F** contenitore, **T** testo, **I** immagine, **B** pulsante, **V** video, **O** icona o forma, **K** campo di un modulo, **G** scena WebGL, **C** codice, **L** selettore della lingua.
@@ -75,6 +75,13 @@ Nel pannello a destra, per ogni elemento:
 ## Scene WebGL e 3D
 
 L'elemento **Scena WebGL** aggiunge sfondi animati, effetti sulle immagini e oggetti 3D (forme, loghi, modelli `.glb` caricati nei Media) con materiali come cromo, vetro e oro. I file del 3D si scaricano solo nelle pagine che lo usano.
+
+Per partire da qualcosa di pronto, in **Aggiungi** c'è la categoria **Effetti** (o cerca «webgl»): un'apertura su sfondo aurora, un'apertura con seta animata, il logo in 3D, un oggetto 3D, i numeri accanto a un globo che ruota, un'immagine che si piega al passaggio del mouse e un invito su un cielo di particelle. Nel logo 3D carica il tuo marchio in SVG; nell'oggetto 3D scegli un modello `.glb` dai Media; nell'immagine animata scegli la foto.
+
+Due cose aiutano a tenere leggibile il testo sopra un'animazione:
+
+- lo schema di colori **Scuro** (pannello a destra → Colori): la sezione resta scura con il testo chiaro qualunque sia il tema, come una sezione sopra una foto;
+- **Oscura**, che scurisce lo sfondo animato di una sezione come già fa con le foto.
 
 ## Componenti
 

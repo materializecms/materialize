@@ -20,7 +20,8 @@ export type ColorToken =
   | 'onInverse'
   | 'border'
   | 'line'
-export type Scheme = 'default' | 'surface' | 'inverse' | 'accent'
+/** "dark" stays dark with light text whatever the theme, like a section over a photo. */
+export type Scheme = 'default' | 'surface' | 'inverse' | 'accent' | 'dark'
 export type TextStyle = 'display' | 'h1' | 'h2' | 'h3' | 'body' | 'small' | 'eyebrow' | 'logo' | 'button'
 export type Animation =
   | 'none'
@@ -843,6 +844,8 @@ const SCHEME_MAPS: Record<string, Record<string, string>> = {
     surface: 'accentSurface',
   },
 }
+// Always dark, whatever the theme: the same colors as a section over a photo.
+SCHEME_MAPS.dark = SCHEME_MAPS.photo as Record<string, string>
 
 const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%deg]+\)|transparent)$/i
 
@@ -1827,7 +1830,11 @@ export function renderSections(
         p.stagger && p.anim && p.anim !== 'none'
           ? { anim: p.anim, dur: p.animDur, delay: p.animDelay, trig: p.animTrig }
           : null
-      const scene = p.scene ? sceneCanvas(p.scene, (t) => color(C, t, d.scheme)) : ''
+      // An animated background is dimmed only when asked: pages made before keep their look.
+      const scene = p.scene
+        ? sceneCanvas(p.scene, (t) => color(C, t, d.scheme)) +
+          (p.bgDim ? `<div class="mz-bgdim" style="background:rgba(0,0,0,${p.bgDim})"></div>` : '')
+        : ''
       if (p.scene)
         desktop.push(`.mz-page .${cls}{background-image:${sceneFallback(p.scene, (t) => color(C, t, d.scheme))}}`)
       const bgImg =
