@@ -561,13 +561,20 @@ function errorFrom(
   return new ApiError(status, error.code ?? 'error', translate(error.code, error.message), error.issues ?? [])
 }
 
+/**
+ * This browser tab, for edit turns: a document is edited from one tab at a time, and the server
+ * refuses saves from the others. New in every tab (a copied tab gets its own).
+ */
+export const TAB =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response
   try {
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
-      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      headers: { 'x-mz-tab': TAB, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
@@ -744,6 +751,22 @@ export const api = {
     request<{ comment: PageComment }>('POST', `/documents/${docId}/comments`, input),
   resolveComment: (id: string, resolved: boolean) => request<{ ok: true }>('PATCH', `/comments/${id}`, { resolved }),
   removeComment: (id: string) => request<void>('DELETE', `/comments/${id}`),
+  /** Holds (or asks for, or takes) the turn to edit a document from this tab. */
+  turn: (docId: string, take = false) =>
+    request<{
+      mine: boolean
+      holder: { name: string; since: string; self: boolean } | null
+      takenBy?: string | null
+    }>('POST', `/documents/${docId}/turn`, { tab: TAB, take }),
+  /** Leaves the turn; works while the page is closing too. */
+  leaveTurn: (docId: string) => {
+    void fetch(`/api/documents/${docId}/turn?tab=${encodeURIComponent(TAB)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      keepalive: true,
+      headers: { 'x-mz-tab': TAB },
+    }).catch(() => {})
+  },
   presence: (docId: string, selected: string | null) =>
     request<{ others: { id: string; name: string; selected: string | null }[] }>(
       'POST',

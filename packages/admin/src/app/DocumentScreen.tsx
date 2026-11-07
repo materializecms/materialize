@@ -64,6 +64,7 @@ import { ReleaseChip, ReleaseDialog } from './ReleaseDialog.tsx'
 import { ScheduleMenu } from './ScheduleMenu.tsx'
 import { ShareDialog } from './ShareDialog.tsx'
 import { localeName } from './Sidebar.tsx'
+import { TurnGate, useTurn } from './TurnGate.tsx'
 
 /**
  * Documents created by the editor still open: their screen keeps the key it had while new, so the
@@ -87,6 +88,10 @@ export function DocumentScreen({
     enabled: !!id,
     staleTime: Infinity,
   })
+  // One person (and one tab) edits at a time; the others see who, and may take over.
+  const { turn, take } = useTurn(id)
+  const [generation, setGeneration] = useState(0)
+  const locked = !!turn && !turn.mine
   // A document opens in its own language: lists, menus and footers on the canvas follow it.
   const { locale, setLocale, schema } = useSession()
   const docLocale = doc.data?.locale
@@ -113,7 +118,35 @@ export function DocumentScreen({
       </EmptyState>
     )
   }
-  return <Editor collection={collection} initial={doc.data ?? null} embedded={embedded} />
+  return (
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* Behind the notice, nothing can be clicked or typed into. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col" inert={locked}>
+        <Editor
+          key={generation}
+          collection={collection}
+          initial={doc.data ?? null}
+          embedded={embedded}
+          locked={locked}
+        />
+      </div>
+      {locked && turn && (
+        <TurnGate
+          turn={turn}
+          previewUrl={doc.data?.status !== 'draft' ? (doc.data?.url ?? null) : null}
+          onBack={() =>
+            embedded ? navigate({ name: 'home' }) : navigate({ name: 'collection', collection: collection.name })
+          }
+          onTake={async () => {
+            await take()
+            // What the other person saved, before editing on top of it.
+            await doc.refetch()
+            setGeneration((g) => g + 1)
+          }}
+        />
+      )}
+    </div>
+  )
 }
 
 function initialData(collection: CollectionDescription): Data {
@@ -131,11 +164,16 @@ function Editor({
   collection,
   initial,
   embedded,
+  locked,
 }: {
   collection: CollectionDescription
   initial: StoredDocument | null
   embedded?: boolean
+  /** Someone else holds the turn: nothing is saved from here. */
+  locked?: boolean
 }) {
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
   const { locale, user, schema } = useSession()
   const queryClient = useQueryClient()
   const fields = collection.fields
@@ -230,7 +268,7 @@ function Editor({
   /** Saves the draft, complete or not. Returns the saved document, or null if the save failed. */
   const save = useCallback(async (): Promise<StoredDocument | null> => {
     const { cleaned: data, current: sent, doc: existing } = latest.current
-    if (latest.current.saving) return null
+    if (latest.current.saving || lockedRef.current) return null
     setSaving(true)
     try {
       if (!existing) {

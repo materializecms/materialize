@@ -73,3 +73,13 @@ Serve l'email configurata (vedi [Moduli di contatto ed email](07-moduli-ed-email
 Se hai la verifica in due passaggi, dopo la nuova password ti chiede comunque il codice: una password nuova non la scavalca.
 
 Per mettere in sicurezza il server (HTTPS, proxy, firewall) c'è la [guida alla sicurezza](../sicurezza.md).
+
+## Un documento alla volta
+
+Due persone non possono modificare insieme lo stesso documento: chi salva per ultimo cancellerebbe il lavoro dell'altro. Per questo si lavora a turni.
+
+- Chi apre una pagina, un articolo o una scheda delle impostazioni mentre un'altra persona la sta modificando vede un riquadro: chi sta lavorando e da quanto. Può **tornare indietro**, **aprire il sito** per guardare la pagina pubblicata, oppure **prendere il controllo**.
+- **Prendi il controllo** serve quando l'altra persona si è allontanata o ha dimenticato la scheda aperta. Lei passa subito in sola lettura e vede chi ha preso il controllo; le sue modifiche fino all'ultimo salvataggio restano, solo quelle degli ultimi secondi potrebbero perdersi. Nel Registro attività resta scritto.
+- Il turno si libera da solo quando chi modifica chiude il documento o la scheda, o dopo meno di un minuto senza segni di vita.
+- Vale anche per la stessa persona in due schede: si modifica da una, l'altra resta in sola lettura (con **Continua da qui**).
+- Lo controlla anche il server: un salvataggio da chi non ha il turno viene rifiutato, con un messaggio, invece di sovrascrivere. Su documenti diversi si lavora insieme come sempre.

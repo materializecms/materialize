@@ -1981,6 +1981,81 @@ export function createApp(base: ServerContext) {
     return c.body(null, 204)
   })
 
+  /**
+   * Turns: one person at a time edits a document. The panel holds the turn while the document is
+   * open (a beat every few seconds, from one browser tab); others see who is editing and can take
+   * it over. A turn nobody renews ends by itself.
+   */
+  type Turn = { userId: string; name: string; tab: string; since: number; at: number; takenBy?: string }
+  const turns = new Map<string, Turn>()
+  const TURN_TTL = 45_000
+  const turnOf = (docId: string) => {
+    const turn = turns.get(docId)
+    if (turn && Date.now() - turn.at > TURN_TTL) {
+      turns.delete(docId)
+      return null
+    }
+    return turn ?? null
+  }
+  const turnJson = (turn: Turn | null, user: { id: string }, tab: string) => ({
+    mine: !!turn && turn.userId === user.id && turn.tab === tab,
+    holder: turn ? { name: turn.name, since: new Date(turn.since).toISOString(), self: turn.userId === user.id } : null,
+  })
+
+  /** Holds the turn (or asks for it); take: true takes it from whoever has it. */
+  app.post('/api/documents/:id/turn', requireUser, async (c) => {
+    const input = await body(c, z.object({ tab: z.string().min(8).max(64), take: z.boolean().optional() }))
+    const user = c.get('user')
+    const docId = c.req.param('id')
+    const now = Date.now()
+    for (const [k, t] of turns) if (now - t.at > TURN_TTL * 4) turns.delete(k)
+    const turn = turnOf(docId)
+    if (!turn || (turn.userId === user.id && turn.tab === input.tab) || input.take) {
+      if (input.take && turn && turn.tab !== input.tab) {
+        // The one who had it learns who took it, at their next beat.
+        turns.set(`lost:${docId}:${turn.tab}`, { ...turn, takenBy: user.name, at: now })
+        await record(c, 'document.turn_taken', '', { id: docId, from: turn.name })
+      }
+      const keep = turn && turn.userId === user.id && turn.tab === input.tab
+      turns.set(docId, { userId: user.id, name: user.name, tab: input.tab, since: keep ? turn.since : now, at: now })
+      return c.json(turnJson(turnOf(docId), user, input.tab))
+    }
+    const taken = turns.get(`lost:${docId}:${input.tab}`)
+    if (taken) turns.delete(`lost:${docId}:${input.tab}`)
+    return c.json({ ...turnJson(turn, user, input.tab), takenBy: taken?.takenBy ?? null })
+  })
+
+  /** Leaves the turn: the document closed. */
+  app.delete('/api/documents/:id/turn', requireUser, async (c) => {
+    const docId = c.req.param('id')
+    const turn = turnOf(docId)
+    if (turn && turn.userId === c.get('user').id && turn.tab === c.req.query('tab')) turns.delete(docId)
+    return c.body(null, 204)
+  })
+
+  /**
+   * Changes to a document from someone who is not on turn are refused: from another person, or
+   * from another tab of the same person. The API and AI tools of the person on turn pass.
+   */
+  const guardTurn = (c: Context, docId: string) => {
+    const turn = turnOf(docId)
+    if (!turn) return
+    const user = c.get('user') as User
+    const tab = c.req.header('x-mz-tab')
+    if (turn.userId !== user.id)
+      throw new ApiError(
+        409,
+        'not_your_turn',
+        `${turn.name} sta modificando questo documento: le tue modifiche non sono state salvate`,
+      )
+    if (tab && tab !== turn.tab)
+      throw new ApiError(
+        409,
+        'not_your_turn',
+        'Questo documento è aperto in un’altra scheda: le modifiche di qui non sono state salvate',
+      )
+  }
+
   app.post('/api/documents/:id/presence', requireUser, async (c) => {
     const input = await body(c, z.object({ selected: z.string().max(200).nullable() }))
     const user = c.get('user')
@@ -3270,6 +3345,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   app.put('/api/documents/:id', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
+    guardTurn(c, existing.id)
     const input = await body(c, documentBody)
     const def = collection(existing.collection)
     const draft = draftData(def, input.data)
@@ -4281,6 +4357,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   app.post('/api/documents/:id/revisions/:revision/restore', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
+    guardTurn(c, existing.id)
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
     await record(c, 'document.restored', doc.title, { collection: doc.collection, id: doc.id })

@@ -153,6 +153,11 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: `non è riuscito a pubblicare il rilascio ${t}: ${d.message ?? ''}`, group: 'content' }
     case 'release.cancelled':
       return { text: `ha annullato il rilascio ${t}`, group: 'content' }
+    case 'document.turn_taken':
+      return {
+        text: `ha preso il controllo di un documento che stava modificando ${d.from ?? 'un’altra persona'}`,
+        group: 'content',
+      }
     case 'import.wordpress':
       return {
         text: `ha importato da WordPress ${t || 'un sito'}${typeof d.created === 'number' ? `: ${d.created === 1 ? 'un contenuto' : `${d.created} contenuti`}` : ''}${typeof d.media === 'number' && d.media ? `, ${d.media} immagini` : ''}${typeof d.relaid === 'number' ? `, ${d.relaid} rifatte con l’AI` : ''}`,
