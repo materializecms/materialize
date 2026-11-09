@@ -13,10 +13,12 @@ L'editor mostra la pagina vera, come apparirà sul sito, e la modifichi direttam
   Il pannello si allarga trascinandone il bordo destro, fino a 440 px, e il browser se lo ricorda; un doppio clic sul bordo lo riporta com'era.
 - **Al centro**, la **tela**: la pagina.
 - **A destra**, il pannello dell'elemento selezionato: cambia con l'elemento (disposizione, dimensioni, colori, testo, animazioni…). Senza niente selezionato mostra **Pagina**: titolo, indirizzo, modello e motori di ricerca.
-- **Sopra la tela**, una barra a gruppi:
+- **In cima alla tela**, tre gruppi di comandi in altrettanti incavi del bordo:
   - a sinistra, **Aggiungi**: contenitore, testo, immagine, pulsante, icona o forma; **⋯** apre gli altri (video, codice, scena WebGL, campo di un modulo);
   - al centro, il dispositivo (desktop, tablet, mobile), la larghezza, tutti affiancati ed **Esporta**;
-  - a destra, lo zoom, **?** per le scorciatoie, i righelli, l'assistente AI, i commenti, la prova delle animazioni e **Anteprima**, per provare la pagina come sul sito.
+  - a destra, **?** per le scorciatoie, i righelli, l'assistente AI, i commenti, la prova delle animazioni e **Anteprima**, per provare la pagina come sul sito.
+- **In basso a destra sulla tela**, lo zoom: riduci, ingrandisci, adatta alla finestra.
+- Quando la tela è stretta (finestra piccola o pannelli allargati), dispositivi affiancati, esporta, righelli, prova delle animazioni e scorciatoie passano nel menu **⋯** del gruppo di destra; pulsante e icona restano nella scheda **Aggiungi** e sui tasti B e O.
 
 La prima volta un **tour** presenta l'editor in 14 passi: scurisce lo schermo e illumina una zona alla volta (Contenuto e Design, le quattro schede a sinistra, che apre da solo, la barra per aggiungere, la tela, il pannello delle proprietà, dispositivi, zoom e anteprima, assistente AI, cronologia e pubblicazione). Ci si sposta con ← → o con i pulsanti, Esc lo chiude. Per rifarlo: **?** (o il pulsante con la tastiera in alto) → **Rifai il tour**.
 

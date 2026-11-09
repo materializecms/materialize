@@ -311,7 +311,7 @@ function newElement(kind: ElementKind): PageNode {
 const LEFT_DEFAULT = 264
 
 /** A set of related toolbar buttons, drawn as one pill so the bar reads in groups. */
-const TOOL_GROUP = 'flex shrink-0 items-center gap-0.5 rounded-lg bg-panel2 p-0.5'
+const TOOL_GROUP = 'flex shrink-0 items-center gap-0.5 rounded-full bg-panel p-[3px]'
 const LEFT_MIN = 240
 const LEFT_MAX = 440
 
@@ -1330,11 +1330,11 @@ export function PageEditor({
 
   return (
     <SwatchesContext.Provider value={swatchTokens}>
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 gap-2">
         {/* left: layers, library, styles */}
         {mode === 'content' ? (
-          <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-panel max-md:hidden">
-            <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-2">
+          <aside className="flex w-[264px] shrink-0 flex-col overflow-hidden rounded-[22px] bg-panel max-md:hidden">
+            <div className="mx-2 mt-2 flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-seg p-0.5">
               {(
                 [
                   ['sections', 'Sezioni', <ListOrdered key="s" />],
@@ -1346,8 +1346,8 @@ export function PageEditor({
                   type="button"
                   onClick={() => setContentTab(value)}
                   className={cx(
-                    'flex h-7 flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
-                    contentTab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
+                    'flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
+                    contentTab === value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
                   )}
                 >
                   {icon}
@@ -1382,14 +1382,14 @@ export function PageEditor({
         ) : (
           <aside
             data-tour="left"
-            className="relative flex shrink-0 flex-col border-r border-line bg-panel max-md:hidden"
+            className="relative flex shrink-0 flex-col rounded-[22px] bg-panel max-md:hidden"
             style={{ width: leftWidth }}
           >
             {/* Drag the edge to make the panel wider (remembered in this browser); double click resets it. */}
             {/* biome-ignore lint/a11y/noStaticElementInteractions: a pointer handle; the width has a sensible default */}
             <div
               title="Trascina per allargare il pannello · doppio clic per la larghezza normale"
-              className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40"
+              className="absolute inset-y-4 -right-[5px] z-10 w-1.5 cursor-col-resize rounded-full hover:bg-accent/40 active:bg-accent/60"
               onDoubleClick={() => setLeftWidth(String(LEFT_DEFAULT))}
               onPointerDown={(e) => {
                 e.preventDefault()
@@ -1408,7 +1408,7 @@ export function PageEditor({
             {/* Narrow panel: the tabs drop their icons, so the highlight keeps room around the words. */}
             <div
               data-tour="left-tabs"
-              className="@container flex h-11 shrink-0 items-center gap-0.5 border-b border-line px-2 @min-[16rem]:gap-1"
+              className="@container mx-2 mt-2 flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-seg p-0.5"
             >
               {(
                 [
@@ -1424,8 +1424,8 @@ export function PageEditor({
                   onClick={() => setTab(value)}
                   title={label}
                   className={cx(
-                    'flex h-7 min-w-0 flex-auto items-center justify-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[12.5px] font-medium text-ellipsis whitespace-nowrap transition-colors @min-[16rem]:px-2.5 [&_svg]:hidden [&_svg]:size-3.5 @min-[23rem]:[&_svg]:block',
-                    tab === value ? 'bg-seg text-fg' : 'text-fg2 hover:text-fg',
+                    'flex h-8 min-w-0 flex-auto items-center justify-center gap-1.5 overflow-hidden rounded-full px-1.5 text-[12.5px] font-medium text-ellipsis whitespace-nowrap transition-colors @min-[16rem]:px-2.5 [&_svg]:hidden [&_svg]:size-3.5 @min-[23rem]:[&_svg]:block',
+                    tab === value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
                   )}
                 >
                   {icon}
@@ -1541,213 +1541,309 @@ export function PageEditor({
           </div>
         )}
         {/* center: toolbar and canvas */}
-        <div data-tour="center" className="flex min-w-0 flex-1 flex-col max-md:hidden">
-          <div className="flex h-11 shrink-0 items-center gap-2 border-b border-line overflow-x-auto bg-panel px-3 [scrollbar-width:none]">
-            {mode === 'design' && (
-              <div data-tour="add-bar" className={TOOL_GROUP}>
-                <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">Aggiungi</span>
-                {(
-                  [
-                    ['frame', 'Contenitore · F', <Rows3 key="f" />],
-                    ['text', 'Testo · T', <Type key="t" />],
-                    ['image', 'Immagine · I', <ImageIcon key="i" />],
-                    ['button', 'Pulsante · B', <MousePointerClick key="b" />],
-                    ['icon', 'Icona o forma · O', <Shapes key="o" />],
-                  ] as const
-                ).map(([kind, label, icon]) => (
-                  <IconButton
-                    key={kind}
-                    label={`Aggiungi ${label}`}
-                    onClick={() => insertAfterSelection(newElement(kind))}
+        <div
+          data-tour="center"
+          className="@container/center relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] bg-canvas max-md:hidden"
+        >
+          {/* The toolbar sits in three notches bitten out of the canvas's top edge. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-[44px] items-start gap-3 overflow-x-auto px-11 [scrollbar-width:none] @max-[44rem]/center:gap-1.5 @max-[44rem]/center:px-7 [&>.mz-notch]:pointer-events-auto [&>.mz-notch]:shrink-0">
+            {/* In Contenuto the left notch holds only a hint: it gives way on a narrow canvas. */}
+            <div className={cx('mz-notch', mode === 'content' && '@max-[58rem]/center:hidden')}>
+              {mode === 'design' && (
+                <div data-tour="add-bar" className={TOOL_GROUP}>
+                  <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">Aggiungi</span>
+                  {(
+                    [
+                      ['frame', 'Contenitore · F', <Rows3 key="f" />],
+                      ['text', 'Testo · T', <Type key="t" />],
+                      ['image', 'Immagine · I', <ImageIcon key="i" />],
+                      ['button', 'Pulsante · B', <MousePointerClick key="b" />],
+                      ['icon', 'Icona o forma · O', <Shapes key="o" />],
+                    ] as const
+                  ).map(([kind, label, icon]) => (
+                    <IconButton
+                      key={kind}
+                      label={`Aggiungi ${label}`}
+                      onClick={() => insertAfterSelection(newElement(kind))}
+                      // Narrow canvas: button and icon stay in the Aggiungi tab and on their keys (B, O).
+                      className={kind === 'button' || kind === 'icon' ? '@max-[58rem]/center:hidden' : undefined}
+                    >
+                      {icon}
+                    </IconButton>
+                  ))}
+                  {/* The rarer elements in a menu with their names, so the bar stays short and readable. */}
+                  <Popover
+                    width={240}
+                    trigger={({ toggle, ref, open }) => (
+                      <IconButton ref={ref} label="Altri elementi" active={open} onClick={toggle}>
+                        <Ellipsis />
+                      </IconButton>
+                    )}
                   >
-                    {icon}
-                  </IconButton>
-                ))}
-                {/* The rarer elements in a menu with their names, so the bar stays short and readable. */}
+                    {(close) =>
+                      (
+                        [
+                          ['video', 'Video', 'V', <Video key="v" />],
+                          ['embed', 'Codice', 'C', <Code key="c" />],
+                          ['scene', 'Scena WebGL', 'G', <Sparkles key="g" />],
+                          ['input', 'Campo di un modulo', 'K', <TextCursorInput key="k" />],
+                        ] as const
+                      ).map(([kind, label, key, icon]) => (
+                        <MenuItem
+                          key={kind}
+                          icon={icon}
+                          hint={key}
+                          onClick={() => {
+                            insertAfterSelection(newElement(kind))
+                            close()
+                          }}
+                        >
+                          {label}
+                        </MenuItem>
+                      ))
+                    }
+                  </Popover>
+                </div>
+              )}
+              {mode === 'content' && (
+                <span
+                  title="Clicca un testo per scriverci, un’immagine per cambiarla."
+                  className="mz-pill h-9 min-w-0 truncate px-3.5 text-[12.5px] text-fg2"
+                >
+                  Clicca un testo per scriverci, un’immagine per cambiarla.
+                </span>
+              )}
+            </div>
+            <div className="flex-1" />
+            <div className="mz-notch">
+              <div data-tour="devices" className="mz-pill">
+                <Segmented
+                  size="sm"
+                  value={device}
+                  onChange={(d) => {
+                    setDevice(d)
+                    setZoom('fit')
+                  }}
+                  options={[
+                    { value: 'desktop', label: <Monitor />, title: `Desktop · ${widths.desktop} px` },
+                    { value: 'tablet', label: <Tablet />, title: `Tablet · ${widths.tablet} px` },
+                    { value: 'mobile', label: <Smartphone />, title: `Mobile · ${widths.mobile} px` },
+                  ]}
+                />
+                <select
+                  aria-label="Larghezza dell’anteprima"
+                  title="Larghezza dello schermo su cui provi la pagina"
+                  value={widths[device]}
+                  onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
+                  className="h-7 rounded-full bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
+                >
+                  {widthPresets[device].map((w) => (
+                    <option key={w} value={w}>
+                      {w} px
+                    </option>
+                  ))}
+                </select>
+                <IconButton
+                  label="Tutti i dispositivi affiancati"
+                  active={sideBySide}
+                  onClick={() => setSideBySide(!sideBySide)}
+                  className="@max-[58rem]/center:hidden"
+                >
+                  <Columns3 />
+                </IconButton>
+                <IconButton
+                  label="Esporta in PDF o PNG"
+                  onClick={() => setExporting(true)}
+                  className="@max-[58rem]/center:hidden"
+                >
+                  <FileDown />
+                </IconButton>
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="mz-notch">
+              <div className="mz-pill">
+                <IconButton
+                  label="Scorciatoie da tastiera · ?"
+                  onClick={() => setShowShortcuts(true)}
+                  className="@max-[58rem]/center:hidden"
+                >
+                  <Keyboard />
+                </IconButton>
+                <IconButton
+                  label="Righelli · ⇧R"
+                  active={rulers}
+                  onClick={() => setRulers(!rulers)}
+                  className="@max-[58rem]/center:hidden"
+                >
+                  <Ruler />
+                </IconButton>
+                <button
+                  type="button"
+                  data-tour="ai"
+                  title="Assistente AI"
+                  onClick={() => {
+                    setAssisting(!assisting)
+                    setCommenting(false)
+                  }}
+                  className={cx(
+                    'flex h-7 items-center gap-1 rounded-full px-1.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+                    assisting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
+                  )}
+                >
+                  <Sparkles />
+                  AI
+                </button>
+                <button
+                  type="button"
+                  title="Commenti sulla pagina"
+                  onClick={() => {
+                    setCommenting(!commenting)
+                    setAssisting(false)
+                  }}
+                  className={cx(
+                    'relative flex h-7 items-center gap-1 rounded-full px-1.5 text-[12px] transition-colors [&_svg]:size-3.5',
+                    commenting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
+                  )}
+                >
+                  <MessageSquare />
+                  <span className="max-2xl:hidden">Commenti</span>
+                  {openComments.length > 0 && <span className="font-mono">{openComments.length}</span>}
+                </button>
+                {others.length > 0 && (
+                  <div
+                    className="ml-1 flex -space-x-1.5"
+                    title={`${others.map((o) => o.name).join(', ')} ${others.length === 1 ? 'sta' : 'stanno'} lavorando su questa pagina: chi salva per ultimo sovrascrive.`}
+                  >
+                    {others.map((o, i) => (
+                      <span
+                        key={o.id}
+                        className="flex size-6 items-center justify-center rounded-full border-2 border-panel text-[11px] font-semibold text-white"
+                        style={{ background: PRESENCE_COLORS[i % PRESENCE_COLORS.length] }}
+                      >
+                        {o.name.trim().slice(0, 1).toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* A narrow canvas: the rarer commands of the bar move into this menu. */}
                 <Popover
+                  align="end"
                   width={240}
                   trigger={({ toggle, ref, open }) => (
-                    <IconButton ref={ref} label="Altri elementi" active={open} onClick={toggle}>
+                    <IconButton
+                      ref={ref}
+                      label="Altri comandi della tela"
+                      active={open}
+                      onClick={toggle}
+                      className="@min-[58rem]/center:hidden"
+                    >
                       <Ellipsis />
                     </IconButton>
                   )}
                 >
-                  {(close) =>
-                    (
-                      [
-                        ['video', 'Video', 'V', <Video key="v" />],
-                        ['embed', 'Codice', 'C', <Code key="c" />],
-                        ['scene', 'Scena WebGL', 'G', <Sparkles key="g" />],
-                        ['input', 'Campo di un modulo', 'K', <TextCursorInput key="k" />],
-                      ] as const
-                    ).map(([kind, label, key, icon]) => (
+                  {(close) => (
+                    <div className="p-1">
                       <MenuItem
-                        key={kind}
-                        icon={icon}
-                        hint={key}
+                        icon={<Columns3 />}
+                        checked={sideBySide}
                         onClick={() => {
-                          insertAfterSelection(newElement(kind))
+                          setSideBySide(!sideBySide)
                           close()
                         }}
                       >
-                        {label}
+                        Tutti i dispositivi affiancati
                       </MenuItem>
-                    ))
-                  }
+                      <MenuItem
+                        icon={<FileDown />}
+                        onClick={() => {
+                          setExporting(true)
+                          close()
+                        }}
+                      >
+                        Esporta in PDF o PNG
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Ruler />}
+                        hint="⇧R"
+                        checked={rulers}
+                        onClick={() => {
+                          setRulers(!rulers)
+                          close()
+                        }}
+                      >
+                        Righelli
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Play />}
+                        onClick={() => {
+                          play()
+                          close()
+                        }}
+                      >
+                        Riproduci le animazioni
+                      </MenuItem>
+                      <MenuItem
+                        icon={<Keyboard />}
+                        hint="?"
+                        onClick={() => {
+                          setShowShortcuts(true)
+                          close()
+                        }}
+                      >
+                        Scorciatoie da tastiera
+                      </MenuItem>
+                    </div>
+                  )}
                 </Popover>
-              </div>
-            )}
-            {mode === 'content' && (
-              <span
-                title="Clicca un testo per scriverci, un’immagine per cambiarla."
-                className="min-w-0 truncate text-[12.5px] text-fg2"
-              >
-                Clicca un testo per scriverci, un’immagine per cambiarla.
-              </span>
-            )}
-            <div className="flex-1" />
-            <div data-tour="devices" className="flex items-center gap-1">
-              <Segmented
-                size="sm"
-                value={device}
-                onChange={(d) => {
-                  setDevice(d)
-                  setZoom('fit')
-                }}
-                options={[
-                  { value: 'desktop', label: <Monitor />, title: `Desktop · ${widths.desktop} px` },
-                  { value: 'tablet', label: <Tablet />, title: `Tablet · ${widths.tablet} px` },
-                  { value: 'mobile', label: <Smartphone />, title: `Mobile · ${widths.mobile} px` },
-                ]}
-              />
-              <select
-                aria-label="Larghezza dell’anteprima"
-                title="Larghezza dello schermo su cui provi la pagina"
-                value={widths[device]}
-                onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
-                className="h-7 rounded-md bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
-              >
-                {widthPresets[device].map((w) => (
-                  <option key={w} value={w}>
-                    {w} px
-                  </option>
-                ))}
-              </select>
-              <IconButton
-                label="Tutti i dispositivi affiancati"
-                active={sideBySide}
-                onClick={() => setSideBySide(!sideBySide)}
-              >
-                <Columns3 />
-              </IconButton>
-              <IconButton label="Esporta in PDF o PNG" onClick={() => setExporting(true)}>
-                <FileDown />
-              </IconButton>
-            </div>
-            <div className="flex-1" />
-            <div className="flex items-center gap-0.5">
-              <div data-tour="zoom" className={TOOL_GROUP}>
-                <IconButton
-                  label="Riduci lo zoom"
-                  onClick={() =>
-                    setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))
-                  }
-                >
-                  <Minus />
+                <div className="mx-1 h-5 w-px bg-line @max-[58rem]/center:hidden" />
+                <IconButton label="Riproduci le animazioni" onClick={play} className="@max-[58rem]/center:hidden">
+                  <Play />
                 </IconButton>
                 <button
                   type="button"
-                  title="Adatta alla finestra"
-                  onClick={() => setZoom('fit')}
-                  className="h-7 min-w-12 rounded-md px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
+                  data-tour="preview"
+                  onClick={() => setPreviewing(!previewing)}
+                  title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
+                  className={cx(
+                    'ml-1 flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
+                    previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
+                  )}
                 >
-                  {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
+                  <Eye />
+                  {previewing ? 'Esci dall’anteprima' : <span className="max-2xl:hidden">Anteprima</span>}
                 </button>
-                <IconButton
-                  label="Aumenta lo zoom"
-                  onClick={() =>
-                    setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))
-                  }
-                >
-                  <Plus />
-                </IconButton>
-                <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
-                  <Maximize />
-                </IconButton>
               </div>
-              <IconButton label="Scorciatoie da tastiera · ?" onClick={() => setShowShortcuts(true)}>
-                <Keyboard />
-              </IconButton>
-              <IconButton label="Righelli · ⇧R" active={rulers} onClick={() => setRulers(!rulers)}>
-                <Ruler />
-              </IconButton>
-              <button
-                type="button"
-                data-tour="ai"
-                title="Assistente AI"
-                onClick={() => {
-                  setAssisting(!assisting)
-                  setCommenting(false)
-                }}
-                className={cx(
-                  'flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
-                  assisting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
-                )}
-              >
-                <Sparkles />
-                AI
-              </button>
-              <button
-                type="button"
-                title="Commenti sulla pagina"
-                onClick={() => {
-                  setCommenting(!commenting)
-                  setAssisting(false)
-                }}
-                className={cx(
-                  'relative flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] transition-colors [&_svg]:size-3.5',
-                  commenting ? 'bg-accent/12 text-accent' : 'text-fg2 hover:bg-hover hover:text-fg',
-                )}
-              >
-                <MessageSquare />
-                <span className="max-2xl:hidden">Commenti</span>
-                {openComments.length > 0 && <span className="font-mono">{openComments.length}</span>}
-              </button>
-              {others.length > 0 && (
-                <div
-                  className="ml-1 flex -space-x-1.5"
-                  title={`${others.map((o) => o.name).join(', ')} ${others.length === 1 ? 'sta' : 'stanno'} lavorando su questa pagina: chi salva per ultimo sovrascrive.`}
-                >
-                  {others.map((o, i) => (
-                    <span
-                      key={o.id}
-                      className="flex size-6 items-center justify-center rounded-full border-2 border-panel text-[11px] font-semibold text-white"
-                      style={{ background: PRESENCE_COLORS[i % PRESENCE_COLORS.length] }}
-                    >
-                      {o.name.trim().slice(0, 1).toUpperCase()}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="mx-1 h-5 w-px bg-line" />
-              <IconButton label="Riproduci le animazioni" onClick={play}>
-                <Play />
-              </IconButton>
-              <button
-                type="button"
-                data-tour="preview"
-                onClick={() => setPreviewing(!previewing)}
-                title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
-                className={cx(
-                  'ml-1 flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
-                  previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
-                )}
-              >
-                <Eye />
-                {previewing ? 'Esci dall’anteprima' : <span className="max-2xl:hidden">Anteprima</span>}
-              </button>
             </div>
           </div>
+          {/* Zoom floats on the canvas, bottom right, out of the way of the page. */}
+          <div data-tour="zoom" className={cx(TOOL_GROUP, 'absolute right-3 bottom-3 z-30 shadow-pop')}>
+            <IconButton
+              label="Riduci lo zoom"
+              onClick={() => setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))}
+            >
+              <Minus />
+            </IconButton>
+            <button
+              type="button"
+              title="Adatta alla finestra"
+              onClick={() => setZoom('fit')}
+              className="h-7 min-w-12 rounded-full px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
+            >
+              {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
+            </button>
+            <IconButton
+              label="Aumenta lo zoom"
+              onClick={() => setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))}
+            >
+              <Plus />
+            </IconButton>
+            <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
+              <Maximize />
+            </IconButton>
+          </div>
+          {/* Room for the notches: the canvas starts below them. */}
+          <div className="h-[52px] shrink-0" />
           {preview && previewNodes ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <div
@@ -1922,9 +2018,9 @@ export function PageEditor({
         <aside
           data-tour="inspector"
           className={cx(
-            'shrink-0 border-l border-line bg-panel',
+            'shrink-0 rounded-[22px] bg-panel',
             assisting ? 'w-[340px] overflow-hidden' : 'w-[288px] overflow-y-auto',
-            mode === 'content' ? 'max-md:w-full max-md:flex-1 max-md:border-0' : 'max-md:hidden',
+            mode === 'content' ? 'max-md:w-full max-md:flex-1' : 'max-md:hidden',
           )}
         >
           {/* Kept mounted while hidden: the conversation survives switching panels. */}

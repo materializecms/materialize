@@ -4,6 +4,11 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **`materialize dev` resta sul tuo computer**: prima si poteva raggiungere da tutta la rete, e su una Wi-Fi condivisa qualcun altro avrebbe potuto aprire un sito nuovo e crearne l'amministratore. Per provarlo dal telefono: `--host 0.0.0.0`. `materialize start` non cambia.
+- **Nuovo aspetto del pannello**: menu, area di lavoro e pannelli dell'editor sono superfici arrotondate su un fondo più scuro; pulsanti, filtri e selettori sono a pillola.
+- Ricerca, tema e profilo si sono spostati in alto a destra, in un incavo dell'area di lavoro (sul telefono, nella barra in alto). La lingua dei contenuti resta in basso a sinistra.
+- Nell'editor i comandi sopra la tela stanno in tre incavi del suo bordo, e lo zoom è una pillola in basso a destra sulla tela. Sulle tele strette i comandi meno usati passano in un menu ⋯, così la barra non viene tagliata.
+
 ## 0.8.0 — 2026-11-07
 
 - **Un documento alla volta**: se un'altra persona sta modificando la pagina che apri, la vedi in sola lettura con chi ci lavora e da quanto, e puoi prendere il controllo. Nessuno sovrascrive più il lavoro di un altro senza saperlo, nemmeno da due schede.

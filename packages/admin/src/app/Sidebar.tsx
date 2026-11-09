@@ -1,34 +1,29 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   ArrowUpRight,
   BookOpen,
   Briefcase,
-  Compass,
   FileText,
   Folder,
   Globe,
   Images,
   LayoutGrid,
-  LogOut,
   Mail,
   Newspaper,
   Rocket,
-  Search,
   Settings,
   SlidersHorizontal,
   UserRound,
   Users,
 } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
-import { cx, Kbd, MenuItem, MenuSeparator, Popover, ThemeSwitch, TintIcon, tintOf } from '../components/ui.tsx'
+import type { ReactNode } from 'react'
+import { cx, MenuItem, Popover, TintIcon, tintOf } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
 import { intlLocale, t } from '../lib/i18n.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
-import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
-import { startPanelTour } from './PanelTour.tsx'
 import { useReleases } from './ReleasesScreen.tsx'
 
 export function collectionIcon(c: CollectionDescription): ReactNode {
@@ -70,25 +65,17 @@ export const localeName = (code: string) => {
 const sectionLabel = 'px-2 pt-5 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg uppercase'
 
 export function Sidebar() {
-  const { schema, user, locale, setLocale, openPalette } = useSession()
+  const { schema, user, locale, setLocale } = useSession()
   const update = useUpdateAvailable()
   const route = useRoute()
-  const queryClient = useQueryClient()
   const tint = useCollectionTint()
   const releases = useReleases()
   const overview = useOverview()
   const current = 'collection' in route ? route.collection : null
-  const [profile, setProfile] = useState(false)
   const countOf = (name: string) => overview.data?.counts.find((c) => c.collection === name)?.total
 
-  const logout = async () => {
-    await api.logout().catch(() => {})
-    queryClient.clear()
-    location.assign('/admin/')
-  }
-
   return (
-    <aside className="flex w-[236px] shrink-0 flex-col">
+    <aside className="flex w-[240px] shrink-0 flex-col">
       <div className="flex h-14 items-center gap-2.5 px-4">
         <Logo className="size-7" />
         <div className="min-w-0 flex-1">
@@ -104,19 +91,6 @@ export function Sidebar() {
             <ArrowUpRight className="size-3" />
           </a>
         </div>
-      </div>
-
-      <div className="px-3 pt-1 pb-1">
-        <button
-          type="button"
-          data-tour="search"
-          onClick={openPalette}
-          className="flex h-8 w-full items-center gap-2 rounded-lg border border-line bg-panel px-2.5 text-fg3 shadow-[0_1px_2px_rgb(10_10_11/0.04)] transition-colors hover:border-line2 hover:text-fg2"
-        >
-          <Search className="size-3.5" />
-          <span className="flex-1 text-left">{t('Cerca o vai a…')}</span>
-          <Kbd>⌘K</Kbd>
-        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
@@ -207,7 +181,7 @@ export function Sidebar() {
                 ref={ref}
                 type="button"
                 onClick={toggle}
-                className="flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-4"
+                className="flex h-9 w-full items-center gap-2.5 rounded-full bg-panel/60 px-3 text-fg2 hover:bg-panel hover:text-fg [&_svg]:size-4"
               >
                 <Globe />
                 <span className="flex-1 text-left">{localeName(locale)}</span>
@@ -234,64 +208,7 @@ export function Sidebar() {
             )}
           </Popover>
         )}
-
-        <div
-          data-tour="me"
-          className="flex items-center gap-1 rounded-lg border border-line bg-panel p-1 shadow-[0_1px_2px_rgb(10_10_11/0.04)]"
-        >
-          <Popover
-            side="top"
-            width={216}
-            trigger={({ toggle, ref }) => (
-              <button
-                ref={ref}
-                type="button"
-                onClick={toggle}
-                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left hover:bg-hover"
-              >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#8b5cf6] text-[12px] font-semibold text-white">
-                  {user.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] leading-tight font-medium">{user.name}</span>
-                  <span className="block truncate text-[12px] text-fg3">
-                    {user.role === 'admin' ? t('Amministratore') : t('Editor')}
-                  </span>
-                </span>
-              </button>
-            )}
-          >
-            {(close) => (
-              <div className="p-1">
-                <MenuItem
-                  icon={<UserRound />}
-                  onClick={() => {
-                    close()
-                    setProfile(true)
-                  }}
-                >
-                  {t('Il tuo profilo')}
-                </MenuItem>
-                <MenuItem
-                  icon={<Compass />}
-                  onClick={() => {
-                    close()
-                    startPanelTour()
-                  }}
-                >
-                  Tour del pannello
-                </MenuItem>
-                <MenuSeparator />
-                <MenuItem icon={<LogOut />} onClick={logout}>
-                  {t('Esci')}
-                </MenuItem>
-              </div>
-            )}
-          </Popover>
-          <ThemeSwitch compact />
-        </div>
       </div>
-      {profile && <ProfileDialog open onClose={() => setProfile(false)} />}
     </aside>
   )
 }
@@ -322,10 +239,8 @@ function NavItem({
         navigate(route)
       }}
       className={cx(
-        'flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-[14px] transition-colors',
-        active
-          ? 'bg-panel font-medium text-fg shadow-[0_0_0_1px_var(--border),0_1px_2px_rgb(10_10_11/0.05)]'
-          : 'text-fg2 hover:bg-hover hover:text-fg',
+        'flex h-9 items-center gap-2.5 rounded-full pr-3 pl-1.5 text-[14px] transition-colors',
+        active ? 'bg-panel font-medium text-fg' : 'text-fg2 hover:bg-panel/60 hover:text-fg',
       )}
     >
       {children}

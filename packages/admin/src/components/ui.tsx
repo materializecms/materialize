@@ -50,8 +50,8 @@ export function Button({
       {...props}
       disabled={props.disabled || loading}
       className={cx(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md font-medium transition-[background,opacity] select-none disabled:cursor-not-allowed',
-        size === 'sm' ? 'h-7 px-2.5 text-[13px]' : 'h-8 px-3 text-[14px]',
+        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-medium transition-[background,opacity] select-none disabled:cursor-not-allowed',
+        size === 'sm' ? 'h-7 px-3 text-[13px]' : 'h-8 px-3.5 text-[14px]',
         variants[variant],
         className,
       )}
@@ -77,7 +77,7 @@ export function IconButton({
       aria-pressed={active}
       {...props}
       className={cx(
-        'inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg2 transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-35 [&_svg]:size-4',
+        'inline-flex size-7 shrink-0 items-center justify-center rounded-full text-fg2 transition-colors hover:bg-hover hover:text-fg disabled:pointer-events-none disabled:opacity-35 [&_svg]:size-4',
         active && 'bg-accent/12 text-accent hover:bg-accent/18 hover:text-accent',
         className,
       )}
@@ -90,7 +90,7 @@ export function IconButton({
 // ---------- inputs ----------
 
 export const inputClass =
-  'w-full rounded-md border border-line2 bg-input px-2.5 text-[14px] text-fg placeholder:text-fg3 transition-colors hover:border-fg3/40 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 aria-invalid:border-danger aria-invalid:focus:ring-danger/15'
+  'w-full rounded-[10px] border border-line2 bg-input px-2.5 text-[14px] text-fg placeholder:text-fg3 transition-colors hover:border-fg3/40 focus:border-accent focus:outline-none focus:ring-3 focus:ring-accent/15 aria-invalid:border-danger aria-invalid:focus:ring-danger/15'
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cx(inputClass, 'h-8', className)} />
@@ -162,7 +162,7 @@ export function Segmented<T extends string>({
   className?: string
 }) {
   return (
-    <div role="radiogroup" className={cx('inline-flex rounded-md bg-seg p-0.5', className)}>
+    <div role="radiogroup" className={cx('inline-flex rounded-full bg-seg p-0.5', className)}>
       {options.map((o) => (
         // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
         <button
@@ -173,7 +173,7 @@ export function Segmented<T extends string>({
           title={o.title}
           onClick={() => onChange(o.value)}
           className={cx(
-            'inline-flex flex-1 items-center justify-center gap-1.5 rounded-[5px] px-2.5 font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
+            'inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
             size === 'sm' ? 'h-6 text-[13px]' : 'h-7 text-[14px]',
             value === o.value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
           )}
@@ -234,7 +234,7 @@ export function ThemeSwitch({ compact }: { compact?: boolean }) {
     )
   }
   return (
-    <div role="radiogroup" aria-label={t('Tema')} className="inline-flex rounded-md bg-seg p-0.5">
+    <div role="radiogroup" aria-label={t('Tema')} className="inline-flex rounded-full bg-seg p-0.5">
       {THEMES.map((th) => (
         // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
         <button
@@ -246,7 +246,7 @@ export function ThemeSwitch({ compact }: { compact?: boolean }) {
           aria-label={t(th.label)}
           onClick={() => setTheme(th.value)}
           className={cx(
-            'inline-flex h-6 w-7 items-center justify-center rounded-[5px] transition-colors [&_svg]:size-3.5',
+            'inline-flex h-6 w-7 items-center justify-center rounded-full transition-colors [&_svg]:size-3.5',
             theme === th.value ? 'bg-panel text-fg shadow-sm' : 'text-fg3 hover:text-fg',
           )}
         >
@@ -284,8 +284,8 @@ export function TintIcon({
       style={{ color, backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
       className={cx(
         'inline-flex shrink-0 items-center justify-center',
-        size === 'sm' && 'size-5 rounded-[5px] [&_svg]:size-3',
-        size === 'md' && 'size-7 rounded-md [&_svg]:size-3.5',
+        size === 'sm' && 'size-6 rounded-full [&_svg]:size-3',
+        size === 'md' && 'size-7 rounded-full [&_svg]:size-3.5',
         size === 'lg' && 'size-9 rounded-lg [&_svg]:size-[18px]',
       )}
     >

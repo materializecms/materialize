@@ -181,7 +181,7 @@ const STEPS: TourStep<LeftTab>[] = [
     part: 'Sulla tela',
     title: 'Selezionare e scrivere',
     text: 'Clic per selezionare, doppio clic su un testo per scriverci, trascina per spostare. ⇧ clic o un riquadro sul vuoto selezionano più elementi; Invio entra in un contenitore, Esc esce. Il tasto destro apre il menu dell’elemento: duplica, raggruppa, crea un componente.',
-    target: '[data-tour="center"] > :nth-child(2)',
+    target: '[data-tour="center"] > :last-child',
   },
   {
     part: 'A destra',
@@ -196,9 +196,9 @@ const STEPS: TourStep<LeftTab>[] = [
     target: '[data-tour="devices"]',
   },
   {
-    part: 'In alto',
+    part: 'Sulla tela',
     title: 'Zoom e anteprima',
-    text: 'Avvicina o adatta la tela alla finestra. Anteprima prova la pagina come sul sito, con scroll, mouse e animazioni.',
+    text: 'In basso a destra avvicini o adatti la tela alla finestra. Anteprima, in alto, prova la pagina come sul sito, con scroll, mouse e animazioni.',
     target: '[data-tour="zoom"], [data-tour="preview"]',
   },
   {

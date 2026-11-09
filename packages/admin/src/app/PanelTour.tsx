@@ -75,7 +75,7 @@ const STEPS: TourStep[] = [
   {
     part: 'Fine',
     title: 'Tutto qui',
-    text: 'Quando apri una pagina, un altro tour ti presenta l’editor. Questo lo ritrovi nel menu del tuo profilo, in basso a sinistra, e cercando «tour» con ⌘K.',
+    text: 'Quando apri una pagina, un altro tour ti presenta l’editor. Questo lo ritrovi nel menu del tuo profilo, in alto a destra, e cercando «tour» con ⌘K.',
   },
 ]
 

@@ -22,6 +22,7 @@ import { PanelTour } from './PanelTour.tsx'
 import { ReleasesScreen } from './ReleasesScreen.tsx'
 import { SetupWizard } from './Setup.tsx'
 import { Sidebar } from './Sidebar.tsx'
+import { WorkspaceTools } from './WorkspaceTools.tsx'
 
 export function App() {
   // The whole panel is drawn again in the new language when it changes.
@@ -133,10 +134,10 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
 
   return (
     <SessionContext.Provider value={session}>
-      <div className="flex h-full min-h-0 flex-col bg-bg md:flex-row">
+      <div className="flex h-full min-h-0 flex-col bg-shell md:flex-row">
         {!fullscreen && (
           <>
-            <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-2 md:hidden">
+            <header className="flex h-14 shrink-0 items-center gap-2 px-2 md:hidden">
               <button
                 type="button"
                 aria-label="Menu"
@@ -147,7 +148,10 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
                 <Menu className="size-5" />
               </button>
               <Logo className="size-6" />
-              <span className="truncate text-[14px] font-semibold">{schema.site.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{schema.site.name}</span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <WorkspaceTools compact />
+              </div>
             </header>
             {drawer && (
               <button
@@ -159,7 +163,7 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
             )}
             <div
               className={cx(
-                'flex max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:bg-bg max-md:shadow-pop max-md:transition-transform max-md:duration-200',
+                'flex max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:bg-shell max-md:shadow-pop max-md:transition-transform max-md:duration-200',
                 !drawer && 'max-md:-translate-x-full max-md:invisible',
               )}
             >
@@ -169,11 +173,16 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
         )}
         <main
           className={cx(
-            'flex min-h-0 min-w-0 flex-1 flex-col',
+            'relative flex min-h-0 min-w-0 flex-1 flex-col',
             !fullscreen &&
-              'overflow-hidden bg-panel md:my-2 md:mr-2 md:rounded-xl md:border md:border-line md:shadow-[0_1px_2px_rgb(10_10_11/0.04),0_8px_24px_rgb(10_10_11/0.04)]',
+              'overflow-hidden bg-panel max-md:mx-2 max-md:mb-2 max-md:rounded-[20px] md:my-2.5 md:mr-2.5 md:rounded-[24px] md:pt-12',
           )}
         >
+          {!fullscreen && (
+            <div className="mz-notch absolute top-0 right-10 z-20 max-md:hidden">
+              <WorkspaceTools />
+            </div>
+          )}
           {route.name === 'home' ? (
             <Overview />
           ) : route.name === 'media' ? (

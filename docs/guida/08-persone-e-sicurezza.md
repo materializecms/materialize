@@ -22,7 +22,7 @@ Dal menu **⋯** di una persona un amministratore può cambiare ruolo, corregger
 
 ## Il tuo profilo
 
-Dal tuo nome, in basso a sinistra, apri **Il tuo profilo**: nome, email (per cambiarla serve la password attuale) e password, di almeno 10 caratteri.
+Dal cerchio con la tua iniziale, in alto a destra, apri **Il tuo profilo**: nome, email (per cambiarla serve la password attuale) e password, di almeno 10 caratteri.
 
 ## Verifica in due passaggi
 

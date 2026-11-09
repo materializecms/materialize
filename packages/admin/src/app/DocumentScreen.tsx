@@ -72,6 +72,9 @@ import { TurnGate, useTurn } from './TurnGate.tsx'
  */
 export const openedAsNew = new Set<string>()
 
+/** The work surface below the top bar: a rounded card on the shell, like the rest of the panel. */
+const SURFACE = 'mx-2.5 mb-2.5 overflow-hidden rounded-[22px] bg-panel'
+
 export function DocumentScreen({
   collection,
   id,
@@ -490,7 +493,12 @@ function Editor({
   return (
     <FormContext.Provider value={formState}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <header className="relative flex h-[52px] shrink-0 items-center gap-1 border-b border-line bg-panel px-2 sm:gap-2 sm:px-3">
+        <header
+          className={cx(
+            'relative flex h-[52px] shrink-0 items-center gap-1 px-2 sm:gap-2 sm:px-3',
+            collection.singleton ? 'border-b border-line bg-panel' : 'bg-shell',
+          )}
+        >
           {/* A singleton has no list to go back to: it stays in the sidebar like any section. */}
           {!collection.singleton && (
             <button
@@ -579,14 +587,13 @@ function Editor({
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <div className="flex items-center gap-1 max-sm:hidden">
+            <div className="mz-pill max-sm:hidden">
               <IconButton label="Annulla (⌘Z)" disabled={!history.canUndo} onClick={history.undo}>
                 <Undo2 />
               </IconButton>
               <IconButton label="Ripristina (⇧⌘Z)" disabled={!history.canRedo} onClick={history.redo}>
                 <Redo2 />
               </IconButton>
-              <div className="mx-1 h-5 w-px bg-line" />
               <ThemeSwitch compact />
             </div>
             {pageField && doc && (
@@ -756,7 +763,7 @@ function Editor({
         </header>
 
         {pageField ? (
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 gap-2 px-2.5 pb-2.5">
             <PageEditor
               collection={collection}
               pageField={pageField}
@@ -777,7 +784,7 @@ function Editor({
               }
             />
             {historyOpen && doc && (
-              <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel px-4 py-3.5">
+              <aside className="w-[280px] shrink-0 overflow-y-auto rounded-[22px] bg-panel px-4 py-3.5">
                 <div className="mb-1 flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-fg3">
                     <HistoryIcon className="size-3.5" /> Cronologia
@@ -806,16 +813,18 @@ function Editor({
             )}
           </div>
         ) : mode === 'design' && blocksField ? (
-          <DesignMode
-            collection={collection}
-            blocksField={blocksField}
-            data={history.value}
-            onChange={set}
-            issues={visibleIssues}
-            focusRequest={focusRequest}
-          />
+          <div className={cx('flex min-h-0 flex-1', !collection.singleton && SURFACE)}>
+            <DesignMode
+              collection={collection}
+              blocksField={blocksField}
+              data={history.value}
+              onChange={set}
+              issues={visibleIssues}
+              focusRequest={focusRequest}
+            />
+          </div>
         ) : (
-          <div className="flex min-h-0 flex-1">
+          <div className={cx('flex min-h-0 flex-1', !collection.singleton && SURFACE)}>
             <div className="min-w-0 flex-1 overflow-y-auto">
               <div className="mx-auto max-w-[720px] px-4 pt-6 pb-32 sm:px-8 sm:pt-10">
                 {titleDef && (
