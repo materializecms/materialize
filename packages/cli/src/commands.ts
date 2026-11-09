@@ -26,6 +26,7 @@ import {
   startServer,
   VERSION,
 } from '@materializecms/server'
+import { listenHost, onlyThisComputer } from './host.ts'
 import { findConfig, loadConfig } from './load-config.ts'
 import { buildSite, exportFonts, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 import { RESTART } from './supervisor.ts'
@@ -57,7 +58,8 @@ ${accent('materialize')} ${dim(VERSION)}
 
 Opzioni
   --port <numero>      Porta del server (predefinita: quella del config, 4321)
-  --host <indirizzo>   Indirizzo su cui ascoltare (predefinito: tutti; 127.0.0.1 dietro un proxy)
+  --host <indirizzo>   Indirizzo su cui ascoltare. Con dev: solo questo computer (0.0.0.0 per provarlo dal
+                       telefono sulla stessa rete). Con start: tutti (127.0.0.1 dietro un proxy)
   --url <indirizzo>    Con mcp: il CMS a cui collegarsi (predefinito: http://localhost:<porta>)
   --no-supervisor      Con start: senza supervisore (se il server lo tiene acceso un altro programma)
 
@@ -119,7 +121,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
 
   const flag = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
   const port = Number(flag('--port') ?? config.server.port)
-  const host = flag('--host') ?? process.env.MATERIALIZE_HOST
+  const host = listenHost(mode, flag('--host'), process.env.MATERIALIZE_HOST)
   let current = config
   // The site handler is swapped in once Astro is ready; until then visitors get a short wait page.
   let siteHandler: Handler = (_req, res) => {
@@ -213,6 +215,10 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   console.log(`  ${dim('Database')}    ${config.database.url}`)
   console.log(`  ${dim('Collezioni')}  ${summary(config)}`)
   console.log()
+  if (mode === 'dev' && onlyThisComputer(host)) {
+    console.log(dim('  Raggiungibile solo da questo computer. Per provarlo dal telefono: --host 0.0.0.0'))
+    console.log()
+  }
   if ((await createAuthStore(server.database.db).countUsers()) > 0) {
     if (setupToken) await rm(join(cwd, INSTALL_CODE), { force: true })
   } else {

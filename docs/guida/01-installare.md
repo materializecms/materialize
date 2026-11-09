@@ -71,7 +71,7 @@ cd il-mio-sito
 npm run dev
 ```
 
-e apri `http://localhost:4321/admin`. Sul tuo computer non serve il link di installazione.
+e apri `http://localhost:4321/admin`. Sul tuo computer non serve il link di installazione: in sviluppo il sito si raggiunge solo da lì, così su una Wi-Fi condivisa nessun altro può aprirlo e creare per primo l'amministratore. Per provarlo dal telefono sulla stessa rete, avvialo con `npm run dev -- --host 0.0.0.0`.
 
 ## Finire l'installazione nel browser
 
