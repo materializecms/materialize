@@ -4,6 +4,7 @@ import { type DragEvent, type ReactNode, useState } from 'react'
 import { SelectBox } from '../app/ListActions.tsx'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import type { Upload } from './uploads.ts'
 
 const PAGE = 60
@@ -58,7 +59,7 @@ export function DropZone({
       {over && (
         <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-accent bg-accent/8 backdrop-blur-[1px]">
           <span className="flex items-center gap-2 rounded-full bg-panel px-4 py-2 text-[14px] font-medium text-accent shadow-pop">
-            <ImageUp className="size-4" /> Rilascia per caricare
+            <ImageUp className="size-4" /> {t('Rilascia per caricare')}
           </span>
         </div>
       )}
@@ -103,15 +104,15 @@ export function MediaGrid({
   }
   if (!items.length && !uploads.length) {
     return search ? (
-      <EmptyState icon={<ImageUp />} title="Nessun risultato">
-        Nessuna immagine corrisponde a “{search}”.
+      <EmptyState icon={<ImageUp />} title={t('Nessun risultato')}>
+        {t('Nessuna immagine corrisponde a “{search}”.', { search })}
       </EmptyState>
     ) : (
-      <EmptyState icon={<ImageUp />} title="La libreria è vuota">
-        Trascina qui le immagini oppure sceglile dal computer.
+      <EmptyState icon={<ImageUp />} title={t('La libreria è vuota')}>
+        {t('Trascina qui le immagini oppure sceglile dal computer.')}
         <div className="mt-3">
           <Button variant="primary" size="sm" onClick={onUploadClick}>
-            Scegli dal computer
+            {t('Scegli dal computer')}
           </Button>
         </div>
       </EmptyState>
@@ -129,7 +130,7 @@ export function MediaGrid({
                 <span className="flex items-start gap-1 rounded-md bg-panel/95 p-1.5 text-[12px] leading-snug text-danger">
                   <CircleAlert className="mt-px size-3.5 shrink-0" />
                   <span className="flex-1">{u.error}</span>
-                  <button type="button" aria-label="Chiudi" onClick={() => onDismiss(u.id)}>
+                  <button type="button" aria-label={t('Chiudi')} onClick={() => onDismiss(u.id)}>
                     <X className="size-3.5" />
                   </button>
                 </span>
@@ -163,7 +164,7 @@ export function MediaGrid({
                 {asset.url.endsWith('.glb') ? (
                   <span className="flex aspect-square w-full flex-col items-center justify-center gap-1 bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:12px_12px] text-fg3">
                     <Box className="size-8" />
-                    <span className="font-mono text-[11px]">Modello 3D</span>
+                    <span className="font-mono text-[11px]">{t('Modello 3D')}</span>
                   </span>
                 ) : (
                   <img
@@ -180,7 +181,7 @@ export function MediaGrid({
               {onCheck && (
                 <SelectBox
                   checked={ticked}
-                  label={`Seleziona ${asset.filename}`}
+                  label={t('Seleziona {name}', { name: asset.filename })}
                   onToggle={(e) => onCheck(asset, e, items)}
                   className={cx(
                     'absolute top-2 left-2 shadow-sm',
@@ -196,7 +197,7 @@ export function MediaGrid({
       {list.hasNextPage && (
         <div className="flex justify-center pt-4">
           <Button size="sm" onClick={() => list.fetchNextPage()} loading={list.isFetchingNextPage}>
-            Mostra altre
+            {t('Mostra altre')}
           </Button>
         </div>
       )}

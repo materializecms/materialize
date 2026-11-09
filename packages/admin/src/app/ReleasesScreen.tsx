@@ -27,6 +27,7 @@ import {
 } from '../components/ui.tsx'
 import { ApiError, api, type DocumentSummary, type Release } from '../lib/api.ts'
 import { relativeTime, whenDate } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
 import { When } from './ScheduleMenu.tsx'
@@ -39,10 +40,10 @@ export function useReleases() {
 
 const fail = (error: unknown) => {
   if (error instanceof ApiError && error.code === 'release_not_ready') {
-    toast('Alcune pagine non sono pronte: non è uscito niente', 'error')
+    toast(t('Alcune pagine non sono pronte: non è uscito niente'), 'error')
     return
   }
-  toast(error instanceof Error ? error.message : 'Errore', 'error')
+  toast(error instanceof Error ? error.message : t('Errore'), 'error')
 }
 
 /**
@@ -73,11 +74,11 @@ export function ReleasesScreen() {
       <ScreenHeader
         icon={<Rocket />}
         color="#f97316"
-        title="Rilasci"
-        subtitle="Più pagine e articoli che escono insieme, subito o a un’ora stabilita"
+        title={t('Rilasci')}
+        subtitle={t('Più pagine e articoli che escono insieme, subito o a un’ora stabilita')}
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
-            Nuovo rilascio
+            {t('Nuovo rilascio')}
           </Button>
         }
       />
@@ -87,14 +88,14 @@ export function ReleasesScreen() {
             <Spinner />
           </div>
         ) : !active.length ? (
-          <EmptyState icon={<PackageCheck />} title="Nessun rilascio in preparazione">
+          <EmptyState icon={<PackageCheck />} title={t('Nessun rilascio in preparazione')}>
             <p>
-              Raccogli in un rilascio le pagine di un lancio, una collezione o una campagna: escono tutte nello stesso
-              momento, e se una non è pronta non esce niente. Puoi anche togliere dal sito le pagine vecchie nello
-              stesso istante.
+              {t(
+                'Raccogli in un rilascio le pagine di un lancio, una collezione o una campagna: escono tutte nello stesso momento, e se una non è pronta non esce niente. Puoi anche togliere dal sito le pagine vecchie nello stesso istante.',
+              )}
             </p>
             <p className="mt-2">
-              Aggiungi le pagine da qui o, dentro una pagina, da Altre azioni → Aggiungi a un rilascio.
+              {t('Aggiungi le pagine da qui o, dentro una pagina, da Altre azioni → Aggiungi a un rilascio.')}
             </p>
           </EmptyState>
         ) : (
@@ -103,15 +104,15 @@ export function ReleasesScreen() {
 
         {published.length > 0 && (
           <section className="pt-6">
-            <h2 className="mb-2 px-1 text-[12px] font-semibold tracking-[0.06em] text-fg3 uppercase">Già usciti</h2>
+            <h2 className="mb-2 px-1 text-[12px] font-semibold tracking-[0.06em] text-fg3 uppercase">
+              {t('Già usciti')}
+            </h2>
             <ul className="divide-y divide-line rounded-xl border border-line bg-panel">
               {published.map((r) => (
                 <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
                   <Check className="size-4 shrink-0 text-ok" />
                   <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-                  <span className="text-[13px] text-fg3">
-                    {r.items.length === 1 ? '1 pagina' : `${r.items.length} pagine`}
-                  </span>
+                  <span className="text-[13px] text-fg3">{tn(r.items.length, '1 pagina', '{n} pagine')}</span>
                   <span
                     className="w-28 text-right text-[13px] text-fg3"
                     title={r.publishedAt ? whenDate(r.publishedAt) : ''}
@@ -128,12 +129,12 @@ export function ReleasesScreen() {
       <Dialog
         open={creating}
         onClose={() => setCreating(false)}
-        title="Nuovo rilascio"
+        title={t('Nuovo rilascio')}
         footer={
           <>
-            <Button onClick={() => setCreating(false)}>Annulla</Button>
+            <Button onClick={() => setCreating(false)}>{t('Annulla')}</Button>
             <Button variant="primary" disabled={!name.trim()} onClick={() => void create()}>
-              Crea
+              {t('Crea')}
             </Button>
           </>
         }
@@ -148,7 +149,7 @@ export function ReleasesScreen() {
             data-autofocus
             value={name}
             maxLength={120}
-            placeholder="Es. Collezione inverno, Saldi di gennaio"
+            placeholder={t('Es. Collezione inverno, Saldi di gennaio')}
             onChange={(e) => setName(e.target.value)}
           />
         </form>
@@ -179,7 +180,7 @@ function ReleaseCard({ release }: { release: Release }) {
     setBusy(true)
     try {
       await api.publishRelease(release.id)
-      toast(`«${release.name}» è online`)
+      toast(t('«{name}» è online', { name: release.name }))
       void queryClient.invalidateQueries({ queryKey: ['overview'] })
       void queryClient.invalidateQueries({ queryKey: ['list'] })
     } catch (error) {
@@ -194,7 +195,7 @@ function ReleaseCard({ release }: { release: Release }) {
     <article className="rounded-xl border border-line bg-panel shadow-[0_1px_2px_rgb(10_10_11/0.04)]">
       <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
         <input
-          aria-label="Nome del rilascio"
+          aria-label={t('Nome del rilascio')}
           value={name}
           maxLength={120}
           onChange={(e) => setName(e.target.value)}
@@ -209,28 +210,34 @@ function ReleaseCard({ release }: { release: Release }) {
         />
         {failed ? (
           <span className="inline-flex items-center gap-1 rounded-md bg-danger/10 px-2 py-0.5 text-[12px] font-medium text-danger">
-            <AlertTriangle className="size-3.5" /> Non uscito
+            <AlertTriangle className="size-3.5" /> {t('Non uscito')}
           </span>
         ) : release.runAt ? (
           <span className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-0.5 text-[12px] font-medium text-accent">
-            <CalendarClock className="size-3.5" /> Esce {whenDate(release.runAt)}
+            <CalendarClock className="size-3.5" /> {t('Esce {when}', { when: whenDate(release.runAt) })}
           </span>
         ) : (
-          <span className="rounded-md bg-seg px-2 py-0.5 text-[12px] font-medium text-fg2">In preparazione</span>
+          <span className="rounded-md bg-seg px-2 py-0.5 text-[12px] font-medium text-fg2">{t('In preparazione')}</span>
         )}
       </header>
 
       {failed && release.error && (
         <div className="mx-4 mt-3 rounded-md bg-danger/10 px-3 py-2 text-[13px] leading-snug text-danger">
-          <p className="font-medium">Non è uscito niente{release.runAt ? ` (${whenDate(release.runAt)})` : ''}.</p>
+          <p className="font-medium">
+            {release.runAt
+              ? t('Non è uscito niente ({when}).', { when: whenDate(release.runAt) })
+              : t('Non è uscito niente.')}
+          </p>
           <p className="mt-0.5">{release.error}.</p>
-          <p className="mt-0.5 text-danger/80">Sistema le pagine e programma di nuovo, oppure pubblica adesso.</p>
+          <p className="mt-0.5 text-danger/80">
+            {t('Sistema le pagine e programma di nuovo, oppure pubblica adesso.')}
+          </p>
         </div>
       )}
 
       {release.items.length === 0 ? (
         <p className="px-4 py-5 text-[13px] text-fg3">
-          Ancora vuoto: aggiungi le pagine e gli articoli che devono uscire insieme.
+          {t('Ancora vuoto: aggiungi le pagine e gli articoli che devono uscire insieme.')}
         </p>
       ) : (
         <ul className="divide-y divide-line">
@@ -242,11 +249,11 @@ function ReleaseCard({ release }: { release: Release }) {
                 onClick={() => navigate({ name: 'document', collection: item.collection, id: item.documentId })}
                 className="min-w-40 flex-1 truncate text-left font-medium hover:underline"
               >
-                {item.title || 'Senza titolo'}
+                {item.title || t('Senza titolo')}
               </button>
               <StatusBadge status={item.status} short />
               <select
-                aria-label={`Cosa succede a ${item.title}`}
+                aria-label={t('Cosa succede a {title}', { title: item.title })}
                 value={item.action}
                 onChange={(e) =>
                   void run(() =>
@@ -255,13 +262,13 @@ function ReleaseCard({ release }: { release: Release }) {
                 }
                 className="h-7 rounded-md border border-line bg-panel px-1.5 text-[13px]"
               >
-                <option value="publish">Pubblica</option>
+                <option value="publish">{t('Pubblica')}</option>
                 <option value="unpublish" disabled={item.status === 'draft'}>
-                  Togli dal sito
+                  {t('Togli dal sito')}
                 </option>
               </select>
               <IconButton
-                label="Togli dal rilascio"
+                label={t('Togli dal rilascio')}
                 onClick={() => void run(() => api.removeReleaseItem(release.id, item.documentId))}
               >
                 <X />
@@ -279,7 +286,7 @@ function ReleaseCard({ release }: { release: Release }) {
       <footer className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3">
         <AddItem release={release} onAdded={refresh} />
         <span className="flex-1" />
-        <IconButton label="Annulla il rilascio" onClick={() => setConfirmCancel(true)}>
+        <IconButton label={t('Annulla il rilascio')} onClick={() => setConfirmCancel(true)}>
           <Trash2 />
         </IconButton>
         <Popover
@@ -287,24 +294,26 @@ function ReleaseCard({ release }: { release: Release }) {
           width={300}
           trigger={({ toggle, ref }) => (
             <Button ref={ref} size="sm" icon={<CalendarClock className="size-3.5" />} onClick={toggle}>
-              {release.runAt && !failed ? 'Cambia ora' : 'Programma'}
+              {release.runAt && !failed ? t('Cambia ora') : t('Programma')}
             </Button>
           )}
         >
           {() => (
             <div className="p-3.5">
               <When
-                title="Esce il"
-                hint="Escono le bozze come sono in quel momento. Se una pagina non è pronta, non esce niente e qui trovi il motivo."
+                title={t('Esce il')}
+                hint={t(
+                  'Escono le bozze come sono in quel momento. Se una pagina non è pronta, non esce niente e qui trovi il motivo.',
+                )}
                 current={
                   release.runAt && !failed ? { runAt: release.runAt, createdByName: release.scheduledByName } : null
                 }
                 disabled={!release.items.length}
-                disabledHint="Aggiungi prima qualcosa al rilascio."
+                disabledHint={t('Aggiungi prima qualcosa al rilascio.')}
                 onSet={async (at) => {
                   await api.scheduleRelease(release.id, at)
                   await refresh()
-                  if (at) toast(`«${release.name}» uscirà ${whenDate(at)}`)
+                  if (at) toast(t('«{name}» uscirà {when}', { name: release.name, when: whenDate(at) }))
                 }}
                 onError={fail}
               />
@@ -317,20 +326,20 @@ function ReleaseCard({ release }: { release: Release }) {
           icon={<Rocket className="size-3.5" />}
           loading={busy}
           disabled={!release.items.length || blocked > 0}
-          title={blocked ? 'Prima sistema le pagine segnalate' : undefined}
+          title={blocked ? t('Prima sistema le pagine segnalate') : undefined}
           onClick={() => void publish()}
         >
-          Pubblica tutto ora
+          {t('Pubblica tutto ora')}
         </Button>
       </footer>
 
       <Dialog
         open={confirmCancel}
         onClose={() => setConfirmCancel(false)}
-        title={`Annullare «${release.name}»?`}
+        title={t('Annullare «{name}»?', { name: release.name })}
         footer={
           <>
-            <Button onClick={() => setConfirmCancel(false)}>No</Button>
+            <Button onClick={() => setConfirmCancel(false)}>{t('No')}</Button>
             <Button
               variant="danger"
               onClick={() => {
@@ -338,12 +347,12 @@ function ReleaseCard({ release }: { release: Release }) {
                 void run(() => api.cancelRelease(release.id))
               }}
             >
-              Annulla il rilascio
+              {t('Annulla il rilascio')}
             </Button>
           </>
         }
       >
-        Le pagine restano come sono, in bozza o online: si scioglie solo il gruppo.
+        {t('Le pagine restano come sono, in bozza o online: si scioglie solo il gruppo.')}
       </Dialog>
     </article>
   )
@@ -371,7 +380,7 @@ function AddItem({ release, onAdded }: { release: Release; onAdded: () => void }
       width={340}
       trigger={({ toggle, ref }) => (
         <Button ref={ref} size="sm" icon={<Plus className="size-3.5" />} onClick={toggle}>
-          Aggiungi
+          {t('Aggiungi')}
         </Button>
       )}
     >
@@ -383,7 +392,7 @@ function AddItem({ release, onAdded }: { release: Release; onAdded: () => void }
               data-autofocus
               autoFocus
               value={search}
-              placeholder="Cerca una pagina o un articolo"
+              placeholder={t('Cerca una pagina o un articolo')}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 pl-7"
             />
@@ -394,7 +403,7 @@ function AddItem({ release, onAdded }: { release: Release; onAdded: () => void }
                 <Spinner />
               </li>
             ) : !results.data?.length ? (
-              <li className="px-2 py-3 text-[13px] text-fg3">Niente con queste parole.</li>
+              <li className="px-2 py-3 text-[13px] text-fg3">{t('Niente con queste parole.')}</li>
             ) : (
               results.data.map((doc) => (
                 <li key={doc.id}>
@@ -414,9 +423,9 @@ function AddItem({ release, onAdded }: { release: Release; onAdded: () => void }
                       'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-hover disabled:opacity-50',
                     )}
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium">{doc.title || 'Senza titolo'}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{doc.title || t('Senza titolo')}</span>
                     <span className="shrink-0 text-[12px] text-fg3">
-                      {inRelease.has(doc.id) ? 'già dentro' : doc.label}
+                      {inRelease.has(doc.id) ? t('già dentro') : doc.label}
                     </span>
                   </button>
                 </li>

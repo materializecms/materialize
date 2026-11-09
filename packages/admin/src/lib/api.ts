@@ -5,6 +5,8 @@ import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { UpdateSettings, UpdateStatus } from '@materializecms/core/updates'
 import type { BrandVoice } from '@materializecms/core/voice'
 
+import { t } from './i18n.ts'
+
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
 export type DocumentStatus = 'draft' | 'published' | 'changed'
@@ -466,7 +468,7 @@ async function streamEvents<E>(path: string, input: unknown, onEvent: (e: E) => 
     })
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error
-    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+    throw new ApiError(0, 'offline', t('Il server non risponde. Controlla che materialize dev sia attivo.'))
   }
   if (!res.ok || !res.body) throw errorFrom(res.status, await res.json().catch(() => null))
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
@@ -578,7 +580,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
-    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+    throw new ApiError(0, 'offline', t('Il server non risponde. Controlla che materialize dev sia attivo.'))
   }
   if (res.status === 204) return undefined as T
   const json = await res.json().catch(() => null)
@@ -592,47 +594,47 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
   try {
     res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: form })
   } catch {
-    throw new ApiError(0, 'offline', 'Il server non risponde. Controlla che materialize dev sia attivo.')
+    throw new ApiError(0, 'offline', t('Il server non risponde. Controlla che materialize dev sia attivo.'))
   }
   const json = await res.json().catch(() => null)
   if (!res.ok) throw errorFrom(res.status, json)
   return json as T
 }
 
-// The API speaks English; the admin speaks to editors in Italian.
-const MESSAGES: Record<string, string> = {
-  invalid_credentials: 'Email o password non corretti',
-  unauthenticated: 'Accedi per continuare',
-  forbidden: 'Solo gli amministratori possono farlo',
-  invalid_content: 'Alcuni campi vanno sistemati',
-  invalid_request: 'Controlla i dati inseriti',
-  slug_taken: 'Questo indirizzo è già usato da un altro documento',
-  singleton_exists: 'Questo documento esiste già',
-  already_set_up: 'Un amministratore esiste già',
-  not_found: 'Documento non trovato',
-  file_too_large: 'Il file è troppo grande: al massimo 25 MB',
-  missing_file: 'Nessun file ricevuto',
-  email_taken: 'Questo indirizzo ha già un account',
-  last_admin: 'Serve almeno un amministratore: nomina prima qualcun altro',
-  remove_self: 'Non puoi rimuovere te stesso',
-  invalid_link: 'Il link non è valido o è scaduto: chiedine uno nuovo a chi ti ha invitato',
-  wrong_password: 'La password attuale non è corretta',
-  mail_not_configured: 'Prima configura l’invio delle email: server e mittente',
-  ai_not_configured: 'L’AI non è configurata: Impostazioni → AI e MCP',
-  translation_exists: 'Questa lingua esiste già',
-  unknown_locale: 'Questa lingua non è attiva: Impostazioni → Lingue',
-  session_required: 'Questa azione si fa dal pannello',
-  invalid_code: 'Il codice non è corretto',
-  challenge_expired: 'È passato troppo tempo: accedi di nuovo',
-  two_factor_required: 'Questo sito richiede la verifica in due passaggi',
-  two_factor_off: 'Prima attiva la verifica in due passaggi per te',
-  no_setup: 'Ricomincia l’attivazione',
-  backups_unavailable: 'Il database è ospitato da un fornitore: i backup li fa lui',
-  import_expired: 'È passato troppo tempo: leggi di nuovo il sito',
-}
+// The API speaks English; the admin speaks to editors in the panel's language.
+const messages = (): Record<string, string> => ({
+  invalid_credentials: t('Email o password non corretti'),
+  unauthenticated: t('Accedi per continuare'),
+  forbidden: t('Solo gli amministratori possono farlo'),
+  invalid_content: t('Alcuni campi vanno sistemati'),
+  invalid_request: t('Controlla i dati inseriti'),
+  slug_taken: t('Questo indirizzo è già usato da un altro documento'),
+  singleton_exists: t('Questo documento esiste già'),
+  already_set_up: t('Un amministratore esiste già'),
+  not_found: t('Documento non trovato'),
+  file_too_large: t('Il file è troppo grande: al massimo 25 MB'),
+  missing_file: t('Nessun file ricevuto'),
+  email_taken: t('Questo indirizzo ha già un account'),
+  last_admin: t('Serve almeno un amministratore: nomina prima qualcun altro'),
+  remove_self: t('Non puoi rimuovere te stesso'),
+  invalid_link: t('Il link non è valido o è scaduto: chiedine uno nuovo a chi ti ha invitato'),
+  wrong_password: t('La password attuale non è corretta'),
+  mail_not_configured: t('Prima configura l’invio delle email: server e mittente'),
+  ai_not_configured: t('L’AI non è configurata: Impostazioni → AI e MCP'),
+  translation_exists: t('Questa lingua esiste già'),
+  unknown_locale: t('Questa lingua non è attiva: Impostazioni → Lingue'),
+  session_required: t('Questa azione si fa dal pannello'),
+  invalid_code: t('Il codice non è corretto'),
+  challenge_expired: t('È passato troppo tempo: accedi di nuovo'),
+  two_factor_required: t('Questo sito richiede la verifica in due passaggi'),
+  two_factor_off: t('Prima attiva la verifica in due passaggi per te'),
+  no_setup: t('Ricomincia l’attivazione'),
+  backups_unavailable: t('Il database è ospitato da un fornitore: i backup li fa lui'),
+  import_expired: t('È passato troppo tempo: leggi di nuovo il sito'),
+})
 
 function translate(code: string | undefined, fallback: string | undefined): string {
-  return (code && MESSAGES[code]) || fallback || 'Qualcosa è andato storto'
+  return (code && messages()[code]) || fallback || t('Qualcosa è andato storto')
 }
 
 const q = (params: Record<string, string | number | undefined>) => {
@@ -969,7 +971,7 @@ export const api = {
       xhr.responseType = 'json'
       xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total)
       xhr.onload = () => (xhr.status < 300 ? resolve(xhr.response) : reject(errorFrom(xhr.status, xhr.response)))
-      xhr.onerror = () => reject(new ApiError(0, 'offline', 'Caricamento interrotto: controlla la connessione'))
+      xhr.onerror = () => reject(new ApiError(0, 'offline', t('Caricamento interrotto: controlla la connessione')))
       const form = new FormData()
       form.set('file', file)
       xhr.send(form)

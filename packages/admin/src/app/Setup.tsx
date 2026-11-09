@@ -3,22 +3,24 @@ import { ArrowLeft, CircleAlert, CircleCheck, CircleX, KeyRound } from 'lucide-r
 import { type FormEvent, type ReactNode, useState } from 'react'
 import { Button, cx, Input, inputClass } from '../components/ui.tsx'
 import { ApiError, api, type SetupStatus } from '../lib/api.ts'
-import { Logo } from './Auth.tsx'
+import { t, tx } from '../lib/i18n.ts'
+import { LanguageSwitch, Logo } from './Auth.tsx'
 import { localeName } from './Sidebar.tsx'
 
 const LANGUAGES = ['it', 'en', 'es', 'fr', 'de', 'pt']
-const STEPS = ['Controllo', 'Il sito', 'Il tuo account'] as const
+const steps = () => [t('Controllo'), t('Il sito'), t('Il tuo account')]
 
 const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
 
-function Frame({ step, children }: { step?: number; children: ReactNode }) {
+/** One screen of the wizard; `languages` adds the switch between the panel's languages below it. */
+function Frame({ step, languages, children }: { step?: number; languages?: boolean; children: ReactNode }) {
   return (
     <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
       <div className="mz-card w-full max-w-[468px]">
         <Logo className="mb-6 size-9" />
         {step !== undefined && (
-          <ol className="mb-6 flex gap-1.5" aria-label="Passi dell’installazione">
-            {STEPS.map((name, i) => (
+          <ol className="mb-6 flex gap-1.5" aria-label={t('Passi dell’installazione')}>
+            {steps().map((name, i) => (
               <li key={name} className="flex-1" aria-current={i === step ? 'step' : undefined}>
                 <div className={cx('h-1 rounded-full', i <= step ? 'bg-accent' : 'bg-line')} />
                 <div className={cx('mt-1.5 text-[12px]', i === step ? 'font-medium text-fg' : 'text-fg3')}>{name}</div>
@@ -27,6 +29,11 @@ function Frame({ step, children }: { step?: number; children: ReactNode }) {
           </ol>
         )}
         {children}
+        {languages && (
+          <div className="mt-4">
+            <LanguageSwitch />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -62,7 +69,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
 
   if (askToken)
     return (
-      <Frame>
+      <Frame languages>
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -71,18 +78,19 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
           }}
         >
           <h1 className="flex items-center gap-2 text-[20px] font-semibold tracking-tight">
-            <KeyRound className="size-5 text-fg3" /> Serve il link di installazione
+            <KeyRound className="size-5 text-fg3" /> {t('Serve il link di installazione')}
           </h1>
           <p className="mt-2 mb-5 text-[14px] leading-relaxed text-fg2">
-            Per sicurezza, solo chi ha avviato il server può installare Materialize. All’avvio ha scritto un link che
-            finisce con <code className="font-mono text-[13px]">?installa=…</code>: aprilo, oppure incolla qui il codice
-            dopo l’uguale.
+            {tx(
+              'Per sicurezza, solo chi ha avviato il server può installare Materialize. All’avvio ha scritto un link che finisce con {link}: aprilo, oppure incolla qui il codice dopo l’uguale.',
+              { link: <code className="font-mono text-[13px]">?installa=…</code> },
+            )}
           </p>
           <Input
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
-            placeholder="Codice di installazione"
-            aria-label="Codice di installazione"
+            placeholder={t('Codice di installazione')}
+            aria-label={t('Codice di installazione')}
             className="font-mono"
             required
             autoFocus
@@ -93,7 +101,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
             </p>
           )}
           <Button type="submit" variant="primary" className="mt-5 w-full">
-            Continua
+            {t('Continua')}
           </Button>
         </form>
       </Frame>
@@ -102,10 +110,12 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
   if (done)
     return (
       <Frame>
-        <h1 className="text-[20px] font-semibold tracking-tight">Materialize è installato</h1>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Materialize è installato')}</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-fg2">
-          Il sito <strong className="font-semibold text-fg">{siteName}</strong> è pronto e il tuo account è attivo.
-          Quando vorrai, nelle Impostazioni trovi l’email per i messaggi del sito e la verifica in due passaggi.
+          {tx(
+            'Il sito {site} è pronto e il tuo account è attivo. Quando vorrai, nelle Impostazioni trovi l’email per i messaggi del sito e la verifica in due passaggi.',
+            { site: <strong className="font-semibold text-fg">{siteName}</strong> },
+          )}
         </p>
         <Button
           variant="primary"
@@ -117,7 +127,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
           }}
           autoFocus
         >
-          Entra nel pannello
+          {t('Entra nel pannello')}
         </Button>
       </Frame>
     )
@@ -138,9 +148,9 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
       const issues = err instanceof ApiError ? err.issues : []
       setError(
         issues.some((i) => i.path === 'password')
-          ? 'La password deve avere almeno 10 caratteri'
+          ? t('La password deve avere almeno 10 caratteri')
           : issues.some((i) => i.path === 'email')
-            ? 'Controlla l’indirizzo email'
+            ? t('Controlla l’indirizzo email')
             : (err as Error).message,
       )
     } finally {
@@ -154,15 +164,17 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
       onClick={() => setStep(step - 1)}
       className="flex items-center gap-1 text-[13px] text-fg2 hover:text-fg [&_svg]:size-3.5"
     >
-      <ArrowLeft /> Indietro
+      <ArrowLeft /> {t('Indietro')}
     </button>
   )
 
   if (step === 0)
     return (
-      <Frame step={0}>
-        <h1 className="text-[20px] font-semibold tracking-tight">Benvenuto in Materialize</h1>
-        <p className="mt-1 mb-5 text-[14px] text-fg2">Tre passi e il sito è pronto. Prima, un controllo del server.</p>
+      <Frame step={0} languages>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Benvenuto in Materialize')}</h1>
+        <p className="mt-1 mb-5 text-[14px] text-fg2">
+          {t('Tre passi e il sito è pronto. Prima, un controllo del server.')}
+        </p>
         <ul className="divide-y divide-line rounded-xl border border-line bg-panel">
           {status.checks.map((c) => (
             <li key={c.id} className="flex gap-3 px-4 py-3">
@@ -176,11 +188,11 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
         </ul>
         {blocked && (
           <p role="alert" className="mt-4 text-[14px] text-danger">
-            Prima di continuare va sistemato quello segnato in rosso, poi ricarica la pagina.
+            {t('Prima di continuare va sistemato quello segnato in rosso, poi ricarica la pagina.')}
           </p>
         )}
         <Button variant="primary" className="mt-6 w-full" disabled={blocked} onClick={() => setStep(1)} autoFocus>
-          Continua
+          {t('Continua')}
         </Button>
       </Frame>
     )
@@ -194,11 +206,13 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
             setStep(2)
           }}
         >
-          <h1 className="text-[20px] font-semibold tracking-tight">Il sito</h1>
-          <p className="mt-1 mb-5 text-[14px] text-fg2">Si possono cambiare in qualsiasi momento dalle Impostazioni.</p>
+          <h1 className="text-[20px] font-semibold tracking-tight">{t('Il sito')}</h1>
+          <p className="mt-1 mb-5 text-[14px] text-fg2">
+            {t('Si possono cambiare in qualsiasi momento dalle Impostazioni.')}
+          </p>
           <div className="space-y-3.5">
             <label className="block">
-              <span className={label}>Nome del sito</span>
+              <span className={label}>{t('Nome del sito')}</span>
               <Input
                 value={siteName}
                 onChange={(e) => setSiteName(e.target.value)}
@@ -208,7 +222,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
               />
             </label>
             <label className="block">
-              <span className={label}>Lingua principale</span>
+              <span className={label}>{t('Lingua principale')}</span>
               <select value={locale} onChange={(e) => setLocale(e.target.value)} className={inputClass}>
                 {languages.map((l) => (
                   <option key={l} value={l}>
@@ -217,12 +231,12 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
                 ))}
               </select>
               <span className="mt-1 block text-[13px] text-fg3">
-                Altre lingue si aggiungono dopo, in Impostazioni → Lingue.
+                {t('Altre lingue si aggiungono dopo, in Impostazioni → Lingue.')}
               </span>
             </label>
           </div>
           <Button type="submit" variant="primary" className="mt-6 w-full">
-            Continua
+            {t('Continua')}
           </Button>
           <div className="mt-4">{back}</div>
         </form>
@@ -232,15 +246,17 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
   return (
     <Frame step={2}>
       <form onSubmit={submit}>
-        <h1 className="text-[20px] font-semibold tracking-tight">Il tuo account</h1>
-        <p className="mt-1 mb-5 text-[14px] text-fg2">Sarai l’amministratore: potrai invitare altre persone dopo.</p>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Il tuo account')}</h1>
+        <p className="mt-1 mb-5 text-[14px] text-fg2">
+          {t('Sarai l’amministratore: potrai invitare altre persone dopo.')}
+        </p>
         <div className="space-y-3.5">
           <label className="block">
-            <span className={label}>Nome</span>
+            <span className={label}>{t('Nome')}</span>
             <Input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" autoFocus />
           </label>
           <label className="block">
-            <span className={label}>Email</span>
+            <span className={label}>{t('Email')}</span>
             <Input
               type="email"
               value={email}
@@ -250,7 +266,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
             />
           </label>
           <label className="block">
-            <span className={label}>Password</span>
+            <span className={label}>{t('Password')}</span>
             <Input
               type="password"
               value={password}
@@ -259,7 +275,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
               minLength={10}
               autoComplete="new-password"
             />
-            <span className="mt-1 block text-[13px] text-fg3">Almeno 10 caratteri.</span>
+            <span className="mt-1 block text-[13px] text-fg3">{t('Almeno 10 caratteri.')}</span>
           </label>
         </div>
         {error && (
@@ -268,7 +284,7 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
           </p>
         )}
         <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-          Installa
+          {t('Installa')}
         </Button>
         <div className="mt-4">{back}</div>
       </form>

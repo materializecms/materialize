@@ -387,7 +387,7 @@ Si può fare tutto anche a mano: `npm run release`, `npm run smoke`, poi `npm ru
 
 In quest'ordine:
 
-1. **Il pannello anche in inglese**: pannello, messaggi del server e del terminale, email e guida, con la lingua scelta da ogni persona. Sono già in inglese accesso, barra laterale, panoramica, profilo e tutto l'editor; i contenuti del sito sono già in più lingue.
+1. **Il pannello anche in inglese**: pannello, messaggi del server e del terminale, email e guida, con la lingua scelta da ogni persona. L'interfaccia del pannello è già tutta in inglese; mancano i messaggi del server, del terminale e delle email, i testi del core (controlli SEO, sezioni della libreria) e la guida. I contenuti del sito sono già in più lingue.
 2. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
 3. **Più avanti**: vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
 

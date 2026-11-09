@@ -34,10 +34,26 @@ import {
 } from '../components/ui.tsx'
 import { ApiError, api, type Member, type User } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 
-export const ROLES: Record<User['role'], { label: string; hint: string }> = {
-  admin: { label: 'Amministratore', hint: 'Tutto, comprese persone ed eliminazioni' },
-  editor: { label: 'Editor', hint: 'Crea, modifica e pubblica i contenuti' },
+/** The roles, in the panel's language: read when drawn, so they follow a change of language. */
+export const ROLES: Record<User['role'], { readonly label: string; readonly hint: string }> = {
+  admin: {
+    get label() {
+      return t('Amministratore')
+    },
+    get hint() {
+      return t('Tutto, comprese persone ed eliminazioni')
+    },
+  },
+  editor: {
+    get label() {
+      return t('Editor')
+    },
+    get hint() {
+      return t('Crea, modifica e pubblica i contenuti')
+    },
+  },
 }
 
 export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
@@ -69,7 +85,7 @@ function LinkDialog({
       title={link?.title}
       footer={
         <Button variant="primary" onClick={onClose}>
-          Fatto
+          {t('Fatto')}
         </Button>
       }
     >
@@ -86,11 +102,11 @@ function LinkDialog({
             })
           }
         >
-          {copied ? 'Copiato' : 'Copia'}
+          {copied ? t('Copiato') : t('Copia')}
         </Button>
       </div>
       <p className="mt-2 text-[13px] text-fg3">
-        Chi ha il link può usarlo una sola volta: invialo solo alla persona giusta.
+        {t('Chi ha il link può usarlo una sola volta: invialo solo alla persona giusta.')}
       </p>
     </Dialog>
   )
@@ -123,7 +139,7 @@ function InviteDialog({
     } catch (err) {
       setError(
         err instanceof ApiError && err.issues.some((i) => i.path === 'email')
-          ? 'Controlla l’indirizzo email'
+          ? t('Controlla l’indirizzo email')
           : (err as Error).message,
       )
     } finally {
@@ -133,7 +149,7 @@ function InviteDialog({
 
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
-    <Dialog open={open} onClose={onClose} width={440} title="Invita una persona">
+    <Dialog open={open} onClose={onClose} width={440} title={t('Invita una persona')}>
       <form onSubmit={submit} className="space-y-4 pt-2">
         <label className="block">
           <span className={label}>Email</span>
@@ -142,15 +158,19 @@ function InviteDialog({
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="nome@example.com"
+            placeholder={t('nome@example.com')}
           />
         </label>
         <label className="block">
-          <span className={label}>Nome (facoltativo)</span>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Si potrà cambiare in seguito" />
+          <span className={label}>{t('Nome (facoltativo)')}</span>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('Si potrà cambiare in seguito')}
+          />
         </label>
         <div>
-          <span className={label}>Ruolo</span>
+          <span className={label}>{t('Ruolo')}</span>
           <Segmented
             className="flex w-full"
             value={role}
@@ -164,9 +184,9 @@ function InviteDialog({
         </div>
         {error && <p className="text-[14px] text-danger">{error}</p>}
         <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
-          <Button onClick={onClose}>Annulla</Button>
+          <Button onClick={onClose}>{t('Annulla')}</Button>
           <Button type="submit" variant="primary" loading={busy} icon={<Mail className="size-4" />}>
-            Crea invito
+            {t('Crea invito')}
           </Button>
         </div>
       </form>
@@ -198,13 +218,16 @@ export function PeopleScreen() {
     try {
       const { link: url, mailed } = await api.resetLink(person.id)
       if (mailed) {
-        toast(`Link per la nuova password inviato a ${person.email}`)
+        toast(t('Link per la nuova password inviato a {email}', { email: person.email }))
         return
       }
       setLink({
         url,
-        title: `Nuova password per ${person.name}`,
-        text: `Manda questo link a ${person.email}: potrà scegliere una nuova password entro 24 ore. La persona verrà disconnessa da tutti i dispositivi.`,
+        title: t('Nuova password per {name}', { name: person.name }),
+        text: t(
+          'Manda questo link a {email}: potrà scegliere una nuova password entro 24 ore. La persona verrà disconnessa da tutti i dispositivi.',
+          { email: person.email },
+        ),
       })
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -212,7 +235,7 @@ export function PeopleScreen() {
   }
 
   if (me.role !== 'admin') {
-    return <EmptyState icon={<Users />} title="Solo gli amministratori gestiscono le persone" />
+    return <EmptyState icon={<Users />} title={t('Solo gli amministratori gestiscono le persone')} />
   }
 
   return (
@@ -220,15 +243,15 @@ export function PeopleScreen() {
       <ScreenHeader
         icon={<UserRound />}
         color="#8b5cf6"
-        title="Persone"
+        title={t('Persone')}
         subtitle={
           people.data
-            ? `${people.data.users.length} ${people.data.users.length === 1 ? 'persona' : 'persone'} con accesso al pannello`
+            ? tn(people.data.users.length, 'Una persona con accesso al pannello', '{n} persone con accesso al pannello')
             : ''
         }
         actions={
           <Button variant="primary" icon={<UserPlus className="size-4" />} onClick={() => setInviting(true)}>
-            Invita
+            {t('Invita')}
           </Button>
         }
       />
@@ -239,7 +262,7 @@ export function PeopleScreen() {
             <Spinner />
           </div>
         ) : people.error ? (
-          <EmptyState icon={<Users />} title="Impossibile caricare le persone">
+          <EmptyState icon={<Users />} title={t('Impossibile caricare le persone')}>
             {people.error.message}
           </EmptyState>
         ) : (
@@ -251,7 +274,9 @@ export function PeopleScreen() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">
                       {person.name}
-                      {person.id === me.id && <span className="ml-1.5 text-[13px] font-normal text-fg3">(tu)</span>}
+                      {person.id === me.id && (
+                        <span className="ml-1.5 text-[13px] font-normal text-fg3">{t('(tu)')}</span>
+                      )}
                     </div>
                     <div className="truncate text-[13px] text-fg3">{person.email}</div>
                   </div>
@@ -259,7 +284,9 @@ export function PeopleScreen() {
                     className="hidden w-36 text-[13px] text-fg3 sm:block"
                     title={person.lastSeenAt ? fullDate(person.lastSeenAt) : undefined}
                   >
-                    {person.lastSeenAt ? `Accesso ${relativeTime(person.lastSeenAt)}` : 'Mai entrato'}
+                    {person.lastSeenAt
+                      ? t('Accesso {when}', { when: relativeTime(person.lastSeenAt) })
+                      : t('Mai entrato')}
                   </span>
                   {/* Said in words: a lone dash told nothing about what it meant. */}
                   <span
@@ -267,10 +294,12 @@ export function PeopleScreen() {
                       'hidden w-32 items-center gap-1.5 text-[13px] md:inline-flex [&_svg]:size-3.5 [&_svg]:shrink-0',
                       person.twoFactor ? 'text-ok' : 'text-warn',
                     )}
-                    title={person.twoFactor ? 'Entra con password e codice dall’app' : 'Entra solo con la password'}
+                    title={
+                      person.twoFactor ? t('Entra con password e codice dall’app') : t('Entra solo con la password')
+                    }
                   >
                     {person.twoFactor ? <ShieldCheck /> : <ShieldAlert />}
-                    {person.twoFactor ? 'Due passaggi' : 'Solo password'}
+                    {person.twoFactor ? t('Due passaggi') : t('Solo password')}
                   </span>
                   <span className="inline-flex w-36 items-center gap-1.5 text-[13px]">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
@@ -280,14 +309,14 @@ export function PeopleScreen() {
                     align="end"
                     width={250}
                     trigger={({ toggle, ref }) => (
-                      <IconButton ref={ref} label="Azioni" onClick={toggle}>
+                      <IconButton ref={ref} label={t('Azioni')} onClick={toggle}>
                         <MoreHorizontal />
                       </IconButton>
                     )}
                   >
                     {(close) => (
                       <div className="p-1">
-                        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">Ruolo</div>
+                        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">{t('Ruolo')}</div>
                         {(['editor', 'admin'] as const).map((role) => (
                           <MenuItem
                             key={role}
@@ -296,7 +325,7 @@ export function PeopleScreen() {
                             onClick={() => {
                               close()
                               if (role !== person.role)
-                                void run(() => api.updateUser(person.id, { role }), 'Ruolo aggiornato')
+                                void run(() => api.updateUser(person.id, { role }), t('Ruolo aggiornato'))
                             }}
                           >
                             {ROLES[role].label}
@@ -310,7 +339,7 @@ export function PeopleScreen() {
                             setEditing(person)
                           }}
                         >
-                          Modifica nome ed email
+                          {t('Modifica nome ed email')}
                         </MenuItem>
                         <MenuItem
                           icon={<KeyRound />}
@@ -319,7 +348,7 @@ export function PeopleScreen() {
                             void reset(person)
                           }}
                         >
-                          Link per una nuova password
+                          {t('Link per una nuova password')}
                         </MenuItem>
                         {person.twoFactor && person.id !== me.id && (
                           <MenuItem
@@ -328,13 +357,16 @@ export function PeopleScreen() {
                               close()
                               if (
                                 confirm(
-                                  `Disattivare la verifica in due passaggi di ${person.name}? Potrà entrare con la sola password e riattivarla dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.`,
+                                  t(
+                                    'Disattivare la verifica in due passaggi di {name}? Potrà entrare con la sola password e riattivarla dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.',
+                                    { name: person.name },
+                                  ),
                                 )
                               )
-                                void run(() => api.resetTwoFactor(person.id), 'Verifica in due passaggi disattivata')
+                                void run(() => api.resetTwoFactor(person.id), t('Verifica in due passaggi disattivata'))
                             }}
                           >
-                            Disattiva la verifica in due passaggi
+                            {t('Disattiva la verifica in due passaggi')}
                           </MenuItem>
                         )}
                         <MenuItem
@@ -346,7 +378,7 @@ export function PeopleScreen() {
                             setRemoving(person)
                           }}
                         >
-                          Rimuovi dal sito
+                          {t('Rimuovi dal sito')}
                         </MenuItem>
                       </div>
                     )}
@@ -363,7 +395,7 @@ export function PeopleScreen() {
 
             {people.data.invites.length > 0 && (
               <section className="mt-8">
-                <h2 className="mb-2 text-[13px] font-medium text-fg3">Inviti in attesa</h2>
+                <h2 className="mb-2 text-[13px] font-medium text-fg3">{t('Inviti in attesa')}</h2>
                 <div className="overflow-hidden rounded-lg border border-line bg-panel">
                   {people.data.invites.map((invite) => (
                     <div
@@ -376,7 +408,7 @@ export function PeopleScreen() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{invite.name || invite.email}</div>
                         <div className="truncate text-[13px] text-fg3">
-                          {ROLES[invite.role].label} · scade {relativeTime(invite.expiresAt)}
+                          {ROLES[invite.role].label} · {t('scade {when}', { when: relativeTime(invite.expiresAt) })}
                         </div>
                       </div>
                       <Button
@@ -389,14 +421,16 @@ export function PeopleScreen() {
                               role: invite.role,
                             })
                             if (mailed) {
-                              toast(`Nuovo invito inviato a ${invite.email}`)
+                              toast(t('Nuovo invito inviato a {email}', { email: invite.email }))
                               refresh()
                               return
                             }
                             setLink({
                               url,
-                              title: 'Nuovo link di invito',
-                              text: `Il link precedente non vale più. Manda questo a ${invite.email}: è valido 7 giorni.`,
+                              title: t('Nuovo link di invito'),
+                              text: t('Il link precedente non vale più. Manda questo a {email}: è valido 7 giorni.', {
+                                email: invite.email,
+                              }),
                             })
                             refresh()
                           } catch (error) {
@@ -404,14 +438,14 @@ export function PeopleScreen() {
                           }
                         }}
                       >
-                        Nuovo link
+                        {t('Nuovo link')}
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => run(() => api.revokeInvite(invite.id), 'Invito annullato')}
+                        onClick={() => run(() => api.revokeInvite(invite.id), t('Invito annullato'))}
                       >
-                        Annulla
+                        {t('Annulla')}
                       </Button>
                     </div>
                   ))}
@@ -420,8 +454,8 @@ export function PeopleScreen() {
             )}
 
             <p className="mt-6 text-[13px] text-fg3">
-              <strong className="font-medium text-fg2">Editor</strong>: {ROLES.editor.hint.toLowerCase()}.{' '}
-              <strong className="font-medium text-fg2">Amministratori</strong>: {ROLES.admin.hint.toLowerCase()}.
+              <strong className="font-medium text-fg2">{t('Editor')}</strong>: {ROLES.editor.hint.toLowerCase()}.{' '}
+              <strong className="font-medium text-fg2">{t('Amministratori')}</strong>: {ROLES.admin.hint.toLowerCase()}.
             </p>
           </div>
         )}
@@ -434,13 +468,15 @@ export function PeopleScreen() {
           setInviting(false)
           refresh()
           if (mailed) {
-            toast(`Invito inviato per email a ${email}`)
+            toast(t('Invito inviato per email a {email}', { email }))
             return
           }
           setLink({
             url,
-            title: 'Invito pronto',
-            text: `Manda questo link a ${email}: entrerà scegliendo la sua password. Il link è valido 7 giorni.`,
+            title: t('Invito pronto'),
+            text: t('Manda questo link a {email}: entrerà scegliendo la sua password. Il link è valido 7 giorni.', {
+              email,
+            }),
           })
         }}
       />
@@ -458,26 +494,29 @@ export function PeopleScreen() {
       <Dialog
         open={!!removing}
         onClose={() => setRemoving(null)}
-        title={`Rimuovere ${removing?.name}?`}
+        title={t('Rimuovere {name}?', { name: removing?.name })}
         footer={
           <>
             <Button onClick={() => setRemoving(null)} data-autofocus>
-              Annulla
+              {t('Annulla')}
             </Button>
             <Button
               variant="danger"
               onClick={() => {
                 const person = removing
                 setRemoving(null)
-                if (person) void run(() => api.removeUser(person.id), `${person.name} non ha più accesso`)
+                if (person)
+                  void run(() => api.removeUser(person.id), t('{name} non ha più accesso', { name: person.name }))
               }}
             >
-              Rimuovi
+              {t('Rimuovi')}
             </Button>
           </>
         }
       >
-        La persona non potrà più entrare nel pannello e verrà disconnessa subito. I contenuti che ha creato restano.
+        {t(
+          'La persona non potrà più entrare nel pannello e verrà disconnessa subito. I contenuti che ha creato restano.',
+        )}
       </Dialog>
     </div>
   )
@@ -493,12 +532,14 @@ function TwoFactorSetting({ everyone, missing, mine }: { everyone: boolean; miss
     <section className="mt-3 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
       <Switch
         checked={security.requireTwoFactor}
-        label="Richiedi la verifica in due passaggi a tutti"
+        label={t('Richiedi la verifica in due passaggi a tutti')}
         onChange={async (requireTwoFactor) => {
           try {
             queryClient.setQueryData(['site-security'], await api.saveSiteSecurity({ requireTwoFactor }))
             toast(
-              requireTwoFactor ? 'Verifica in due passaggi richiesta a tutti' : 'Verifica in due passaggi facoltativa',
+              requireTwoFactor
+                ? t('Verifica in due passaggi richiesta a tutti')
+                : t('Verifica in due passaggi facoltativa'),
             )
           } catch (error) {
             toast((error as Error).message, 'error')
@@ -506,14 +547,26 @@ function TwoFactorSetting({ everyone, missing, mine }: { everyone: boolean; miss
         }}
       />
       <div>
-        <div className="text-[14px] font-medium">Richiedi la verifica in due passaggi a tutti</div>
+        <div className="text-[14px] font-medium">{t('Richiedi la verifica in due passaggi a tutti')}</div>
         <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
-          Per entrare servono la password e un codice dall’app del telefono: una password rubata da sola non basta.{' '}
+          {t(
+            'Per entrare servono la password e un codice dall’app del telefono: una password rubata da sola non basta.',
+          )}{' '}
           {!mine
-            ? 'Prima attivala per te, dal tuo profilo → Sicurezza.'
+            ? t('Prima attivala per te, dal tuo profilo → Sicurezza.')
             : everyone
-              ? 'Tutti l’hanno già attivata.'
-              : `${missing === 1 ? 'Una persona non l’ha' : `${missing} persone non l’hanno`} ancora attivata: ${security.requireTwoFactor ? 'dovrà farlo' : 'se la richiedi, dovrà farlo'} al prossimo accesso.`}
+              ? t('Tutti l’hanno già attivata.')
+              : security.requireTwoFactor
+                ? tn(
+                    missing,
+                    'Una persona non l’ha ancora attivata: dovrà farlo al prossimo accesso.',
+                    '{n} persone non l’hanno ancora attivata: dovranno farlo al prossimo accesso.',
+                  )
+                : tn(
+                    missing,
+                    'Una persona non l’ha ancora attivata: se la richiedi, dovrà farlo al prossimo accesso.',
+                    '{n} persone non l’hanno ancora attivata: se la richiedi, dovranno farlo al prossimo accesso.',
+                  )}
         </p>
       </div>
     </section>
@@ -529,14 +582,14 @@ function EditorialSetting() {
     <section className="mt-6 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
       <Switch
         checked={on}
-        label="I redattori modificano solo i contenuti"
+        label={t('I redattori modificano solo i contenuti')}
         onChange={async (editorsContentOnly) => {
           try {
             queryClient.setQueryData(['editorial'], await api.saveEditorial({ editorsContentOnly }))
             toast(
               editorsContentOnly
-                ? 'I redattori ora modificano solo i contenuti'
-                : 'I redattori possono anche impaginare',
+                ? t('I redattori ora modificano solo i contenuti')
+                : t('I redattori possono anche impaginare'),
             )
           } catch (error) {
             toast((error as Error).message, 'error')
@@ -544,11 +597,11 @@ function EditorialSetting() {
         }}
       />
       <div>
-        <div className="text-[14px] font-medium">I redattori modificano solo i contenuti</div>
+        <div className="text-[14px] font-medium">{t('I redattori modificano solo i contenuti')}</div>
         <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
-          Chi ha il ruolo di redattore apre le pagine in modalità Contenuto: scrive testi, cambia immagini e
-          collegamenti, ma non può spostare, aggiungere o restilizzare gli elementi. Il design resta agli
-          amministratori.
+          {t(
+            'Chi ha il ruolo di redattore apre le pagine in modalità Contenuto: scrive testi, cambia immagini e collegamenti, ma non può spostare, aggiungere o restilizzare gli elementi. Il design resta agli amministratori.',
+          )}
         </p>
       </div>
     </section>
@@ -582,13 +635,15 @@ function EditPersonDialog({
         ...(changedEmail ? { email: email.trim() } : {}),
       })
       toast(
-        changedEmail ? `${name.trim() || person.name} ora entra con ${email.trim().toLowerCase()}` : 'Nome aggiornato',
+        changedEmail
+          ? t('{name} ora entra con {email}', { name: name.trim() || person.name, email: email.trim().toLowerCase() })
+          : t('Nome aggiornato'),
       )
       onSaved()
     } catch (err) {
       setError(
         err instanceof ApiError && err.issues.some((i) => i.path === 'email')
-          ? 'Controlla l’indirizzo email'
+          ? t('Controlla l’indirizzo email')
           : (err as Error).message,
       )
     } finally {
@@ -598,10 +653,10 @@ function EditPersonDialog({
 
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
-    <Dialog open onClose={onClose} width={420} title={`Modifica ${person.name}`}>
+    <Dialog open onClose={onClose} width={420} title={t('Modifica {name}', { name: person.name })}>
       <form onSubmit={submit} className="space-y-4 pt-2">
         <label className="block">
-          <span className={label}>Nome</span>
+          <span className={label}>{t('Nome')}</span>
           <Input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label className="block">
@@ -609,15 +664,17 @@ function EditPersonDialog({
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <span className="mt-1 block text-[13px] text-fg3">
             {changedEmail
-              ? 'Da ora entrerà con il nuovo indirizzo; la password non cambia. Se l’email è configurata, il vecchio indirizzo riceve un avviso.'
-              : 'È l’indirizzo con cui entra nel pannello.'}
+              ? t(
+                  'Da ora entrerà con il nuovo indirizzo; la password non cambia. Se l’email è configurata, il vecchio indirizzo riceve un avviso.',
+                )
+              : t('È l’indirizzo con cui entra nel pannello.')}
           </span>
         </label>
         {error && <p className="text-[14px] text-danger">{error}</p>}
         <div className="-mx-5 flex justify-end gap-2 border-t border-line px-5 pt-3">
-          <Button onClick={onClose}>Annulla</Button>
+          <Button onClick={onClose}>{t('Annulla')}</Button>
           <Button type="submit" variant="primary" loading={busy}>
-            Salva
+            {t('Salva')}
           </Button>
         </div>
       </form>

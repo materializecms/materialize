@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, CircleX, Info, Send, ShieldCheck } from 'luci
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { Button, cx, Input, inputClass, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { api, type DomainCheck, type MailSettings } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '', provider: '' }
 
@@ -76,7 +77,7 @@ export function MailForm() {
       queryClient.setQueryData(['mail'], res)
       setPass('')
       if (!e) return true
-      toast('Impostazioni email salvate')
+      toast(t('Impostazioni email salvate'))
       if (/@/.test(mail.from)) void checkDomain()
       return true
     } catch (error) {
@@ -93,8 +94,8 @@ export function MailForm() {
     try {
       if (!(await save())) return
       const res = await api.testMail()
-      if (res.ok) toast(`Email di prova inviata a ${res.to}: controlla anche lo spam`)
-      else setProblem({ message: res.message ?? 'Invio non riuscito', hint: res.hint })
+      if (res.ok) toast(t('Email di prova inviata a {to}: controlla anche lo spam', { to: res.to }))
+      else setProblem({ message: res.message ?? t('Invio non riuscito'), hint: res.hint })
       if (/@/.test(mail.from)) void checkDomain()
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -107,16 +108,17 @@ export function MailForm() {
   return (
     <form onSubmit={save} className="mx-auto max-w-xl space-y-6 px-5 py-8">
       <div>
-        <h2 className="text-[16px] font-semibold">Invio delle email</h2>
+        <h2 className="text-[16px] font-semibold">{t('Invio delle email')}</h2>
         <p className="mt-1 text-[14px] leading-relaxed text-fg2">
-          Con un server di posta i messaggi dei moduli del sito arrivano anche per email, e così inviti e link per una
-          nuova password. Senza, i messaggi restano comunque in Messaggi.
+          {t(
+            'Con un server di posta i messaggi dei moduli del sito arrivano anche per email, e così inviti e link per una nuova password. Senza, i messaggi restano comunque in Messaggi.',
+          )}
         </p>
       </div>
 
-      <Field label="Il tuo fornitore">
+      <Field label={t('Il tuo fornitore')}>
         <select value={mail.provider ?? ''} onChange={(e) => choose(e.target.value)} className={inputClass}>
-          <option value="">Altro: inserisco io i dati</option>
+          <option value="">{t('Altro: inserisco io i dati')}</option>
           {MAIL_PROVIDERS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -131,18 +133,18 @@ export function MailForm() {
       )}
 
       <div className="grid grid-cols-[1fr_120px] gap-3">
-        <Field label="Server">
+        <Field label={t('Server')}>
           <Input
             value={mail.host}
             placeholder="smtp.example.com"
             onChange={(e) => set({ host: e.target.value.trim() })}
           />
         </Field>
-        <Field label="Porta">
+        <Field label={t('Porta')}>
           <Input type="number" value={mail.port} onChange={(e) => set({ port: Number(e.target.value) || 587 })} />
         </Field>
       </div>
-      <Field label="Sicurezza" hint="TLS di solito sulla porta 465, STARTTLS sulla 587.">
+      <Field label={t('Sicurezza')} hint={t('TLS di solito sulla porta 465, STARTTLS sulla 587.')}>
         <Segmented
           value={mail.security}
           onChange={(security) =>
@@ -151,12 +153,12 @@ export function MailForm() {
           options={[
             { value: 'starttls', label: 'STARTTLS' },
             { value: 'tls', label: 'TLS' },
-            { value: 'none', label: 'Nessuna' },
+            { value: 'none', label: t('Nessuna') },
           ]}
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Utente" hint={provider?.userHint}>
+        <Field label={t('Utente')} hint={provider?.userHint}>
           <Input
             value={mail.user}
             autoComplete="off"
@@ -165,8 +167,8 @@ export function MailForm() {
           />
         </Field>
         <Field
-          label="Password"
-          hint={[provider?.passHint, mail.hasPassword ? 'Salvata: lascia vuoto per non cambiarla.' : '']
+          label={t('Password')}
+          hint={[provider?.passHint, mail.hasPassword ? t('Salvata: lascia vuoto per non cambiarla.') : '']
             .filter(Boolean)
             .join(' ')}
         >
@@ -179,14 +181,14 @@ export function MailForm() {
           />
         </Field>
       </div>
-      <Field label="Mittente" hint="Come appare a chi riceve, per esempio Studio Rossi <sito@example.com>.">
+      <Field label={t('Mittente')} hint={t('Come appare a chi riceve, per esempio Studio Rossi <sito@example.com>.')}>
         <Input
           value={mail.from}
-          placeholder="Nome <indirizzo@example.com>"
+          placeholder={t('Nome <indirizzo@example.com>')}
           onChange={(e) => set({ from: e.target.value })}
         />
       </Field>
-      <Field label="Destinatario dei moduli" hint="Dove arrivano i messaggi inviati dal sito.">
+      <Field label={t('Destinatario dei moduli')} hint={t('Dove arrivano i messaggi inviati dal sito.')}>
         <Input value={mail.to} placeholder="studio@example.com" onChange={(e) => set({ to: e.target.value.trim() })} />
       </Field>
 
@@ -199,10 +201,10 @@ export function MailForm() {
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" loading={saving}>
-          Salva
+          {t('Salva')}
         </Button>
         <Button icon={<Send className="size-3.5" />} loading={testing} onClick={test} disabled={!mail.host}>
-          Salva e invia una prova
+          {t('Salva e invia una prova')}
         </Button>
         <Button
           icon={<ShieldCheck className="size-3.5" />}
@@ -210,13 +212,15 @@ export function MailForm() {
           onClick={() => void checkDomain()}
           disabled={!/@/.test(mail.from)}
         >
-          Controlla il dominio
+          {t('Controlla il dominio')}
         </Button>
       </div>
 
       {domain && (
-        <section className="space-y-2" aria-label="Controllo del dominio">
-          <h3 className="text-[14px] font-medium">Il dominio {domain.domain}, visto dai server di posta</h3>
+        <section className="space-y-2" aria-label={t('Controllo del dominio')}>
+          <h3 className="text-[14px] font-medium">
+            {t('Il dominio {domain}, visto dai server di posta', { domain: domain.domain })}
+          </h3>
           <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
             {domain.checks.map((c) => (
               <li key={c.id} className="flex gap-3 px-4 py-3 [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0">
@@ -229,8 +233,9 @@ export function MailForm() {
             ))}
           </ul>
           <p className="text-[13px] leading-relaxed text-fg3">
-            SPF dice quali server possono inviare per il dominio, DKIM firma i messaggi, DMARC dice cosa fare con quelli
-            che non passano. Si aggiungono nel pannello DNS del dominio; le modifiche possono metterci qualche ora.
+            {t(
+              'SPF dice quali server possono inviare per il dominio, DKIM firma i messaggi, DMARC dice cosa fare con quelli che non passano. Si aggiungono nel pannello DNS del dominio; le modifiche possono metterci qualche ora.',
+            )}
           </p>
         </section>
       )}

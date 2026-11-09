@@ -3,10 +3,9 @@ import { Check, CopyPlus, ExternalLink, EyeOff, Link2, MoreHorizontal, PencilLin
 import { useState } from 'react'
 import { Button, cx, Dialog, MenuItem, MenuSeparator, Popover, toast } from '../components/ui.tsx'
 import { ApiError, api, type CollectionDescription, type Data, type DocumentSummary } from '../lib/api.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 /**
  * What can be done to documents from their list, one or many at a time: publish, take off the
@@ -42,21 +41,22 @@ export function useListActions(collection: CollectionDescription) {
     busy,
     publish: async (ids: string[]) => {
       const r = await each(ids, (id) => api.publish(id))
-      if (r.done) toast(r.done === 1 ? 'Pubblicato' : `${r.done} pubblicati`)
+      if (r.done) toast(tn(r.done, 'Pubblicato', '{n} pubblicati'))
       if (r.incomplete)
         toast(
-          r.incomplete === 1
-            ? 'Un documento ha campi da completare: aprilo per vedere cosa manca'
-            : `${r.incomplete} documenti hanno campi da completare: aprili per vedere cosa manca`,
+          tn(
+            r.incomplete,
+            'Un documento ha campi da completare: aprilo per vedere cosa manca',
+            '{n} documenti hanno campi da completare: aprili per vedere cosa manca',
+          ),
           'error',
         )
-      else if (r.failed) toast(`${plural(r.failed, 'non pubblicato', 'non pubblicati')}`, 'error')
+      else if (r.failed) toast(tn(r.failed, '1 non è stato pubblicato', '{n} non sono stati pubblicati'), 'error')
     },
     unpublish: async (ids: string[]) => {
       const r = await each(ids, (id) => api.unpublish(id))
-      if (r.done)
-        toast(r.done === 1 ? 'Tolto dal sito: resta come bozza' : `${r.done} tolti dal sito: restano come bozze`)
-      if (r.failed) toast(`${plural(r.failed, 'non ritirato', 'non ritirati')}`, 'error')
+      if (r.done) toast(tn(r.done, 'Tolto dal sito: resta come bozza', '{n} tolti dal sito: restano come bozze'))
+      if (r.failed) toast(tn(r.failed, '1 non ritirato', '{n} non ritirati'), 'error')
     },
     duplicate: async (ids: string[]) => {
       let last = ''
@@ -69,15 +69,15 @@ export function useListActions(collection: CollectionDescription) {
         last = (await api.create(collection.name, data, doc.locale ?? locale)).id
       })
       if (r.done === 1 && ids.length === 1) {
-        toast('Copia creata come bozza')
+        toast(t('Copia creata come bozza'))
         navigate({ name: 'document', collection: collection.name, id: last })
-      } else if (r.done) toast(`${plural(r.done, 'copia creata', 'copie create')} come bozze`)
-      if (r.failed) toast(`${plural(r.failed, 'copia non riuscita', 'copie non riuscite')}`, 'error')
+      } else if (r.done) toast(tn(r.done, '1 copia creata come bozza', '{n} copie create come bozze'))
+      if (r.failed) toast(tn(r.failed, '1 copia non riuscita', '{n} copie non riuscite'), 'error')
     },
     remove: async (ids: string[]) => {
       const r = await each(ids, (id) => api.remove(id))
-      if (r.done) toast(r.done === 1 ? 'Eliminato' : `${r.done} eliminati`)
-      if (r.failed) toast(`${plural(r.failed, 'non eliminato', 'non eliminati')}`, 'error')
+      if (r.done) toast(tn(r.done, 'Eliminato', '{n} eliminati'))
+      if (r.failed) toast(tn(r.failed, '1 non eliminato', '{n} non eliminati'), 'error')
     },
   }
 }
@@ -100,22 +100,32 @@ export function ConfirmDelete({
     <Dialog
       open={!!docs}
       onClose={onCancel}
-      title={one ? `Eliminare “${docs?.[0]?.title}”?` : `Eliminare ${docs?.length} documenti?`}
+      title={
+        one
+          ? t('Eliminare “{title}”?', { title: docs?.[0]?.title })
+          : t('Eliminare {n} documenti?', { n: docs?.length })
+      }
       footer={
         <>
           <Button onClick={onCancel} data-autofocus>
-            Annulla
+            {t('Annulla')}
           </Button>
           <Button variant="danger" onClick={onConfirm}>
-            Elimina
+            {t('Elimina')}
           </Button>
         </>
       }
     >
       {live
-        ? `${one ? 'È pubblicato: sparirà' : `${live === docs?.length ? 'Sono' : `${live} sono`} pubblicati: spariranno`} dal sito. `
+        ? `${
+            one
+              ? t('È pubblicato: sparirà dal sito.')
+              : live === docs?.length
+                ? t('Sono pubblicati: spariranno dal sito.')
+                : tn(live, '1 è pubblicato: sparirà dal sito.', '{n} sono pubblicati: spariranno dal sito.')
+          } `
         : ''}
-      Bozze e cronologia vengono eliminate definitivamente; le eventuali traduzioni restano.
+      {t('Bozze e cronologia vengono eliminate definitivamente; le eventuali traduzioni restano.')}
     </Dialog>
   )
 }
@@ -144,8 +154,8 @@ export function RowMenu({
         <button
           ref={ref}
           type="button"
-          aria-label={`Azioni per ${doc.title}`}
-          title="Azioni"
+          aria-label={t('Azioni per {title}', { title: doc.title })}
+          title={t('Azioni')}
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -172,11 +182,11 @@ export function RowMenu({
               icon={<PencilLine />}
               onClick={run(() => navigate({ name: 'document', collection: collection.name, id: doc.id }))}
             >
-              Apri
+              {t('Apri')}
             </MenuItem>
             {live && (
               <MenuItem icon={<ExternalLink />} onClick={run(() => window.open(doc.url as string, '_blank'))}>
-                Apri sul sito
+                {t('Apri sul sito')}
               </MenuItem>
             )}
             {live && (
@@ -185,31 +195,31 @@ export function RowMenu({
                 onClick={run(() =>
                   navigator.clipboard
                     ?.writeText(new URL(doc.url as string, location.origin).toString())
-                    .then(() => toast('Indirizzo copiato')),
+                    .then(() => toast(t('Indirizzo copiato'))),
                 )}
               >
-                Copia indirizzo
+                {t('Copia indirizzo')}
               </MenuItem>
             )}
             <MenuItem icon={<CopyPlus />} onClick={run(() => void actions.duplicate([doc.id]))}>
-              Duplica
+              {t('Duplica')}
             </MenuItem>
             <MenuSeparator />
             {doc.status !== 'published' && (
               <MenuItem icon={<Send />} onClick={run(() => void actions.publish([doc.id]))}>
-                {doc.status === 'changed' ? 'Pubblica le modifiche' : 'Pubblica'}
+                {doc.status === 'changed' ? t('Pubblica le modifiche') : t('Pubblica')}
               </MenuItem>
             )}
             {doc.status !== 'draft' && (
               <MenuItem icon={<EyeOff />} onClick={run(() => void actions.unpublish([doc.id]))}>
-                Togli dal sito
+                {t('Togli dal sito')}
               </MenuItem>
             )}
             {user.role === 'admin' && (
               <>
                 <MenuSeparator />
                 <MenuItem icon={<Trash2 />} danger onClick={run(() => onDelete(doc))}>
-                  Elimina…
+                  {t('Elimina…')}
                 </MenuItem>
               </>
             )}
@@ -289,18 +299,19 @@ export function BulkBar({
       <SelectBox
         checked={count === total}
         partial={count > 0 && count < total}
-        label={count === total ? 'Deseleziona tutti' : 'Seleziona tutti'}
+        label={count === total ? t('Deseleziona tutti') : t('Seleziona tutti')}
         onToggle={() => (count === total ? onClear() : onSelectAll())}
         className="mr-1.5"
       />
-      <span className="mr-2 text-[13px] font-medium">{count === 1 ? '1 selezionato' : `${count} selezionati`}</span>
+      <span className="mr-2 text-[13px] font-medium">{tn(count, '1 selezionato', '{n} selezionati')}</span>
       <button
         type="button"
         className={btn}
         disabled={actions.busy || !toPublish.length}
         onClick={() => void actions.publish(toPublish).then(onClear)}
       >
-        <Send /> Pubblica{toPublish.length && toPublish.length < count ? ` (${toPublish.length})` : ''}
+        <Send /> {t('Pubblica')}
+        {toPublish.length && toPublish.length < count ? ` (${toPublish.length})` : ''}
       </button>
       <button
         type="button"
@@ -308,7 +319,8 @@ export function BulkBar({
         disabled={actions.busy || !live.length}
         onClick={() => void actions.unpublish(live).then(onClear)}
       >
-        <EyeOff /> Togli dal sito{live.length && live.length < count ? ` (${live.length})` : ''}
+        <EyeOff /> {t('Togli dal sito')}
+        {live.length && live.length < count ? ` (${live.length})` : ''}
       </button>
       <button
         type="button"
@@ -316,16 +328,16 @@ export function BulkBar({
         disabled={actions.busy}
         onClick={() => void actions.duplicate(ids).then(onClear)}
       >
-        <CopyPlus /> Duplica
+        <CopyPlus /> {t('Duplica')}
       </button>
       {user.role === 'admin' && (
         <button type="button" className={cx(btn, 'hover:text-danger')} disabled={actions.busy} onClick={onDelete}>
-          <Trash2 /> Elimina
+          <Trash2 /> {t('Elimina')}
         </button>
       )}
       <div className="flex-1" />
-      <button type="button" className={btn} onClick={onClear} title="Annulla la selezione (Esc)">
-        <X /> Annulla
+      <button type="button" className={btn} onClick={onClear} title={t('Annulla la selezione (Esc)')}>
+        <X /> {t('Annulla')}
       </button>
     </div>
   )

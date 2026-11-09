@@ -19,6 +19,7 @@ import { useSession } from '../app/context.ts'
 import { Button, cx, EmptyState, IconButton, Spinner, Switch, toast } from '../components/ui.tsx'
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
+import { t, tn, tx } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { OffsiteBackup } from './OffsiteBackup.tsx'
 
@@ -29,247 +30,365 @@ const STATUS: Record<SecurityCheck['status'], { icon: ReactNode; tone: string }>
   info: { icon: <Info />, tone: 'text-fg3' },
 }
 
-const SETTINGS: Record<string, string> = {
-  theme: 'il tema',
-  mail: 'l’invio delle email',
-  ai: 'il modello AI',
-  editorial: 'i permessi dei redattori',
-  seo: 'la SEO del sito',
-  redirects: 'i reindirizzamenti',
-  languages: 'le lingue del sito',
-  backups: 'i backup automatici',
-  tracking: 'tracciamento e cookie',
-  updates: 'gli aggiornamenti automatici',
-  voice: 'la voce del brand',
-  forms: 'la conservazione dei messaggi',
-  newsletter: 'le impostazioni della newsletter',
-}
+const SETTINGS = (): Record<string, string> => ({
+  theme: t('il tema'),
+  mail: t('l’invio delle email'),
+  ai: t('il modello AI'),
+  editorial: t('i permessi dei redattori'),
+  seo: t('la SEO del sito'),
+  redirects: t('i reindirizzamenti'),
+  languages: t('le lingue del sito'),
+  backups: t('i backup automatici'),
+  tracking: t('tracciamento e cookie'),
+  updates: t('gli aggiornamenti automatici'),
+  voice: t('la voce del brand'),
+  forms: t('la conservazione dei messaggi'),
+  newsletter: t('le impostazioni della newsletter'),
+})
 
 /** One line of the log in words: "ha pubblicato “Chi siamo”". The person's name comes before it. */
 export function describe(e: ActivityEntry): { text: string; group: 'access' | 'people' | 'content' | 'settings' } {
   const d = e.detail ?? {}
-  const t = e.target ? `“${e.target}”` : ''
+  const name = e.target ? `“${e.target}”` : ''
+  const target = e.target
+  const when = (at: unknown) => whenDate(String(at))
+  const message = String(d.message ?? '')
+  const unpublish = d.action === 'unpublish'
   const [kind, what = ''] = e.action.split('.')
   switch (e.action) {
     case 'login.ok':
-      return { text: d.twoFactor ? 'è entrato con la verifica in due passaggi' : 'è entrato', group: 'access' }
+      return { text: d.twoFactor ? t('è entrato con la verifica in due passaggi') : t('è entrato'), group: 'access' }
     case 'login.failed':
       return {
-        text: `password sbagliata per ${e.target}${d.known ? '' : ' (nessun account con questo indirizzo)'}`,
+        text: d.known
+          ? t('password sbagliata per {target}', { target })
+          : t('password sbagliata per {target} (nessun account con questo indirizzo)', { target }),
         group: 'access',
       }
     case 'login.code_failed':
-      return { text: `codice di verifica sbagliato per ${e.target}`, group: 'access' }
+      return { text: t('codice di verifica sbagliato per {target}', { target }), group: 'access' }
     case 'login.blocked':
-      return { text: `tentativo di accesso in pausa per ${e.target}`, group: 'access' }
+      return { text: t('tentativo di accesso in pausa per {target}', { target }), group: 'access' }
     case 'password.forgot':
-      return { text: 'ha chiesto un link per una nuova password', group: 'access' }
+      return { text: t('ha chiesto un link per una nuova password'), group: 'access' }
     case 'password.reset_cli':
-      return { text: `link per una nuova password creato dal server per ${e.target}`, group: 'access' }
+      return { text: t('link per una nuova password creato dal server per {target}', { target }), group: 'access' }
     case 'logout':
-      return { text: 'è uscito', group: 'access' }
+      return { text: t('è uscito'), group: 'access' }
     case 'session.ended':
-      return { text: 'ha disconnesso un dispositivo', group: 'access' }
+      return { text: t('ha disconnesso un dispositivo'), group: 'access' }
     case 'session.ended_others':
-      return { text: 'ha disconnesso gli altri dispositivi', group: 'access' }
+      return { text: t('ha disconnesso gli altri dispositivi'), group: 'access' }
     case 'twofactor.enabled':
-      return { text: 'ha attivato la verifica in due passaggi', group: 'access' }
+      return { text: t('ha attivato la verifica in due passaggi'), group: 'access' }
     case 'twofactor.disabled':
-      return { text: 'ha disattivato la verifica in due passaggi', group: 'access' }
+      return { text: t('ha disattivato la verifica in due passaggi'), group: 'access' }
     case 'twofactor.recovery':
-      return { text: 'ha creato nuovi codici di riserva', group: 'access' }
+      return { text: t('ha creato nuovi codici di riserva'), group: 'access' }
     case 'twofactor.reset':
-      return { text: `ha disattivato la verifica in due passaggi di ${e.target}`, group: 'access' }
+      return { text: t('ha disattivato la verifica in due passaggi di {target}', { target }), group: 'access' }
     case 'token.created':
-      return { text: `ha creato il token ${t}`, group: 'access' }
+      return { text: t('ha creato il token {name}', { name }), group: 'access' }
     case 'token.revoked':
-      return { text: 'ha revocato un token', group: 'access' }
+      return { text: t('ha revocato un token'), group: 'access' }
     case 'security.require_2fa':
-      return { text: 'ha richiesto a tutti la verifica in due passaggi', group: 'access' }
+      return { text: t('ha richiesto a tutti la verifica in due passaggi'), group: 'access' }
     case 'security.optional_2fa':
-      return { text: 'ha reso facoltativa la verifica in due passaggi', group: 'access' }
+      return { text: t('ha reso facoltativa la verifica in due passaggi'), group: 'access' }
     case 'user.setup':
-      return { text: 'ha creato il pannello del sito', group: 'people' }
+      return { text: t('ha creato il pannello del sito'), group: 'people' }
     case 'user.invited':
       return {
-        text: `ha invitato ${e.target} come ${d.role === 'admin' ? 'amministratore' : 'redattore'}`,
+        text:
+          d.role === 'admin'
+            ? t('ha invitato {target} come amministratore', { target })
+            : t('ha invitato {target} come redattore', { target }),
         group: 'people',
       }
     case 'user.invite_revoked':
-      return { text: 'ha annullato un invito', group: 'people' }
+      return { text: t('ha annullato un invito'), group: 'people' }
     case 'user.joined':
-      return { text: 'ha accettato l’invito', group: 'people' }
+      return { text: t('ha accettato l’invito'), group: 'people' }
     case 'user.password':
-      return { text: 'ha cambiato la password', group: 'people' }
+      return { text: t('ha cambiato la password'), group: 'people' }
     case 'user.password_reset':
-      return { text: 'ha scelto una nuova password dal link', group: 'people' }
+      return { text: t('ha scelto una nuova password dal link'), group: 'people' }
     case 'user.reset_link':
-      return { text: `ha creato un link per una nuova password per ${e.target}`, group: 'people' }
+      return { text: t('ha creato un link per una nuova password per {target}', { target }), group: 'people' }
     case 'user.email':
-      return { text: `ha cambiato l’email ${d.from ? `${d.from} → ` : 'in '}${e.target}`, group: 'people' }
+      return {
+        text: d.from
+          ? t('ha cambiato l’email {from} → {target}', { from: String(d.from), target })
+          : t('ha cambiato l’email in {target}', { target }),
+        group: 'people',
+      }
     case 'user.role':
       return {
-        text: `ha reso ${e.target} ${d.role === 'admin' ? 'amministratore' : 'redattore'}`,
+        text:
+          d.role === 'admin'
+            ? t('ha reso {target} amministratore', { target })
+            : t('ha reso {target} redattore', { target }),
         group: 'people',
       }
     case 'user.removed':
-      return { text: `ha rimosso ${e.target}`, group: 'people' }
+      return { text: t('ha rimosso {target}', { target }), group: 'people' }
     case 'document.created':
-      return { text: `ha creato ${t}`, group: 'content' }
+      return { text: t('ha creato {name}', { name }), group: 'content' }
     case 'document.published':
-      return { text: `ha pubblicato ${t}${d.scheduled ? ', come programmato' : ''}`, group: 'content' }
+      return {
+        text: d.scheduled ? t('ha pubblicato {name}, come programmato', { name }) : t('ha pubblicato {name}', { name }),
+        group: 'content',
+      }
     case 'document.unpublished':
-      return { text: `ha tolto dal sito ${t}${d.scheduled ? ', come programmato' : ''}`, group: 'content' }
+      return {
+        text: d.scheduled
+          ? t('ha tolto dal sito {name}, come programmato', { name })
+          : t('ha tolto dal sito {name}', { name }),
+        group: 'content',
+      }
     case 'document.scheduled':
       return {
-        text: `ha programmato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} di ${t} per ${whenDate(String(d.at))}`,
+        text: unpublish
+          ? t('ha programmato la rimozione dal sito di {name} per {when}', { name, when: when(d.at) })
+          : t('ha programmato la pubblicazione di {name} per {when}', { name, when: when(d.at) }),
         group: 'content',
       }
     case 'document.schedule_cancelled':
       return {
-        text: `ha annullato ${d.action === 'unpublish' ? 'la rimozione dal sito' : 'la pubblicazione'} programmata di ${t}`,
+        text: unpublish
+          ? t('ha annullato la rimozione dal sito programmata di {name}', { name })
+          : t('ha annullato la pubblicazione programmata di {name}', { name }),
         group: 'content',
       }
     case 'release.created':
-      return { text: `ha creato il rilascio ${t}`, group: 'content' }
-    case 'release.item_added':
+      return { text: t('ha creato il rilascio {name}', { name }), group: 'content' }
+    case 'release.item_added': {
+      const release = String(d.release ?? '')
       return {
-        text: `ha messo ${t} nel rilascio «${d.release ?? ''}»${d.action === 'unpublish' ? ', da togliere dal sito' : ''}`,
+        text: unpublish
+          ? t('ha messo {name} nel rilascio «{release}», da togliere dal sito', { name, release })
+          : t('ha messo {name} nel rilascio «{release}»', { name, release }),
         group: 'content',
       }
+    }
     case 'release.scheduled':
       return {
-        text: `ha programmato il rilascio ${t}${d.at ? ` per ${whenDate(String(d.at))}` : ''}`,
+        text: d.at
+          ? t('ha programmato il rilascio {name} per {when}', { name, when: when(d.at) })
+          : t('ha programmato il rilascio {name}', { name }),
         group: 'content',
       }
     case 'release.schedule_cancelled':
-      return { text: `ha annullato l’ora di uscita del rilascio ${t}`, group: 'content' }
-    case 'release.published':
+      return { text: t('ha annullato l’ora di uscita del rilascio {name}', { name }), group: 'content' }
+    case 'release.published': {
+      const items = d.items
       return {
-        text: `ha pubblicato il rilascio ${t}${typeof d.items === 'number' ? ` (${d.items === 1 ? 'una pagina' : `${d.items} pagine`})` : ''}`,
+        text:
+          typeof items === 'number'
+            ? tn(
+                items,
+                'ha pubblicato il rilascio {name} (una pagina)',
+                'ha pubblicato il rilascio {name} ({n} pagine)',
+                {
+                  name,
+                },
+              )
+            : t('ha pubblicato il rilascio {name}', { name }),
         group: 'content',
       }
+    }
     case 'release.failed':
-      return { text: `non è riuscito a pubblicare il rilascio ${t}: ${d.message ?? ''}`, group: 'content' }
+      return {
+        text: t('non è riuscito a pubblicare il rilascio {name}: {message}', { name, message }),
+        group: 'content',
+      }
     case 'release.cancelled':
-      return { text: `ha annullato il rilascio ${t}`, group: 'content' }
+      return { text: t('ha annullato il rilascio {name}', { name }), group: 'content' }
     case 'document.turn_taken':
       return {
-        text: `ha preso il controllo di un documento che stava modificando ${d.from ?? 'un’altra persona'}`,
+        text: d.from
+          ? t('ha preso il controllo di un documento che stava modificando {from}', { from: String(d.from) })
+          : t('ha preso il controllo di un documento che stava modificando un’altra persona'),
         group: 'content',
       }
-    case 'import.wordpress':
-      return {
-        text: `ha importato da WordPress ${t || 'un sito'}${typeof d.created === 'number' ? `: ${d.created === 1 ? 'un contenuto' : `${d.created} contenuti`}` : ''}${typeof d.media === 'number' && d.media ? `, ${d.media} immagini` : ''}${typeof d.relaid === 'number' ? `, ${d.relaid} rifatte con l’AI` : ''}`,
-        group: 'content',
-      }
+    case 'import.wordpress': {
+      const created = d.created
+      const parts = [
+        t('ha importato da WordPress {name}', { name: name || t('un sito') }) +
+          (typeof created === 'number' ? `: ${tn(created, 'un contenuto', '{n} contenuti')}` : ''),
+        typeof d.media === 'number' && d.media ? t('{n} immagini', { n: d.media }) : '',
+        typeof d.relaid === 'number' ? t('{n} rifatte con l’AI', { n: d.relaid }) : '',
+      ]
+      return { text: parts.filter(Boolean).join(', '), group: 'content' }
+    }
     case 'newsletter.created':
-      return { text: `ha creato la newsletter ${t}${d.ai ? ' con l’AI' : ''}`, group: 'content' }
-    case 'newsletter.deleted':
-      return { text: `ha eliminato la newsletter ${t}`, group: 'content' }
-    case 'newsletter.sent':
       return {
-        text: `ha inviato la newsletter ${t}${typeof d.subscribers === 'number' ? ` a ${d.subscribers === 1 ? 'un iscritto' : `${d.subscribers} iscritti`}` : ''}`,
+        text: d.ai
+          ? t('ha creato la newsletter {name} con l’AI', { name })
+          : t('ha creato la newsletter {name}', { name }),
         group: 'content',
       }
+    case 'newsletter.deleted':
+      return { text: t('ha eliminato la newsletter {name}', { name }), group: 'content' }
+    case 'newsletter.sent': {
+      const subscribers = d.subscribers
+      return {
+        text:
+          typeof subscribers === 'number'
+            ? tn(
+                subscribers,
+                'ha inviato la newsletter {name} a un iscritto',
+                'ha inviato la newsletter {name} a {n} iscritti',
+                { name },
+              )
+            : t('ha inviato la newsletter {name}', { name }),
+        group: 'content',
+      }
+    }
     case 'newsletter.scheduled':
       return {
-        text: `ha programmato la newsletter ${t}${d.at ? ` per ${whenDate(String(d.at))}` : ''}`,
+        text: d.at
+          ? t('ha programmato la newsletter {name} per {when}', { name, when: when(d.at) })
+          : t('ha programmato la newsletter {name}', { name }),
         group: 'content',
       }
     case 'newsletter.subscriber_added':
-      return { text: `ha aggiunto ${t} agli iscritti alla newsletter`, group: 'content' }
+      return { text: t('ha aggiunto {name} agli iscritti alla newsletter', { name }), group: 'content' }
     case 'newsletter.subscriber_removed':
-      return { text: `ha eliminato l’iscritto ${t} e i suoi dati`, group: 'content' }
+      return { text: t('ha eliminato l’iscritto {name} e i suoi dati', { name }), group: 'content' }
     case 'newsletter.imported':
       return {
-        text: `ha importato ${typeof d.added === 'number' ? d.added : ''} iscritti alla newsletter da un CSV`,
+        text: t('ha importato {n} iscritti alla newsletter da un CSV', {
+          n: typeof d.added === 'number' ? d.added : '',
+        }),
         group: 'content',
       }
     case 'newsletter.exported':
-      return { text: 'ha esportato l’elenco degli iscritti alla newsletter', group: 'content' }
+      return { text: t('ha esportato l’elenco degli iscritti alla newsletter'), group: 'content' }
     case 'site.ai_request':
       return {
-        text: `ha chiesto all’AI dalla panoramica: ${d.documents === 1 ? 'un contenuto modificato' : `${d.documents ?? ''} contenuti modificati`} in bozza`,
+        text:
+          d.documents === 1
+            ? t('ha chiesto all’AI dalla panoramica: un contenuto modificato in bozza')
+            : t('ha chiesto all’AI dalla panoramica: {n} contenuti modificati in bozza', {
+                n: String(d.documents ?? ''),
+              }),
         group: 'content',
       }
     case 'site.generated':
       return {
-        text: `ha fatto preparare all’AI ${d.pages === 1 ? 'una pagina' : `${d.pages ?? ''} pagine`} da un brief`,
+        text:
+          d.pages === 1
+            ? t('ha fatto preparare all’AI una pagina da un brief')
+            : t('ha fatto preparare all’AI {n} pagine da un brief', { n: String(d.pages ?? '') }),
         group: 'content',
       }
-    case 'document.reviewed':
+    case 'document.reviewed': {
+      const issues = d.issues
       return {
-        text: `ha fatto rivedere ${t} all’AI${typeof d.issues === 'number' ? `: ${d.issues === 1 ? 'un suggerimento' : `${d.issues} suggerimenti`}` : ''}`,
+        text:
+          typeof issues === 'number'
+            ? tn(
+                issues,
+                'ha fatto rivedere {name} all’AI: un suggerimento',
+                'ha fatto rivedere {name} all’AI: {n} suggerimenti',
+                {
+                  name,
+                },
+              )
+            : t('ha fatto rivedere {name} all’AI', { name }),
         group: 'content',
       }
+    }
     case 'document.preview_shared':
       return {
-        text: `ha creato un link di anteprima di ${t}${d.expiresAt ? ` valido fino a ${whenDate(String(d.expiresAt))}` : ' senza scadenza'}`,
+        text: d.expiresAt
+          ? t('ha creato un link di anteprima di {name} valido fino a {when}', { name, when: when(d.expiresAt) })
+          : t('ha creato un link di anteprima di {name} senza scadenza', { name }),
         group: 'content',
       }
     case 'document.preview_revoked':
-      return { text: `ha revocato un link di anteprima${t ? ` di ${t}` : ''}`, group: 'content' }
+      return {
+        text: name ? t('ha revocato un link di anteprima di {name}', { name }) : t('ha revocato un link di anteprima'),
+        group: 'content',
+      }
     case 'document.schedule_failed':
       return {
-        text: `${d.action === 'unpublish' ? 'Rimozione' : 'Pubblicazione'} programmata di ${t} non riuscita: ${String(d.message ?? '')}`,
+        text: unpublish
+          ? t('Rimozione programmata di {name} non riuscita: {message}', { name, message })
+          : t('Pubblicazione programmata di {name} non riuscita: {message}', { name, message }),
         group: 'content',
       }
     case 'document.deleted':
-      return { text: `ha eliminato ${t}`, group: 'content' }
+      return { text: t('ha eliminato {name}', { name }), group: 'content' }
     case 'document.restored':
-      return { text: `ha ripristinato una versione di ${t}`, group: 'content' }
-    case 'document.translated':
+      return { text: t('ha ripristinato una versione di {name}', { name }), group: 'content' }
+    case 'document.translated': {
+      const locale = String(d.locale ?? '').toUpperCase()
       return {
-        text: `ha creato la versione ${String(d.locale ?? '').toUpperCase()} di ${t}${d.ai ? ' con l’AI' : ''}`,
+        text: d.ai
+          ? t('ha creato la versione {locale} di {name} con l’AI', { locale, name })
+          : t('ha creato la versione {locale} di {name}', { locale, name }),
         group: 'content',
       }
+    }
     case 'media.uploaded':
-      return { text: `ha caricato ${t}`, group: 'content' }
+      return { text: t('ha caricato {name}', { name }), group: 'content' }
     case 'media.deleted':
-      return { text: `ha eliminato il file ${t}`, group: 'content' }
-    case 'message.exported':
+      return { text: t('ha eliminato il file {name}', { name }), group: 'content' }
+    case 'message.exported': {
+      const count = d.count
       return {
-        text: `ha esportato ${typeof d.count === 'number' ? (d.count === 1 ? 'un messaggio' : `${d.count} messaggi`) : 'i messaggi'} in CSV`,
+        text:
+          typeof count === 'number'
+            ? tn(count, 'ha esportato un messaggio in CSV', 'ha esportato {n} messaggi in CSV')
+            : t('ha esportato i messaggi in CSV'),
         group: 'content',
       }
+    }
     case 'message.deleted':
-      return { text: 'ha eliminato un messaggio ricevuto', group: 'content' }
+      return { text: t('ha eliminato un messaggio ricevuto'), group: 'content' }
     case 'backup.created':
-      return { text: d.auto ? 'Backup automatico del database' : 'ha fatto un backup del database', group: 'settings' }
+      return {
+        text: d.auto ? t('Backup automatico del database') : t('ha fatto un backup del database'),
+        group: 'settings',
+      }
     case 'backup.offsite':
-      return { text: 'Copia cifrata dei backup fuori dal server', group: 'settings' }
+      return { text: t('Copia cifrata dei backup fuori dal server'), group: 'settings' }
     case 'backup.offsite_failed':
-      return { text: `Copia fuori dal server non riuscita: ${String(d.message ?? '')}`, group: 'settings' }
+      return { text: t('Copia fuori dal server non riuscita: {message}', { message }), group: 'settings' }
     case 'backup.offsite_started':
-      return { text: 'ha avviato una copia fuori dal server', group: 'settings' }
+      return { text: t('ha avviato una copia fuori dal server'), group: 'settings' }
     case 'backup.key_shown':
-      return { text: 'ha mostrato la chiave di ripristino dei backup', group: 'settings' }
+      return { text: t('ha mostrato la chiave di ripristino dei backup'), group: 'settings' }
     case 'settings.offsite':
       return {
         text:
           e.target === 'off'
-            ? 'ha spento la copia fuori dal server'
-            : `ha impostato la copia fuori dal server su ${e.target === 's3' ? 'S3' : 'WebDAV'}`,
+            ? t('ha spento la copia fuori dal server')
+            : t('ha impostato la copia fuori dal server su {service}', {
+                service: e.target === 's3' ? 'S3' : 'WebDAV',
+              }),
         group: 'settings',
       }
     case 'backup.downloaded':
-      return { text: `ha scaricato il backup ${e.target}`, group: 'settings' }
+      return { text: t('ha scaricato il backup {target}', { target }), group: 'settings' }
     case 'backup.deleted':
-      return { text: `ha eliminato il backup ${e.target}`, group: 'settings' }
+      return { text: t('ha eliminato il backup {target}', { target }), group: 'settings' }
     case 'backup.archive':
-      return { text: 'ha scaricato l’archivio completo del sito', group: 'settings' }
+      return { text: t('ha scaricato l’archivio completo del sito'), group: 'settings' }
     case 'update.install':
       return {
         text: d.auto
-          ? `Aggiornamento automatico a Materialize ${e.target}`
-          : `ha avviato l’aggiornamento a Materialize ${e.target}`,
+          ? t('Aggiornamento automatico a Materialize {version}', { version: target })
+          : t('ha avviato l’aggiornamento a Materialize {version}', { version: target }),
         group: 'settings',
       }
     case 'update.rollback':
-      return { text: `è tornato a Materialize ${e.target}`, group: 'settings' }
+      return { text: t('è tornato a Materialize {version}', { version: target }), group: 'settings' }
   }
-  if (kind === 'settings') return { text: `ha cambiato ${SETTINGS[what] ?? 'le impostazioni'}`, group: 'settings' }
+  if (kind === 'settings')
+    return { text: t('ha cambiato {what}', { what: SETTINGS()[what] ?? t('le impostazioni') }), group: 'settings' }
   return { text: e.action, group: 'settings' }
 }
 
@@ -280,13 +399,14 @@ const GROUP_ICON = {
   settings: <Settings />,
 }
 
-const FILTERS = [
-  { value: '', label: 'Tutto' },
-  { value: 'access', label: 'Accessi' },
-  { value: 'people', label: 'Persone' },
-  { value: 'content', label: 'Contenuti' },
-  { value: 'settings', label: 'Impostazioni' },
-] as const
+const FILTERS = () =>
+  [
+    { value: '', label: t('Tutto') },
+    { value: 'access', label: t('Accessi') },
+    { value: 'people', label: t('Persone') },
+    { value: 'content', label: t('Contenuti') },
+    { value: 'settings', label: t('Impostazioni') },
+  ] as const
 
 /**
  * Impostazioni → Protezione, in three sections: Sicurezza (what to fix), Backup (copies here and
@@ -302,11 +422,11 @@ export function SecuritySettings({
   const { user } = useSession()
   if (user.role !== 'admin')
     return (
-      <EmptyState icon={<ShieldCheck />} title="Il registro della sicurezza lo vedono gli amministratori">
-        La tua verifica in due passaggi e i tuoi dispositivi sono nel tuo profilo.
+      <EmptyState icon={<ShieldCheck />} title={t('Il registro della sicurezza lo vedono gli amministratori')}>
+        {t('La tua verifica in due passaggi e i tuoi dispositivi sono nel tuo profilo.')}
         <div className="mt-3">
           <Button size="sm" onClick={onOpenProfile}>
-            Apri il profilo
+            {t('Apri il profilo')}
           </Button>
         </div>
       </EmptyState>
@@ -333,12 +453,12 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
   return (
     <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <ShieldCheck /> Stato della sicurezza
+        <ShieldCheck /> {t('Stato della sicurezza')}
       </h2>
       <p className="text-[14px] text-fg2">
         {issues
-          ? `${issues === 1 ? 'Un punto da sistemare' : `${issues} punti da sistemare`}, dal più importante.`
-          : 'Tutto in ordine.'}
+          ? tn(issues, 'Un punto da sistemare, dal più importante.', '{n} punti da sistemare, dal più importante.')
+          : t('Tutto in ordine.')}
       </p>
       <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
         {checks.map((c) => (
@@ -362,12 +482,12 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
                 }
               >
                 {c.action === 'profile'
-                  ? 'Attiva'
+                  ? t('Attivala')
                   : c.action === 'mail'
-                    ? 'Configura'
+                    ? t('Configura')
                     : c.action === 'backups'
-                      ? 'Backup'
-                      : 'Persone'}
+                      ? t('Backup')
+                      : t('Persone')}
               </Button>
             )}
           </li>
@@ -400,18 +520,25 @@ function BackupsSection() {
       toast((error as Error).message, 'error')
     }
   }
+  const restore = <code className="font-mono text-[12px]">npx materialize restore</code>
   return (
     <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <DatabaseBackup /> Backup
+        <DatabaseBackup /> {t('Backup')}
       </h2>
       <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-medium">Scarica tutto</div>
+          <div className="text-[14px] font-medium">{t('Scarica tutto')}</div>
           <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
-            Un unico archivio con {data.available ? 'il database, ' : ''}tutte le immagini originali e i caratteri: da
-            tenere fuori dal server, o per spostare il sito. Si rimette con{' '}
-            <code className="font-mono text-[12px]">npx materialize restore</code>.
+            {data.available
+              ? tx(
+                  'Un unico archivio con il database, tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.',
+                  { command: restore },
+                )
+              : tx(
+                  'Un unico archivio con tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.',
+                  { command: restore },
+                )}
           </p>
         </div>
         <a
@@ -419,45 +546,50 @@ function BackupsSection() {
           download
           className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line2 px-2.5 text-[13px] font-medium hover:bg-hover [&_svg]:size-3.5"
           onClick={() => {
-            toast('L’archivio si sta preparando: il download parte tra poco')
+            toast(t('L’archivio si sta preparando: il download parte tra poco'))
             setTimeout(refresh, 3000)
           }}
         >
-          <Download /> Scarica tutto
+          <Download /> {t('Scarica tutto')}
         </a>
       </div>
       <OffsiteBackup />
       {!data.available ? (
         <p className="text-[14px] leading-relaxed text-fg2">
-          Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano
-          attivi nel suo pannello. L’archivio qui sopra contiene comunque immagini e caratteri.
+          {t(
+            'Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano attivi nel suo pannello. L’archivio qui sopra contiene comunque immagini e caratteri.',
+          )}
         </p>
       ) : (
         <>
           <div className="flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
             <Switch
               checked={data.enabled}
-              label="Backup automatici ogni giorno"
+              label={t('Backup automatici ogni giorno')}
               onChange={(enabled) => void save({ enabled })}
             />
             <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-medium">Una copia del database ogni giorno</div>
+              <div className="text-[14px] font-medium">{t('Una copia del database ogni giorno')}</div>
               <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
-                La fa il server mentre è acceso, nella cartella backups accanto al database. Ne tiene
-                <select
-                  value={data.keep}
-                  onChange={(e) => void save({ keep: Number(e.target.value) })}
-                  aria-label="Quante copie tenere"
-                  className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[13px] text-fg outline-none"
-                >
-                  {[7, 14, 30, 90].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-                e cancella le più vecchie. Copia anche le immagini nuove: quelle eliminate dalla libreria restano almeno
-                30 giorni.
+                {tx(
+                  'La fa il server mentre è acceso, nella cartella backups accanto al database. Ne tiene {count} e cancella le più vecchie. Copia anche le immagini nuove: quelle eliminate dalla libreria restano almeno 30 giorni.',
+                  {
+                    count: (
+                      <select
+                        value={data.keep}
+                        onChange={(e) => void save({ keep: Number(e.target.value) })}
+                        aria-label={t('Quante copie tenere')}
+                        className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[13px] text-fg outline-none"
+                      >
+                        {[7, 14, 30, 90].map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    ),
+                  },
+                )}
               </p>
             </div>
             <Button
@@ -468,7 +600,7 @@ function BackupsSection() {
                 setBusy(true)
                 try {
                   await api.createBackup()
-                  toast('Backup fatto')
+                  toast(t('Backup fatto'))
                   refresh()
                 } catch (error) {
                   toast((error as Error).message, 'error')
@@ -477,7 +609,7 @@ function BackupsSection() {
                 }
               }}
             >
-              Fai un backup ora
+              {t('Fai un backup ora')}
             </Button>
           </div>
           {data.items.length > 0 && (
@@ -495,13 +627,13 @@ function BackupsSection() {
                     download={b.name}
                     className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
                   >
-                    <Download /> Scarica
+                    <Download /> {t('Scarica')}
                   </a>
                   <IconButton
-                    label={`Elimina ${b.name}`}
+                    label={t('Elimina {name}', { name: b.name })}
                     className="hover:text-danger"
                     onClick={async () => {
-                      if (!confirm(`Eliminare il backup ${b.name}?`)) return
+                      if (!confirm(t('Eliminare il backup {name}?', { name: b.name }))) return
                       await api.removeBackup(b.name).catch((e: Error) => toast(e.message, 'error'))
                       refresh()
                     }}
@@ -513,10 +645,14 @@ function BackupsSection() {
             </ul>
           )}
           <p className="text-[13px] leading-relaxed text-fg3">
-            {data.media.files > 0 && `Copia delle immagini: ${data.media.files} file, ${size(data.media.size)}. `}
-            Per rimettere un backup: ferma il server, poi nella cartella del sito{' '}
-            <code className="font-mono">npx materialize restore percorso/del/backup.db</code>. Le immagini che mancano
-            tornano dalla copia; il database di prima resta salvato tra i backup.
+            {data.media.files > 0 &&
+              `${t('Copia delle immagini: {files} file, {size}.', { files: data.media.files, size: size(data.media.size) })} `}
+            {tx(
+              'Per rimettere un backup: ferma il server, poi nella cartella del sito {command}. Le immagini che mancano tornano dalla copia; il database di prima resta salvato tra i backup.',
+              {
+                command: <code className="font-mono">npx materialize restore {t('percorso/del/backup.db')}</code>,
+              },
+            )}
           </p>
         </>
       )}
@@ -525,7 +661,7 @@ function BackupsSection() {
 }
 
 function ActivityLog() {
-  const [group, setGroup] = useState<(typeof FILTERS)[number]['value']>('')
+  const [group, setGroup] = useState<ReturnType<typeof FILTERS>[number]['value']>('')
   const list = useInfiniteQuery({
     queryKey: ['activity', group],
     queryFn: ({ pageParam }) => api.activity({ group: group || undefined, before: pageParam }),
@@ -536,10 +672,10 @@ function ActivityLog() {
   return (
     <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <KeyRound /> Attività
+        <KeyRound /> {t('Attività')}
       </h2>
       <div className="flex flex-wrap gap-1">
-        {FILTERS.map((f) => (
+        {FILTERS().map((f) => (
           <button
             key={f.value}
             type="button"
@@ -556,7 +692,7 @@ function ActivityLog() {
       {list.isPending ? (
         <Spinner />
       ) : !items.length ? (
-        <p className="py-6 text-center text-[14px] text-fg3">Ancora niente da mostrare.</p>
+        <p className="py-6 text-center text-[14px] text-fg3">{t('Ancora niente da mostrare.')}</p>
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
           {items.map((e) => {
@@ -587,11 +723,11 @@ function ActivityLog() {
       {list.hasNextPage && (
         <div className="flex justify-center">
           <Button size="sm" onClick={() => list.fetchNextPage()} loading={list.isFetchingNextPage}>
-            Mostra altre
+            {t('Mostra altre')}
           </Button>
         </div>
       )}
-      <p className="text-[12px] text-fg3">Il registro conserva un anno di attività.</p>
+      <p className="text-[12px] text-fg3">{t('Il registro conserva un anno di attività.')}</p>
     </section>
   )
 }

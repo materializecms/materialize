@@ -52,6 +52,7 @@ import {
 import { clean, emptyValue } from '../lib/doc.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { useHistory } from '../lib/history.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
 import { PageEditor } from '../page/PageEditor.tsx'
@@ -110,13 +111,13 @@ export function DocumentScreen({
   }
   if (id && doc.error) {
     return (
-      <EmptyState icon={<FileText />} title="Documento non trovato">
+      <EmptyState icon={<FileText />} title={t('Documento non trovato')}>
         <button
           type="button"
           className="text-accent hover:underline"
           onClick={() => navigate({ name: 'collection', collection: collection.name })}
         >
-          Torna a {collection.label}
+          {t('Torna a {name}', { name: collection.label })}
         </button>
       </EmptyState>
     )
@@ -231,7 +232,7 @@ function Editor({
 
   const titleDef = fields.find((f) => f.name === collection.titleField && f.kind === 'text')
   const titleValue = history.value[collection.titleField]
-  const title = typeof titleValue === 'string' && titleValue.trim() ? titleValue : 'Senza titolo'
+  const title = typeof titleValue === 'string' && titleValue.trim() ? titleValue : t('Senza titolo')
 
   const applyServer = useCallback(
     (res: StoredDocument, sent: string) => {
@@ -301,8 +302,8 @@ function Editor({
   // Autosave drafts of existing documents shortly after the last change.
   useEffect(() => {
     if (!doc || !dirty || saving) return
-    const t = setTimeout(save, 900)
-    return () => clearTimeout(t)
+    const timer = setTimeout(save, 900)
+    return () => clearTimeout(timer)
   }, [doc, dirty, saving, save])
 
   /**
@@ -340,7 +341,7 @@ function Editor({
       queryClient.invalidateQueries({ queryKey: ['overview'] })
       // The site's name in the sidebar comes from the settings singleton.
       if (collection.singleton) queryClient.invalidateQueries({ queryKey: ['schema'] })
-      toast(doc?.publishedAt ? 'Modifiche pubblicate' : 'Pubblicato')
+      toast(doc?.publishedAt ? t('Modifiche pubblicate') : t('Pubblicato'))
     } catch (error) {
       handleError(error)
     } finally {
@@ -365,7 +366,7 @@ function Editor({
     try {
       applyServer(await api.unpublish(doc.id), latest.current.current)
       queryClient.invalidateQueries({ queryKey: ['overview'] })
-      toast('Tolto dal sito: ora è una bozza')
+      toast(t('Tolto dal sito: ora è una bozza'))
     } catch (error) {
       handleError(error)
     }
@@ -380,7 +381,7 @@ function Editor({
       if (collection.slugField) data[collection.slugField] = ''
       const created = await api.create(collection.name, data, doc.locale)
       queryClient.invalidateQueries({ queryKey: ['list', collection.name] })
-      toast('Copia creata come bozza')
+      toast(t('Copia creata come bozza'))
       navigate({ name: 'document', collection: collection.name, id: created.id })
     } catch (error) {
       handleError(error)
@@ -393,7 +394,7 @@ function Editor({
       await api.remove(doc.id)
       setNavigationGuard(null)
       queryClient.invalidateQueries({ queryKey: ['list', collection.name] })
-      toast('Eliminato')
+      toast(t('Eliminato'))
       navigate({ name: 'collection', collection: collection.name })
     } catch (error) {
       handleError(error)
@@ -411,7 +412,7 @@ function Editor({
       history.set(res.data)
       applyServer(res, JSON.stringify(clean(fields, res.data)))
       setPreviewing(null)
-      toast('Versione ripristinata nella bozza: ⌘Z la annulla')
+      toast(t('Versione ripristinata nella bozza: ⌘Z la annulla'))
     } catch (error) {
       handleError(error)
     }
@@ -426,7 +427,7 @@ function Editor({
         void save()
         return true
       }
-      return confirm('Ci sono modifiche non salvate. Uscire comunque?')
+      return confirm(t('Ci sono modifiche non salvate. Uscire comunque?'))
     })
     const onUnload = (e: BeforeUnloadEvent) => {
       if (latest.current.current !== saved || latest.current.saving) e.preventDefault()
@@ -503,8 +504,8 @@ function Editor({
           {!collection.singleton && (
             <button
               type="button"
-              title={`Torna a ${collection.label}`}
-              aria-label={`Torna a ${collection.label}`}
+              title={t('Torna a {name}', { name: collection.label })}
+              aria-label={t('Torna a {name}', { name: collection.label })}
               onClick={() => navigate({ name: 'collection', collection: collection.name })}
               className="group relative flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-hover"
             >
@@ -567,10 +568,10 @@ function Editor({
                     value: 'content',
                     label: (
                       <>
-                        <FileText /> <span className="max-sm:hidden">Contenuto</span>
+                        <FileText /> <span className="max-sm:hidden">{t('Contenuto')}</span>
                       </>
                     ),
-                    title: pageField ? 'Scrivi testi e cambia immagini sulla pagina' : 'Modifica i campi',
+                    title: pageField ? t('Scrivi testi e cambia immagini sulla pagina') : t('Modifica i campi'),
                   },
                   {
                     value: 'design',
@@ -579,7 +580,7 @@ function Editor({
                         <LayoutTemplate /> <span className="max-sm:hidden">Design</span>
                       </>
                     ),
-                    title: 'Componi la pagina sulla tela',
+                    title: t('Componi la pagina sulla tela'),
                   },
                 ]}
               />
@@ -588,17 +589,17 @@ function Editor({
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <div className="mz-pill max-sm:hidden">
-              <IconButton label="Annulla (⌘Z)" disabled={!history.canUndo} onClick={history.undo}>
+              <IconButton label={t('Annulla (⌘Z)')} disabled={!history.canUndo} onClick={history.undo}>
                 <Undo2 />
               </IconButton>
-              <IconButton label="Ripristina (⇧⌘Z)" disabled={!history.canRedo} onClick={history.redo}>
+              <IconButton label={t('Ripristina (⇧⌘Z)')} disabled={!history.canRedo} onClick={history.redo}>
                 <Redo2 />
               </IconButton>
               <ThemeSwitch compact />
             </div>
             {pageField && doc && (
               <IconButton
-                label="Cronologia"
+                label={t('Cronologia')}
                 data-tour="history"
                 active={historyOpen}
                 onClick={() => {
@@ -611,7 +612,7 @@ function Editor({
             )}
             {mode === 'content' && !pageField && (
               <IconButton
-                label="Pannello documento"
+                label={t('Pannello documento')}
                 active={panel === 'on'}
                 onClick={() => setPanel(panel === 'on' ? 'off' : 'on')}
               >
@@ -622,7 +623,7 @@ function Editor({
               align="end"
               width={268}
               trigger={({ toggle, ref }) => (
-                <IconButton ref={ref} label="Altre azioni" onClick={toggle}>
+                <IconButton ref={ref} label={t('Altre azioni')} onClick={toggle}>
                   <MoreHorizontal />
                 </IconButton>
               )}
@@ -637,9 +638,9 @@ function Editor({
                       setConfirmUnpublish(true)
                     }}
                   >
-                    <span className="block">Togli dal sito</span>
+                    <span className="block">{t('Togli dal sito')}</span>
                     <span className="block text-[12px] font-normal text-fg3">
-                      {doc?.publishedAt ? 'Torna bozza, non più visibile online' : 'Non è pubblicato'}
+                      {doc?.publishedAt ? t('Torna bozza, non più visibile online') : t('Non è pubblicato')}
                     </span>
                   </MenuItem>
                   {aiReady && !pageField && (
@@ -651,8 +652,10 @@ function Editor({
                         setReviewing(true)
                       }}
                     >
-                      <span className="block">Revisione AI</span>
-                      <span className="block text-[12px] font-normal text-fg3">Refusi, voce, incoerenze, link</span>
+                      <span className="block">{t('Revisione AI')}</span>
+                      <span className="block text-[12px] font-normal text-fg3">
+                        {t('Refusi, voce, incoerenze, link')}
+                      </span>
                     </MenuItem>
                   )}
                   {!collection.singleton && (
@@ -663,9 +666,11 @@ function Editor({
                         setReleasing(true)
                       }}
                     >
-                      <span className="block">{doc?.release ? 'Rilascio' : 'Aggiungi a un rilascio'}</span>
+                      <span className="block">{doc?.release ? t('Rilascio') : t('Aggiungi a un rilascio')}</span>
                       <span className="block text-[12px] font-normal text-fg3">
-                        {doc?.release ? `In «${doc.release.name}»` : 'Esce insieme ad altre pagine'}
+                        {doc?.release
+                          ? t('In «{name}»', { name: doc.release.name })
+                          : t('Esce insieme ad altre pagine')}
                       </span>
                     </MenuItem>
                   )}
@@ -678,9 +683,9 @@ function Editor({
                         setSharing(true)
                       }}
                     >
-                      <span className="block">Condividi anteprima</span>
+                      <span className="block">{t('Condividi anteprima')}</span>
                       <span className="block text-[12px] font-normal text-fg3">
-                        {doc?.url ? 'Un link per chi non ha un account' : 'Non ha una pagina sul sito'}
+                        {doc?.url ? t('Un link per chi non ha un account') : t('Non ha una pagina sul sito')}
                       </span>
                     </MenuItem>
                   )}
@@ -689,10 +694,10 @@ function Editor({
                     disabled={!doc}
                     onClick={() => {
                       close()
-                      if (doc) void navigator.clipboard?.writeText(doc.id).then(() => toast('ID copiato'))
+                      if (doc) void navigator.clipboard?.writeText(doc.id).then(() => toast(t('ID copiato')))
                     }}
                   >
-                    Copia ID
+                    {t('Copia ID')}
                   </MenuItem>
                   {!collection.singleton && (
                     <MenuItem
@@ -703,7 +708,7 @@ function Editor({
                         void duplicate()
                       }}
                     >
-                      Duplica
+                      {t('Duplica')}
                     </MenuItem>
                   )}
                   {user.role === 'admin' && (
@@ -718,7 +723,7 @@ function Editor({
                           setConfirmDelete(true)
                         }}
                       >
-                        Elimina
+                        {t('Elimina')}
                       </MenuItem>
                     </>
                   )}
@@ -740,10 +745,10 @@ function Editor({
             {!doc ? (
               <>
                 <Button onClick={() => void save()} loading={saving} className="ml-1">
-                  Salva bozza
+                  {t('Salva bozza')}
                 </Button>
                 <Button variant="primary" onClick={() => void publish()} loading={publishing}>
-                  Pubblica
+                  {t('Pubblica')}
                 </Button>
               </>
             ) : (
@@ -756,7 +761,7 @@ function Editor({
                 disabled={upToDate}
                 icon={upToDate ? <Check className="size-4" /> : undefined}
               >
-                {upToDate ? 'Pubblicato' : status === 'draft' ? 'Pubblica' : 'Pubblica modifiche'}
+                {upToDate ? t('Pubblicato') : status === 'draft' ? t('Pubblica') : t('Pubblica modifiche')}
               </Button>
             )}
           </div>
@@ -787,7 +792,7 @@ function Editor({
               <aside className="w-[280px] shrink-0 overflow-y-auto rounded-[22px] bg-panel px-4 py-3.5">
                 <div className="mb-1 flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 text-[13px] font-medium text-fg3">
-                    <HistoryIcon className="size-3.5" /> Cronologia
+                    <HistoryIcon className="size-3.5" /> {t('Cronologia')}
                   </h2>
                   <Button
                     size="sm"
@@ -797,11 +802,11 @@ function Editor({
                       setPreviewing(null)
                     }}
                   >
-                    Chiudi
+                    {t('Chiudi')}
                   </Button>
                 </div>
                 <p className="mb-3 text-[13px] leading-relaxed text-fg3">
-                  Clicca una versione per vederla su tutti i dispositivi, prima di ripristinarla.
+                  {t('Clicca una versione per vederla su tutti i dispositivi, prima di ripristinarla.')}
                 </p>
                 <RevisionList
                   docId={doc.id}
@@ -852,7 +857,7 @@ function Editor({
       <Dialog
         open={!!problems}
         onClose={() => setProblems(null)}
-        title={`Prima di pubblicare: ${problems?.length === 1 ? 'un problema' : `${problems?.length} problemi`}`}
+        title={tn(problems?.length ?? 0, 'Prima di pubblicare: un problema', 'Prima di pubblicare: {n} problemi')}
         width={460}
         footer={
           <>
@@ -863,33 +868,33 @@ function Editor({
               }}
               data-autofocus
             >
-              Vedi i controlli
+              {t('Vedi i controlli')}
             </Button>
             <Button variant="primary" onClick={() => void publish(true)}>
-              Pubblica lo stesso
+              {t('Pubblica lo stesso')}
             </Button>
           </>
         }
       >
         <p className="text-[14px] leading-relaxed">
-          Alcune persone potrebbero non riuscire a usare bene la pagina, o la pagina si apre lentamente:
+          {t('Alcune persone potrebbero non riuscire a usare bene la pagina, o la pagina si apre lentamente:')}
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px]">
           {problems?.slice(0, 5).map((p) => (
             <li key={p.id}>{p.label}</li>
           ))}
-          {(problems?.length ?? 0) > 5 && <li>e altri {(problems?.length ?? 0) - 5}</li>}
+          {(problems?.length ?? 0) > 5 && <li>{t('e altri {n}', { n: (problems?.length ?? 0) - 5 })}</li>}
         </ul>
       </Dialog>
 
       <Dialog
         open={confirmUnpublish}
         onClose={() => setConfirmUnpublish(false)}
-        title={`Togliere “${title}” dal sito?`}
+        title={t('Togliere “{title}” dal sito?', { title })}
         footer={
           <>
             <Button onClick={() => setConfirmUnpublish(false)} data-autofocus>
-              Annulla
+              {t('Annulla')}
             </Button>
             <Button
               variant="primary"
@@ -898,20 +903,20 @@ function Editor({
                 void unpublish()
               }}
             >
-              Togli dal sito
+              {t('Togli dal sito')}
             </Button>
           </>
         }
       >
-        Non sarà più visibile online e tornerà una bozza. Il contenuto resta qui: puoi ripubblicarlo quando vuoi.
+        {t('Non sarà più visibile online e tornerà una bozza. Il contenuto resta qui: puoi ripubblicarlo quando vuoi.')}
       </Dialog>
 
       <Dialog
         open={reviewing}
         onClose={() => setReviewing(false)}
-        title="Revisione AI"
+        title={t('Revisione AI')}
         width={520}
-        footer={<Button onClick={() => setReviewing(false)}>Fine</Button>}
+        footer={<Button onClick={() => setReviewing(false)}>{t('Fatto')}</Button>}
       >
         <div className="max-h-[60vh] overflow-y-auto">
           <Review docId={doc?.id} data={history.value} onApply={(next) => set(next, 'ai:review')} />
@@ -943,19 +948,19 @@ function Editor({
       <Dialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        title={`Eliminare “${title}”?`}
+        title={t('Eliminare “{title}”?', { title })}
         footer={
           <>
             <Button onClick={() => setConfirmDelete(false)} data-autofocus>
-              Annulla
+              {t('Annulla')}
             </Button>
             <Button variant="danger" onClick={remove}>
-              Elimina
+              {t('Elimina')}
             </Button>
           </>
         }
       >
-        Il documento e la sua cronologia verranno eliminati. Se è pubblicato, sparirà dal sito.
+        {t('Il documento e la sua cronologia verranno eliminati. Se è pubblicato, sparirà dal sito.')}
       </Dialog>
     </FormContext.Provider>
   )
@@ -992,7 +997,13 @@ function SaveState({
   strong: boolean
   onIssues: () => void
 }) {
-  const text = saving ? 'Salvataggio…' : isNew ? 'Non ancora salvato' : dirty ? 'Modifiche in corso' : 'Salvato'
+  const text = saving
+    ? t('Salvataggio…')
+    : isNew
+      ? t('Non ancora salvato')
+      : dirty
+        ? t('Modifiche in corso')
+        : t('Salvato')
   return (
     <span
       className={cx(
@@ -1005,16 +1016,14 @@ function SaveState({
         <button
           type="button"
           onClick={onIssues}
-          title="Vanno completati prima di pubblicare"
+          title={t('Vanno completati prima di pubblicare')}
           className={cx(
             'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium',
             strong ? 'bg-danger/12 text-danger' : 'bg-warn/12 text-warn',
           )}
         >
           <CircleAlert className="size-3.5" />
-          <span className="max-sm:hidden">
-            {issues === 1 ? '1 campo da completare' : `${issues} campi da completare`}
-          </span>
+          <span className="max-sm:hidden">{tn(issues, '1 campo da completare', '{n} campi da completare')}</span>
           <span className="sm:hidden">{issues}</span>
         </button>
       )}
@@ -1052,7 +1061,7 @@ function TitleInput({
   )
 }
 
-const kindLabel = { save: 'Salvataggio', publish: 'Pubblicazione', restore: 'Ripristino' }
+const kindLabel = () => ({ save: t('Salvataggio'), publish: t('Pubblicazione'), restore: t('Ripristino') })
 
 /**
  * The saved versions of a document, newest first. "Ripristina" puts one back in the draft; with
@@ -1072,11 +1081,12 @@ function RevisionList({
   const revisions = useQuery({ queryKey: ['revisions', docId], queryFn: () => api.revisions(docId) })
   if (revisions.isPending) return <Spinner />
   const items = revisions.data?.items ?? []
-  if (!items.length) return <p className="text-[13px] text-fg3">Nessuna versione salvata.</p>
+  if (!items.length) return <p className="text-[13px] text-fg3">{t('Nessuna versione salvata.')}</p>
   return (
     <ol className="relative space-y-0.5 border-l border-line pl-3">
       {items.map((r, i) => {
-        const label = `${i === 0 ? 'l’ultima versione' : `la versione del ${fullDate(r.createdAt)}`}${r.authorName ? ` di ${r.authorName}` : ''}`
+        const version = i === 0 ? t('l’ultima versione') : t('la versione del {date}', { date: fullDate(r.createdAt) })
+        const label = r.authorName ? t('{version} di {name}', { version, name: r.authorName }) : version
         return (
           <li
             key={r.id}
@@ -1097,10 +1107,10 @@ function RevisionList({
               className="min-w-0 flex-1 text-left disabled:cursor-default"
               onClick={() => onPick?.(r, label)}
             >
-              <span className="block text-[13px]">{kindLabel[r.kind]}</span>
+              <span className="block text-[13px]">{kindLabel()[r.kind]}</span>
               {/* Who made it: the name, or "persona rimossa" when the account no longer exists. */}
               {r.authorId && (
-                <span className="block truncate text-[12px] text-fg2">{r.authorName ?? 'Persona rimossa'}</span>
+                <span className="block truncate text-[12px] text-fg2">{r.authorName ?? t('Persona rimossa')}</span>
               )}
               <span className="block text-[12px] text-fg3" title={fullDate(r.createdAt)}>
                 {/* Many saves on the same day: past the last few hours, the time tells them apart. */}
@@ -1116,7 +1126,7 @@ function RevisionList({
                 className={cx('group-hover:opacity-100', selected === r.id ? 'opacity-100' : 'opacity-0')}
                 onClick={() => onRestore(r.id)}
               >
-                Ripristina
+                {t('Ripristina')}
               </Button>
             )}
           </li>
@@ -1144,14 +1154,14 @@ function InfoPanel({
     // On phones the form takes the whole width: details and history are for larger screens.
     <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-line bg-panel max-md:hidden">
       <section className="border-b border-line px-4 py-3.5">
-        <h2 className="mb-1.5 text-[13px] font-medium text-fg3">Documento</h2>
+        <h2 className="mb-1.5 text-[13px] font-medium text-fg3">{t('Documento')}</h2>
         <div className={row}>
-          <span className="text-fg2">Stato</span>
+          <span className="text-fg2">{t('Stato')}</span>
           <StatusBadge status={status} short />
         </div>
         {doc.url && (
           <div className={row}>
-            <span className="text-fg2">Indirizzo</span>
+            <span className="text-fg2">{t('Indirizzo')}</span>
             {publicUrl && doc.publishedAt ? (
               <a
                 href={publicUrl}
@@ -1168,24 +1178,24 @@ function InfoPanel({
         )}
         {schema.locales.available.length > 1 && (
           <div className={row}>
-            <span className="text-fg2">Lingua</span>
+            <span className="text-fg2">{t('Lingua')}</span>
             <span>{localeName(doc.locale)}</span>
           </div>
         )}
         <div className={row}>
-          <span className="text-fg2">Creato</span>
+          <span className="text-fg2">{t('Creato')}</span>
           <span title={fullDate(doc.createdAt)}>{relativeTime(doc.createdAt)}</span>
         </div>
         {doc.publishedAt && (
           <div className={row}>
-            <span className="text-fg2">Pubblicato</span>
+            <span className="text-fg2">{t('Pubblicato')}</span>
             <span title={fullDate(doc.publishedAt)}>{relativeTime(doc.publishedAt)}</span>
           </div>
         )}
       </section>
       <section className="px-4 py-3.5">
         <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-fg3">
-          <HistoryIcon className="size-3.5" /> Cronologia
+          <HistoryIcon className="size-3.5" /> {t('Cronologia')}
         </h2>
         <RevisionList docId={doc.id} onRestore={onRestore} />
       </section>

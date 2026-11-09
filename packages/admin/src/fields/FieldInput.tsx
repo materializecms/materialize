@@ -10,6 +10,7 @@ import { AiButton, AiTextMenu } from '../components/AiMenu.tsx'
 import { Button, cx, IconButton, Input, Segmented, Switch, Textarea } from '../components/ui.tsx'
 import { api, type FieldDescription } from '../lib/api.ts'
 import { emptyValue, move, optionList, type Path, pathKey } from '../lib/doc.ts'
+import { t } from '../lib/i18n.ts'
 import { BlocksInput } from './BlocksInput.tsx'
 import { useForm, useIssues } from './form-context.ts'
 import { MediaInput } from './MediaInput.tsx'
@@ -187,7 +188,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
           <Segmented
             value={current}
             onChange={(v) => onChange(v === '' ? undefined : v)}
-            options={[...(field.required ? [] : [{ value: '', label: '—', title: 'Nessuno' }]), ...options]}
+            options={[...(field.required ? [] : [{ value: '', label: '—', title: t('Nessuno') }]), ...options]}
           />
         )
       }
@@ -222,14 +223,14 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
               id={id}
               className="pl-5 font-mono text-[13px]"
               value={typeof value === 'string' ? value : ''}
-              placeholder={suggestion || 'indirizzo-della-pagina'}
+              placeholder={suggestion || t('indirizzo-della-pagina')}
               aria-invalid={invalid || undefined}
               onChange={(e) => onChange(e.target.value.toLowerCase().replace(/\s+/g, '-'), group)}
               onBlur={(e) => e.target.value && onChange(slugify(e.target.value))}
             />
           </div>
           {suggestion && suggestion !== value && (
-            <IconButton label="Genera dal titolo" className="size-8" onClick={() => onChange(suggestion)}>
+            <IconButton label={t('Genera dal titolo')} className="size-8" onClick={() => onChange(suggestion)}>
               <Wand2 />
             </IconButton>
           )}
@@ -300,7 +301,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
               value={/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#000000'}
               onChange={(e) => onChange(e.target.value, group)}
               className="absolute inset-0 cursor-pointer opacity-0"
-              aria-label={`${field.label}: scegli colore`}
+              aria-label={t('{label}: scegli colore', { label: field.label })}
             />
           </label>
           <Input
@@ -335,12 +336,12 @@ function LinkInput({
     <div className="space-y-1.5">
       <div className="grid grid-cols-[1fr_1.3fr] gap-1.5">
         <Input
-          placeholder="Testo"
+          placeholder={t('Testo')}
           value={v.label ?? ''}
           onChange={(e) => onChange({ ...v, label: e.target.value }, 'label')}
         />
         <Input
-          placeholder="https://… o /pagina"
+          placeholder={t('https://… o /pagina')}
           className="font-mono text-[13px]"
           value={v.href}
           onChange={(e) => onChange({ ...v, href: e.target.value }, 'href')}
@@ -350,9 +351,9 @@ function LinkInput({
         <Switch
           checked={!!v.newTab}
           onChange={(newTab) => onChange({ ...v, newTab }, 'tab')}
-          label="Apri in una nuova scheda"
+          label={t('Apri in una nuova scheda')}
         />
-        Apri in una nuova scheda
+        {t('Apri in una nuova scheda')}
       </div>
     </div>
   )
@@ -386,17 +387,17 @@ function ArrayInput({
             <FieldControl field={item} value={entry} path={[...path, i]} onChange={(v, g) => update(i, v, g)} />
           </div>
           <div className="flex shrink-0 opacity-60 transition-opacity group-hover:opacity-100">
-            <IconButton label="Sposta su" disabled={i === 0} onClick={() => onChange(move(value, i, i - 1))}>
+            <IconButton label={t('Sposta su')} disabled={i === 0} onClick={() => onChange(move(value, i, i - 1))}>
               <ArrowUp />
             </IconButton>
             <IconButton
-              label="Sposta giù"
+              label={t('Sposta giù')}
               disabled={i === value.length - 1}
               onClick={() => onChange(move(value, i, i + 1))}
             >
               <ArrowDown />
             </IconButton>
-            <IconButton label="Rimuovi" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+            <IconButton label={t('Rimuovi')} onClick={() => onChange(value.filter((_, j) => j !== i))}>
               <Trash2 />
             </IconButton>
           </div>
@@ -409,7 +410,7 @@ function ArrayInput({
           icon={<Plus className="size-3.5" />}
           onClick={() => onChange([...value, emptyValue(item) ?? (item.kind === 'text' ? '' : undefined)])}
         >
-          Aggiungi
+          {t('Aggiungi')}
         </Button>
       )}
     </div>
@@ -424,13 +425,13 @@ const seoField = (
   localized = true,
 ): FieldDescription => ({ name, kind, label, required: false, localized, options })
 
-const SCHEMA_HINTS: Record<string, string> = {
-  article: 'Google può mostrare data e autore. Per notizie, guide, post del blog.',
-  project: 'Un lavoro realizzato: un progetto, un’opera, un caso studio.',
-  service: 'Un servizio offerto, collegato ai dati dell’attività.',
-  event: 'Data e luogo possono comparire direttamente nei risultati di ricerca.',
-  faq: 'Domande e risposte: aiutano anche le risposte degli assistenti AI.',
-}
+const SCHEMA_HINTS = (): Record<string, string> => ({
+  article: t('Google può mostrare data e autore. Per notizie, guide, post del blog.'),
+  project: t('Un lavoro realizzato: un progetto, un’opera, un caso studio.'),
+  service: t('Un servizio offerto, collegato ai dati dell’attività.'),
+  event: t('Data e luogo possono comparire direttamente nei risultati di ricerca.'),
+  faq: t('Domande e risposte: aiutano anche le risposte degli assistenti AI.'),
+})
 
 function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; path: Path }) {
   const { docTitle, docUrl, siteUrl, docText } = useForm()
@@ -447,7 +448,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
     else next[key] = v
     onChange(next, group)
   }
-  const title = pageTitle({ title: docTitle || 'Titolo della pagina', url: docUrl, seo: value, site })
+  const title = pageTitle({ title: docTitle || t('Titolo della pagina'), url: docUrl, seo: value, site })
   const description = value.description || site.description
   const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'example.com'
   const image = value.image ?? site.image
@@ -458,14 +459,14 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-[12px] text-fg3">Anteprima</span>
+        <span className="text-[12px] text-fg3">{t('Anteprima')}</span>
         <Segmented
           size="sm"
           value={preview}
           onChange={setPreview}
           options={[
             { value: 'google', label: 'Google' },
-            { value: 'social', label: 'Condivisione' },
+            { value: 'social', label: t('Condivisione') },
           ]}
         />
       </div>
@@ -483,10 +484,11 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
           </div>
           <div className="mt-0.5 truncate text-[16px] leading-snug text-[#1a0dab] dark:text-[#8ab4f8]">{title}</div>
           <div className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-fg2">
-            {description || 'Aggiungi una descrizione: è il testo che appare sotto al titolo nei risultati di ricerca.'}
+            {description ||
+              t('Aggiungi una descrizione: è il testo che appare sotto al titolo nei risultati di ricerca.')}
           </div>
           {value.noindex && (
-            <div className="mt-2 text-[12px] font-medium text-danger">Nascosta: non comparirà su Google.</div>
+            <div className="mt-2 text-[12px] font-medium text-danger">{t('Nascosta: non comparirà su Google.')}</div>
           )}
         </div>
       ) : (
@@ -495,7 +497,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
             {image?.src ? (
               <img src={image.src} alt="" className="size-full object-cover" />
             ) : (
-              'Nessuna immagine: scegline una qui sotto o in Impostazioni → SEO'
+              t('Nessuna immagine: scegline una qui sotto o in Impostazioni → SEO')
             )}
           </div>
           <div className="space-y-0.5 px-3 py-2.5">
@@ -513,35 +515,35 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
           <AiButton
             action="seo_title"
             text={docText()}
-            label="Scrivi il titolo"
-            title="Il titolo per Google, scritto dall’AI dal contenuto della pagina"
-            onResult={(t) => set('title', t, 'ai:seo')}
+            label={t('Scrivi il titolo')}
+            title={t('Il titolo per Google, scritto dall’AI dal contenuto della pagina')}
+            onResult={(text) => set('title', text, 'ai:seo')}
           />
           <AiButton
             action="seo_description"
             text={docText()}
-            label="Scrivi la descrizione"
-            title="La descrizione per Google, scritta dall’AI dal contenuto della pagina"
-            onResult={(t) => set('description', t, 'ai:seo')}
+            label={t('Scrivi la descrizione')}
+            title={t('La descrizione per Google, scritta dall’AI dal contenuto della pagina')}
+            onResult={(text) => set('description', text, 'ai:seo')}
           />
         </div>
       )}
-      {field('title', seoField('title', 'text', 'Titolo per i motori di ricerca', { max: 70, placeholder: title }))}
+      {field('title', seoField('title', 'text', t('Titolo per i motori di ricerca'), { max: 70, placeholder: title }))}
       {field(
         'description',
-        seoField('description', 'text', 'Descrizione', {
+        seoField('description', 'text', t('Descrizione'), {
           max: 170,
           multiline: true,
-          placeholder: site.description || 'Una o due frasi che invoglino a cliccare.',
+          placeholder: site.description || t('Una o due frasi che invoglino a cliccare.'),
         }),
       )}
-      {field('image', seoField('image', 'media', 'Immagine per la condivisione', { focalPoint: false }, false))}
+      {field('image', seoField('image', 'media', t('Immagine per la condivisione'), { focalPoint: false }, false))}
       {!value.image && (
         <p className="-mt-2 text-[12px] text-fg3">
-          Consigliata 1200 × 630. Senza, si usa la prima immagine della pagina.
+          {t('Consigliata 1200 × 630. Senza, si usa la prima immagine della pagina.')}
         </p>
       )}
-      {field('noindex', seoField('noindex', 'boolean', 'Nascondi dai motori di ricerca', {}, false))}
+      {field('noindex', seoField('noindex', 'boolean', t('Nascondi dai motori di ricerca'), {}, false))}
       <button
         type="button"
         aria-expanded={advanced}
@@ -549,17 +551,17 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
         className="flex w-full items-center gap-1.5 text-[13px] font-medium text-fg2 hover:text-fg"
       >
         <ChevronRight className={cx('size-3.5 transition-transform', advanced && 'rotate-90')} />
-        Avanzate: social, canonico, dati strutturati
+        {t('Avanzate: social, canonico, dati strutturati')}
       </button>
       {advanced && (
         <div className="space-y-4 border-l-2 border-line pl-3">
           {field(
             'socialTitle',
-            seoField('socialTitle', 'text', 'Titolo quando la condividi', { max: 90, placeholder: title }),
+            seoField('socialTitle', 'text', t('Titolo quando la condividi'), { max: 90, placeholder: title }),
           )}
           {field(
             'socialDescription',
-            seoField('socialDescription', 'text', 'Descrizione quando la condividi', {
+            seoField('socialDescription', 'text', t('Descrizione quando la condividi'), {
               max: 200,
               multiline: true,
               placeholder: description,
@@ -570,30 +572,33 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
             seoField(
               'canonical',
               'text',
-              'Indirizzo canonico',
-              { placeholder: siteUrl && docUrl ? new URL(docUrl, siteUrl).href : '/pagina-originale' },
+              t('Indirizzo canonico'),
+              { placeholder: siteUrl && docUrl ? new URL(docUrl, siteUrl).href : t('/pagina-originale') },
               false,
             ),
           )}
           <p className="-mt-3 text-[13px] leading-relaxed text-fg3">
-            Solo se questa pagina ripete un’altra: indica quella originale e Google mostrerà quella.
+            {t('Solo se questa pagina ripete un’altra: indica quella originale e Google mostrerà quella.')}
           </p>
-          {field('nofollow', seoField('nofollow', 'boolean', 'Non seguire i collegamenti di questa pagina', {}, false))}
+          {field(
+            'nofollow',
+            seoField('nofollow', 'boolean', t('Non seguire i collegamenti di questa pagina'), {}, false),
+          )}
           <div className="space-y-1.5">
-            <div className="text-[13px] font-medium">Tipo di pagina (dati strutturati)</div>
+            <div className="text-[13px] font-medium">{t('Tipo di pagina (dati strutturati)')}</div>
             <select
-              aria-label="Tipo di pagina"
+              aria-label={t('Tipo di pagina')}
               value={value.schema ?? ''}
               onChange={(e) => set('schema', e.target.value || undefined)}
               className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
-              {SCHEMA_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {SCHEMA_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
                 </option>
               ))}
             </select>
-            {value.schema && <p className="text-[13px] leading-relaxed text-fg3">{SCHEMA_HINTS[value.schema]}</p>}
+            {value.schema && <p className="text-[13px] leading-relaxed text-fg3">{SCHEMA_HINTS()[value.schema]}</p>}
           </div>
           {value.schema === 'event' && <EventFields value={value.event ?? {}} onChange={(e) => set('event', e)} />}
           {value.schema === 'faq' && <FaqFields value={value.faq ?? []} onChange={(f) => set('faq', f, 'faq')} />}
@@ -608,38 +613,42 @@ function EventFields({ value, onChange }: { value: NonNullable<Seo['event']>; on
   return (
     <div className="grid grid-cols-2 gap-2">
       <label className="space-y-1 text-[13px] text-fg2">
-        Inizio
+        {t('Inizio')}
         <Input type="datetime-local" value={value.start ?? ''} onChange={(e) => set({ start: e.target.value })} />
       </label>
       <label className="space-y-1 text-[13px] text-fg2">
-        Fine
+        {t('Fine')}
         <Input type="datetime-local" value={value.end ?? ''} onChange={(e) => set({ end: e.target.value })} />
       </label>
       <label className="col-span-2 space-y-1 text-[13px] text-fg2">
-        Luogo
+        {t('Luogo')}
         <Input
           value={value.place ?? ''}
-          placeholder="Studio Rossi"
+          placeholder={t('Studio Rossi')}
           disabled={value.online}
           onChange={(e) => set({ place: e.target.value })}
         />
       </label>
       <label className="col-span-2 space-y-1 text-[13px] text-fg2">
-        Indirizzo
+        {t('Indirizzo')}
         <Input
           value={value.address ?? ''}
-          placeholder="Via Roma 1, Milano"
+          placeholder={t('Via Roma 1, Milano')}
           disabled={value.online}
           onChange={(e) => set({ address: e.target.value })}
         />
       </label>
       <label className="space-y-1 text-[13px] text-fg2">
-        Prezzo (€)
-        <Input value={value.price ?? ''} placeholder="0 se gratuito" onChange={(e) => set({ price: e.target.value })} />
+        {t('Prezzo (€)')}
+        <Input
+          value={value.price ?? ''}
+          placeholder={t('0 se gratuito')}
+          onChange={(e) => set({ price: e.target.value })}
+        />
       </label>
       <div className="flex items-end gap-2 pb-1.5 text-[13px] text-fg2">
-        <Switch checked={!!value.online} onChange={(online) => set({ online })} label="Evento online" />
-        Online
+        <Switch checked={!!value.online} onChange={(online) => set({ online })} label={t('Evento online')} />
+        {t('Online')}
       </div>
     </div>
   )
@@ -661,27 +670,29 @@ function FaqFields({
         <div key={i} className="space-y-1.5 rounded-md border border-line p-2">
           <div className="flex gap-1.5">
             <Input
-              aria-label={`Domanda ${i + 1}`}
+              aria-label={t('Domanda {n}', { n: i + 1 })}
               value={f.q}
-              placeholder="Domanda"
+              placeholder={t('Domanda')}
               onChange={(e) => update(i, { q: e.target.value })}
             />
-            <IconButton label="Togli la domanda" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+            <IconButton label={t('Togli la domanda')} onClick={() => onChange(value.filter((_, j) => j !== i))}>
               <Trash2 className="size-3.5" />
             </IconButton>
           </div>
           <Textarea
-            aria-label={`Risposta ${i + 1}`}
+            aria-label={t('Risposta {n}', { n: i + 1 })}
             value={f.a}
-            placeholder="Risposta"
+            placeholder={t('Risposta')}
             onChange={(e) => update(i, { a: e.target.value })}
           />
         </div>
       ))}
       <Button size="sm" variant="ghost" onClick={() => onChange([...value, { q: '', a: '' }])}>
-        <Plus className="size-3.5" /> Aggiungi una domanda
+        <Plus className="size-3.5" /> {t('Aggiungi una domanda')}
       </Button>
-      <p className="text-[13px] leading-relaxed text-fg3">Scrivi le stesse domande che si leggono nella pagina.</p>
+      <p className="text-[13px] leading-relaxed text-fg3">
+        {t('Scrivi le stesse domande che si leggono nella pagina.')}
+      </p>
     </div>
   )
 }

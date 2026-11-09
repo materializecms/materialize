@@ -5,6 +5,7 @@ import { useSession } from '../app/context.ts'
 import { Button, cx, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { api, type Submission, type SubmissionQuery } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
+import { t, tx } from '../lib/i18n.ts'
 
 type View = 'all' | 'unread' | 'spam'
 
@@ -23,8 +24,8 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => {
-    const t = setTimeout(() => setSearch(typed.trim()), 250)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setSearch(typed.trim()), 250)
+    return () => clearTimeout(timer)
   }, [typed])
   const query: SubmissionQuery = {
     limit: 100,
@@ -49,22 +50,22 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
             value={view}
             onChange={setView}
             options={[
-              { value: 'all', label: 'Tutti' },
-              { value: 'unread', label: `Da leggere${data?.unread ? ` · ${data.unread}` : ''}` },
+              { value: 'all', label: t('Tutti') },
+              { value: 'unread', label: `${t('Da leggere')}${data?.unread ? ` · ${data.unread}` : ''}` },
               { value: 'spam', label: `Spam${data?.spam ? ` · ${data.spam}` : ''}` },
             ]}
           />
           {forms.length > 1 && (
             <select
-              aria-label="Modulo"
+              aria-label={t('Modulo')}
               value={form}
               onChange={(e) => setForm(e.target.value)}
               className="h-7 rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
             >
-              <option value="">Tutti i moduli</option>
+              <option value="">{t('Tutti i moduli')}</option>
               {forms.map((f) => (
                 <option key={f.form} value={f.form}>
-                  {f.name || 'Modulo senza nome'} ({f.total})
+                  {f.name || t('Modulo senza nome')} ({f.total})
                 </option>
               ))}
             </select>
@@ -72,8 +73,8 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
           <div className="relative ml-auto min-w-40 flex-1 sm:max-w-60">
             <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-fg3" />
             <Input
-              aria-label="Cerca nei messaggi"
-              placeholder="Cerca nei messaggi"
+              aria-label={t('Cerca nei messaggi')}
+              placeholder={t('Cerca nei messaggi')}
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               className="h-7 pl-7 text-[13px]"
@@ -92,12 +93,12 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
       {list.isLoading ? (
         <Spinner />
       ) : !items.length ? (
-        <EmptyState icon={<Inbox />} title={filtered ? 'Nessun messaggio qui' : 'Nessun messaggio'}>
+        <EmptyState icon={<Inbox />} title={filtered ? t('Nessun messaggio qui') : t('Nessun messaggio')}>
           {view === 'spam'
-            ? 'Qui finiscono i messaggi che sembrano spam: compilati in un attimo, pieni di link o ripetuti.'
+            ? t('Qui finiscono i messaggi che sembrano spam: compilati in un attimo, pieni di link o ripetuti.')
             : filtered
-              ? 'Prova a cambiare i filtri o la ricerca.'
-              : 'Qui arrivano i messaggi dei moduli di contatto del sito.'}
+              ? t('Prova a cambiare i filtri o la ricerca.')
+              : t('Qui arrivano i messaggi dei moduli di contatto del sito.')}
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line">
@@ -134,7 +135,7 @@ function Message({
   onToggle: () => void
   onChanged: () => void
 }) {
-  const from = m.data.nome || m.data.name || m.data.email || 'Messaggio'
+  const from = m.data.nome || m.data.name || m.data.email || t('Messaggio')
   const preview = m.data.messaggio || m.data.message || Object.values(m.data).join(' · ')
   return (
     <li className="py-3">
@@ -154,17 +155,19 @@ function Message({
                 · <Paperclip /> {m.files.length}
               </span>
             )}
-            {m.mailed && <span className="shrink-0 text-[12px] text-fg3">· inviato per email</span>}
-            {m.webhook === 'failed' && <span className="shrink-0 text-[12px] text-danger">· webhook non riuscito</span>}
+            {m.mailed && <span className="shrink-0 text-[12px] text-fg3">· {t('inviato per email')}</span>}
+            {m.webhook === 'failed' && (
+              <span className="shrink-0 text-[12px] text-danger">· {t('webhook non riuscito')}</span>
+            )}
           </div>
-          {m.spam && <p className="text-[12px] text-warn">Sembra spam: {m.spam}</p>}
+          {m.spam && <p className="text-[12px] text-warn">{t('Sembra spam: {reason}', { reason: m.spam })}</p>}
           {!expanded && <p className="truncate text-[13px] text-fg2">{preview}</p>}
         </button>
         <IconButton
-          label={m.spam ? 'Non è spam' : 'È spam'}
+          label={m.spam ? t('Non è spam') : t('È spam')}
           onClick={async () => {
             await api.markSpam(m.id, !m.spam)
-            toast(m.spam ? 'Rimesso tra i messaggi' : 'Spostato nello spam')
+            toast(m.spam ? t('Rimesso tra i messaggi') : t('Spostato nello spam'))
             onChanged()
           }}
         >
@@ -172,9 +175,9 @@ function Message({
         </IconButton>
         {canDelete && (
           <IconButton
-            label="Elimina il messaggio"
+            label={t('Elimina il messaggio')}
             onClick={async () => {
-              if (!confirm('Eliminare questo messaggio e i suoi allegati?')) return
+              if (!confirm(t('Eliminare questo messaggio e i suoi allegati?'))) return
               await api.removeSubmission(m.id)
               onChanged()
             }}
@@ -207,18 +210,18 @@ function Message({
               </div>
             )
           })}
-          {m.page && <div className="text-[12px] text-fg3">Dalla pagina {m.page}</div>}
+          {m.page && <div className="text-[12px] text-fg3">{t('Dalla pagina {page}', { page: m.page })}</div>}
         </dl>
       )}
     </li>
   )
 }
 
-const KEEP = [
-  { value: '', label: 'Per sempre' },
-  { value: '6', label: '6 mesi' },
-  { value: '12', label: '1 anno' },
-  { value: '24', label: '2 anni' },
+const KEEP = () => [
+  { value: '', label: t('Per sempre') },
+  { value: '6', label: t('6 mesi') },
+  { value: '12', label: t('1 anno') },
+  { value: '24', label: t('2 anni') },
 ]
 
 /** How long messages are kept (privacy), and the key that signs webhook calls. */
@@ -230,11 +233,11 @@ function FormsSettings() {
   const admin = user.role === 'admin'
   return (
     <section className="mt-6 space-y-3 border-t border-line pt-5">
-      <h2 className="text-[15px] font-semibold">Conservazione e collegamenti</h2>
+      <h2 className="text-[15px] font-semibold">{t('Conservazione e collegamenti')}</h2>
       <label className="flex flex-wrap items-center gap-2 text-[14px]">
-        Cancella da soli i messaggi più vecchi di
+        {t('Cancella da soli i messaggi più vecchi di')}
         <select
-          aria-label="Per quanto conservare i messaggi"
+          aria-label={t('Per quanto conservare i messaggi')}
           disabled={!admin}
           value={current.data.keepMonths ? String(current.data.keepMonths) : ''}
           onChange={async (e) => {
@@ -242,11 +245,11 @@ function FormsSettings() {
             const res = await api.saveFormsSettings(months)
             queryClient.setQueryData(['forms-settings'], { ...current.data, ...res })
             queryClient.invalidateQueries({ queryKey: ['submissions'] })
-            toast(months ? 'Salvato: i messaggi più vecchi verranno cancellati' : 'Salvato: i messaggi restano')
+            toast(months ? t('Salvato: i messaggi più vecchi verranno cancellati') : t('Salvato: i messaggi restano'))
           }}
           className="h-7 rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent disabled:opacity-60"
         >
-          {KEEP.map((k) => (
+          {KEEP().map((k) => (
             <option key={k.value} value={k.value}>
               {k.label}
             </option>
@@ -254,12 +257,13 @@ function FormsSettings() {
         </select>
       </label>
       <p className="text-[13px] leading-relaxed text-fg3">
-        Per la privacy (GDPR) conserva i dati solo per il tempo che serve: con gli allegati, i messaggi vengono
-        cancellati per sempre allo scadere.
+        {t(
+          'Per la privacy (GDPR) conserva i dati solo per il tempo che serve: con gli allegati, i messaggi vengono cancellati per sempre allo scadere.',
+        )}
       </p>
       {current.data.webhookSecret && (
         <div className="space-y-1">
-          <p className="text-[13px] font-medium">Chiave dei webhook</p>
+          <p className="text-[13px] font-medium">{t('Chiave dei webhook')}</p>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-panel2 px-2 py-1 text-[12px]">
               {current.data.webhookSecret}
@@ -267,16 +271,18 @@ function FormsSettings() {
             <Button
               size="sm"
               onClick={() =>
-                navigator.clipboard?.writeText(current.data.webhookSecret ?? '').then(() => toast('Chiave copiata'))
+                navigator.clipboard?.writeText(current.data.webhookSecret ?? '').then(() => toast(t('Chiave copiata')))
               }
               icon={<Copy className="size-3.5" />}
             >
-              Copia
+              {t('Copia')}
             </Button>
           </div>
           <p className="text-[13px] leading-relaxed text-fg3">
-            Ogni chiamata porta l’intestazione <code>X-Materialize-Signature: sha256=…</code>, l’HMAC del corpo con
-            questa chiave: chi la riceve può verificare che arrivi dal tuo sito.
+            {tx(
+              'Ogni chiamata porta l’intestazione {header}, l’HMAC del corpo con questa chiave: chi la riceve può verificare che arrivi dal tuo sito.',
+              { header: <code>X-Materialize-Signature: sha256=…</code> },
+            )}
           </p>
         </div>
       )}

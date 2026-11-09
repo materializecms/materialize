@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { cx, Input, Popover, Spinner, StatusBadge } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 
 export function useDocumentTitles(ids: string[]) {
   return useQueries({
@@ -59,10 +60,10 @@ export function RelationInput({
             key={id}
             className="inline-flex h-6 items-center gap-1 rounded bg-seg pr-0.5 pl-2 text-[13px] font-medium"
           >
-            {doc ? doc.title : docs[i]?.isError ? <span className="text-fg3">Eliminato</span> : '…'}
+            {doc ? doc.title : docs[i]?.isError ? <span className="text-fg3">{t('Eliminato')}</span> : '…'}
             <button
               type="button"
-              aria-label="Rimuovi"
+              aria-label={t('Rimuovi')}
               onClick={() => toggle(id)}
               className="flex size-5 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg"
             >
@@ -75,15 +76,15 @@ export function RelationInput({
         width={300}
         open={open}
         onOpenChange={setOpen}
-        trigger={({ toggle: t, ref }) => (
+        trigger={({ toggle: openList, ref }) => (
           <button
             ref={ref}
             type="button"
-            onClick={t}
+            onClick={openList}
             className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[13px] text-fg3 hover:bg-hover hover:text-fg"
           >
             <Plus className="size-3.5" />
-            {ids.length && !many ? 'Cambia' : `Scegli da ${target?.label ?? to}`}
+            {ids.length && !many ? t('Cambia') : t('Scegli da {collection}', { collection: target?.label ?? to })}
           </button>
         )}
       >
@@ -94,7 +95,7 @@ export function RelationInput({
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cerca…"
+              placeholder={t('Cerca…')}
               className="border-0 pl-8 focus:ring-0"
             />
           </div>
@@ -118,7 +119,7 @@ export function RelationInput({
               </button>
             ))
           ) : (
-            <div className="px-2 py-4 text-center text-[13px] text-fg3">Nessun elemento</div>
+            <div className="px-2 py-4 text-center text-[13px] text-fg3">{t('Nessun elemento')}</div>
           )}
         </div>
       </Popover>

@@ -3,6 +3,7 @@ import { ImageOff, Images, Link2, Loader2, Trash2, Upload } from 'lucide-react'
 import { type PointerEvent, useRef, useState } from 'react'
 import { Button, cx, IconButton, Input, toast } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { DropZone } from '../media/MediaGrid.tsx'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { ACCEPT } from '../media/uploads.ts'
@@ -73,7 +74,7 @@ export function MediaInput({
           role="presentation"
           className={cx('relative aspect-[16/9] bg-panel2', focalPoint && 'cursor-crosshair')}
           onPointerDown={pick}
-          title={focalPoint ? 'Clicca per scegliere il punto focale' : undefined}
+          title={focalPoint ? t('Clicca per scegliere il punto focale') : undefined}
         >
           <img
             src={thumb(v.src)}
@@ -101,14 +102,14 @@ export function MediaInput({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <IconButton
-              label="Cambia immagine"
+              label={t('Cambia immagine')}
               className="bg-black/50 text-white backdrop-blur hover:bg-black/70 hover:text-white"
               onClick={() => setPicking(true)}
             >
               <Images />
             </IconButton>
             <IconButton
-              label="Rimuovi immagine"
+              label={t('Rimuovi immagine')}
               className="bg-black/50 text-white backdrop-blur hover:bg-black/70 hover:text-white"
               onClick={() => onChange(undefined)}
             >
@@ -129,18 +130,18 @@ export function MediaInput({
             <>
               {broken && (
                 <span className="flex items-center gap-1.5 text-[13px] text-warn">
-                  <ImageOff className="size-4" /> Immagine non raggiungibile
+                  <ImageOff className="size-4" /> {t('Immagine non raggiungibile')}
                 </span>
               )}
               <div className="flex gap-2">
                 <Button size="sm" icon={<Upload className="size-3.5" />} onClick={() => file.current?.click()}>
-                  Carica
+                  {t('Carica')}
                 </Button>
                 <Button size="sm" icon={<Images className="size-3.5" />} onClick={() => setPicking(true)}>
-                  Libreria
+                  {t('Libreria')}
                 </Button>
               </div>
-              <span className="text-[12px] text-fg3">oppure trascina qui un’immagine</span>
+              <span className="text-[12px] text-fg3">{t('oppure trascina qui un’immagine')}</span>
             </>
           )}
         </div>
@@ -148,7 +149,7 @@ export function MediaInput({
       <div className="grid gap-1.5 border-t border-line p-2">
         {(byUrl || external) && (
           <Input
-            placeholder="https://…/foto.jpg"
+            placeholder={t('https://…/foto.jpg')}
             className="font-mono text-[13px]"
             value={v.src}
             autoFocus={byUrl && !v.src}
@@ -162,13 +163,13 @@ export function MediaInput({
         )}
         <div className="flex items-center gap-1.5">
           <Input
-            placeholder="Testo alternativo: descrivi l’immagine"
+            placeholder={t('Testo alternativo: descrivi l’immagine')}
             value={v.alt}
             disabled={!v.src}
             onChange={(e) => onChange({ ...v, alt: e.target.value }, 'alt')}
           />
           {!byUrl && !external && (
-            <IconButton label="Usa un indirizzo web" className="size-8" onClick={() => setByUrl(true)}>
+            <IconButton label={t('Usa un indirizzo web')} className="size-8" onClick={() => setByUrl(true)}>
               <Link2 />
             </IconButton>
           )}

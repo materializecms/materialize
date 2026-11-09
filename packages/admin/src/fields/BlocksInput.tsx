@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button, cx, IconButton, Popover } from '../components/ui.tsx'
 import type { FieldDescription } from '../lib/api.ts'
 import { blockTitle, countIssuesUnder, move, newBlock, newKey, type Path, pathKey } from '../lib/doc.ts'
+import { t } from '../lib/i18n.ts'
 import { BlockLibrary, blockIcon } from './BlockLibrary.tsx'
 import type { Change } from './FieldInput.tsx'
 import { FieldsForm } from './FieldInput.tsx'
@@ -78,18 +79,18 @@ export function BlocksInput({
                 )}
               </button>
               <div className="flex opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                <IconButton label="Sposta su" disabled={i === 0} onClick={() => onChange(move(blocks, i, i - 1))}>
+                <IconButton label={t('Sposta su')} disabled={i === 0} onClick={() => onChange(move(blocks, i, i - 1))}>
                   <ArrowUp />
                 </IconButton>
                 <IconButton
-                  label="Sposta giù"
+                  label={t('Sposta giù')}
                   disabled={i === blocks.length - 1}
                   onClick={() => onChange(move(blocks, i, i + 1))}
                 >
                   <ArrowDown />
                 </IconButton>
                 <IconButton
-                  label="Duplica"
+                  label={t('Duplica')}
                   disabled={max !== undefined && blocks.length >= max}
                   onClick={() => {
                     const next = [...blocks]
@@ -99,7 +100,7 @@ export function BlocksInput({
                 >
                   <Copy />
                 </IconButton>
-                <IconButton label="Elimina" onClick={() => onChange(blocks.filter((_, j) => j !== i))}>
+                <IconButton label={t('Elimina')} onClick={() => onChange(blocks.filter((_, j) => j !== i))}>
                   <Trash2 />
                 </IconButton>
               </div>
@@ -119,7 +120,7 @@ export function BlocksInput({
                   />
                 ) : (
                   <p className="text-[13px] text-warn">
-                    Il blocco “{block._type}” non esiste più nello schema. Puoi eliminarlo.
+                    {t('Il blocco “{type}” non esiste più nello schema. Puoi eliminarlo.', { type: block._type })}
                   </p>
                 )}
               </div>
@@ -131,15 +132,15 @@ export function BlocksInput({
       {(max === undefined || blocks.length < max) && (
         <Popover
           width={300}
-          trigger={({ toggle: t, ref }) => (
+          trigger={({ toggle: openLibrary, ref }) => (
             <Button
               ref={ref}
               variant="ghost"
               icon={<Plus className="size-4" />}
-              onClick={t}
+              onClick={openLibrary}
               className="w-full border border-dashed border-line2"
             >
-              Aggiungi blocco
+              {t('Aggiungi blocco')}
             </Button>
           )}
         >

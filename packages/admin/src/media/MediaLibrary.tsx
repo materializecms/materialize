@@ -31,14 +31,15 @@ import {
 } from '../components/ui.tsx'
 import { api, type MediaAsset, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { DropZone, MediaGrid } from './MediaGrid.tsx'
 import { ACCEPT, formatSize, useUploads } from './uploads.ts'
 
 export function useDebounced(value: string, ms = 200) {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value.trim()), ms)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(value.trim()), ms)
+    return () => clearTimeout(timer)
   }, [value, ms])
   return debounced
 }
@@ -63,7 +64,9 @@ export function useFilePicker(onFiles: (files: File[]) => void) {
 }
 
 const copyUrl = (asset: MediaAsset) =>
-  navigator.clipboard?.writeText(new URL(asset.url, location.origin).toString()).then(() => toast('Indirizzo copiato'))
+  navigator.clipboard
+    ?.writeText(new URL(asset.url, location.origin).toString())
+    .then(() => toast(t('Indirizzo copiato')))
 
 export function MediaLibrary() {
   const { user } = useSession()
@@ -110,14 +113,14 @@ export function MediaLibrary() {
     if (selected && assets.some((a) => a.id === selected.id)) setSelected(null)
     void queryClient.invalidateQueries({ queryKey: ['media'] })
     const done = assets.length - failed
-    if (done) toast(done === 1 ? 'File eliminato' : `${done} file eliminati`)
-    if (failed) toast(failed === 1 ? 'Un file non è stato eliminato' : `${failed} file non eliminati`, 'error')
+    if (done) toast(tn(done, 'File eliminato', '{n} file eliminati'))
+    if (failed) toast(tn(failed, 'Un file non è stato eliminato', '{n} file non eliminati'), 'error')
   }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement
-      if (t.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+      const target = e.target as HTMLElement
+      if (target.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
       if (e.key === 'Escape' && checked.size) setChecked(new Map())
       else if ((e.key === 'Backspace' || e.key === 'Delete') && checked.size && admin) {
         e.preventDefault()
@@ -136,8 +139,8 @@ export function MediaLibrary() {
         <button
           ref={ref}
           type="button"
-          aria-label={`Azioni per ${asset.filename}`}
-          title="Azioni"
+          aria-label={t('Azioni per {name}', { name: asset.filename })}
+          title={t('Azioni')}
           onClick={toggle}
           className={cx(
             'flex size-7 items-center justify-center rounded-md bg-panel/90 text-fg2 shadow-sm backdrop-blur transition-opacity hover:text-fg [&_svg]:size-4',
@@ -157,7 +160,7 @@ export function MediaLibrary() {
               setSelected(asset)
             }}
           >
-            Dettagli e testo alternativo
+            {t('Dettagli e testo alternativo')}
           </MenuItem>
           <MenuItem
             icon={<Copy />}
@@ -166,7 +169,7 @@ export function MediaLibrary() {
               void copyUrl(asset)
             }}
           >
-            Copia indirizzo
+            {t('Copia indirizzo')}
           </MenuItem>
           <MenuItem
             icon={<Download />}
@@ -178,7 +181,7 @@ export function MediaLibrary() {
               a.click()
             }}
           >
-            Scarica
+            {t('Scarica')}
           </MenuItem>
           {admin && (
             <>
@@ -191,7 +194,7 @@ export function MediaLibrary() {
                   setDeleting([asset])
                 }}
               >
-                Elimina…
+                {t('Elimina…')}
               </MenuItem>
             </>
           )}
@@ -205,9 +208,9 @@ export function MediaLibrary() {
       <div className="flex min-w-0 flex-1 flex-col">
         {checked.size > 0 ? (
           <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-5">
-            <SelectBox checked label="Deseleziona tutti" onToggle={() => setChecked(new Map())} />
+            <SelectBox checked label={t('Deseleziona tutti')} onToggle={() => setChecked(new Map())} />
             <span className="ml-1 text-[14px] font-medium">
-              {checked.size === 1 ? '1 file selezionato' : `${checked.size} file selezionati`}
+              {tn(checked.size, '1 file selezionato', '{n} file selezionati')}
             </span>
             <div className="flex-1" />
             {admin && (
@@ -218,22 +221,22 @@ export function MediaLibrary() {
                 loading={busy}
                 onClick={() => setDeleting([...checked.values()])}
               >
-                Elimina
+                {t('Elimina')}
               </Button>
             )}
             <Button size="sm" icon={<X className="size-3.5" />} onClick={() => setChecked(new Map())}>
-              Annulla
+              {t('Annulla')}
             </Button>
           </header>
         ) : (
           <ScreenHeader
             icon={<Images />}
             color="#0ea5e9"
-            title="Media"
-            subtitle="Immagini, video e modelli 3D del sito: trascinali qui per caricarli."
+            title={t('Media')}
+            subtitle={t('Immagini, video e modelli 3D del sito: trascinali qui per caricarli.')}
             actions={
               <Button variant="primary" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
-                Carica
+                {t('Carica')}
               </Button>
             }
           >
@@ -243,9 +246,9 @@ export function MediaLibrary() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cerca per nome o descrizione"
+                  placeholder={t('Cerca per nome o descrizione')}
                   className="pl-8"
-                  aria-label="Cerca nei media"
+                  aria-label={t('Cerca nei media')}
                 />
               </div>
             </div>
@@ -270,19 +273,25 @@ export function MediaLibrary() {
       <Dialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
-        title={deleting?.length === 1 ? `Eliminare “${deleting[0]?.filename}”?` : `Eliminare ${deleting?.length} file?`}
+        title={
+          deleting?.length === 1
+            ? t('Eliminare “{name}”?', { name: deleting[0]?.filename })
+            : t('Eliminare {n} file?', { n: deleting?.length })
+        }
         footer={
           <>
             <Button onClick={() => setDeleting(null)} data-autofocus>
-              Annulla
+              {t('Annulla')}
             </Button>
             <Button variant="danger" onClick={() => deleting && void remove(deleting)}>
-              Elimina
+              {t('Elimina')}
             </Button>
           </>
         }
       >
-        I file vengono eliminati definitivamente: dove sono usati, nelle pagine e nei contenuti, non si vedranno più.
+        {t(
+          'I file vengono eliminati definitivamente: dove sono usati, nelle pagine e nei contenuti, non si vedranno più.',
+        )}
       </Dialog>
     </div>
   )
@@ -314,7 +323,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
     try {
       await api.removeMedia(asset.id)
       queryClient.invalidateQueries({ queryKey: ['media'] })
-      toast('Immagine eliminata')
+      toast(t('Immagine eliminata'))
       onClose()
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -336,37 +345,31 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
           <div className="mt-2 text-[13px]">
             {asset.width && (
               <div className={row}>
-                <span className="text-fg2">Dimensioni</span>
+                <span className="text-fg2">{t('Dimensioni in pixel')}</span>
                 <span className="tabular-nums">
                   {asset.width} × {asset.height}
                 </span>
               </div>
             )}
             <div className={row}>
-              <span className="text-fg2">Peso</span>
+              <span className="text-fg2">{t('Peso del file')}</span>
               <span>{formatSize(asset.size)}</span>
             </div>
             <div className={row}>
-              <span className="text-fg2">Caricata</span>
+              <span className="text-fg2">{t('Caricata')}</span>
               <span title={fullDate(asset.createdAt)}>{relativeTime(asset.createdAt)}</span>
             </div>
             <div className={row}>
-              <span className="text-fg2">Usata in</span>
+              <span className="text-fg2">{t('Usata in')}</span>
               <span>
-                {usage === undefined ? (
-                  <Spinner className="size-3" />
-                ) : usage === 1 ? (
-                  '1 documento'
-                ) : (
-                  `${usage} documenti`
-                )}
+                {usage === undefined ? <Spinner className="size-3" /> : tn(usage, '1 documento', '{n} documenti')}
               </span>
             </div>
           </div>
         </div>
         <label className="block">
           <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-fg2">
-            Testo alternativo
+            {t('Testo alternativo')}
             {saved && <Check className="size-3.5 text-ok" />}
             {asset.mime.startsWith('image/') && (
               <span className="ml-auto">
@@ -374,7 +377,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
                   action="alt"
                   src={asset.url}
                   text={alt}
-                  label="Descrivi con l’AI"
+                  label={t('Descrivi con l’AI')}
                   onResult={(text) => {
                     setAlt(text)
                     void saveAlt(text)
@@ -387,17 +390,19 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
             value={alt}
             onChange={(e) => setAlt(e.target.value)}
             onBlur={() => saveAlt()}
-            placeholder="Descrivi l’immagine a chi non può vederla"
+            placeholder={t('Descrivi l’immagine a chi non può vederla')}
           />
-          <span className="mt-1 block text-[13px] text-fg3">Proposto quando scegli l’immagine in un documento.</span>
+          <span className="mt-1 block text-[13px] text-fg3">
+            {t('Proposto quando scegli l’immagine in un documento.')}
+          </span>
         </label>
         <div className="flex gap-1.5">
           <Button size="sm" icon={<Copy className="size-3.5" />} onClick={() => void copyUrl(asset)}>
-            Copia indirizzo
+            {t('Copia indirizzo')}
           </Button>
           <div className="flex-1" />
           {user.role === 'admin' && (
-            <IconButton label="Elimina" onClick={() => setConfirm(true)} className="hover:text-danger">
+            <IconButton label={t('Elimina')} onClick={() => setConfirm(true)} className="hover:text-danger">
               <Trash2 />
             </IconButton>
           )}
@@ -406,21 +411,23 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
       <Dialog
         open={confirm}
         onClose={() => setConfirm(false)}
-        title="Eliminare l’immagine?"
+        title={t('Eliminare l’immagine?')}
         footer={
           <>
             <Button onClick={() => setConfirm(false)} data-autofocus>
-              Annulla
+              {t('Annulla')}
             </Button>
             <Button variant="danger" onClick={remove}>
-              Elimina
+              {t('Elimina')}
             </Button>
           </>
         }
       >
         {usage
-          ? `È usata in ${usage === 1 ? 'un documento' : `${usage} documenti`}: lì l’immagine non si vedrà più. Il file verrà eliminato definitivamente.`
-          : 'Non è usata in nessun documento. Il file verrà eliminato definitivamente.'}
+          ? t('È usata in {where}: lì l’immagine non si vedrà più. Il file verrà eliminato definitivamente.', {
+              where: tn(usage, 'un documento', '{n} documenti'),
+            })
+          : t('Non è usata in nessun documento. Il file verrà eliminato definitivamente.')}
       </Dialog>
     </aside>
   )

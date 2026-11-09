@@ -5,20 +5,21 @@ import { useSession } from '../app/context.ts'
 import { useAiReady } from '../components/AiMenu.tsx'
 import { Button, cx, Input, Segmented, Switch, toast } from '../components/ui.tsx'
 import { api, type WpAnalysis, type WpPlan, type WpProgress, type WpSource, type WpTarget } from '../lib/api.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 
-const SOURCES: Record<WpSource, string> = {
-  title: 'Titolo',
-  slug: 'Indirizzo (slug)',
-  content: 'Contenuto',
-  excerpt: 'Riassunto',
-  date: 'Data',
-  featured: 'Immagine in evidenza',
-  categories: 'Categorie',
-  tags: 'Tag',
-  author: 'Autore',
-  seo: 'Titolo e descrizione SEO',
-}
+const SOURCES = (): Record<WpSource, string> => ({
+  title: t('Titolo'),
+  slug: t('Indirizzo (slug)'),
+  content: t('Contenuto'),
+  excerpt: t('Riassunto'),
+  date: t('Data'),
+  featured: t('Immagine in evidenza'),
+  categories: t('Categorie'),
+  tags: t('Tag'),
+  author: t('Autore'),
+  seo: t('Titolo e descrizione SEO'),
+})
 
 /**
  * Impostazioni → Importa: a WordPress site into Materialize. Read it (address or export file),
@@ -29,17 +30,19 @@ export function ImportWordPress() {
   const [analysis, setAnalysis] = useState<WpAnalysis | null>(null)
   const [job, setJob] = useState<string | null>(null)
   if (user.role !== 'admin')
-    return <p className="mx-auto max-w-2xl px-5 py-8 text-[14px] text-fg2">L’importazione la fa un amministratore.</p>
+    return (
+      <p className="mx-auto max-w-2xl px-5 py-8 text-[14px] text-fg2">{t('L’importazione la fa un amministratore.')}</p>
+    )
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-5 py-8">
       <header className="space-y-1.5">
         <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-          <Import /> Importa da WordPress
+          <Import /> {t('Importa da WordPress')}
         </h2>
         <p className="text-[14px] leading-relaxed text-fg2">
-          Articoli, pagine, immagini, categorie e SEO di un sito WordPress, qualunque editor lo abbia costruito
-          (Gutenberg, Elementor, WPBakery, Divi…). I vecchi indirizzi portano ai nuovi, così i motori di ricerca non
-          perdono nulla. Le pagine arrivano con i loro contenuti in ordine: l’impaginazione si rifà poi sul canvas.
+          {t(
+            'Articoli, pagine, immagini, categorie e SEO di un sito WordPress, qualunque editor lo abbia costruito (Gutenberg, Elementor, WPBakery, Divi…). I vecchi indirizzi portano ai nuovi, così i motori di ricerca non perdono nulla. Le pagine arrivano con i loro contenuti in ordine: l’impaginazione si rifà poi sul canvas.',
+          )}
         </p>
       </header>
       {job ? (
@@ -101,14 +104,14 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
         value={mode}
         onChange={setMode}
         options={[
-          { value: 'url', label: 'Dall’indirizzo del sito' },
-          { value: 'file', label: 'Dal file di esportazione' },
+          { value: 'url', label: t('Dall’indirizzo del sito') },
+          { value: 'file', label: t('Dal file di esportazione') },
         ]}
       />
       {mode === 'url' ? (
         <>
           <label className="block">
-            <span className={label}>Indirizzo del sito WordPress</span>
+            <span className={label}>{t('Indirizzo del sito WordPress')}</span>
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -117,16 +120,17 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             />
           </label>
           <details className="rounded-md border border-line px-3 py-2 text-[13px]">
-            <summary className="cursor-pointer font-medium text-fg2">Anche bozze e pagine private</summary>
+            <summary className="cursor-pointer font-medium text-fg2">{t('Anche bozze e pagine private')}</summary>
             <p className="mt-2 leading-relaxed text-fg3">
-              In WordPress, Utenti → Profilo → Password per le applicazioni: crea una password per «Materialize» e
-              scrivila qui con il tuo nome utente. Serve solo per leggere, non viene salvata.
+              {t(
+                'In WordPress, Utenti → Profilo → Password per le applicazioni: crea una password per «Materialize» e scrivila qui con il tuo nome utente. Serve solo per leggere, non viene salvata.',
+              )}
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Input
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
-                placeholder="Nome utente"
+                placeholder={t('Nome utente')}
                 autoComplete="off"
               />
               <Input
@@ -139,21 +143,21 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             </div>
           </details>
           <label className="flex items-center gap-2 text-[13px] text-fg2">
-            Leggi
+            {t('Leggi')}
             <select
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               className="h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
             >
-              <option value="all">tutto il sito</option>
-              <option value="10">i primi 10 articoli e 10 pagine, per provare</option>
-              <option value="50">i primi 50 articoli e 50 pagine</option>
+              <option value="all">{t('tutto il sito')}</option>
+              <option value="10">{t('i primi 10 articoli e 10 pagine, per provare')}</option>
+              <option value="50">{t('i primi 50 articoli e 50 pagine')}</option>
             </select>
           </label>
         </>
       ) : (
         <label className="block">
-          <span className={label}>File .xml</span>
+          <span className={label}>{t('File .xml')}</span>
           <input
             type="file"
             accept=".xml,text/xml,application/xml"
@@ -162,8 +166,9 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             className="block w-full text-[13px] text-fg2 file:mr-3 file:rounded-md file:border file:border-line2 file:bg-panel file:px-2.5 file:py-1 file:text-[13px] file:font-medium file:text-fg"
           />
           <span className="mt-1.5 block text-[13px] leading-relaxed text-fg3">
-            In WordPress: Strumenti → Esporta → Tutti i contenuti. Serve quando il sito non è raggiungibile o la sua API
-            è chiusa. Le pagine fatte con un page builder arrivano con i testi, senza i suoi codici.
+            {t(
+              'In WordPress: Strumenti → Esporta → Tutti i contenuti. Serve quando il sito non è raggiungibile o la sua API è chiusa. Le pagine fatte con un page builder arrivano con i testi, senza i suoi codici.',
+            )}
           </span>
         </label>
       )}
@@ -179,7 +184,7 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
           loading={busy}
           icon={mode === 'url' ? <Globe className="size-4" /> : <FileUp className="size-4" />}
         >
-          {busy ? 'Leggo il sito…' : 'Leggi il sito'}
+          {busy ? t('Leggo il sito…') : t('Leggi il sito')}
         </Button>
       </div>
     </form>
@@ -214,10 +219,10 @@ function Plan({
 
   // A choice field that takes the categories: each WordPress category gets one of its options.
   const choice = (() => {
-    for (const t of [posts, pages]) {
-      if (!t) continue
-      for (const [field, source] of Object.entries(t.fields)) {
-        const f = analysis.fields[t.collection]?.[field]
+    for (const target of [posts, pages]) {
+      if (!target) continue
+      for (const [field, source] of Object.entries(target.fields)) {
+        const f = analysis.fields[target.collection]?.[field]
         if (source === 'categories' && f?.options) return { field, label: f.label, options: f.options }
       }
     }
@@ -257,13 +262,16 @@ function Plan({
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-medium">{analysis.site.name}</div>
           <div className="text-[13px] text-fg3">
-            {analysis.counts.posts} articoli · {analysis.counts.pages} pagine
-            {analysis.counts.drafts ? ` · ${analysis.counts.drafts} non pubblicati` : ''} ·{' '}
-            <span className="font-mono">{analysis.site.url}</span>
+            {tn(analysis.counts.posts, '{n} articolo', '{n} articoli')} ·{' '}
+            {tn(analysis.counts.pages, '{n} pagina', '{n} pagine')}
+            {analysis.counts.drafts
+              ? ` · ${tn(analysis.counts.drafts, '{n} non pubblicato', '{n} non pubblicati')}`
+              : ''}{' '}
+            · <span className="font-mono">{analysis.site.url}</span>
           </div>
         </div>
         <Button size="sm" onClick={onBack}>
-          Cambia sito
+          {t('Cambia sito')}
         </Button>
       </div>
 
@@ -271,7 +279,11 @@ function Plan({
         analysis.counts[kind] ? (
           <TargetCard
             key={kind}
-            title={kind === 'posts' ? `Articoli (${analysis.counts.posts})` : `Pagine (${analysis.counts.pages})`}
+            title={
+              kind === 'posts'
+                ? t('Articoli ({n})', { n: analysis.counts.posts })
+                : t('Pagine ({n})', { n: analysis.counts.pages })
+            }
             samples={analysis.samples[kind]}
             target={kind === 'posts' ? posts : pages}
             suggested={analysis.suggestions[kind]}
@@ -284,7 +296,7 @@ function Plan({
 
       {choice && analysis.categories.length > 0 && (
         <section className="space-y-2 rounded-lg border border-line bg-panel p-4">
-          <h3 className="text-[14px] font-medium">Categorie → {choice.label}</h3>
+          <h3 className="text-[14px] font-medium">{t('Categorie → {field}', { field: choice.label })}</h3>
           <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 text-[13px]">
             {analysis.categories.map((c) => (
               <div key={c} className="contents">
@@ -294,7 +306,7 @@ function Plan({
                   onChange={(e) => setCategories({ ...categories, [c]: e.target.value })}
                   className="h-7 rounded-md border border-line2 bg-input px-1.5 text-fg outline-none"
                 >
-                  <option value="">— la prima che corrisponde, o quella sotto</option>
+                  <option value="">{t('— la prima che corrisponde, o quella sotto')}</option>
                   {choice.options.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -305,13 +317,13 @@ function Plan({
             ))}
           </div>
           <label className="flex items-center gap-2 pt-1 text-[13px] text-fg2">
-            Per gli articoli senza una categoria corrispondente:
+            {t('Per gli articoli senza una categoria corrispondente:')}
             <select
               value={fallback}
               onChange={(e) => setFallback(e.target.value)}
               className="h-7 rounded-md border border-line2 bg-input px-1.5 text-fg outline-none"
             >
-              <option value="">{choice.options[0]?.label} (la prima)</option>
+              <option value="">{t('{option} (la prima)', { option: choice.options[0]?.label })}</option>
               {choice.options.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -324,33 +336,34 @@ function Plan({
 
       <section className="space-y-3 rounded-lg border border-line bg-panel p-4">
         <label className="flex items-start gap-3">
-          <Switch checked={publish} label="Pubblica" onChange={setPublish} />
+          <Switch checked={publish} label={t('Pubblica')} onChange={setPublish} />
           <span className="text-[13px] leading-relaxed">
-            <span className="block font-medium">Pubblica quello che è pubblicato su WordPress</span>
-            <span className="text-fg3">Il resto arriva come bozza. Anche ciò che ha campi da completare.</span>
+            <span className="block font-medium">{t('Pubblica quello che è pubblicato su WordPress')}</span>
+            <span className="text-fg3">{t('Il resto arriva come bozza. Anche ciò che ha campi da completare.')}</span>
           </span>
         </label>
         <label className="flex items-start gap-3">
-          <Switch checked={redirects} label="Reindirizza" onChange={setRedirects} />
+          <Switch checked={redirects} label={t('Reindirizza')} onChange={setRedirects} />
           <span className="text-[13px] leading-relaxed">
-            <span className="block font-medium">I vecchi indirizzi portano ai nuovi</span>
+            <span className="block font-medium">{t('I vecchi indirizzi portano ai nuovi')}</span>
             <span className="text-fg3">
-              Un reindirizzamento permanente (301) per ogni contenuto pubblicato che cambia indirizzo: Impostazioni →
-              SEO.
+              {t(
+                'Un reindirizzamento permanente (301) per ogni contenuto pubblicato che cambia indirizzo: Impostazioni → SEO.',
+              )}
             </span>
           </span>
         </label>
         {aiReady && canvasPages && (
           <label className="flex items-start gap-3">
-            <Switch checked={aiLayout} label="Impaginazione con l’AI" onChange={setAiLayout} />
+            <Switch checked={aiLayout} label={t('Impaginazione con l’AI')} onChange={setAiLayout} />
             <span className="text-[13px] leading-relaxed">
               <span className="flex items-center gap-1.5 font-medium">
-                <Sparkles className="size-3.5 text-accent" /> Rifai l’impaginazione delle pagine con l’AI
+                <Sparkles className="size-3.5 text-accent" /> {t('Rifai l’impaginazione delle pagine con l’AI')}
               </span>
               <span className="text-fg3">
-                Dopo l’import, l’AI ricompone ogni pagina con le sezioni della libreria, con gli stessi testi e le
-                stesse immagini, nella bozza: online resta la versione semplice finché non pubblichi. Se cambierebbe i
-                testi, la pagina resta com’era. Usa il modello principale: una richiesta per pagina, qualche minuto.
+                {t(
+                  'Dopo l’import, l’AI ricompone ogni pagina con le sezioni della libreria, con gli stessi testi e le stesse immagini, nella bozza: online resta la versione semplice finché non pubblichi. Se cambierebbe i testi, la pagina resta com’era. Usa il modello principale: una richiesta per pagina, qualche minuto.',
+                )}
               </span>
             </span>
           </label>
@@ -358,9 +371,9 @@ function Plan({
       </section>
 
       <div className="flex justify-end gap-2">
-        <Button onClick={onBack}>Indietro</Button>
+        <Button onClick={onBack}>{t('Indietro')}</Button>
         <Button variant="primary" loading={busy} disabled={!posts && !pages} onClick={() => void start()}>
-          Importa
+          {t('Importa')}
         </Button>
       </div>
     </div>
@@ -409,9 +422,9 @@ function TargetCard({
           <h3 className="text-[14px] font-medium">{title}</h3>
           <p className="truncate text-[13px] text-fg3">{samples.join(' · ')}</p>
         </div>
-        <span className="text-[13px] text-fg3">in</span>
+        <span className="text-[13px] text-fg3">{t('in')}</span>
         <select value={target?.collection ?? ''} onChange={(e) => pick(e.target.value)} className={select}>
-          <option value="">Non importare</option>
+          <option value="">{t('Non importare')}</option>
           {collections.map((c) => (
             <option key={c.name} value={c.name}>
               {c.label}
@@ -434,10 +447,10 @@ function TargetCard({
                 }}
                 className={cx(select, !target.fields[field] && 'text-fg3')}
               >
-                <option value="">— niente</option>
+                <option value="">{t('— niente')}</option>
                 {f.sources.map((s) => (
                   <option key={s} value={s}>
-                    {SOURCES[s]}
+                    {SOURCES()[s]}
                   </option>
                 ))}
               </select>
@@ -478,6 +491,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
   if (!p) return null
   const running = p.phase === 'media' || p.phase === 'content' || p.phase === 'layout'
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0
+  const published = p.created.filter((d) => d.published).length
   const labelOf = (name: string) => schema.collections.find((c) => c.name === name)?.label ?? name
   return (
     <div className="space-y-5">
@@ -486,42 +500,45 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
           <div className="flex justify-between text-[14px]">
             <span className="font-medium">
               {p.phase === 'media'
-                ? 'Scarico le immagini'
+                ? t('Scarico le immagini')
                 : p.phase === 'layout'
-                  ? 'L’AI rifà l’impaginazione delle pagine'
-                  : 'Creo i contenuti'}
+                  ? t('L’AI rifà l’impaginazione delle pagine')
+                  : t('Creo i contenuti')}
             </span>
-            <span className="tabular-nums text-fg3">
-              {p.done} di {p.total}
-            </span>
+            <span className="tabular-nums text-fg3">{t('{done} di {total}', { done: p.done, total: p.total })}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-hover">
             <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[13px] text-fg3">Puoi lasciare questa pagina: l’importazione continua sul server.</p>
+          <p className="text-[13px] text-fg3">
+            {t('Puoi lasciare questa pagina: l’importazione continua sul server.')}
+          </p>
         </section>
       ) : p.phase === 'failed' ? (
         <p className="flex items-start gap-1.5 text-[14px] text-danger">
-          <CircleAlert className="mt-0.5 size-4 shrink-0" /> L’importazione si è fermata: {p.error}
+          <CircleAlert className="mt-0.5 size-4 shrink-0" />{' '}
+          {t('L’importazione si è fermata: {error}', { error: p.error })}
         </p>
       ) : (
         <section className="space-y-1 rounded-lg border border-line bg-panel p-5">
           <div className="flex items-center gap-2 text-[14px] font-medium">
-            <CircleCheck className="size-4.5 text-ok" /> Importazione finita
+            <CircleCheck className="size-4.5 text-ok" /> {t('Importazione finita')}
           </div>
           <p className="text-[13px] leading-relaxed text-fg2">
-            {p.created.length} contenuti importati ({p.created.filter((d) => d.published).length} pubblicati),{' '}
-            {p.media.downloaded} immagini nella libreria
-            {p.media.failed ? ` (${p.media.failed} non scaricabili)` : ''}, {p.redirects} reindirizzamenti.
+            {tn(p.created.length, '{n} contenuto importato', '{n} contenuti importati')} (
+            {tn(published, '{n} pubblicato', '{n} pubblicati')}),{' '}
+            {tn(p.media.downloaded, '{n} immagine nella libreria', '{n} immagini nella libreria')}
+            {p.media.failed ? ` (${tn(p.media.failed, '{n} non scaricabile', '{n} non scaricabili')})` : ''},{' '}
+            {tn(p.redirects, '{n} reindirizzamento.', '{n} reindirizzamenti.')}
             {p.relaid
-              ? ` L’AI ha rifatto l’impaginazione di ${p.relaid === 1 ? 'una pagina' : `${p.relaid} pagine`}: è nella bozza, da rivedere e pubblicare.`
+              ? ` ${tn(p.relaid, 'L’AI ha rifatto l’impaginazione di una pagina: è nella bozza, da rivedere e pubblicare.', 'L’AI ha rifatto l’impaginazione di {n} pagine: è nella bozza, da rivedere e pubblicare.')}`
               : ''}
           </p>
         </section>
       )}
       {p.created.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[13px] font-medium text-fg2">Importati</h3>
+          <h3 className="text-[13px] font-medium text-fg2">{t('Importati')}</h3>
           <ul className="max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line bg-panel">
             {p.created.map((d) => (
               <li key={d.id}>
@@ -532,7 +549,9 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
                 >
                   <span className="min-w-0 flex-1 truncate">{d.title}</span>
                   <span className="text-fg3">{labelOf(d.collection)}</span>
-                  <span className={d.published ? 'text-ok' : 'text-fg3'}>{d.published ? 'Pubblicato' : 'Bozza'}</span>
+                  <span className={d.published ? 'text-ok' : 'text-fg3'}>
+                    {d.published ? t('Pubblicato') : t('Bozza')}
+                  </span>
                 </button>
               </li>
             ))}
@@ -541,7 +560,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       )}
       {Object.keys(p.media.reasons ?? {}).length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[13px] font-medium text-fg2">Immagini non importate</h3>
+          <h3 className="text-[13px] font-medium text-fg2">{t('Immagini non importate')}</h3>
           <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
             {Object.entries(p.media.reasons).map(([reason, n]) => (
               <li key={reason} className="flex gap-3 px-4 py-2">
@@ -551,13 +570,13 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
             ))}
           </ul>
           <p className="text-[13px] text-fg3">
-            Nei testi quelle immagini mancano: si rimettono a mano, oppure con le icone del canvas.
+            {t('Nei testi quelle immagini mancano: si rimettono a mano, oppure con le icone del canvas.')}
           </p>
         </section>
       )}
       {[...p.problems, ...p.skipped].length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-[13px] font-medium text-fg2">Da guardare</h3>
+          <h3 className="text-[13px] font-medium text-fg2">{t('Da guardare')}</h3>
           <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
             {[...p.problems, ...p.skipped].map((x, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list, shown once
@@ -571,7 +590,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       )}
       {!running && (
         <div className="flex justify-end">
-          <Button onClick={onAgain}>Importa un altro sito</Button>
+          <Button onClick={onAgain}>{t('Importa un altro sito')}</Button>
         </div>
       )}
     </div>

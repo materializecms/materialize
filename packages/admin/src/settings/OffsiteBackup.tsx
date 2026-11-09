@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { Button, Dialog, Input, Segmented, toast } from '../components/ui.tsx'
 import { api, type OffsiteForm, type OffsiteState } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
+import { t, tn, tx } from '../lib/i18n.ts'
 
 const label = 'mb-1 block text-[13px] font-medium text-fg2'
 const hint = 'mt-1 block text-[13px] leading-relaxed text-fg3'
@@ -76,7 +77,7 @@ export function OffsiteBackup() {
     try {
       const res = await api.testOffsite(toSend(form))
       toast(
-        res.ok ? 'Collegamento riuscito: scrittura, lettura ed eliminazione funzionano' : (res.message ?? ''),
+        res.ok ? t('Collegamento riuscito: scrittura, lettura ed eliminazione funzionano') : (res.message ?? ''),
         res.ok ? 'ok' : 'error',
       )
     } catch (error) {
@@ -93,7 +94,7 @@ export function OffsiteBackup() {
       queryClient.setQueryData(['offsite'], res)
       setForm(empty(res))
       if (res.recoveryKey) setShownKey(res.recoveryKey)
-      toast(form.kind === 'off' ? 'Copia fuori dal server spenta' : 'Impostazioni salvate')
+      toast(form.kind === 'off' ? t('Copia fuori dal server spenta') : t('Impostazioni salvate'))
       refresh()
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -105,7 +106,7 @@ export function OffsiteBackup() {
     setBusy('run')
     try {
       queryClient.setQueryData(['offsite'], await api.runOffsite())
-      toast('Copia avviata: prosegue anche se lasci la pagina')
+      toast(t('Copia avviata: prosegue anche se lasci la pagina'))
       refresh()
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -122,11 +123,12 @@ export function OffsiteBackup() {
       <form onSubmit={save} className="space-y-4 rounded-lg border border-line bg-panel px-4 py-3.5">
         <div>
           <div className="flex items-center gap-2 text-[14px] font-medium [&_svg]:size-4 [&_svg]:text-fg3">
-            <CloudUpload /> Copia fuori dal server
+            <CloudUpload /> {t('Copia fuori dal server')}
           </div>
           <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
-            Ogni notte la copia del database e le immagini nuove vanno su uno spazio esterno, cifrate prima di uscire:
-            se il server si rompe, il sito si ricostruisce da lì. Chi apre lo spazio vede solo dati illeggibili.
+            {t(
+              'Ogni notte la copia del database e le immagini nuove vanno su uno spazio esterno, cifrate prima di uscire: se il server si rompe, il sito si ricostruisce da lì. Chi apre lo spazio vede solo dati illeggibili.',
+            )}
           </p>
         </div>
 
@@ -134,8 +136,8 @@ export function OffsiteBackup() {
           value={form.kind}
           onChange={(kind) => setForm({ ...form, kind })}
           options={[
-            { value: 'off', label: 'Spenta' },
-            { value: 's3', label: 'S3 compatibile' },
+            { value: 'off', label: t('Spenta') },
+            { value: 's3', label: t('S3 compatibile') },
             { value: 'webdav', label: 'WebDAV' },
           ]}
         />
@@ -144,8 +146,10 @@ export function OffsiteBackup() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field
-                name="Indirizzo del servizio (endpoint)"
-                help="Cloudflare R2: https://<account>.r2.cloudflarestorage.com · Backblaze B2: https://s3.<regione>.backblazeb2.com · Hetzner: https://<regione>.your-objectstorage.com · Amazon: https://s3.<regione>.amazonaws.com"
+                name={t('Indirizzo del servizio (endpoint)')}
+                help={t(
+                  'Cloudflare R2: https://<account>.r2.cloudflarestorage.com · Backblaze B2: https://s3.<regione>.backblazeb2.com · Hetzner: https://<regione>.your-objectstorage.com · Amazon: https://s3.<regione>.amazonaws.com',
+                )}
               >
                 <Input
                   value={s3.endpoint}
@@ -158,7 +162,10 @@ export function OffsiteBackup() {
             <Field name="Bucket">
               <Input value={s3.bucket} onChange={(e) => setS3({ bucket: e.target.value.trim() })} required />
             </Field>
-            <Field name="Regione" help="auto per Cloudflare R2; altrimenti quella del bucket, per esempio eu-central-1">
+            <Field
+              name={t('Regione')}
+              help={t('auto per Cloudflare R2; altrimenti quella del bucket, per esempio eu-central-1')}
+            >
               <Input value={s3.region} onChange={(e) => setS3({ region: e.target.value.trim() })} />
             </Field>
             <Field name="Access key ID">
@@ -174,17 +181,20 @@ export function OffsiteBackup() {
                 type="password"
                 value={s3.secretAccessKey}
                 onChange={(e) => setS3({ secretAccessKey: e.target.value })}
-                placeholder={data.s3?.hasSecret ? '•••••••• (salvata)' : ''}
+                placeholder={data.s3?.hasSecret ? `•••••••• (${t('salvata')})` : ''}
                 autoComplete="new-password"
                 required={!data.s3?.hasSecret}
               />
             </Field>
             <div className="sm:col-span-2">
-              <Field name="Cartella nel bucket" help="Facoltativa: utile se nello stesso bucket metti più siti.">
+              <Field
+                name={t('Cartella nel bucket')}
+                help={t('Facoltativa: utile se nello stesso bucket metti più siti.')}
+              >
                 <Input
                   value={s3.prefix ?? ''}
                   onChange={(e) => setS3({ prefix: e.target.value.trim() })}
-                  placeholder="sito"
+                  placeholder={t('sito')}
                 />
               </Field>
             </div>
@@ -195,8 +205,10 @@ export function OffsiteBackup() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field
-                name="Indirizzo della cartella"
-                help="Nextcloud: https://cloud.example.com/remote.php/dav/files/<utente>/backup-sito/ · la cartella si crea da sola, quella che la contiene deve esistere."
+                name={t('Indirizzo della cartella')}
+                help={t(
+                  'Nextcloud: https://cloud.example.com/remote.php/dav/files/<utente>/backup-sito/ · la cartella si crea da sola, quella che la contiene deve esistere.',
+                )}
               >
                 <Input
                   value={dav.url}
@@ -206,18 +218,18 @@ export function OffsiteBackup() {
                 />
               </Field>
             </div>
-            <Field name="Utente">
+            <Field name={t('Utente')}>
               <Input value={dav.user} onChange={(e) => setDav({ user: e.target.value })} autoComplete="off" />
             </Field>
             <Field
               name="Password"
-              help="Con Nextcloud, meglio una password per app (Impostazioni personali → Sicurezza)."
+              help={t('Con Nextcloud, meglio una password per app (Impostazioni personali → Sicurezza).')}
             >
               <Input
                 type="password"
                 value={dav.password}
                 onChange={(e) => setDav({ password: e.target.value })}
-                placeholder={data.webdav?.hasSecret ? '•••••••• (salvata)' : ''}
+                placeholder={data.webdav?.hasSecret ? `•••••••• (${t('salvata')})` : ''}
                 autoComplete="new-password"
               />
             </Field>
@@ -226,7 +238,7 @@ export function OffsiteBackup() {
 
         {form.kind !== 'off' && (
           <label className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg2">
-            <span className="whitespace-nowrap">Copie del database da tenere</span>
+            <span className="whitespace-nowrap">{t('Copie del database da tenere')}</span>
             <select
               value={form.keep}
               onChange={(e) => setForm({ ...form, keep: Number(e.target.value) })}
@@ -238,22 +250,22 @@ export function OffsiteBackup() {
                 </option>
               ))}
             </select>
-            <span className="text-fg3">· le immagini restano tutte</span>
+            <span className="text-fg3">· {t('le immagini restano tutte')}</span>
           </label>
         )}
 
         <div className="flex flex-wrap items-center gap-2">
           {form.kind !== 'off' && (
             <Button size="sm" loading={busy === 'test'} onClick={test}>
-              Prova il collegamento
+              {t('Prova il collegamento')}
             </Button>
           )}
           <Button size="sm" variant="primary" type="submit" loading={busy === 'save'}>
-            Salva
+            {t('Salva')}
           </Button>
           {saved && (
             <Button size="sm" loading={busy === 'run' || data.running} onClick={run} disabled={data.running}>
-              {data.running ? 'Copia in corso…' : 'Esegui ora'}
+              {data.running ? t('Copia in corso…') : t('Esegui ora')}
             </Button>
           )}
           {data.hasKey && (
@@ -262,7 +274,7 @@ export function OffsiteBackup() {
               onClick={() => setAskPassword(true)}
               className="ml-auto flex items-center gap-1.5 text-[13px] text-fg2 hover:text-fg [&_svg]:size-3.5"
             >
-              <KeyRound /> Mostra la chiave di ripristino
+              <KeyRound /> {t('Mostra la chiave di ripristino')}
             </button>
           )}
         </div>
@@ -276,13 +288,15 @@ export function OffsiteBackup() {
             <span>
               <span title={fullDate(status.at)}>{relativeTime(status.at)}</span>
               {status.ok
-                ? `: copia riuscita${status.media ? `, ${status.media} ${status.media === 1 ? 'file nuovo' : 'file nuovi'} dalla libreria` : ''}.`
+                ? `: ${status.media ? tn(status.media, 'copia riuscita, {n} file nuovo dalla libreria.', 'copia riuscita, {n} file nuovi dalla libreria.') : t('copia riuscita.')}`
                 : `: ${status.message}`}
             </span>
           </p>
         )}
         {saved && !status && !data.running && (
-          <p className="text-[13px] text-fg3">La prima copia parte entro un’ora, oppure subito con Esegui ora.</p>
+          <p className="text-[13px] text-fg3">
+            {t('La prima copia parte entro un’ora, oppure subito con Esegui ora.')}
+          </p>
         )}
       </form>
       {/* Outside the form: the password dialog has a form of its own. */}
@@ -304,11 +318,11 @@ function RecoveryKeyDialog({ recoveryKey, onClose }: { recoveryKey: string | nul
   const [kept, setKept] = useState(false)
   if (!recoveryKey) return null
   const file = () => {
-    const text = `Chiave di ripristino dei backup di Materialize\n\n${recoveryKey}\n\nServe per decifrare i backup salvati fuori dal server:\nnpx materialize decrypt <cartella> --key ${recoveryKey}\n`
+    const text = `${t('Chiave di ripristino dei backup di Materialize')}\n\n${recoveryKey}\n\n${t('Serve per decifrare i backup salvati fuori dal server:')}\nnpx materialize decrypt <${t('cartella')}> --key ${recoveryKey}\n`
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = 'materialize-chiave-di-ripristino.txt'
+    a.download = t('materialize-chiave-di-ripristino.txt')
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
@@ -316,7 +330,7 @@ function RecoveryKeyDialog({ recoveryKey, onClose }: { recoveryKey: string | nul
     <Dialog
       open
       onClose={() => kept && onClose()}
-      title="La chiave di ripristino"
+      title={t('La chiave di ripristino')}
       width={480}
       footer={
         <Button
@@ -327,14 +341,15 @@ function RecoveryKeyDialog({ recoveryKey, onClose }: { recoveryKey: string | nul
             onClose()
           }}
         >
-          Fatto
+          {t('Fatto')}
         </Button>
       }
     >
       <p className="text-[14px] leading-relaxed text-fg2">
-        I backup fuori dal server sono cifrati con questa chiave.{' '}
-        <strong className="text-fg">Senza, non si possono rimettere</strong>: conservala lontano dal server, per esempio
-        nel gestore di password o stampata.
+        {tx(
+          'I backup fuori dal server sono cifrati con questa chiave. {without}: conservala lontano dal server, per esempio nel gestore di password o stampata.',
+          { without: <strong className="text-fg">{t('Senza, non si possono rimettere')}</strong> },
+        )}
       </p>
       <code className="mt-3 block rounded-md bg-panel2 px-3 py-2.5 font-mono text-[13px] break-all select-all">
         {recoveryKey}
@@ -345,20 +360,20 @@ function RecoveryKeyDialog({ recoveryKey, onClose }: { recoveryKey: string | nul
           icon={<Copy className="size-3.5" />}
           onClick={() =>
             void navigator.clipboard.writeText(recoveryKey).then(
-              () => toast('Chiave copiata'),
-              () => toast('Selezionala e copiala a mano', 'error'),
+              () => toast(t('Chiave copiata')),
+              () => toast(t('Selezionala e copiala a mano'), 'error'),
             )
           }
         >
-          Copia
+          {t('Copia')}
         </Button>
         <Button size="sm" icon={<Download className="size-3.5" />} onClick={file}>
-          Scarica come file
+          {t('Scarica come file')}
         </Button>
       </div>
       <label className="mt-4 flex items-center gap-2 text-[14px]">
         <input type="checkbox" checked={kept} onChange={(e) => setKept(e.target.checked)} className="size-4" />
-        L’ho salvata in un posto sicuro
+        {t('L’ho salvata in un posto sicuro')}
       </label>
     </Dialog>
   )
@@ -391,15 +406,15 @@ function PasswordDialog({
     }
   }
   return (
-    <Dialog open={open} onClose={onClose} title="Mostra la chiave di ripristino">
+    <Dialog open={open} onClose={onClose} title={t('Mostra la chiave di ripristino')}>
       <form onSubmit={submit}>
-        <p className="mb-3 text-[14px] text-fg2">Per sicurezza, conferma la tua password.</p>
+        <p className="mb-3 text-[14px] text-fg2">{t('Per sicurezza, conferma la tua password.')}</p>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
-          aria-label="Password"
+          aria-label={t('Password')}
           autoFocus
           required
         />
@@ -409,9 +424,9 @@ function PasswordDialog({
           </p>
         )}
         <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={onClose}>Annulla</Button>
+          <Button onClick={onClose}>{t('Annulla')}</Button>
           <Button type="submit" variant="primary" loading={busy}>
-            Mostra
+            {t('Mostra')}
           </Button>
         </div>
       </form>

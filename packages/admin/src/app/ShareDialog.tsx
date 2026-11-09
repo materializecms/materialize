@@ -4,20 +4,21 @@ import { useState } from 'react'
 import { Button, Dialog, IconButton, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { api, type PreviewLink, type StoredDocument } from '../lib/api.ts'
 import { relativeTime, whenDate } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 
 type Expiry = '1' | '7' | '30' | 'never'
 
-const EXPIRY: { value: Expiry; label: string }[] = [
-  { value: '1', label: '1 giorno' },
-  { value: '7', label: '7 giorni' },
-  { value: '30', label: '30 giorni' },
-  { value: 'never', label: 'Senza scadenza' },
+const EXPIRY = (): { value: Expiry; label: string }[] => [
+  { value: '1', label: t('1 giorno') },
+  { value: '7', label: t('7 giorni') },
+  { value: '30', label: t('30 giorni') },
+  { value: 'never', label: t('Senza scadenza') },
 ]
 
 const copy = (url: string) =>
   navigator.clipboard?.writeText(url).then(
-    () => toast('Link copiato'),
-    () => toast('Copia non riuscita: seleziona il link e copialo a mano', 'error'),
+    () => toast(t('Link copiato')),
+    () => toast(t('Copia non riuscita: seleziona il link e copialo a mano'), 'error'),
   )
 
 /**
@@ -64,7 +65,7 @@ export function ShareDialog({
     try {
       await api.revokePreview(link.id)
       await queryClient.invalidateQueries({ queryKey: key })
-      toast('Link revocato: non si apre più')
+      toast(t('Link revocato: non si apre più'))
     } catch (error) {
       onError(error)
     }
@@ -75,18 +76,19 @@ export function ShareDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Condividi un’anteprima"
+      title={t('Condividi un’anteprima')}
       width={500}
-      footer={<Button onClick={onClose}>Fine</Button>}
+      footer={<Button onClick={onClose}>{t('Fatto')}</Button>}
     >
       <p className="text-[14px] leading-relaxed text-fg2">
-        Chi ha il link vede la pagina con il design del sito, anche senza account e prima che sia pubblicata. Mostra
-        sempre l’ultima versione salvata; i motori di ricerca non la vedono.
+        {t(
+          'Chi ha il link vede la pagina con il design del sito, anche senza account e prima che sia pubblicata. Mostra sempre l’ultima versione salvata; i motori di ricerca non la vedono.',
+        )}
       </p>
       <div className="mt-4 space-y-2">
-        <p className="text-[13px] font-medium">Il link vale</p>
+        <p className="text-[13px] font-medium">{t('Il link vale')}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented value={expiry} options={EXPIRY} onChange={setExpiry} size="sm" />
+          <Segmented value={expiry} options={EXPIRY()} onChange={setExpiry} size="sm" />
           <Button
             variant="primary"
             size="sm"
@@ -95,17 +97,17 @@ export function ShareDialog({
             icon={<Link2 className="size-3.5" />}
             className="ml-auto"
           >
-            Crea e copia il link
+            {t('Crea e copia il link')}
           </Button>
         </div>
       </div>
 
       <div className="mt-5">
-        <p className="mb-1.5 text-[13px] font-medium">Link attivi</p>
+        <p className="mb-1.5 text-[13px] font-medium">{t('Link attivi')}</p>
         {links.isPending ? (
           <Spinner className="size-4" />
         ) : !items.length ? (
-          <p className="text-[13px] text-fg3">Nessun link: questa pagina la vede solo chi entra nel pannello.</p>
+          <p className="text-[13px] text-fg3">{t('Nessun link: questa pagina la vede solo chi entra nel pannello.')}</p>
         ) : (
           <ul className="divide-y divide-line rounded-md border border-line">
             {items.map((link) => (
@@ -114,22 +116,24 @@ export function ShareDialog({
                   <input
                     readOnly
                     value={link.url}
-                    aria-label="Link di anteprima"
+                    aria-label={t('Link di anteprima')}
                     onFocus={(e) => e.currentTarget.select()}
                     className="w-full truncate bg-transparent font-mono text-[12px] text-fg outline-none"
                   />
                   <p className="text-[12px] text-fg3">
-                    {link.expiresAt ? `Scade ${whenDate(link.expiresAt)}` : 'Senza scadenza'} · da{' '}
-                    {link.createdByName || 'qualcuno'} ·{' '}
+                    {link.expiresAt ? t('Scade {when}', { when: whenDate(link.expiresAt) }) : t('Senza scadenza')} ·{' '}
+                    {t('da {name}', { name: link.createdByName || t('qualcuno') })} ·{' '}
                     {link.views
-                      ? `aperto ${link.views === 1 ? 'una volta' : `${link.views} volte`}, l’ultima ${relativeTime(link.viewedAt ?? link.createdAt)}`
-                      : 'mai aperto'}
+                      ? tn(link.views, 'aperto una volta, l’ultima {when}', 'aperto {n} volte, l’ultima {when}', {
+                          when: relativeTime(link.viewedAt ?? link.createdAt),
+                        })
+                      : t('mai aperto')}
                   </p>
                 </div>
-                <IconButton label="Copia il link" onClick={() => void copy(link.url)}>
+                <IconButton label={t('Copia il link')} onClick={() => void copy(link.url)}>
                   {fresh === link.id ? <Check /> : <Copy />}
                 </IconButton>
-                <IconButton label="Revoca il link" onClick={() => void revoke(link)}>
+                <IconButton label={t('Revoca il link')} onClick={() => void revoke(link)}>
                   <Trash2 />
                 </IconButton>
               </li>

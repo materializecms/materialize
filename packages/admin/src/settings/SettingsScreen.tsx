@@ -5,6 +5,7 @@ import { useSession } from '../app/context.ts'
 import { DocumentScreen } from '../app/DocumentScreen.tsx'
 import { cx, EmptyState, ScreenHeader, Spinner } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { About } from './About.tsx'
@@ -25,7 +26,7 @@ import { VoiceSettings } from './VoiceSettings.tsx'
  */
 export function settingsLabel(c: CollectionDescription): string {
   const short = c.label.replace(/^impostazioni(\s+(del|della|dello|dei|degli|delle|di))?\s*/i, '').trim()
-  return short ? short.charAt(0).toUpperCase() + short.slice(1) : 'Generale'
+  return short ? short.charAt(0).toUpperCase() + short.slice(1) : t('Generale')
 }
 
 /**
@@ -44,41 +45,41 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   // Grouped, so the list can grow: the site's own data, how it talks to people, safety, tools.
   const groups: { title: string; items: { value: string; label: string; badge?: number; dot?: boolean }[] }[] = [
     {
-      title: 'Sito',
+      title: t('Sito'),
       items: [
         ...singletons.map((c) => ({ value: c.name, label: settingsLabel(c) })),
-        { value: 'languages', label: 'Lingue' },
-        { value: 'seo', label: 'SEO' },
-        { value: 'tracking', label: 'Tracciamento e cookie' },
+        { value: 'languages', label: t('Lingue') },
+        { value: 'seo', label: t('SEO') },
+        { value: 'tracking', label: t('Tracciamento e cookie') },
       ],
     },
     {
-      title: 'Comunicazione',
+      title: t('Comunicazione'),
       items: [
-        { value: 'mail', label: 'Email' },
-        { value: 'messages', label: 'Messaggi', badge: unread },
+        { value: 'mail', label: t('Email') },
+        { value: 'messages', label: t('Messaggi'), badge: unread },
       ],
     },
     {
-      title: 'Protezione',
+      title: t('Protezione'),
       items: [
-        { value: 'security', label: 'Sicurezza' },
+        { value: 'security', label: t('Sicurezza') },
         ...(user.role === 'admin'
           ? [
-              { value: 'backups', label: 'Backup' },
-              { value: 'activity', label: 'Registro attività' },
+              { value: 'backups', label: t('Backup') },
+              { value: 'activity', label: t('Registro attività') },
             ]
           : []),
       ],
     },
     {
-      title: 'Strumenti',
+      title: t('Strumenti'),
       items: [
-        { value: 'ai', label: 'AI e MCP' },
-        { value: 'voice', label: 'Voce del brand' },
-        { value: 'import', label: 'Importa' },
-        ...(user.role === 'admin' ? [{ value: 'updates', label: 'Aggiornamenti', dot: !!update }] : []),
-        { value: 'about', label: 'Informazioni' },
+        { value: 'ai', label: t('AI e MCP') },
+        { value: 'voice', label: t('Voce del brand') },
+        { value: 'import', label: t('Importa') },
+        ...(user.role === 'admin' ? [{ value: 'updates', label: t('Aggiornamenti'), dot: !!update }] : []),
+        { value: 'about', label: t('Informazioni') },
       ],
     },
   ]
@@ -102,8 +103,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         </span>
       )}
       {it.dot && (
-        <span title="Nuova versione" className="size-2 rounded-full bg-accent">
-          <span className="sr-only">Nuova versione</span>
+        <span title={t('Nuova versione')} className="size-2 rounded-full bg-accent">
+          <span className="sr-only">{t('Nuova versione')}</span>
         </span>
       )}
     </button>
@@ -114,14 +115,14 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       <ScreenHeader
         icon={<Settings />}
         color="#64748b"
-        title="Impostazioni"
-        subtitle="Il sito, la posta, la sicurezza e gli strumenti."
+        title={t('Impostazioni')}
+        subtitle={t('Il sito, la posta, la sicurezza e gli strumenti.')}
       >
         <div className="mt-5 border-b border-line" />
       </ScreenHeader>
       <div className="flex min-h-0 flex-1 max-md:flex-col">
         <nav
-          aria-label="Sezioni delle impostazioni"
+          aria-label={t('Sezioni delle impostazioni')}
           className="shrink-0 border-line md:w-52 md:overflow-y-auto md:border-r md:p-3 max-md:flex max-md:gap-1.5 max-md:overflow-x-auto max-md:border-b max-md:px-4 max-md:py-2.5 max-md:[scrollbar-width:none]"
         >
           {groups.map((g) => (
@@ -161,7 +162,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
               ) : user.role === 'admin' ? (
                 <MailForm />
               ) : (
-                <EmptyState icon={<Mail />} title="L’invio delle email lo configura un amministratore" />
+                <EmptyState icon={<Mail />} title={t('L’invio delle email lo configura un amministratore')} />
               )}
             </div>
           )}

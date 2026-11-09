@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { t } from '../lib/i18n.ts'
 
 export interface TourStep<T = string> {
   part: string
@@ -138,9 +139,7 @@ export function GuidedTour<T>({
       >
         <div className="flex items-center justify-between text-[11.5px] font-medium">
           <span className="text-accent">{step.part}</span>
-          <span className="text-fg3 tabular-nums">
-            {i + 1} di {steps.length}
-          </span>
+          <span className="text-fg3 tabular-nums">{t('{n} di {total}', { n: i + 1, total: steps.length })}</span>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-seg">
           <div
@@ -153,7 +152,7 @@ export function GuidedTour<T>({
         <div className="mt-4 flex items-center gap-2">
           {!last && (
             <button type="button" onClick={onDone} className="mr-auto text-[12.5px] text-fg3 hover:text-fg">
-              Salta il tour
+              {t('Salta il tour')}
             </button>
           )}
           {last && <span className="mr-auto" />}
@@ -163,7 +162,7 @@ export function GuidedTour<T>({
               onClick={() => setI(i - 1)}
               className="h-7 rounded-md px-2.5 text-[12.5px] font-medium text-fg2 hover:bg-hover hover:text-fg"
             >
-              Indietro
+              {t('Indietro')}
             </button>
           )}
           <button
@@ -172,7 +171,7 @@ export function GuidedTour<T>({
             onClick={() => (last ? onDone() : setI(i + 1))}
             className="h-7 rounded-md bg-accent px-3 text-[12.5px] font-medium text-white hover:brightness-110"
           >
-            {i === 0 ? 'Iniziamo' : last ? 'Inizia a lavorare' : 'Avanti'}
+            {i === 0 ? t('Iniziamo') : last ? t('Inizia a lavorare') : t('Avanti')}
           </button>
         </div>
       </div>

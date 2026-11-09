@@ -15,6 +15,7 @@ import {
 import { type ReactNode, useState } from 'react'
 import { Input } from '../components/ui.tsx'
 import type { FieldDescription } from '../lib/api.ts'
+import { t, tn } from '../lib/i18n.ts'
 
 export type BlockDef = NonNullable<FieldDescription['blocks']>[number]
 
@@ -47,13 +48,13 @@ export function BlockLibrary({ blocks, onPick }: { blocks: BlockDef[]; onPick: (
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cerca un blocco…"
+            placeholder={t('Cerca un blocco…')}
             className="border-0 focus:ring-0"
           />
         </div>
       )}
       <div className="max-h-80 overflow-y-auto p-1">
-        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">Aggiungi un blocco</div>
+        <div className="px-2 pt-1.5 pb-1 text-[12px] font-medium text-fg3">{t('Aggiungi un blocco')}</div>
         {shown.map((b) => (
           <button
             key={b.name}
@@ -67,12 +68,12 @@ export function BlockLibrary({ blocks, onPick }: { blocks: BlockDef[]; onPick: (
             <span className="min-w-0">
               <span className="block text-[14px] font-medium">{b.label}</span>
               <span className="block truncate text-[13px] text-fg3">
-                {b.description ?? `${b.fields.length} ${b.fields.length === 1 ? 'campo' : 'campi'}`}
+                {b.description ?? tn(b.fields.length, '{n} campo', '{n} campi')}
               </span>
             </span>
           </button>
         ))}
-        {!shown.length && <div className="px-2 py-4 text-center text-[13px] text-fg3">Nessun blocco</div>}
+        {!shown.length && <div className="px-2 py-4 text-center text-[13px] text-fg3">{t('Nessun blocco')}</div>}
       </div>
     </div>
   )

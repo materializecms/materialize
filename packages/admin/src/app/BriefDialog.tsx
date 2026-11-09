@@ -7,13 +7,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Prose } from '../components/Prose.tsx'
 import { Button, Dialog, Switch, Textarea, toast } from '../components/ui.tsx'
 import { api, type BuiltPage } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { shrink } from '../page/Assistant.tsx'
 
-const EXAMPLE =
-  'Es.: Forno Aurora è un panificio di quartiere a Bologna, in via Saragozza. Pane a lievito madre, colazioni e torte su ordinazione. Aperti dal martedì alla domenica, 7–14. Vogliamo far conoscere il forno e ricevere ordini per le torte.'
+const example = () =>
+  t(
+    'Es.: Forno Aurora è un panificio di quartiere a Bologna, in via Saragozza. Pane a lievito madre, colazioni e torte su ordinazione. Aperti dal martedì alla domenica, 7–14. Vogliamo far conoscere il forno e ricevere ordini per le torte.',
+  )
 
-const ADDRESS = { tu: 'del tu', voi: 'del voi', lei: 'del Lei' } as const
+/** How the voice addresses the reader, as the summary says it. */
+const address = (a: 'tu' | 'voi' | 'lei') =>
+  a === 'tu' ? t('uso del tu') : a === 'voi' ? t('uso del voi') : t('uso del Lei')
 
 type Phase = 'form' | 'running' | 'done'
 
@@ -73,12 +78,12 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
   /** A new brief, or (with words) an answer to the AI in the run under way. */
   const start = async (answer?: string) => {
     if (answer) {
-      setThread((t) => [...t, { me: true, text: answer }])
+      setThread((list) => [...list, { me: true, text: answer }])
       setReply('')
       setError('')
     } else reset()
     setPhase('running')
-    setStep(answer ? 'Leggo la risposta…' : 'Leggo il brief…')
+    setStep(answer ? t('Leggo la risposta…') : t('Leggo il brief…'))
     const id = answer ? runId : null
     setRunId(null)
     const controller = new AbortController()
@@ -100,14 +105,14 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
             setCreated(e.created)
             setTheme(e.theme)
             setVoice(e.voice)
-          } else if (e.type === 'text') setThread((t) => [...t, { me: false, text: e.text }])
+          } else if (e.type === 'text') setThread((list) => [...list, { me: false, text: e.text }])
           else if (e.type === 'error') setError(e.message)
           else if (e.type === 'done') setRunId(e.runId ?? null)
         },
         controller.signal,
       )
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') setError(err instanceof Error ? err.message : 'Errore')
+      if ((err as Error).name !== 'AbortError') setError(err instanceof Error ? err.message : t('Errore'))
     } finally {
       abort.current = null
       setPhase('done')
@@ -123,7 +128,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
         const small = await shrink(f)
         setPictures((list) => [...list, small].slice(0, 2))
       } catch {
-        toast('Non riesco a leggere questa immagine', 'error')
+        toast(t('Non riesco a leggere questa immagine'), 'error')
       }
     }
   }
@@ -135,7 +140,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
       await api.saveTheme(theme)
       void queryClient.invalidateQueries({ queryKey: ['theme'] })
       setApplied((a) => ({ ...a, theme: true }))
-      toast('Tema applicato a tutto il sito')
+      toast(t('Tema applicato a tutto il sito'))
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Errore', 'error')
     } finally {
@@ -150,7 +155,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
       await api.saveVoice(voice)
       void queryClient.invalidateQueries({ queryKey: ['voice'] })
       setApplied((a) => ({ ...a, voice: true }))
-      toast('Voce del brand salvata')
+      toast(t('Voce del brand salvata'))
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Errore', 'error')
     } finally {
@@ -171,31 +176,31 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
       title={
         <span className="flex items-center gap-2">
           <Sparkles className="size-4 text-accent" />
-          Crea il sito con l’AI
+          {t('Crea il sito con l’AI')}
         </span>
       }
       footer={
         phase === 'form' ? (
           <>
-            <Button onClick={close}>Annulla</Button>
+            <Button onClick={close}>{t('Annulla')}</Button>
             <Button
               variant="primary"
               icon={<Sparkles className="size-3.5" />}
               disabled={brief.trim().length < 20}
               onClick={() => void start()}
             >
-              Prepara le bozze
+              {t('Prepara le bozze')}
             </Button>
           </>
         ) : phase === 'running' ? (
           <Button icon={<Square className="size-3" />} onClick={stop}>
-            Interrompi
+            {t('Interrompi')}
           </Button>
         ) : (
           <>
-            <Button onClick={reset}>Nuovo brief</Button>
+            <Button onClick={reset}>{t('Nuovo brief')}</Button>
             <Button variant="primary" onClick={close}>
-              Fatto
+              {t('Fatto')}
             </Button>
           </>
         )
@@ -205,24 +210,25 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
         {phase === 'form' ? (
           <div className="space-y-4">
             <p className="text-[13px] leading-relaxed">
-              Descrivi l’attività in poche righe: cosa fa, per chi, dove, cosa deve ottenere il sito. L’AI prepara le
-              pagine con le sezioni della libreria, tutte in bozza: niente va online finché non le pubblichi.
+              {t(
+                'Descrivi l’attività in poche righe: cosa fa, per chi, dove, cosa deve ottenere il sito. L’AI prepara le pagine con le sezioni della libreria, tutte in bozza: niente va online finché non le pubblichi.',
+              )}
             </p>
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-fg">Il brief</span>
+              <span className="mb-1.5 block text-[13px] font-medium text-fg">{t('Il brief')}</span>
               <Textarea
                 data-autofocus
                 rows={5}
                 value={brief}
                 maxLength={6000}
-                placeholder={EXAMPLE}
+                placeholder={example()}
                 onChange={(e) => setBrief(e.target.value)}
                 className="min-h-28"
               />
             </label>
             <div>
               <span className="mb-1.5 block text-[13px] font-medium text-fg">
-                Immagini di riferimento <span className="font-normal text-fg3">(facoltative)</span>
+                {t('Immagini di riferimento')} <span className="font-normal text-fg3">{t('(facoltative)')}</span>
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 {pictures.map((p, i) => (
@@ -230,7 +236,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                     <img src={p.url} alt="" className="size-16 rounded-md object-cover ring-1 ring-line" />
                     <button
                       type="button"
-                      aria-label="Togli l’immagine"
+                      aria-label={t('Togli l’immagine')}
                       onClick={() => setPictures((list) => list.filter((_, j) => j !== i))}
                       className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-fg text-bg"
                     >
@@ -240,7 +246,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                 ))}
                 {pictures.length < 2 && (
                   <Button size="sm" icon={<ImagePlus className="size-3.5" />} onClick={() => file.current?.click()}>
-                    Aggiungi
+                    {t('Aggiungi')}
                   </Button>
                 )}
                 <input
@@ -256,21 +262,22 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                 />
               </div>
               <p className="mt-1.5 text-[12px] text-fg3">
-                Un sito o una grafica che ti piace: l’AI ne prende atmosfera e colori, mai testi o marchi.
+                {t('Un sito o una grafica che ti piace: l’AI ne prende atmosfera e colori, mai testi o marchi.')}
               </p>
             </div>
             <div className="flex items-start justify-between gap-4 rounded-lg border border-line px-3 py-2.5">
               <span>
-                <span className="block text-[13px] font-medium text-fg">Proponi colori e caratteri</span>
+                <span className="block text-[13px] font-medium text-fg">{t('Proponi colori e caratteri')}</span>
                 <span className="block text-[12px] text-fg3">
-                  Una proposta che vedi alla fine e applichi solo se ti convince.
+                  {t('Una proposta che vedi alla fine e applichi solo se ti convince.')}
                 </span>
               </span>
-              <Switch checked={withTheme} onChange={setWithTheme} label="Proponi colori e caratteri" />
+              <Switch checked={withTheme} onChange={setWithTheme} label={t('Proponi colori e caratteri')} />
             </div>
             <p className="text-[12px] text-fg3">
-              Usa il modello principale dell’AI e richiede qualche minuto. Le pagine esistenti, i menu condivisi e il
-              sito online non vengono toccati.
+              {t(
+                'Usa il modello principale dell’AI e richiede qualche minuto. Le pagine esistenti, i menu condivisi e il sito online non vengono toccati.',
+              )}
             </p>
           </div>
         ) : (
@@ -278,13 +285,13 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
             {phase === 'running' && (
               <div className="flex items-start gap-2 rounded-lg bg-seg px-3 py-2.5 text-[13px]">
                 <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-accent" />
-                <span className="line-clamp-2 min-w-0">{step || 'Lavoro…'}</span>
+                <span className="line-clamp-2 min-w-0">{step || t('Lavoro…')}</span>
               </div>
             )}
             {error && (
               <p className="rounded-lg bg-danger/10 px-3 py-2.5 text-[13px] text-danger" role="alert">
                 {error}
-                {created.length > 0 && ' Le bozze già preparate restano.'}
+                {created.length > 0 && ` ${t('Le bozze già preparate restano.')}`}
               </p>
             )}
             {thread.map((m, i) =>
@@ -311,7 +318,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                   rows={1}
                   value={reply}
                   maxLength={4000}
-                  placeholder="Rispondi all’AI o chiedi altro (es. aggiungi una pagina Chi siamo)"
+                  placeholder={t('Rispondi all’AI o chiedi altro (es. aggiungi una pagina Chi siamo)')}
                   onChange={(e) => setReply(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && reply.trim()) {
@@ -322,7 +329,7 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                   className="flex-1"
                 />
                 <Button type="submit" variant="primary" disabled={!reply.trim()}>
-                  Invia
+                  {t('Invia')}
                 </Button>
               </form>
             )}
@@ -330,10 +337,12 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
             {(created.length > 0 || phase === 'running') && (
               <section>
                 <h3 className="mb-1.5 text-[12px] font-semibold tracking-[0.06em] text-fg3 uppercase">
-                  Bozze preparate
+                  {t('Bozze preparate')}
                 </h3>
                 {created.length === 0 ? (
-                  <p className="text-[13px] text-fg3">Ancora nessuna: prima l’AI studia il brief e la libreria.</p>
+                  <p className="text-[13px] text-fg3">
+                    {t('Ancora nessuna: prima l’AI studia il brief e la libreria.')}
+                  </p>
                 ) : (
                   <ul className="divide-y divide-line rounded-lg border border-line">
                     {created.map((doc) => (
@@ -359,19 +368,22 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
-                      <Palette className="size-3.5" /> Colori e caratteri proposti
+                      <Palette className="size-3.5" /> {t('Colori e caratteri proposti')}
                     </h3>
                     <p className="mt-0.5 text-[12px] text-fg3">
-                      Titoli in {theme.display}, testi in {theme.body}. Vale per tutto il sito, anche online.
+                      {t('Titoli in {display}, testi in {body}. Vale per tutto il sito, anche online.', {
+                        display: theme.display,
+                        body: theme.body,
+                      })}
                     </p>
                   </div>
                   {applied.theme ? (
                     <span className="flex shrink-0 items-center gap-1 text-[13px] text-ok">
-                      <Check className="size-3.5" /> Applicato
+                      <Check className="size-3.5" /> {t('Applicato')}
                     </span>
                   ) : (
                     <Button size="sm" loading={saving === 'theme'} onClick={applyTheme}>
-                      Applica il tema
+                      {t('Applica il tema')}
                     </Button>
                   )}
                 </div>
@@ -393,12 +405,12 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
-                      <MessageSquareQuote className="size-3.5" /> Voce del brand proposta
+                      <MessageSquareQuote className="size-3.5" /> {t('Voce del brand proposta')}
                     </h3>
                     <p className="mt-0.5 text-[12px] leading-relaxed">
                       {[
-                        voice.tones?.length ? `Tono ${voice.tones.join(', ').toLowerCase()}` : '',
-                        voice.address ? `uso ${ADDRESS[voice.address]}` : '',
+                        voice.tones?.length ? t('Tono {tones}', { tones: voice.tones.join(', ').toLowerCase() }) : '',
+                        voice.address ? address(voice.address) : '',
                       ]
                         .filter(Boolean)
                         .join(', ')}
@@ -407,11 +419,11 @@ export function BriefDialog({ open, onClose }: { open: boolean; onClose: () => v
                   </div>
                   {applied.voice ? (
                     <span className="flex shrink-0 items-center gap-1 text-[13px] text-ok">
-                      <Check className="size-3.5" /> Salvata
+                      <Check className="size-3.5" /> {t('Salvata')}
                     </span>
                   ) : (
                     <Button size="sm" loading={saving === 'voice'} onClick={applyVoice}>
-                      Salva la voce
+                      {t('Salva la voce')}
                     </Button>
                   )}
                 </div>

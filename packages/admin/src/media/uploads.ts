@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { toast } from '../components/ui.tsx'
 import { api, type MediaAsset } from '../lib/api.ts'
+import { intlLocale, t } from '../lib/i18n.ts'
 
 export interface Upload {
   id: string
@@ -22,7 +23,7 @@ export function useUploads(onDone?: (asset: MediaAsset) => void) {
   const start = useCallback(
     async (files: File[]) => {
       const images = files.filter((f) => f.type.startsWith('image/'))
-      if (images.length < files.length) toast('Alcuni file non sono immagini e sono stati ignorati', 'error')
+      if (images.length < files.length) toast(t('Alcuni file non sono immagini e sono stati ignorati'), 'error')
       const items = images.map((file) => ({
         file,
         upload: { id: crypto.randomUUID(), name: file.name, progress: 0, preview: URL.createObjectURL(file) },
@@ -59,5 +60,5 @@ export function useUploads(onDone?: (asset: MediaAsset) => void) {
 
 export function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`
+  return `${(bytes / 1024 / 1024).toLocaleString(intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`
 }

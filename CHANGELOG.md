@@ -4,7 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
-- **Pannello in inglese, seconda parte: l'editor.** Tela, livelli, libreria, stili, controlli, pannello delle proprietà, animazioni, interazioni, assistente, commenti, tour e scorciatoie, esportazione e modalità Design delle raccolte a blocchi. I nuovi elementi prendono nome e testo segnaposto nella lingua del pannello. Restano da tradurre la barra e i campi dei documenti, le impostazioni e i testi che arrivano dal core (controlli SEO, nomi delle sezioni della libreria).
+- **Pannello in inglese, terza parte: tutto il resto del pannello.** Documenti, liste e rilasci, ricerca ⌘K, campi e libreria media, newsletter, persone e verifica in due passaggi, tutte le impostazioni, l'installazione iniziale (con il selettore della lingua) e i tour. Restano in italiano i messaggi che arrivano dal server (controlli di sicurezza, errori, email), i testi del core (controlli SEO, sezioni della libreria) e la guida.
+- **Pannello in inglese, seconda parte: l'editor.** Tela, livelli, libreria, stili, controlli, pannello delle proprietà, animazioni, interazioni, assistente, commenti, tour e scorciatoie, esportazione e modalità Design delle raccolte a blocchi. I nuovi elementi prendono nome e testo segnaposto nella lingua del pannello.
 - **`materialize dev` resta sul tuo computer**: prima si poteva raggiungere da tutta la rete, e su una Wi-Fi condivisa qualcun altro avrebbe potuto aprire un sito nuovo e crearne l'amministratore. Per provarlo dal telefono: `--host 0.0.0.0`. `materialize start` non cambia.
 - **Nuovo aspetto del pannello**: menu, area di lavoro e pannelli dell'editor sono superfici arrotondate su un fondo più scuro; pulsanti, filtri e selettori sono a pillola.
 - Ricerca, tema e profilo si sono spostati in alto a destra, in un incavo dell'area di lavoro (sul telefono, nella barra in alto). La lingua dei contenuti resta in basso a sinistra.

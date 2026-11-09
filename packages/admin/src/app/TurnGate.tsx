@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
+import { t } from '../lib/i18n.ts'
 
 type TurnState = {
   mine: boolean
@@ -14,8 +15,9 @@ type TurnState = {
 /** "Ha appena iniziato." or "Ha iniziato 12 minuti fa.", from when the turn began. */
 function started(since: string | undefined) {
   if (!since) return ''
-  const when = relativeTime(since)
-  return when === 'adesso' ? 'Ha appena iniziato.' : `Ha iniziato ${when}.`
+  // Under 45 seconds relativeTime says "adesso": then it reads better as "just started".
+  if (Math.abs(Date.now() - new Date(since).getTime()) < 45_000) return t('Ha appena iniziato.')
+  return t('Ha iniziato {when}.', { when: relativeTime(since) })
 }
 
 /** How often the open document says "still here". */
@@ -91,15 +93,22 @@ export function TurnGate({
   const holder = turn.holder
   const sameUser = !!holder?.self
   const title = turn.takenBy
-    ? `${turn.takenBy} ha preso il controllo`
+    ? t('{name} ha preso il controllo', { name: turn.takenBy })
     : sameUser
-      ? 'Questo documento è aperto in un’altra scheda'
-      : `${holder?.name ?? 'Qualcuno'} sta modificando questo documento`
+      ? t('Questo documento è aperto in un’altra scheda')
+      : holder?.name
+        ? t('{name} sta modificando questo documento', { name: holder.name })
+        : t('Qualcuno sta modificando questo documento')
   const text = turn.takenBy
-    ? `Le tue modifiche fino all’ultimo salvataggio ci sono. Ora è ${turn.takenBy} a modificare: puoi tornare indietro o riprendere il controllo.`
+    ? t(
+        'Le tue modifiche fino all’ultimo salvataggio ci sono. Ora è {name} a modificare: puoi tornare indietro o riprendere il controllo.',
+        { name: turn.takenBy },
+      )
     : sameUser
-      ? 'Per non sovrascrivere il lavoro, si modifica da una scheda alla volta. Chiudi l’altra, oppure continua da qui.'
-      : `${started(holder?.since)} Per non sovrascrivere il lavoro di nessuno, si modifica un documento alla volta: aspetta che finisca, oppure prendi il controllo.`
+      ? t(
+          'Per non sovrascrivere il lavoro, si modifica da una scheda alla volta. Chiudi l’altra, oppure continua da qui.',
+        )
+      : `${started(holder?.since)} ${t('Per non sovrascrivere il lavoro di nessuno, si modifica un documento alla volta: aspetta che finisca, oppure prendi il controllo.')}`
   const take = async () => {
     setBusy(true)
     try {
@@ -128,25 +137,32 @@ export function TurnGate({
         {confirm ? (
           <div className="mt-4 rounded-lg bg-warn/10 px-3 py-2.5 text-[13px] leading-relaxed">
             {sameUser
-              ? 'L’altra scheda passa in sola lettura. Quello che lì non è ancora salvato potrebbe andare perso.'
-              : `${holder?.name ?? 'L’altra persona'} passa in sola lettura e lo vede subito. Le sue modifiche degli ultimi secondi, non ancora salvate, potrebbero andare perse.`}
+              ? t('L’altra scheda passa in sola lettura. Quello che lì non è ancora salvato potrebbe andare perso.')
+              : holder?.name
+                ? t(
+                    '{name} passa in sola lettura e lo vede subito. Le sue modifiche degli ultimi secondi, non ancora salvate, potrebbero andare perse.',
+                    { name: holder.name },
+                  )
+                : t(
+                    'L’altra persona passa in sola lettura e lo vede subito. Le sue modifiche degli ultimi secondi, non ancora salvate, potrebbero andare perse.',
+                  )}
             <div className="mt-3 flex justify-end gap-2">
               <Button size="sm" onClick={() => setConfirm(false)}>
-                Annulla
+                {t('Annulla')}
               </Button>
               <Button size="sm" variant="primary" loading={busy} onClick={() => void take()}>
-                Prendi il controllo
+                {t('Prendi il controllo')}
               </Button>
             </div>
           </div>
         ) : (
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <Button icon={<Undo2 className="size-3.5" />} onClick={onBack}>
-              Torna indietro
+              {t('Torna indietro')}
             </Button>
             {previewUrl && (
               <Button icon={<Eye className="size-3.5" />} onClick={() => window.open(previewUrl, '_blank', 'noopener')}>
-                Apri il sito
+                {t('Apri il sito')}
               </Button>
             )}
             <Button
@@ -155,7 +171,7 @@ export function TurnGate({
               data-autofocus
               onClick={() => setConfirm(true)}
             >
-              {turn.takenBy ? 'Riprendi il controllo' : sameUser ? 'Continua da qui' : 'Prendi il controllo'}
+              {turn.takenBy ? t('Riprendi il controllo') : sameUser ? t('Continua da qui') : t('Prendi il controllo')}
             </Button>
           </div>
         )}

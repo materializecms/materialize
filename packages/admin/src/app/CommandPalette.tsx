@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cx, Kbd } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { useTheme } from '../lib/prefs.ts'
 import { navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
@@ -36,8 +37,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }
   }, [open])
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), 150)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(query.trim()), 150)
+    return () => clearTimeout(timer)
   }, [query])
 
   const searches = useQueries({
@@ -60,7 +61,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             label: doc.title,
             hint: c.label,
             icon: <FileText />,
-            group: 'Documenti',
+            group: t('Documenti'),
             run: () => navigate({ name: 'document', collection: c.name, id: doc.id }),
           })
         }
@@ -72,77 +73,78 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           id: `go:${c.name}`,
           label: c.label,
           icon: collectionIcon(c),
-          group: 'Vai a',
+          group: t('Vai a'),
           run: () =>
             navigate(c.singleton ? { name: 'settings', tab: c.name } : { name: 'collection', collection: c.name }),
         })
       }
     }
-    if (match('Impostazioni email seo lingue ai mcp messaggi')) {
+    if (match(t('Impostazioni email seo lingue ai mcp messaggi'))) {
       out.push({
         id: 'go:settings',
-        label: 'Impostazioni',
+        label: t('Impostazioni'),
         icon: <Settings />,
-        group: 'Vai a',
+        group: t('Vai a'),
         run: () => navigate({ name: 'settings' }),
       })
     }
-    if (match('Media immagini libreria')) {
+    if (match(t('Media immagini libreria'))) {
       out.push({
         id: 'go:media',
-        label: 'Media',
+        label: t('Media'),
         icon: <Images />,
-        group: 'Vai a',
+        group: t('Vai a'),
         run: () => navigate({ name: 'media' }),
       })
     }
-    if (match('Tour del pannello guida aiuto')) {
+    if (match(t('Tour del pannello guida aiuto'))) {
       out.push({
         id: 'go:tour',
-        label: 'Tour del pannello',
+        label: t('Tour del pannello'),
         icon: <Compass />,
-        group: 'Vai a',
+        group: t('Vai a'),
         run: () => startPanelTour(),
       })
     }
-    if (match('Rilasci lancio insieme')) {
+    if (match(t('Rilasci lancio insieme'))) {
       out.push({
         id: 'go:releases',
-        label: 'Rilasci',
+        label: t('Rilasci'),
         icon: <Rocket />,
-        group: 'Vai a',
+        group: t('Vai a'),
         run: () => navigate({ name: 'releases' }),
       })
     }
-    if (user.role === 'admin' && match('Persone inviti utenti')) {
+    if (user.role === 'admin' && match(t('Persone inviti utenti'))) {
       out.push({
         id: 'go:people',
-        label: 'Persone',
+        label: t('Persone'),
         icon: <UserRound />,
-        group: 'Vai a',
+        group: t('Vai a'),
         run: () => navigate({ name: 'people' }),
       })
     }
     for (const c of schema.collections) {
       if (c.singleton) continue
-      const label = `Nuovo in ${c.label}`
-      if (match(label) || match('nuovo crea')) {
+      const label = t('Nuovo in {collection}', { collection: c.label })
+      if (match(label) || match(t('nuovo crea'))) {
         out.push({
           id: `new:${c.name}`,
           label,
           icon: <Plus />,
-          group: 'Crea',
+          group: t('Crea'),
           run: () => navigate({ name: 'new', collection: c.name }),
         })
       }
     }
     const themes = [
-      { id: 'light', label: 'Tema chiaro', icon: <Sun /> },
-      { id: 'dark', label: 'Tema scuro', icon: <Moon /> },
-      { id: 'system', label: 'Tema come il sistema', icon: <Monitor /> },
+      { id: 'light', label: t('Tema chiaro'), icon: <Sun /> },
+      { id: 'dark', label: t('Tema scuro'), icon: <Moon /> },
+      { id: 'system', label: t('Tema come il sistema'), icon: <Monitor /> },
     ] as const
-    for (const t of themes) {
-      if (match(t.label)) out.push({ ...t, id: `theme:${t.id}`, group: 'Preferenze', run: () => setTheme(t.id) })
+    for (const theme of themes) {
+      if (match(theme.label))
+        out.push({ ...theme, id: `theme:${theme.id}`, group: t('Preferenze'), run: () => setTheme(theme.id) })
     }
     return out
   }, [query, debounced, schema.collections, searches, setTheme, user.role])
@@ -165,10 +167,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   let lastGroup = ''
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/25 px-4 pt-[12vh] backdrop-blur-[2px]">
-      <button type="button" aria-label="Chiudi" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <button type="button" aria-label={t('Chiudi')} className="absolute inset-0 cursor-default" onClick={onClose} />
       <div
         role="dialog"
-        aria-label="Comandi"
+        aria-label={t('Comandi')}
         className="mz-pop-in relative w-[560px] max-w-full overflow-hidden rounded-xl border border-line bg-panel shadow-pop"
       >
         <div className="flex items-center gap-2.5 border-b border-line px-4">
@@ -189,7 +191,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 run(commands[active])
               } else if (e.key === 'Escape') onClose()
             }}
-            placeholder="Cerca contenuti o azioni…"
+            placeholder={t('Cerca contenuti o azioni…')}
             className="h-12 flex-1 bg-transparent text-[14px] placeholder:text-fg3 focus:outline-none"
           />
           <Kbd>esc</Kbd>
@@ -197,7 +199,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         <div ref={list} className="max-h-[360px] overflow-y-auto p-1.5">
           {commands.length === 0 && (
             <div className="px-3 py-8 text-center text-fg3">
-              {query.trim() !== debounced || searches.some((s) => s.isFetching) ? 'Ricerca…' : 'Nessun risultato'}
+              {query.trim() !== debounced || searches.some((s) => s.isFetching) ? t('Ricerca…') : t('Nessun risultato')}
             </div>
           )}
           {commands.map((c, i) => {

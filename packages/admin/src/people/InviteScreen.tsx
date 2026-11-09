@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { Logo, TwoFactorStep } from '../app/Auth.tsx'
 import { Button, Input, Spinner } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
+import { t, tx } from '../lib/i18n.ts'
 import { ROLES } from './PeopleScreen.tsx'
 
 /** Where a one-time link lands: join the site, or choose a new password. No session needed. */
@@ -37,7 +38,7 @@ export function InviteScreen({ token }: { token: string }) {
       const issues = err instanceof ApiError ? err.issues : []
       setError(
         issues.some((i) => i.path === 'password')
-          ? 'La password deve avere almeno 10 caratteri'
+          ? t('La password deve avere almeno 10 caratteri')
           : (err as Error).message,
       )
       setBusy(false)
@@ -56,24 +57,35 @@ export function InviteScreen({ token }: { token: string }) {
           <Spinner />
         ) : info.error || !info.data ? (
           <>
-            <h1 className="text-[20px] font-semibold tracking-tight">Link non valido</h1>
+            <h1 className="text-[20px] font-semibold tracking-tight">{t('Link non valido')}</h1>
             <p className="mt-2 text-fg2">
-              Il link è già stato usato o è scaduto. Chiedine uno nuovo a chi ti ha invitato, oppure{' '}
-              <a href="/admin/" className="text-accent hover:underline">
-                accedi
-              </a>{' '}
-              se hai già un account.
+              {tx(
+                'Il link è già stato usato o è scaduto. Chiedine uno nuovo a chi ti ha invitato, oppure {signIn} se hai già un account.',
+                {
+                  signIn: (
+                    <a href="/admin/" className="text-accent hover:underline">
+                      {t('accedi')}
+                    </a>
+                  ),
+                },
+              )}
             </p>
           </>
         ) : (
           <form onSubmit={submit}>
             <h1 className="text-[20px] font-semibold tracking-tight">
-              {info.data.kind === 'invite' ? `Ti diamo il benvenuto in ${info.data.site}` : 'Scegli una nuova password'}
+              {info.data.kind === 'invite'
+                ? t('Ti diamo il benvenuto in {site}', { site: info.data.site })
+                : t('Scegli una nuova password')}
             </h1>
             <p className="mt-1 mb-6 text-fg2">
               {info.data.kind === 'invite'
-                ? `Hai ricevuto un invito come ${ROLES[info.data.role].label.toLowerCase()}. Scegli una password per entrare.`
-                : `Per l’account ${info.data.email}. Dopo, gli altri dispositivi verranno disconnessi.`}
+                ? t('Hai ricevuto un invito come {role}. Scegli una password per entrare.', {
+                    role: ROLES[info.data.role].label.toLowerCase(),
+                  })
+                : t('Per l’account {email}. Dopo, gli altri dispositivi verranno disconnessi.', {
+                    email: info.data.email,
+                  })}
             </p>
             <div className="space-y-3.5">
               <label className="block">
@@ -82,11 +94,11 @@ export function InviteScreen({ token }: { token: string }) {
               </label>
               {info.data.kind === 'invite' && (
                 <label className="block">
-                  <span className={label}>Nome</span>
+                  <span className={label}>{t('Nome')}</span>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={info.data.name || 'Come ti chiami'}
+                    placeholder={info.data.name || t('Come ti chiami')}
                     required={!info.data.name}
                     autoComplete="name"
                     autoFocus
@@ -94,7 +106,7 @@ export function InviteScreen({ token }: { token: string }) {
                 </label>
               )}
               <label className="block">
-                <span className={label}>{info.data.kind === 'invite' ? 'Password' : 'Nuova password'}</span>
+                <span className={label}>{info.data.kind === 'invite' ? t('Password') : t('Nuova password')}</span>
                 <Input
                   type="password"
                   value={password}
@@ -104,7 +116,7 @@ export function InviteScreen({ token }: { token: string }) {
                   autoComplete="new-password"
                   autoFocus={info.data.kind === 'reset'}
                 />
-                <span className="mt-1 block text-[13px] text-fg3">Almeno 10 caratteri.</span>
+                <span className="mt-1 block text-[13px] text-fg3">{t('Almeno 10 caratteri.')}</span>
               </label>
             </div>
             {error && (
@@ -113,7 +125,7 @@ export function InviteScreen({ token }: { token: string }) {
               </p>
             )}
             <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
-              {info.data.kind === 'invite' ? 'Entra' : 'Salva e entra'}
+              {info.data.kind === 'invite' ? t('Entra') : t('Salva e entra')}
             </Button>
           </form>
         )}

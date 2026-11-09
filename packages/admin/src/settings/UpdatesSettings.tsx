@@ -6,6 +6,7 @@ import { useSession } from '../app/context.ts'
 import { Button, Dialog, EmptyState, Spinner, Switch, toast } from '../components/ui.tsx'
 import { api, type UpdateState } from '../lib/api.ts'
 import { dayDate, relativeTime } from '../lib/format.ts'
+import { t, tx } from '../lib/i18n.ts'
 
 /** The few marks the changelog uses: "- " lists and **bold**. */
 function Notes({ text }: { text: string }) {
@@ -126,7 +127,7 @@ export function UpdatesSettings() {
   }, [restarting, queryClient])
 
   if (user.role !== 'admin')
-    return <EmptyState icon={<Download />} title="Gli aggiornamenti li installa un amministratore" />
+    return <EmptyState icon={<Download />} title={t('Gli aggiornamenti li installa un amministratore')} />
   if (state.isPending && !restarting) return <Spinner />
 
   const run = async (action: () => Promise<UpdateState>) => {
@@ -148,9 +149,11 @@ export function UpdatesSettings() {
         <div className={`${card} flex items-center gap-3`}>
           <Loader2 className="size-5 animate-spin text-accent" />
           <div>
-            <div className="font-medium">Riavvio con la nuova versione…</div>
+            <div className="font-medium">{t('Riavvio con la nuova versione…')}</div>
             <div className="text-[13px] text-fg3">
-              Di solito bastano pochi secondi: la pagina si ricarica da sola. Il sito torna online appena è pronto.
+              {t(
+                'Di solito bastano pochi secondi: la pagina si ricarica da sola. Il sito torna online appena è pronto.',
+              )}
             </div>
           </div>
         </div>
@@ -164,10 +167,14 @@ export function UpdatesSettings() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-5 py-8">
       <div>
-        <h2 className="text-[16px] font-semibold">Aggiornamenti</h2>
+        <h2 className="text-[16px] font-semibold">{t('Aggiornamenti')}</h2>
         <p className="mt-1 text-[14px] text-fg2">
-          Stai usando <strong className="font-semibold text-fg">Materialize {data.current}</strong>.
-          {data.checkedAt && <span className="text-fg3"> Controllato {relativeTime(data.checkedAt)}.</span>}
+          {tx('Stai usando {version}.', {
+            version: <strong className="font-semibold text-fg">Materialize {data.current}</strong>,
+          })}
+          {data.checkedAt && (
+            <span className="text-fg3"> {t('Controllato {when}.', { when: relativeTime(data.checkedAt) })}</span>
+          )}
         </p>
       </div>
 
@@ -184,9 +191,16 @@ export function UpdatesSettings() {
           <div>
             {data.last.ok
               ? data.last.kind === 'install'
-                ? `Aggiornato dalla ${data.last.from} alla ${data.last.to}, ${relativeTime(data.last.at)}.`
-                : `Tornato alla ${data.last.to}, ${relativeTime(data.last.at)}.`
-              : `La ${data.last.to} non è partita, quindi è rimasta la ${data.last.from}: il sito non si è mai fermato a lungo.`}
+                ? t('Aggiornato dalla {from} alla {to}, {when}.', {
+                    from: data.last.from,
+                    to: data.last.to,
+                    when: relativeTime(data.last.at),
+                  })
+                : t('Tornato alla {to}, {when}.', { to: data.last.to, when: relativeTime(data.last.at) })
+              : t('La {to} non è partita, quindi è rimasta la {from}: il sito non si è mai fermato a lungo.', {
+                  to: data.last.to,
+                  from: data.last.from,
+                })}
             {!data.last.ok && data.last.message && <div className="text-fg2">{data.last.message}</div>}
           </div>
         </div>
@@ -197,19 +211,21 @@ export function UpdatesSettings() {
           <Loader2 className="size-5 animate-spin text-accent" />
           <div>
             <div className="font-medium">{data.job.step}…</div>
-            <div className="text-[13px] text-fg3">Il sito resta online. Puoi lasciare questa pagina.</div>
+            <div className="text-[13px] text-fg3">{t('Il sito resta online. Puoi lasciare questa pagina.')}</div>
           </div>
         </div>
       ) : available ? (
         <div className={`${card} space-y-5`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[15px] font-semibold">È disponibile Materialize {available}</div>
-              <div className="text-[13px] text-fg3">Prima si fa un backup del database e dei media.</div>
+              <div className="text-[15px] font-semibold">
+                {t('È disponibile Materialize {version}', { version: available })}
+              </div>
+              <div className="text-[13px] text-fg3">{t('Prima si fa un backup del database e dei media.')}</div>
             </div>
             {!data.unavailable && (
               <Button variant="primary" icon={<Download className="size-4" />} onClick={() => setConfirm('install')}>
-                Aggiorna ora
+                {t('Aggiorna ora')}
               </Button>
             )}
           </div>
@@ -224,22 +240,22 @@ export function UpdatesSettings() {
           <div className="flex items-center gap-2.5">
             {data.checkError ? <CircleAlert className="size-4 text-fg3" /> : <CircleCheck className="size-4 text-ok" />}
             <span className="text-[14px]">
-              {data.checkError ?? (data.checkedAt ? 'Hai l’ultima versione.' : 'Non ancora controllato.')}
+              {data.checkError ?? (data.checkedAt ? t('Hai l’ultima versione.') : t('Non ancora controllato.'))}
             </span>
           </div>
           <Button icon={<RefreshCw className="size-4" />} loading={checking} onClick={check}>
-            Controlla ora
+            {t('Controlla ora')}
           </Button>
         </div>
       )}
 
       {data.job.state === 'failed' && (
         <div className="rounded-xl bg-danger/10 px-4 py-3 text-[14px]" role="alert">
-          <div className="font-medium">L’aggiornamento non è riuscito: non è cambiato niente.</div>
+          <div className="font-medium">{t('L’aggiornamento non è riuscito: non è cambiato niente.')}</div>
           <div className="text-fg2">{data.job.message}</div>
           {data.job.log && (
             <details className="mt-2">
-              <summary className="cursor-pointer text-[13px] text-fg3">Dettagli</summary>
+              <summary className="cursor-pointer text-[13px] text-fg3">{t('Dettagli')}</summary>
               <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-panel2 p-3 font-mono text-[11px] whitespace-pre-wrap">
                 {data.job.log}
               </pre>
@@ -250,15 +266,15 @@ export function UpdatesSettings() {
 
       {data.unavailable && (
         <div className="rounded-xl bg-panel2 px-4 py-3 text-[13px] leading-relaxed text-fg2">
-          <div className="font-medium text-fg">Da qui non si può aggiornare</div>
+          <div className="font-medium text-fg">{t('Da qui non si può aggiornare')}</div>
           {data.unavailable}
           {available && (
             <>
-              <div className="mt-2">Dalla cartella del sito:</div>
+              <div className="mt-2">{t('Dalla cartella del sito:')}</div>
               <pre className="mt-1 overflow-x-auto rounded-md bg-panel px-3 py-2 font-mono text-[12px]">
                 {`npm install --save-exact @materializecms/astro@${available} @materializecms/cli@${available} @materializecms/core@${available}`}
               </pre>
-              <div className="mt-1">Poi riavvia il server.</div>
+              <div className="mt-1">{t('Poi riavvia il server.')}</div>
             </>
           )}
         </div>
@@ -269,13 +285,15 @@ export function UpdatesSettings() {
           <span className="flex items-start gap-3 text-[14px]">
             <Switch
               checked={data.settings.auto}
-              label="Installa da sola le correzioni"
+              label={t('Installa da sola le correzioni')}
               onChange={(auto) => void run(() => api.saveUpdateSettings({ auto }))}
             />
             <span>
-              Installa da sola le correzioni
+              {t('Installa da sola le correzioni')}
               <span className="block text-[13px] text-fg3">
-                Solo le versioni che correggono problemi ({data.current.replace(/\d+$/, 'x')}); per le novità decidi tu.
+                {t('Solo le versioni che correggono problemi ({series}); per le novità decidi tu.', {
+                  series: data.current.replace(/\d+$/, 'x'),
+                })}
               </span>
             </span>
           </span>
@@ -283,11 +301,11 @@ export function UpdatesSettings() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <span className="text-[14px] text-fg2">
                 {newer(data.previous, data.current)
-                  ? `La ${data.previous} è ancora pronta: puoi tornarci quando vuoi.`
-                  : `Qualcosa non va dopo l’aggiornamento? Puoi tornare alla ${data.previous}.`}
+                  ? t('La {version} è ancora pronta: puoi tornarci quando vuoi.', { version: data.previous })
+                  : t('Qualcosa non va dopo l’aggiornamento? Puoi tornare alla {version}.', { version: data.previous })}
               </span>
               <Button icon={<History className="size-4" />} onClick={() => setConfirm('rollback')}>
-                Torna alla {data.previous}
+                {t('Torna alla {version}', { version: data.previous })}
               </Button>
             </div>
           )}
@@ -297,10 +315,14 @@ export function UpdatesSettings() {
       <Dialog
         open={!!confirm}
         onClose={() => setConfirm(null)}
-        title={confirm === 'install' ? `Aggiornare a Materialize ${available}?` : `Tornare alla ${data.previous}?`}
+        title={
+          confirm === 'install'
+            ? t('Aggiornare a Materialize {version}?', { version: available })
+            : t('Tornare alla {version}?', { version: data.previous })
+        }
         footer={
           <>
-            <Button onClick={() => setConfirm(null)}>Annulla</Button>
+            <Button onClick={() => setConfirm(null)}>{t('Annulla')}</Button>
             <Button
               variant="primary"
               onClick={() => {
@@ -311,14 +333,16 @@ export function UpdatesSettings() {
                 )
               }}
             >
-              {confirm === 'install' ? 'Aggiorna' : 'Torna indietro'}
+              {confirm === 'install' ? t('Aggiorna') : t('Torna indietro')}
             </Button>
           </>
         }
       >
         {confirm === 'install'
-          ? 'Prima si fa un backup, poi la nuova versione si scarica mentre il sito resta online. Alla fine il server si riavvia: pochi secondi. Se la nuova versione non parte, torna da sola quella di adesso.'
-          : 'Il server si riavvia con la versione precedente: pochi secondi. I contenuti restano come sono.'}
+          ? t(
+              'Prima si fa un backup, poi la nuova versione si scarica mentre il sito resta online. Alla fine il server si riavvia: pochi secondi. Se la nuova versione non parte, torna da sola quella di adesso.',
+            )
+          : t('Il server si riavvia con la versione precedente: pochi secondi. I contenuti restano come sono.')}
       </Dialog>
     </div>
   )

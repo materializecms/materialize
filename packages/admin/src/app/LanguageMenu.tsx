@@ -4,11 +4,15 @@ import { useState } from 'react'
 import { useAiReady } from '../components/AiMenu.tsx'
 import { MenuSeparator, Popover, toast } from '../components/ui.tsx'
 import { api, type StoredDocument } from '../lib/api.ts'
+import { lang, t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
 import { localeName } from './Sidebar.tsx'
 
 const dot = { draft: 'bg-fg3', changed: 'bg-warn', published: 'bg-ok' } as const
+
+/** A language's name inside a sentence: lowercase in Italian ("in francese"), capitalized in English. */
+const inSentence = (code: string) => (lang() === 'it' ? localeName(code).toLowerCase() : localeName(code))
 
 /**
  * The document's languages, next to its title: open another language, create a translation (a
@@ -48,8 +52,8 @@ export function LanguageMenu({
       void queryClient.invalidateQueries({ queryKey: ['list', collection] })
       toast(
         translate
-          ? `Tradotto in ${localeName(locale).toLowerCase()}: rivedilo e pubblicalo`
-          : `Copia in ${localeName(locale).toLowerCase()} pronta da tradurre`,
+          ? t('Tradotto in {language}: rivedilo e pubblicalo', { language: inSentence(locale) })
+          : t('Copia in {language} pronta da tradurre', { language: inSentence(locale) }),
       )
       open(created.id, locale)
     } catch (error) {
@@ -66,8 +70,14 @@ export function LanguageMenu({
       onSynced(res.document)
       toast(
         res.added
-          ? `Allineata all’originale: ${res.added} ${res.added === 1 ? 'elemento nuovo' : 'elementi nuovi'}${ai ? ' tradotti' : ''}`
-          : 'Allineata all’originale',
+          ? ai
+            ? tn(
+                res.added,
+                'Allineata all’originale: 1 elemento nuovo tradotto',
+                'Allineata all’originale: {n} elementi nuovi tradotti',
+              )
+            : tn(res.added, 'Allineata all’originale: 1 elemento nuovo', 'Allineata all’originale: {n} elementi nuovi')
+          : t('Allineata all’originale'),
       )
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -90,7 +100,7 @@ export function LanguageMenu({
           ref={ref}
           type="button"
           onClick={toggle}
-          title="Lingue"
+          title={t('Lingue')}
           className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-line px-1.5 font-mono text-[12px] font-medium text-fg2 uppercase hover:bg-hover hover:text-fg [&_svg]:size-3.5"
         >
           {busy ? <Loader2 className="animate-spin" /> : <Languages />}
@@ -101,29 +111,29 @@ export function LanguageMenu({
     >
       {(close) => (
         <div className="p-1">
-          <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">Lingue di questa pagina</div>
-          {translations.map((t) => (
+          <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">{t('Lingue di questa pagina')}</div>
+          {translations.map((tr) => (
             <button
-              key={t.id}
+              key={tr.id}
               type="button"
               className={item}
               onClick={() => {
                 close()
-                if (t.id !== doc.id) open(t.id, t.locale)
+                if (tr.id !== doc.id) open(tr.id, tr.locale)
               }}
             >
-              <span className={`size-1.5 shrink-0 rounded-full ${dot[t.status]}`} />
+              <span className={`size-1.5 shrink-0 rounded-full ${dot[tr.status]}`} />
               <span className="flex-1 truncate">
-                {localeName(t.locale)}
-                {!t.sourceId && <span className="text-fg3"> · originale</span>}
+                {localeName(tr.locale)}
+                {!tr.sourceId && <span className="text-fg3"> · {t('originale')}</span>}
               </span>
-              {t.id === doc.id && <Check className="text-accent" />}
+              {tr.id === doc.id && <Check className="text-accent" />}
             </button>
           ))}
           {missing.length > 0 && (
             <>
               <MenuSeparator />
-              <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">Traduci in</div>
+              <div className="px-2 pt-1 pb-1 text-[12px] font-medium text-fg3">{t('Traduci in')}</div>
               {missing.map((l) => (
                 <div key={l} className="flex items-center gap-1 rounded-md pr-1 hover:bg-hover/50">
                   <span className="flex-1 truncate px-2 py-1.5 text-[13px]">{localeName(l)}</span>
@@ -131,7 +141,7 @@ export function LanguageMenu({
                     <button
                       type="button"
                       disabled={!!busy}
-                      title="Crea la traduzione con l’AI"
+                      title={t('Crea la traduzione con l’AI')}
                       onClick={() => {
                         close()
                         void create(l, true)
@@ -144,14 +154,14 @@ export function LanguageMenu({
                   <button
                     type="button"
                     disabled={!!busy}
-                    title="Crea una copia da tradurre a mano"
+                    title={t('Crea una copia da tradurre a mano')}
                     onClick={() => {
                       close()
                       void create(l, false)
                     }}
                     className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg disabled:opacity-50 [&_svg]:size-3"
                   >
-                    <Copy /> Copia
+                    <Copy /> {t('Copia')}
                   </button>
                 </div>
               ))}
@@ -171,9 +181,11 @@ export function LanguageMenu({
               >
                 <RefreshCw />
                 <span className="flex-1">
-                  Allinea all’originale
+                  {t('Allinea all’originale')}
                   <span className="block text-[12px] text-fg3">
-                    Struttura e stile dell’originale, testi tradotti tenuti{ai ? ', nuovi testi tradotti' : ''}
+                    {ai
+                      ? t('Struttura e stile dell’originale, testi tradotti tenuti, nuovi testi tradotti')
+                      : t('Struttura e stile dell’originale, testi tradotti tenuti')}
                   </span>
                 </span>
               </button>

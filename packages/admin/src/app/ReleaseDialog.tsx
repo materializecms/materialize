@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Button, cx, Dialog, Input, toast } from '../components/ui.tsx'
 import { api, type StoredDocument } from '../lib/api.ts'
 import { whenDate } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { releasesKey, useReleases } from './ReleasesScreen.tsx'
 
@@ -15,11 +16,13 @@ export function ReleaseChip({ release, onClick }: { release: NonNullable<DocRele
     <button
       type="button"
       onClick={onClick}
-      title={`Nel rilascio «${release.name}»`}
+      title={t('Nel rilascio «{name}»', { name: release.name })}
       className="inline-flex h-7 max-w-48 items-center gap-1.5 rounded-md bg-[#f97316]/10 px-2 text-[12px] font-medium text-[#c2410c] hover:bg-[#f97316]/15 dark:text-[#fdba74] [&_svg]:size-3.5 [&_svg]:shrink-0"
     >
       <Rocket />
-      <span className="truncate max-md:hidden">{release.runAt ? `Esce ${whenDate(release.runAt)}` : release.name}</span>
+      <span className="truncate max-md:hidden">
+        {release.runAt ? t('Esce {when}', { when: whenDate(release.runAt) }) : release.name}
+      </span>
     </button>
   )
 }
@@ -72,7 +75,7 @@ export function ReleaseDialog({
       if (!saved) return
       const id = choice === 'new' ? (await api.createRelease(name.trim())).id : choice
       const release = await api.putReleaseItem(id, saved.id, action)
-      toast(`Aggiunta a «${release.name}»`)
+      toast(t('Aggiunta a «{name}»', { name: release.name }))
       await done({ id: release.id, name: release.name, runAt: release.runAt, action })
     } catch (error) {
       onError(error)
@@ -99,33 +102,34 @@ export function ReleaseDialog({
       open={open}
       onClose={onClose}
       width={440}
-      title={current ? `Nel rilascio «${current.name}»` : 'Aggiungi a un rilascio'}
+      title={current ? t('Nel rilascio «{name}»', { name: current.name }) : t('Aggiungi a un rilascio')}
       footer={
         <>
           {current && (
             <Button variant="ghost" className="mr-auto" disabled={busy} onClick={() => void remove()}>
-              Togli dal rilascio
+              {t('Togli dal rilascio')}
             </Button>
           )}
-          <Button onClick={onClose}>Annulla</Button>
+          <Button onClick={onClose}>{t('Annulla')}</Button>
           <Button
             variant="primary"
             loading={busy}
             disabled={choice === 'new' && !name.trim()}
             onClick={() => void add()}
           >
-            {current ? 'Salva' : 'Aggiungi'}
+            {current ? t('Salva') : t('Aggiungi')}
           </Button>
         </>
       }
     >
       <div className="space-y-4 text-[13px]">
         <p className="leading-relaxed">
-          Le pagine di un rilascio escono tutte insieme, subito o a un’ora stabilita; se una non è pronta non esce
-          niente. Fino ad allora questa pagina resta com’è.
+          {t(
+            'Le pagine di un rilascio escono tutte insieme, subito o a un’ora stabilita; se una non è pronta non esce niente. Fino ad allora questa pagina resta com’è.',
+          )}
         </p>
         <fieldset className="space-y-1">
-          <legend className="mb-1.5 font-medium text-fg">Rilascio</legend>
+          <legend className="mb-1.5 font-medium text-fg">{t('Rilascio')}</legend>
           {list.map((r) => (
             <label
               key={r.id}
@@ -137,9 +141,7 @@ export function ReleaseDialog({
               <input type="radio" name="release" checked={choice === r.id} onChange={() => setChoice(r.id)} />
               <span className="min-w-0 flex-1 truncate font-medium text-fg">{r.name}</span>
               <span className="shrink-0 text-[12px] text-fg3">
-                {r.runAt
-                  ? `esce ${whenDate(r.runAt)}`
-                  : `${r.items.length} ${r.items.length === 1 ? 'pagina' : 'pagine'}`}
+                {r.runAt ? t('esce {when}', { when: whenDate(r.runAt) }) : tn(r.items.length, '1 pagina', '{n} pagine')}
               </span>
             </label>
           ))}
@@ -150,25 +152,25 @@ export function ReleaseDialog({
             )}
           >
             <input type="radio" name="release" checked={choice === 'new'} onChange={() => setChoice('new')} />
-            <span className="font-medium text-fg">Nuovo rilascio</span>
+            <span className="font-medium text-fg">{t('Nuovo rilascio')}</span>
           </label>
           {choice === 'new' && (
             <Input
               data-autofocus
               value={name}
               maxLength={120}
-              placeholder="Nome, es. Collezione inverno"
+              placeholder={t('Nome, es. Collezione inverno')}
               onChange={(e) => setName(e.target.value)}
               className="mt-1"
             />
           )}
         </fieldset>
         <fieldset>
-          <legend className="mb-1.5 font-medium text-fg">Quando il rilascio esce</legend>
+          <legend className="mb-1.5 font-medium text-fg">{t('Quando il rilascio esce')}</legend>
           <div className="flex gap-4">
             <label className="flex items-center gap-1.5">
               <input type="radio" name="action" checked={action === 'publish'} onChange={() => setAction('publish')} />
-              Pubblica questa bozza
+              {t('Pubblica questa bozza')}
             </label>
             <label className={cx('flex items-center gap-1.5', !doc.publishedAt && 'opacity-50')}>
               <input
@@ -178,7 +180,7 @@ export function ReleaseDialog({
                 checked={action === 'unpublish'}
                 onChange={() => setAction('unpublish')}
               />
-              Togli dal sito
+              {t('Togli dal sito')}
             </label>
           </div>
         </fieldset>
@@ -190,7 +192,7 @@ export function ReleaseDialog({
           }}
           className="text-accent hover:underline"
         >
-          Vedi tutti i rilasci
+          {t('Vedi tutti i rilasci')}
         </button>
       </div>
     </Dialog>

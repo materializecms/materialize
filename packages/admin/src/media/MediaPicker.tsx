@@ -2,6 +2,7 @@ import { Search, Upload as UploadIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Button, Dialog, Input } from '../components/ui.tsx'
 import type { MediaAsset } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { DropZone, MediaGrid } from './MediaGrid.tsx'
 import { useDebounced, useFilePicker } from './MediaLibrary.tsx'
 import { useUploads } from './uploads.ts'
@@ -36,19 +37,19 @@ export function MediaPicker({
       width={880}
       title={
         <div className="flex items-center gap-3">
-          <span className="flex-1">Scegli un’immagine</span>
+          <span className="flex-1">{t('Scegli un’immagine')}</span>
           <div className="relative w-56">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cerca"
+              placeholder={t('Cerca')}
               className="pl-8 text-[14px] font-normal"
-              aria-label="Cerca"
+              aria-label={t('Cerca')}
             />
           </div>
           <Button size="md" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
-            Carica
+            {t('Carica')}
           </Button>
           {picker.element}
         </div>
@@ -56,11 +57,11 @@ export function MediaPicker({
       footer={
         <>
           <span className="mr-auto self-center truncate text-[13px] text-fg3">
-            {selected ? selected.filename : 'Trascina qui le immagini per caricarle'}
+            {selected ? selected.filename : t('Trascina qui le immagini per caricarle')}
           </span>
-          <Button onClick={onClose}>Annulla</Button>
+          <Button onClick={onClose}>{t('Annulla')}</Button>
           <Button variant="primary" disabled={!selected} onClick={() => pick(selected)}>
-            Usa questo file
+            {t('Usa questo file')}
           </Button>
         </>
       }

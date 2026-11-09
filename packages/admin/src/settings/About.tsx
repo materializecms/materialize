@@ -3,6 +3,7 @@ import { BookOpen, Bug, Code, FileText, Scale, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Logo } from '../app/Auth.tsx'
 import { api } from '../lib/api.ts'
+import { t, tx } from '../lib/i18n.ts'
 
 const REPO = 'https://github.com/materializecms/materialize'
 
@@ -33,51 +34,61 @@ export function About() {
         <div>
           <h2 className="text-[20px] font-semibold tracking-tight">Materialize</h2>
           <p className="text-[14px] text-fg2">
-            {version ? `Versione ${version}` : 'Versione…'} · CMS open source con editor visuale
+            {version ? t('Versione {version}', { version }) : t('Versione…')} ·{' '}
+            {t('CMS open source con editor visuale')}
           </p>
         </div>
       </div>
 
       <p className="text-[14px] leading-relaxed text-fg2">
-        Realizzato da{' '}
-        <a
-          href="https://cristianocasazza.com"
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-fg hover:underline"
-        >
-          Cristiano Casazza Consulting
-        </a>
-        . Distribuito con licenza MIT: puoi usarlo, modificarlo e ridistribuirlo liberamente, anche per i siti dei tuoi
-        clienti.
+        {tx(
+          'Realizzato da {author}. Distribuito con licenza MIT: puoi usarlo, modificarlo e ridistribuirlo liberamente, anche per i siti dei tuoi clienti.',
+          {
+            author: (
+              <a
+                href="https://cristianocasazza.com"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-fg hover:underline"
+              >
+                Cristiano Casazza Consulting
+              </a>
+            ),
+          },
+        )}
       </p>
 
       <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-panel">
         <Row
           href={`${REPO}/blob/main/CHANGELOG.md`}
           icon={<Sparkles />}
-          title="Novità"
-          detail="Cosa è cambiato in ogni versione"
+          title={t('Novità')}
+          detail={t('Cosa è cambiato in ogni versione')}
         />
         <Row
           href={`${REPO}/blob/main/docs/guida/README.md`}
           icon={<BookOpen />}
-          title="Guida"
-          detail="Come si usa, passo per passo"
+          title={t('Guida')}
+          detail={t('Come si usa, passo per passo')}
         />
-        <Row href={REPO} icon={<Code />} title="Codice sorgente" detail="github.com/materializecms/materialize" />
+        <Row href={REPO} icon={<Code />} title={t('Codice sorgente')} detail="github.com/materializecms/materialize" />
         <Row
           href={`${REPO}/issues`}
           icon={<Bug />}
-          title="Segnala un problema"
-          detail="Senza incollare password, chiavi o token"
+          title={t('Segnala un problema')}
+          detail={t('Senza incollare password, chiavi o token')}
         />
-        <Row href={`${REPO}/blob/main/LICENSE`} icon={<Scale />} title="Licenza MIT" detail="Il testo completo" />
+        <Row
+          href={`${REPO}/blob/main/LICENSE`}
+          icon={<Scale />}
+          title={t('Licenza MIT')}
+          detail={t('Il testo completo')}
+        />
         <Row
           href="/admin/THIRD-PARTY-LICENSES.txt"
           icon={<FileText />}
-          title="Licenze di terzi"
-          detail="Il codice, i caratteri e le icone di altri progetti inclusi nel pannello"
+          title={t('Licenze di terzi')}
+          detail={t('Il codice, i caratteri e le icone di altri progetti inclusi nel pannello')}
         />
       </div>
     </div>

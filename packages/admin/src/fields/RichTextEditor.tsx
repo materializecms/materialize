@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { Bold, Heading2, Heading3, ImagePlus, Italic, Link2, List, Quote, Unlink } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button, cx, IconButton, Input, Popover } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 import { fromTiptap, toTiptap } from '../lib/richtext.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 
@@ -104,10 +105,10 @@ export function RichTextEditor({
       )}
     >
       <div className="flex items-center gap-0.5 border-b border-line px-1.5 py-1">
-        <IconButton label="Grassetto (⌘B)" active={state.bold} onClick={() => chain().toggleBold().run()}>
+        <IconButton label={t('Grassetto (⌘B)')} active={state.bold} onClick={() => chain().toggleBold().run()}>
           <Bold />
         </IconButton>
-        <IconButton label="Corsivo (⌘I)" active={state.italic} onClick={() => chain().toggleItalic().run()}>
+        <IconButton label={t('Corsivo (⌘I)')} active={state.italic} onClick={() => chain().toggleItalic().run()}>
           <Italic />
         </IconButton>
         <LinkButton
@@ -120,20 +121,24 @@ export function RichTextEditor({
           }
         />
         <span className="mx-1 h-4 w-px bg-line" />
-        <IconButton label="Titolo" active={state.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>
+        <IconButton label={t('Titolo')} active={state.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>
           <Heading2 />
         </IconButton>
-        <IconButton label="Sottotitolo" active={state.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>
+        <IconButton
+          label={t('Sottotitolo')}
+          active={state.h3}
+          onClick={() => chain().toggleHeading({ level: 3 }).run()}
+        >
           <Heading3 />
         </IconButton>
-        <IconButton label="Citazione" active={state.quote} onClick={() => chain().toggleBlockquote().run()}>
+        <IconButton label={t('Citazione')} active={state.quote} onClick={() => chain().toggleBlockquote().run()}>
           <Quote />
         </IconButton>
-        <IconButton label="Elenco puntato" active={state.list} onClick={() => chain().toggleBulletList().run()}>
+        <IconButton label={t('Elenco puntato')} active={state.list} onClick={() => chain().toggleBulletList().run()}>
           <List />
         </IconButton>
         <span className="mx-1 h-4 w-px bg-line" />
-        <IconButton label="Immagine" onClick={() => setPicking(true)}>
+        <IconButton label={t('Immagine')} onClick={() => setPicking(true)}>
           <ImagePlus />
         </IconButton>
       </div>
@@ -155,7 +160,7 @@ function LinkButton({ active, href, onApply }: { active: boolean; href: string; 
         if (o) setDraft(href)
       }}
       trigger={({ toggle, ref }) => (
-        <IconButton ref={ref} label="Collegamento (⌘K)" active={active} onClick={toggle}>
+        <IconButton ref={ref} label={t('Collegamento (⌘K)')} active={active} onClick={toggle}>
           <Link2 />
         </IconButton>
       )}
@@ -169,10 +174,15 @@ function LinkButton({ active, href, onApply }: { active: boolean; href: string; 
             close()
           }}
         >
-          <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="https://… o /pagina" />
+          <Input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t('https://… o /pagina')}
+          />
           {active && (
             <IconButton
-              label="Rimuovi collegamento"
+              label={t('Rimuovi collegamento')}
               onClick={() => {
                 onApply('')
                 close()

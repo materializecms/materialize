@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button, cx, IconButton, Input, Popover, toast } from '../components/ui.tsx'
 import { api, type Schedule, type StoredDocument } from '../lib/api.ts'
 import { whenDate } from '../lib/format.ts'
+import { t } from '../lib/i18n.ts'
 
 /** A Date as the value of a datetime-local input, in the browser's time zone. */
 const toInput = (d: Date) => {
@@ -19,7 +20,10 @@ function quickTimes(): { label: string; at: Date }[] {
     return d
   }
   const monday = (8 - new Date().getDay()) % 7 || 7
-  return [{ label: 'Domani alle 9', at: at9(1) }, ...(monday > 1 ? [{ label: 'Lunedì alle 9', at: at9(monday) }] : [])]
+  return [
+    { label: t('Domani alle 9'), at: at9(1) },
+    ...(monday > 1 ? [{ label: t('Lunedì alle 9'), at: at9(monday) }] : []),
+  ]
 }
 
 /**
@@ -55,7 +59,7 @@ export function ScheduleMenu({
             title={failed.error ?? undefined}
             className="inline-flex h-7 items-center gap-1.5 rounded-md bg-danger/10 px-2 text-[12px] font-medium text-danger hover:bg-danger/15 [&_svg]:size-3.5"
           >
-            <AlertTriangle /> <span className="max-md:hidden">Programmazione non riuscita</span>
+            <AlertTriangle /> <span className="max-md:hidden">{t('Programmazione non riuscita')}</span>
           </button>
         ) : next ? (
           <button
@@ -66,11 +70,13 @@ export function ScheduleMenu({
           >
             <CalendarClock />
             <span className="max-md:hidden">
-              {next.action === 'publish' ? 'Esce' : 'Si toglie'} {whenDate(next.runAt)}
+              {next.action === 'publish'
+                ? t('Esce {when}', { when: whenDate(next.runAt) })
+                : t('Si toglie {when}', { when: whenDate(next.runAt) })}
             </span>
           </button>
         ) : (
-          <IconButton ref={ref} label="Programma la pubblicazione" onClick={toggle}>
+          <IconButton ref={ref} label={t('Programma la pubblicazione')} onClick={toggle}>
             <CalendarClock />
           </IconButton>
         )
@@ -81,35 +87,36 @@ export function ScheduleMenu({
           {failed && (
             <div className="rounded-md bg-danger/10 px-2.5 py-2 text-[12.5px] leading-snug text-danger">
               <p className="font-medium">
-                {failed.action === 'publish' ? 'La pubblicazione' : 'La rimozione'} di {whenDate(failed.runAt)} non è
-                riuscita
+                {failed.action === 'publish'
+                  ? t('La pubblicazione di {when} non è riuscita', { when: whenDate(failed.runAt) })
+                  : t('La rimozione di {when} non è riuscita', { when: whenDate(failed.runAt) })}
               </p>
               {failed.error && <p className="mt-0.5">{failed.error}.</p>}
-              <p className="mt-0.5 text-danger/80">Sistema e programma di nuovo, oppure pubblica adesso.</p>
+              <p className="mt-0.5 text-danger/80">{t('Sistema e programma di nuovo, oppure pubblica adesso.')}</p>
             </div>
           )}
           <When
-            title="Pubblica il"
-            hint="Esce la bozza com’è in quel momento: puoi continuare a modificarla."
+            title={t('Pubblica il')}
+            hint={t('Esce la bozza com’è in quel momento: puoi continuare a modificarla.')}
             current={schedule?.publish ?? null}
             onSet={async (at) => {
               const saved = await ensureSaved()
               if (!saved) return
               onChange(await api.schedule(saved.id, 'publish', at))
-              if (at) toast(`Uscirà ${whenDate(at)}`)
+              if (at) toast(t('Uscirà {when}', { when: whenDate(at) }))
             }}
             onError={onError}
           />
           <When
-            title="Togli dal sito il"
-            hint="Per un’offerta o un evento: la pagina torna bozza da sola."
+            title={t('Togli dal sito il')}
+            hint={t('Per un’offerta o un evento: la pagina torna bozza da sola.')}
             current={schedule?.unpublish ?? null}
             disabled={!doc?.publishedAt && !schedule?.publish}
-            disabledHint="Prima pubblicala, o programma quando esce."
+            disabledHint={t('Prima pubblicala, o programma quando esce.')}
             onSet={async (at) => {
               if (!doc) return
               onChange(await api.schedule(doc.id, 'unpublish', at))
-              if (at) toast(`Verrà tolta dal sito ${whenDate(at)}`)
+              if (at) toast(t('Verrà tolta dal sito {when}', { when: whenDate(at) }))
             }}
             onError={onError}
           />
@@ -160,13 +167,13 @@ export function When({
             onClick={() => void run(null)}
             className="inline-flex items-center gap-1 text-[12px] text-fg3 hover:text-danger [&_svg]:size-3"
           >
-            <X /> Annulla
+            <X /> {t('Annulla')}
           </button>
         )}
       </div>
       {current && (
         <p className="text-[12.5px] text-accent">
-          {whenDate(current.runAt)} · da {current.createdByName || 'qualcuno'}
+          {t('{when} · da {name}', { when: whenDate(current.runAt), name: current.createdByName || t('qualcuno') })}
         </p>
       )}
       <div className="flex gap-1.5">
@@ -180,7 +187,7 @@ export function When({
           className="h-8 min-w-0 flex-1"
         />
         <Button size="sm" disabled={disabled || !value} loading={busy} onClick={() => void run(new Date(value))}>
-          {current ? 'Cambia' : 'Programma'}
+          {current ? t('Cambia') : t('Programma')}
         </Button>
       </div>
       {!disabled && !current && (

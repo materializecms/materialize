@@ -14,6 +14,7 @@ import {
 } from '../components/ui.tsx'
 import { api, type CollectionDescription, type DocumentStatus, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { href, navigate } from '../lib/router.ts'
 import { useSession } from './context.ts'
@@ -34,8 +35,8 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
   const [view, setView] = usePref<'list' | 'grid'>(`mz-view-${collection.name}`, 'list')
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(search.trim()), 200)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(search.trim()), 200)
+    return () => clearTimeout(timer)
   }, [search])
 
   const list = useQuery({
@@ -85,8 +86,8 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
   }, [visible])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement
-      if (t.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
+      const target = e.target as HTMLElement
+      if (target.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return
       if (e.key === 'Escape' && checked.size) clear()
       else if ((e.key === 'Backspace' || e.key === 'Delete') && checked.size && user.role === 'admin') {
         e.preventDefault()
@@ -114,10 +115,10 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
         icon={collectionIcon(collection)}
         color={tint}
         title={collection.label}
-        subtitle={list.data ? (list.data.total === 1 ? '1 documento' : `${list.data.total} documenti`) : ''}
+        subtitle={list.data ? tn(list.data.total, '1 documento', '{n} documenti') : ''}
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={create}>
-            Nuovo
+            {t('Nuovo')}
           </Button>
         }
       >
@@ -136,15 +137,15 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
             <>
               <div
                 role="tablist"
-                aria-label="Stato"
+                aria-label={t('Stato')}
                 className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none]"
               >
                 {(
                   [
-                    ['all', 'Tutti', list.data?.items.length ?? 0],
-                    ['published', 'Pubblicati', countOf('published')],
-                    ['changed', 'Da pubblicare', countOf('changed')],
-                    ['draft', 'Bozze', countOf('draft')],
+                    ['all', t('Tutti'), list.data?.items.length ?? 0],
+                    ['published', t('Pubblicati'), countOf('published')],
+                    ['changed', t('Da pubblicare'), countOf('changed')],
+                    ['draft', t('Bozze'), countOf('draft')],
                   ] as [Filter, string, number][]
                 ).map(([value, label, n]) => (
                   <button
@@ -169,17 +170,17 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={`Cerca in ${collection.label.toLowerCase()}`}
+                  placeholder={t('Cerca in {collection}', { collection: collection.label.toLowerCase() })}
                   className="pl-8"
-                  aria-label="Cerca"
+                  aria-label={t('Cerca')}
                 />
               </div>
               <Segmented
                 value={view}
                 onChange={setView}
                 options={[
-                  { value: 'list', label: <List />, title: 'Elenco' },
-                  { value: 'grid', label: <LayoutGrid />, title: 'Griglia' },
+                  { value: 'list', label: <List />, title: t('Elenco') },
+                  { value: 'grid', label: <LayoutGrid />, title: t('Griglia') },
                 ]}
               />
             </>
@@ -194,22 +195,25 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
             <Spinner />
           </div>
         ) : list.error ? (
-          <EmptyState icon={collectionIcon(collection)} title="Impossibile caricare l’elenco">
+          <EmptyState icon={collectionIcon(collection)} title={t('Impossibile caricare l’elenco')}>
             {list.error.message}
           </EmptyState>
         ) : items.length === 0 ? (
           debounced ? (
-            <EmptyState icon={<Search />} title="Nessun risultato">
-              Nessun documento contiene “{debounced}”.
+            <EmptyState icon={<Search />} title={t('Nessun risultato')}>
+              {t('Nessun documento contiene “{search}”.', { search: debounced })}
             </EmptyState>
           ) : filter !== 'all' ? (
-            <EmptyState icon={collectionIcon(collection)} title="Niente qui">
-              Nessun documento con questo stato.
+            <EmptyState icon={collectionIcon(collection)} title={t('Niente qui')}>
+              {t('Nessun documento con questo stato.')}
             </EmptyState>
           ) : (
-            <EmptyState icon={collectionIcon(collection)} title={`Ancora nessun elemento in ${collection.label}`}>
+            <EmptyState
+              icon={collectionIcon(collection)}
+              title={t('Ancora nessun elemento in {collection}', { collection: collection.label })}
+            >
               <Button variant="primary" className="mt-3" icon={<Plus className="size-4" />} onClick={create}>
-                Crea il primo
+                {t('Crea il primo')}
               </Button>
             </EmptyState>
           )
@@ -241,7 +245,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
               >
                 <SelectBox
                   checked={checked.has(doc.id)}
-                  label={`Seleziona ${doc.title}`}
+                  label={t('Seleziona {title}', { title: doc.title })}
                   onToggle={(e) => toggle(doc, e)}
                   className={cx(!checked.size && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100')}
                 />
@@ -274,7 +278,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
         {list.data && list.data.total > list.data.items.length && (
           <div className="flex justify-center py-4">
             <Button size="sm" onClick={() => setLimit((l) => l + PAGE)} loading={list.isFetching}>
-              Mostra altri
+              {t('Mostra altri')}
             </Button>
           </div>
         )}
@@ -358,7 +362,7 @@ function Card({
       </a>
       <SelectBox
         checked={checked}
-        label={`Seleziona ${doc.title}`}
+        label={t('Seleziona {title}', { title: doc.title })}
         onToggle={onToggle}
         className={cx(
           'absolute top-2.5 right-2.5 shadow-sm',
@@ -384,7 +388,7 @@ function OtherLanguages({ doc }: { doc: DocumentSummary }) {
   return (
     <span
       className="flex shrink-0 gap-1"
-      title={others.length ? `Anche in: ${others.join(', ')}` : 'Solo in questa lingua'}
+      title={others.length ? t('Anche in: {languages}', { languages: others.join(', ') }) : t('Solo in questa lingua')}
     >
       {others.map((l) => (
         <span key={l} className="rounded border border-line px-1 font-mono text-[11px] leading-4 text-fg3 uppercase">
@@ -402,11 +406,15 @@ function Scheduled({ doc }: { doc: DocumentSummary }) {
   if (!publish && !unpublish) return null
   const next =
     publish && (!unpublish || publish < unpublish)
-      ? { at: publish, verb: 'Esce' }
-      : { at: unpublish as string, verb: 'Si toglie' }
+      ? { at: publish, publish: true }
+      : { at: unpublish as string, publish: false }
   return (
     <span
-      title={`${next.verb} ${fullDate(next.at)}`}
+      title={
+        next.publish
+          ? t('Esce {when}', { when: fullDate(next.at) })
+          : t('Si toglie {when}', { when: fullDate(next.at) })
+      }
       className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[12px] font-medium whitespace-nowrap text-accent [&_svg]:size-3"
     >
       <CalendarClock /> {whenDate(next.at)}

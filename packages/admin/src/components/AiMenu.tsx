@@ -5,17 +5,26 @@ import { Loader2, Sparkles, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { api, type TextAction } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { cx, MenuItem, MenuSeparator, Popover, toast } from './ui.tsx'
 
-const ACTIONS: [TextAction, string][] = [
-  ['rewrite', 'Riscrivi meglio'],
-  ['shorten', 'Accorcia'],
-  ['expand', 'Allunga'],
-  ['fix', 'Correggi errori'],
-  ['formal', 'Più formale'],
-  ['friendly', 'Più colloquiale'],
+const actions = (): [TextAction, string][] => [
+  ['rewrite', t('Riscrivi meglio')],
+  ['shorten', t('Accorcia')],
+  ['expand', t('Allunga')],
+  ['fix', t('Correggi errori')],
+  ['formal', t('Più formale')],
+  ['friendly', t('Più colloquiale')],
 ]
-const LANGUAGES = ['inglese', 'italiano', 'francese', 'tedesco', 'spagnolo', 'portoghese']
+/** The languages to translate into: the first word goes to the AI as the instruction, the second is shown. */
+const languages = (): [string, string][] => [
+  ['inglese', t('inglese')],
+  ['italiano', t('italiano')],
+  ['francese', t('francese')],
+  ['tedesco', t('tedesco')],
+  ['spagnolo', t('spagnolo')],
+  ['portoghese', t('portoghese')],
+]
 
 /** The AI is set up: actions show only then (and stay out of the way otherwise). */
 export function useAiReady(): boolean {
@@ -75,8 +84,8 @@ export function AiTextMenu({
         <button
           ref={ref}
           type="button"
-          title="Scrivi con l’AI"
-          aria-label="Scrivi con l’AI"
+          title={t('Scrivi con l’AI')}
+          aria-label={t('Scrivi con l’AI')}
           disabled={busy || !text.trim()}
           onClick={toggle}
           className={trigger(busy, label)}
@@ -88,7 +97,7 @@ export function AiTextMenu({
     >
       {(close) => (
         <div className="p-1">
-          {ACTIONS.map(([action, name]) => (
+          {actions().map(([action, name]) => (
             <MenuItem
               key={action}
               onClick={() => {
@@ -100,9 +109,9 @@ export function AiTextMenu({
             </MenuItem>
           ))}
           <MenuSeparator />
-          <div className="px-2 pt-1 pb-0.5 text-[12px] font-medium text-fg3">Traduci in</div>
+          <div className="px-2 pt-1 pb-0.5 text-[12px] font-medium text-fg3">{t('Traduci in')}</div>
           <div className="flex flex-wrap gap-1 px-2 pb-1.5">
-            {LANGUAGES.map((l) => (
+            {languages().map(([l, name]) => (
               <button
                 key={l}
                 type="button"
@@ -112,7 +121,7 @@ export function AiTextMenu({
                 }}
                 className="rounded-md border border-line px-1.5 py-0.5 text-[12px] text-fg2 hover:border-accent hover:text-fg"
               >
-                {l}
+                {name}
               </button>
             ))}
           </div>
@@ -131,7 +140,7 @@ export function AiTextMenu({
             <input
               value={ask}
               onChange={(e) => setAsk(e.target.value)}
-              placeholder="Chiedi: “più ironico”, “3 punti”…"
+              placeholder={t('Chiedi: “più ironico”, “3 punti”…')}
               className="h-7 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-fg3"
             />
           </form>

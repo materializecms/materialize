@@ -5,6 +5,7 @@ import { useSession } from '../app/context.ts'
 import { Button, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { type AiSettings, type AiUsage, api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
+import { intlLocale, t, tn } from '../lib/i18n.ts'
 
 /**
  * Impostazioni → AI e MCP: the model behind the assistant (admins), each person's access tokens,
@@ -54,7 +55,7 @@ function Ready({ ready }: { ready: boolean }) {
           : 'rounded-full bg-hover px-2 py-0.5 text-[12px] font-medium text-fg3'
       }
     >
-      {ready ? 'Attiva' : 'Da configurare'}
+      {ready ? t('Attiva') : t('Da configurare')}
     </span>
   )
 }
@@ -62,9 +63,9 @@ function Ready({ ready }: { ready: boolean }) {
 function ModelStatus() {
   const ai = useQuery({ queryKey: ['ai'], queryFn: api.ai }).data?.ai
   return (
-    <Section icon={<Sparkles />} title="Assistente AI">
+    <Section icon={<Sparkles />} title={t('Assistente AI')}>
       <p className="flex items-center gap-2 text-[14px] text-fg2">
-        Il modello lo sceglie un amministratore. {ai && <Ready ready={ai.ready} />}
+        {t('Il modello lo sceglie un amministratore.')} {ai && <Ready ready={ai.ready} />}
       </p>
     </Section>
   )
@@ -99,7 +100,7 @@ function ModelForm() {
       // The month's usage stays: the save answers with the settings only.
       queryClient.setQueryData(['ai'], (old: typeof saved.data) => ({ ...old, ...res }))
       setKey('')
-      toast('Impostazioni AI salvate')
+      toast(t('Impostazioni AI salvate'))
       return true
     } catch (error) {
       toast((error as Error).message, 'error')
@@ -114,7 +115,7 @@ function ModelForm() {
     try {
       if (!(await save())) return
       const res = await api.testAi()
-      toast(`Il modello risponde: “${res.reply.slice(0, 40)}”`)
+      toast(t('Il modello risponde: “{reply}”', { reply: res.reply.slice(0, 40) }))
     } catch (error) {
       toast((error as Error).message, 'error')
     } finally {
@@ -124,32 +125,32 @@ function ModelForm() {
 
   if (saved.isLoading) return <Spinner />
   return (
-    <Section icon={<Sparkles />} title="Modello AI">
+    <Section icon={<Sparkles />} title={t('Modello AI')}>
       <form onSubmit={save} className="space-y-5">
         <p className="flex flex-wrap items-center gap-2 text-[14px] leading-relaxed text-fg2">
-          Scrive e modifica pagine con l’assistente dell’editor, e riscrive, traduce e descrive testi e immagini.
+          {t('Scrive e modifica pagine con l’assistente dell’editor, e riscrive, traduce e descrive testi e immagini.')}
           <Ready ready={!!saved.data?.ai.ready} />
         </p>
-        <Field label="Fornitore">
+        <Field label={t('Fornitore')}>
           <Segmented
             value={ai.provider}
             onChange={(provider) => set({ provider, model: '', fastModel: '', baseUrl: '' })}
             options={[
               { value: 'anthropic', label: 'Claude (Anthropic)' },
-              { value: 'openai', label: 'Compatibile OpenAI' },
+              { value: 'openai', label: t('Compatibile OpenAI') },
             ]}
           />
         </Field>
         <Field
-          label="Chiave API"
+          label={t('Chiave API')}
           hint={
             ai.hasKey
-              ? 'Salvata: lascia vuoto per non cambiarla.'
+              ? t('Salvata: lascia vuoto per non cambiarla.')
               : claude && ai.envKey
-                ? 'Il server ha già ANTHROPIC_API_KEY: puoi lasciare vuoto.'
+                ? t('Il server ha già ANTHROPIC_API_KEY: puoi lasciare vuoto.')
                 : claude
-                  ? 'Da console.anthropic.com → API Keys. Resta sul server, il pannello non la rivede.'
-                  : 'Facoltativa per i server locali come Ollama.'
+                  ? t('Da console.anthropic.com → API Keys. Resta sul server, il pannello non la rivede.')
+                  : t('Facoltativa per i server locali come Ollama.')
           }
         >
           <Input
@@ -161,7 +162,10 @@ function ModelForm() {
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Modello" hint={claude ? 'Vuoto: Claude Opus 5.5.' : 'Il nome usato dal server.'}>
+          <Field
+            label={t('Modello principale')}
+            hint={claude ? t('Vuoto: Claude Opus 5.5.') : t('Il nome usato dal server.')}
+          >
             <Input
               value={ai.model}
               placeholder={claude ? 'claude-opus-5-5' : 'gpt-5 · llama3.3 · qwen3'}
@@ -169,8 +173,12 @@ function ModelForm() {
             />
           </Field>
           <Field
-            label="Indirizzo del server"
-            hint={claude ? 'Vuoto: l’API di Anthropic.' : 'Vuoto: OpenAI. Ollama: http://localhost:11434/v1'}
+            label={t('Indirizzo del server')}
+            hint={
+              claude
+                ? t('Vuoto: l’API di Anthropic.')
+                : t('Vuoto: OpenAI. Ollama: {url}', { url: 'http://localhost:11434/v1' })
+            }
           >
             <Input
               value={ai.baseUrl}
@@ -180,25 +188,27 @@ function ModelForm() {
           </Field>
         </div>
         <Field
-          label="Modello per le azioni rapide"
+          label={t('Modello per le azioni rapide')}
           hint={
             claude
-              ? 'Per riscrivere e correggere i testi, la SEO e il testo alternativo, che sono brevi: vuoto, Claude Haiku 5.5, molto più economico. L’assistente e le traduzioni delle pagine usano il modello principale.'
-              : 'Per riscrivere e correggere i testi, la SEO e il testo alternativo. Vuoto: lo stesso modello.'
+              ? t(
+                  'Per riscrivere e correggere i testi, la SEO e il testo alternativo, che sono brevi: vuoto, Claude Haiku 5.5, molto più economico. L’assistente e le traduzioni delle pagine usano il modello principale.',
+                )
+              : t('Per riscrivere e correggere i testi, la SEO e il testo alternativo. Vuoto: lo stesso modello.')
           }
         >
           <Input
             value={ai.fastModel ?? ''}
-            placeholder={claude ? 'claude-haiku-5-5' : ai.model || 'lo stesso modello'}
+            placeholder={claude ? 'claude-haiku-5-5' : ai.model || t('lo stesso modello')}
             onChange={(e) => set({ fastModel: e.target.value })}
           />
         </Field>
         <div className="flex gap-2">
           <Button type="submit" variant="primary" loading={saving}>
-            Salva
+            {t('Salva')}
           </Button>
           <Button onClick={test} loading={testing}>
-            Salva e prova
+            {t('Salva e prova')}
           </Button>
         </div>
         {saved.data?.usage && <Usage usage={saved.data.usage} />}
@@ -209,30 +219,31 @@ function ModelForm() {
 
 /** This month's tokens, as the provider counts them: the bill itself is on the provider's site. */
 function Usage({ usage }: { usage: AiUsage }) {
-  const n = (x: number) => x.toLocaleString('it-IT')
+  const n = (x: number) => x.toLocaleString(intlLocale())
   const read = usage.input + usage.cacheRead + usage.cacheWrite
   const cached = read ? Math.round((usage.cacheRead / read) * 100) : 0
   return (
     <div className="rounded-lg border border-line bg-panel2 px-3 py-2.5 text-[13px] text-fg2">
-      <div className="font-medium text-fg">Uso di questo mese</div>
+      <div className="font-medium text-fg">{t('Uso di questo mese')}</div>
       {usage.requests ? (
         <p className="mt-0.5">
-          {n(usage.requests)} {usage.requests === 1 ? 'richiesta' : 'richieste'} · {n(read)} token letti
-          {usage.cacheRead > 0 && ` (${cached}% dalla cache, a una frazione del prezzo)`} · {n(usage.output)} token
-          scritti. Il costo esatto è sul sito del fornitore.
+          {tn(usage.requests, '{count} richiesta', '{count} richieste', { count: n(usage.requests) })} ·{' '}
+          {t('{count} token letti', { count: n(read) })}
+          {usage.cacheRead > 0 && ` ${t('({percent}% dalla cache, a una frazione del prezzo)', { percent: cached })}`} ·{' '}
+          {t('{count} token scritti.', { count: n(usage.output) })} {t('Il costo esatto è sul sito del fornitore.')}
         </p>
       ) : (
-        <p className="mt-0.5">Nessuna richiesta all’AI questo mese.</p>
+        <p className="mt-0.5">{t('Nessuna richiesta all’AI questo mese.')}</p>
       )}
     </div>
   )
 }
 
-function CopyButton({ text, label = 'Copia' }: { text: string; label?: string }) {
+function CopyButton({ text, label }: { text: string; label?: string }) {
   const [done, setDone] = useState(false)
   return (
     <IconButton
-      label={label}
+      label={label ?? t('Copia')}
       onClick={() =>
         void navigator.clipboard?.writeText(text).then(() => {
           setDone(true)
@@ -255,7 +266,7 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
     e.preventDefault()
     setCreating(true)
     try {
-      const res = await api.createToken(name.trim() || 'Client AI')
+      const res = await api.createToken(name.trim() || t('Client AI'))
       onCreated(res.token)
       setName('')
       void queryClient.invalidateQueries({ queryKey: ['tokens'] })
@@ -267,56 +278,62 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
   }
 
   const revoke = async (id: string, label: string) => {
-    if (!confirm(`Revocare “${label}”? I client che lo usano non potranno più collegarsi.`)) return
+    if (!confirm(t('Revocare “{name}”? I client che lo usano non potranno più collegarsi.', { name: label }))) return
     try {
       await api.revokeToken(id)
       void queryClient.invalidateQueries({ queryKey: ['tokens'] })
-      toast('Token revocato')
+      toast(t('Token revocato'))
     } catch (error) {
       toast((error as Error).message, 'error')
     }
   }
 
   return (
-    <Section icon={<KeyRound />} title="Token di accesso">
+    <Section icon={<KeyRound />} title={t('Token di accesso')}>
       <p className="text-[14px] leading-relaxed text-fg2">
-        Un client AI collegato con un tuo token agisce come te: può fare quello che puoi fare tu nel pannello, nulla di
-        più. Creane uno per ogni client, così puoi revocarlo da solo.
+        {t(
+          'Un client AI collegato con un tuo token agisce come te: può fare quello che puoi fare tu nel pannello, nulla di più. Creane uno per ogni client, così puoi revocarlo da solo.',
+        )}
       </p>
       <form onSubmit={create} className="flex gap-2">
         <Input
           value={name}
           maxLength={80}
-          placeholder="Nome, per esempio Claude Desktop sul portatile"
+          placeholder={t('Nome, per esempio Claude Desktop sul portatile')}
           onChange={(e) => setName(e.target.value)}
         />
         <Button type="submit" variant="primary" loading={creating}>
-          Crea token
+          {t('Crea token')}
         </Button>
       </form>
       {fresh && (
         <div className="space-y-2 rounded-lg border border-accent/40 bg-accent/6 p-3">
-          <p className="text-[13px] font-medium">Copialo ora: non lo vedrai più.</p>
+          <p className="text-[13px] font-medium">{t('Copialo ora: non lo vedrai più.')}</p>
           <div className="flex items-center gap-1">
             <code className="min-w-0 flex-1 truncate rounded-md bg-input px-2 py-1.5 font-mono text-[13px]">
               {fresh}
             </code>
-            <CopyButton text={fresh} label="Copia il token" />
+            <CopyButton text={fresh} label={t('Copia il token')} />
           </div>
         </div>
       )}
       {list.data && list.data.tokens.length > 0 && (
         <ul className="divide-y divide-line rounded-lg border border-line">
-          {list.data.tokens.map((t) => (
-            <li key={t.id} className="flex items-center gap-3 px-3 py-2">
+          {list.data.tokens.map((tok) => (
+            <li key={tok.id} className="flex items-center gap-3 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-medium">{t.name}</div>
+                <div className="truncate text-[14px] font-medium">{tok.name}</div>
                 <div className="text-[12px] text-fg3">
-                  <span className="font-mono">…{t.hint}</span> · creato {relativeTime(t.createdAt)} ·{' '}
-                  {t.lastUsedAt ? `usato ${relativeTime(t.lastUsedAt)}` : 'mai usato'}
+                  <span className="font-mono">…{tok.hint}</span> ·{' '}
+                  {t('creato {when}', { when: relativeTime(tok.createdAt) })} ·{' '}
+                  {tok.lastUsedAt ? t('usato {when}', { when: relativeTime(tok.lastUsedAt) }) : t('mai usato')}
                 </div>
               </div>
-              <IconButton label={`Revoca ${t.name}`} onClick={() => revoke(t.id, t.name)} className="hover:text-danger">
+              <IconButton
+                label={t('Revoca {name}', { name: tok.name })}
+                onClick={() => revoke(tok.id, tok.name)}
+                className="hover:text-danger"
+              >
                 <Trash2 />
               </IconButton>
             </li>
@@ -344,14 +361,14 @@ function Snippet({ title, hint, code }: { title: string; hint?: string; code: st
 
 function Connect({ token }: { token: string | null }) {
   const url = `${location.origin}/mcp`
-  const t = token ?? 'IL_TUO_TOKEN'
+  const tok = token ?? t('IL_TUO_TOKEN')
   const desktop = JSON.stringify(
     {
       mcpServers: {
         materialize: {
           command: 'npx',
           args: ['-y', '@materializecms/cli', 'mcp', '--url', location.origin],
-          env: { MATERIALIZE_TOKEN: t },
+          env: { MATERIALIZE_TOKEN: tok },
         },
       },
     },
@@ -359,25 +376,26 @@ function Connect({ token }: { token: string | null }) {
     2,
   )
   return (
-    <Section icon={<Plug />} title="Collegare un client AI (MCP)">
+    <Section icon={<Plug />} title={t('Collegare un client AI (MCP)')}>
       <p className="text-[14px] leading-relaxed text-fg2">
-        Con il protocollo MCP, Claude e altri assistenti leggono e modificano il sito: contenuti, pagine, tema e
-        immagini. Le modifiche restano bozze finché non chiedi di pubblicarle.
-        {!token && ' Crea un token qui sopra: comparirà già negli esempi.'}
+        {t(
+          'Con il protocollo MCP, Claude e altri assistenti leggono e modificano il sito: contenuti, pagine, tema e immagini. Le modifiche restano bozze finché non chiedi di pubblicarle.',
+        )}
+        {!token && ` ${t('Crea un token qui sopra: comparirà già negli esempi.')}`}
       </p>
       <Snippet
-        title="Indirizzo del server"
+        title={t('Indirizzo del server')}
         code={url}
-        hint="Per i client che si collegano via HTTP: intestazione Authorization: Bearer <token>."
+        hint={t('Per i client che si collegano via HTTP: intestazione Authorization: Bearer <token>.')}
       />
       <Snippet
         title="Claude Code"
-        code={`claude mcp add --transport http materialize ${url} --header "Authorization: Bearer ${t}"`}
+        code={`claude mcp add --transport http materialize ${url} --header "Authorization: Bearer ${tok}"`}
       />
       <Snippet
-        title="Claude Desktop e client locali (stdio)"
+        title={t('Claude Desktop e client locali (stdio)')}
         code={desktop}
-        hint="Nel file di configurazione del client. Il CMS deve essere avviato."
+        hint={t('Nel file di configurazione del client. Il CMS deve essere avviato.')}
       />
     </Section>
   )

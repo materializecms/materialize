@@ -5,6 +5,7 @@ import { useSession } from '../app/context.ts'
 import { localeName } from '../app/Sidebar.tsx'
 import { Button, IconButton, Spinner, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
+import { t, tn, tx } from '../lib/i18n.ts'
 
 /** Languages offered when adding one; any other code works through the API. */
 const COMMON = [
@@ -72,13 +73,18 @@ export function LanguagesSettings() {
     if (
       count &&
       !confirm(
-        `${localeName(code)} ha ${count} ${count === 1 ? 'contenuto' : 'contenuti'}: togliendo la lingua spariscono dal sito, ma restano salvati e tornano se la aggiungi di nuovo.`,
+        tn(
+          count,
+          '{language} ha un contenuto: togliendo la lingua sparisce dal sito, ma resta salvato e torna se la aggiungi di nuovo.',
+          '{language} ha {n} contenuti: togliendo la lingua spariscono dal sito, ma restano salvati e tornano se la aggiungi di nuovo.',
+          { language: localeName(code) },
+        ),
       )
     )
       return
     void save(
       { default: locales.default, available: locales.available.filter((l) => l !== code) },
-      `${localeName(code)} tolta dal sito`,
+      t('{language} tolta dal sito', { language: localeName(code) }),
     )
   }
 
@@ -89,13 +95,16 @@ export function LanguagesSettings() {
       <section className="space-y-4">
         <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
           <Languages />
-          Lingue del sito
+          {t('Lingue del sito')}
         </h2>
         <p className="text-[14px] leading-relaxed text-fg2">
-          La lingua principale ha gli indirizzi senza prefisso; le altre stanno sotto{' '}
-          <span className="font-mono text-[13px]">/en/</span>, <span className="font-mono text-[13px]">/fr/</span>… Ogni
-          pagina si traduce dall’editor, dal menu della lingua in alto: menu e piè di pagina condivisi si traducono una
-          volta per tutte le pagine.
+          {tx(
+            'La lingua principale ha gli indirizzi senza prefisso; le altre stanno sotto {en}, {fr}… Ogni pagina si traduce dall’editor, dal menu della lingua in alto: menu e piè di pagina condivisi si traducono una volta per tutte le pagine.',
+            {
+              en: <span className="font-mono text-[13px]">/en/</span>,
+              fr: <span className="font-mono text-[13px]">/fr/</span>,
+            },
+          )}
         </p>
         <ul className="divide-y divide-line rounded-lg border border-line">
           {locales.available.map((code) => {
@@ -111,12 +120,12 @@ export function LanguagesSettings() {
                     {localeName(code)}
                     {main && (
                       <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[12px] font-medium text-accent">
-                        Principale
+                        {t('Lingua principale')}
                       </span>
                     )}
                   </div>
                   <div className="text-[12px] text-fg3">
-                    {count ? `${count} ${count === 1 ? 'contenuto' : 'contenuti'}` : 'Nessun contenuto ancora'}
+                    {count ? tn(count, '{n} contenuto', '{n} contenuti') : t('Nessun contenuto ancora')}
                     {!main && <span className="font-mono"> · /{code}/</span>}
                   </div>
                 </div>
@@ -129,14 +138,14 @@ export function LanguagesSettings() {
                       onClick={() =>
                         void save(
                           { default: code, available: locales.available },
-                          `${localeName(code)} è la lingua principale`,
+                          t('{language} è la lingua principale', { language: localeName(code) }),
                         )
                       }
                     >
-                      Rendi principale
+                      {t('Rendi principale')}
                     </Button>
                     <IconButton
-                      label={`Togli ${localeName(code)}`}
+                      label={t('Togli {language}', { language: localeName(code) })}
                       onClick={() => remove(code)}
                       className="hover:text-danger"
                     >
@@ -156,7 +165,7 @@ export function LanguagesSettings() {
               if (!adding) return
               void save(
                 { default: locales.default, available: [...locales.available, adding] },
-                `${localeName(adding)} aggiunta: ora puoi tradurre le pagine`,
+                t('{language} aggiunta: ora puoi tradurre le pagine', { language: localeName(adding) }),
               ).then(() => setAdding(''))
             }}
           >
@@ -165,7 +174,7 @@ export function LanguagesSettings() {
               onChange={(e) => setAdding(e.target.value)}
               className="h-8 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
-              <option value="">Scegli una lingua da aggiungere…</option>
+              <option value="">{t('Scegli una lingua da aggiungere…')}</option>
               {choices.map((c) => (
                 <option key={c} value={c}>
                   {localeName(c)} ({c})
@@ -179,11 +188,11 @@ export function LanguagesSettings() {
               disabled={!adding}
               loading={saving}
             >
-              Aggiungi
+              {t('Aggiungi')}
             </Button>
           </form>
         ) : (
-          <p className="text-[13px] text-fg3">Le lingue le sceglie un amministratore.</p>
+          <p className="text-[13px] text-fg3">{t('Le lingue le sceglie un amministratore.')}</p>
         )}
       </section>
     </div>
