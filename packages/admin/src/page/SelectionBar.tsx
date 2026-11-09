@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Copy, ImagePlus, MoreHorizontal, Smartphone, Trash2
 import type { ReactNode } from 'react'
 import { CanvasTextMenu } from '../components/AiMenu.tsx'
 import { cx } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 
 /**
  * The few actions people reach for most, right above the selected element on the canvas: the
@@ -36,7 +37,7 @@ export function SelectionBar({
   return (
     <div
       role="toolbar"
-      aria-label="Azioni sull’elemento"
+      aria-label={t('Azioni sull’elemento')}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
@@ -48,26 +49,26 @@ export function SelectionBar({
         </span>
       )}
       {node.type === 'image' && (
-        <Tool label="Cambia immagine" onClick={onPickImage}>
+        <Tool label={t('Cambia immagine')} onClick={onPickImage}>
           <ImagePlus />
         </Tool>
       )}
-      <Tool label="Duplica · ⌘D" onClick={onDuplicate}>
+      <Tool label={t('Duplica · ⌘D')} onClick={onDuplicate}>
         <Copy />
       </Tool>
-      <Tool label="Sposta su · ⌥↑" disabled={first} onClick={() => onMove(-1)}>
+      <Tool label={t('Sposta su · ⌥↑')} disabled={first} onClick={() => onMove(-1)}>
         <ArrowUp />
       </Tool>
-      <Tool label="Sposta giù · ⌥↓" disabled={last} onClick={() => onMove(1)}>
+      <Tool label={t('Sposta giù · ⌥↓')} disabled={last} onClick={() => onMove(1)}>
         <ArrowDown />
       </Tool>
       {onMobile && (
-        <Tool label="Com’è su mobile" onClick={onMobile}>
+        <Tool label={t('Com’è su mobile')} onClick={onMobile}>
           <Smartphone />
         </Tool>
       )}
       <Tool
-        label="Altre azioni"
+        label={t('Altre azioni')}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect()
           onMore(r.left, r.bottom + 4)
@@ -76,7 +77,7 @@ export function SelectionBar({
         <MoreHorizontal />
       </Tool>
       <span className="mx-0.5 h-4 w-px bg-line" />
-      <Tool label="Elimina · ⌫" danger onClick={onDelete}>
+      <Tool label={t('Elimina · ⌫')} danger onClick={onDelete}>
         <Trash2 />
       </Tool>
     </div>

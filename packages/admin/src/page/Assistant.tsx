@@ -7,6 +7,7 @@ import { useAiReady } from '../components/AiMenu.tsx'
 import { Prose } from '../components/Prose.tsx'
 import { cx, IconButton, toast } from '../components/ui.tsx'
 import { api, type ChatEvent } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 
 /** A reference picture: made smaller here, sent as base64, shown from its own small copy. */
@@ -28,7 +29,7 @@ export async function shrink(file: File): Promise<{ data: string; url: string }>
   canvas.width = Math.round(bitmap.width * scale)
   canvas.height = Math.round(bitmap.height * scale)
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Il browser non riesce a leggere l’immagine')
+  if (!ctx) throw new Error(t('Il browser non riesce a leggere l’immagine'))
   ctx.fillStyle = '#fff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
@@ -44,11 +45,11 @@ type Entry =
   | { kind: 'error'; text: string }
 type Item = Entry & { id: number }
 
-const SUGGESTIONS = [
-  'Aggiungi una sezione con tre piani e i prezzi',
-  'Rendi la prima sezione più essenziale',
-  'Migliora i testi di questa pagina',
-  'Traduci i testi in inglese',
+const suggestions = () => [
+  t('Aggiungi una sezione con tre piani e i prezzi'),
+  t('Rendi la prima sezione più essenziale'),
+  t('Migliora i testi di questa pagina'),
+  t('Traduci i testi in inglese'),
 ]
 
 /**
@@ -90,15 +91,15 @@ export function AssistantPanel({
 
   const attach = async (files: Iterable<File>) => {
     const images = [...files].filter((f) => /^image\/(png|jpeg|webp|gif)$/.test(f.type))
-    if (!images.length) return toast('Allega un’immagine PNG, JPEG o WebP', 'error')
+    if (!images.length) return toast(t('Allega un’immagine PNG, JPEG o WebP'), 'error')
     const room = MAX_PICTURES - pictures.length
-    if (images.length > room) toast(`Al massimo ${MAX_PICTURES} immagini per messaggio`, 'error')
+    if (images.length > room) toast(t('Al massimo {n} immagini per messaggio', { n: MAX_PICTURES }), 'error')
     for (const file of images.slice(0, Math.max(0, room))) {
       try {
         const small = await shrink(file)
         setPictures((ps) => (ps.length < MAX_PICTURES ? [...ps, { id: seq.current++, ...small }] : ps))
       } catch {
-        toast(`Non riesco a leggere “${file.name}”`, 'error')
+        toast(t('Non riesco a leggere “{name}”', { name: file.name }), 'error')
       }
     }
   }
@@ -106,7 +107,7 @@ export function AssistantPanel({
   const send = async (typed: string) => {
     const sent = pictures
     if ((!typed.trim() && !sent.length) || running) return
-    const text = typed.trim() || 'Usa questa immagine come riferimento per la pagina.'
+    const text = typed.trim() || t('Usa questa immagine come riferimento per la pagina.')
     setDraft('')
     setPictures([])
     add({ kind: 'user', text, pictures: sent.map((p) => p.url) })
@@ -123,7 +124,7 @@ export function AssistantPanel({
       else if (e.type === 'error') add({ kind: 'error', text: e.message })
       else if (e.type === 'page') {
         onApply(e.nodes)
-        toast('Modifiche dell’assistente applicate · ⌘Z per annullare')
+        toast(t('Modifiche dell’assistente applicate · ⌘Z per annullare'))
       } else if (e.type === 'done') chatId.current = e.chatId
     }
     try {
@@ -141,7 +142,7 @@ export function AssistantPanel({
       )
     } catch (error) {
       if ((error as Error).name !== 'AbortError') add({ kind: 'error', text: (error as Error).message })
-      else add({ kind: 'error', text: 'Interrotto.' })
+      else add({ kind: 'error', text: t('Interrotto.') })
     } finally {
       setRunning(false)
       abort.current = null
@@ -164,19 +165,21 @@ export function AssistantPanel({
     return (
       <div className="space-y-3 p-4 text-[13px] leading-relaxed text-fg2">
         <p className="flex items-center gap-2 font-semibold text-fg">
-          <Sparkles className="size-4 text-accent" /> Assistente
+          <Sparkles className="size-4 text-accent" /> {t('Assistente')}
         </p>
-        <p>Per usarlo serve un modello AI: Claude con una chiave di Anthropic, o un server compatibile OpenAI.</p>
+        <p>
+          {t('Per usarlo serve un modello AI: Claude con una chiave di Anthropic, o un server compatibile OpenAI.')}
+        </p>
         {user.role === 'admin' ? (
           <button
             type="button"
             onClick={() => navigate({ name: 'settings', tab: 'ai' })}
             className="font-medium text-accent hover:underline"
           >
-            Configura in Impostazioni → AI e MCP
+            {t('Configura in Impostazioni → AI e MCP')}
           </button>
         ) : (
-          <p className="text-fg3">Chiedi a un amministratore di configurarlo.</p>
+          <p className="text-fg3">{t('Chiedi a un amministratore di configurarlo.')}</p>
         )}
       </div>
     )
@@ -185,8 +188,8 @@ export function AssistantPanel({
     <div className="flex h-full flex-col">
       <header className="flex h-10 shrink-0 items-center gap-2 border-b border-line px-3.5">
         <Sparkles className="size-4 text-accent" />
-        <span className="flex-1 text-[13px] font-semibold">Assistente</span>
-        <IconButton label="Nuova conversazione" onClick={reset} disabled={!items.length}>
+        <span className="flex-1 text-[13px] font-semibold">{t('Assistente')}</span>
+        <IconButton label={t('Nuova conversazione')} onClick={reset} disabled={!items.length}>
           <RotateCcw />
         </IconButton>
       </header>
@@ -194,13 +197,14 @@ export function AssistantPanel({
         {!items.length && (
           <div className="space-y-3">
             <p className="text-[13px] leading-relaxed text-fg2">
-              Chiedi cosa cambiare in questa pagina: nuove sezioni, testi, colori, immagini.
-              {selection.length > 0 && ' Puoi dire “questo” per l’elemento selezionato.'} Puoi allegare, incollare o
-              trascinare un’immagine di riferimento, per esempio lo screenshot di un sito che ti piace. Le modifiche si
-              annullano con ⌘Z e restano in bozza.
+              {t('Chiedi cosa cambiare in questa pagina: nuove sezioni, testi, colori, immagini.')}
+              {selection.length > 0 && ` ${t('Puoi dire “questo” per l’elemento selezionato.')}`}{' '}
+              {t(
+                'Puoi allegare, incollare o trascinare un’immagine di riferimento, per esempio lo screenshot di un sito che ti piace. Le modifiche si annullano con ⌘Z e restano in bozza.',
+              )}
             </p>
             <div className="flex flex-col gap-1.5">
-              {SUGGESTIONS.map((s) => (
+              {suggestions().map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -246,7 +250,7 @@ export function AssistantPanel({
         )}
         {running && (
           <div className="flex items-center gap-1.5 text-[12px] text-fg3">
-            <Loader2 className="size-3 animate-spin" /> Sto lavorando…
+            <Loader2 className="size-3 animate-spin" /> {t('Sto lavorando…')}
           </div>
         )}
       </div>
@@ -275,12 +279,12 @@ export function AssistantPanel({
               <div key={p.id} className="relative">
                 <img
                   src={p.url}
-                  alt="Immagine di riferimento"
+                  alt={t('Immagine di riferimento')}
                   className="size-14 rounded-md border border-line object-cover"
                 />
                 <button
                   type="button"
-                  aria-label="Togli l’immagine"
+                  aria-label={t('Togli l’immagine')}
                   onClick={() => setPictures((ps) => ps.filter((x) => x.id !== p.id))}
                   className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border border-line bg-panel text-fg2 shadow-pop hover:text-fg [&_svg]:size-3"
                 >
@@ -308,7 +312,7 @@ export function AssistantPanel({
           )}
         >
           <IconButton
-            label="Allega un’immagine di riferimento"
+            label={t('Allega un’immagine di riferimento')}
             onClick={() => fileInput.current?.click()}
             disabled={running || pictures.length >= MAX_PICTURES}
           >
@@ -317,7 +321,7 @@ export function AssistantPanel({
           <textarea
             value={draft}
             rows={Math.min(6, Math.max(1, draft.split('\n').length))}
-            placeholder="Chiedi una modifica…"
+            placeholder={t('Chiedi una modifica…')}
             onChange={(e) => setDraft(e.target.value)}
             onPaste={(e) => {
               const files = [...e.clipboardData.files]
@@ -336,13 +340,13 @@ export function AssistantPanel({
             className="min-w-0 flex-1 resize-none bg-transparent px-1 py-0.5 text-[13px] leading-snug outline-none placeholder:text-fg3"
           />
           {running ? (
-            <IconButton label="Interrompi" onClick={() => abort.current?.abort()}>
+            <IconButton label={t('Interrompi')} onClick={() => abort.current?.abort()}>
               <Square className="fill-current" />
             </IconButton>
           ) : (
             <button
               type="submit"
-              aria-label="Invia"
+              aria-label={t('Invia')}
               disabled={!draft.trim() && !pictures.length}
               className={cx(
                 'flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-white transition-opacity disabled:opacity-35',

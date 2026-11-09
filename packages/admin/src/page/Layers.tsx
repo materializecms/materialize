@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { type DragEvent, useEffect, useState } from 'react'
 import { cx } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 import { typeLabel } from './Canvas.tsx'
 
 export function nodeIcon(n: PageNode, depth: number) {
@@ -153,7 +154,7 @@ export function Layers({
               <span className="text-fg3 [&_svg]:size-3.5">{nodeIcon(n, depth)}</span>
               <input
                 autoFocus
-                aria-label="Nome del livello"
+                aria-label={t('Nome del livello')}
                 defaultValue={name}
                 maxLength={80}
                 onFocus={(e) => e.currentTarget.select()}
@@ -224,15 +225,15 @@ export function Layers({
                 {nodeIcon(n, depth)}
               </span>
               <span className={cx('truncate', depth === 0 && 'font-medium', isSel && 'font-medium')}>{name}</span>
-              {n.locked && <Lock className="size-3 shrink-0 text-fg3" aria-label="Bloccato" />}
+              {n.locked && <Lock className="size-3 shrink-0 text-fg3" aria-label={t('Bloccato')} />}
             </button>
           )}
           {renaming !== n.id && (
             <span className="absolute top-0.5 right-1 flex gap-0.5 opacity-0 group-hover/layer:opacity-100 focus-within:opacity-100">
               <button
                 type="button"
-                title="Rinomina"
-                aria-label={`Rinomina ${name}`}
+                title={t('Rinomina')}
+                aria-label={t('Rinomina {name}', { name })}
                 onClick={() => setRenaming(n.id)}
                 className="flex size-6 items-center justify-center rounded text-[11px] font-semibold text-fg3 hover:bg-hover hover:text-fg"
               >
@@ -240,8 +241,8 @@ export function Layers({
               </button>
               <button
                 type="button"
-                title={hidden ? 'Mostra' : 'Nascondi su questo dispositivo'}
-                aria-label={hidden ? `Mostra ${name}` : `Nascondi ${name}`}
+                title={hidden ? t('Mostra') : t('Nascondi su questo dispositivo')}
+                aria-label={hidden ? t('Mostra {name}', { name }) : t('Nascondi {name}', { name })}
                 onClick={() => onToggleHidden(n.id)}
                 className="flex size-6 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
               >
@@ -271,12 +272,12 @@ export function Layers({
         )}
       >
         <FileText className={selected === null ? 'text-accent' : ''} />
-        Pagina
+        {t('Pagina')}
       </button>
       {rows}
       {nodes.length === 0 && (
         <p className="px-2 py-3 text-[12.5px] leading-relaxed text-fg3">
-          La pagina è vuota. Aggiungi una sezione dalla scheda Aggiungi.
+          {t('La pagina è vuota. Aggiungi una sezione dalla scheda Aggiungi.')}
         </p>
       )}
     </div>

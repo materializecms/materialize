@@ -3,6 +3,7 @@ import { type Interaction, type Keyframe, type MotionProps, newId } from '@mater
 import { Pause, Play, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cx, IconButton } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 import { NumField, Row, Select } from './controls.tsx'
 
 export interface PropDef {
@@ -24,13 +25,13 @@ export function scrub(id: string, ix: Interaction, t: number | null) {
   )
 }
 
-const EASES: { value: NonNullable<Keyframe['ease']>; label: string }[] = [
-  { value: 'inOut', label: 'Morbida' },
-  { value: 'out', label: 'Rallenta alla fine' },
-  { value: 'expo', label: 'Esponenziale' },
-  { value: 'back', label: 'Con rimbalzo' },
-  { value: 'spring', label: 'Molla' },
-  { value: 'linear', label: 'Costante' },
+const EASES = (): { value: NonNullable<Keyframe['ease']>; label: string }[] => [
+  { value: 'inOut', label: t('Morbida') },
+  { value: 'out', label: t('Rallenta alla fine') },
+  { value: 'expo', label: t('Esponenziale') },
+  { value: 'back', label: t('Con rimbalzo') },
+  { value: 'spring', label: t('Molla') },
+  { value: 'linear', label: t('Costante') },
 ]
 
 /**
@@ -111,7 +112,7 @@ export function Timeline({
   return (
     <div className="space-y-2.5">
       <div className="flex items-center gap-1.5">
-        <IconButton label={playing ? 'Ferma' : 'Riproduci sulla tela'} onClick={play} className="size-6">
+        <IconButton label={playing ? t('Ferma') : t('Riproduci sulla tela')} onClick={play} className="size-6">
           {playing ? <Pause /> : <Play />}
         </IconButton>
         {/* The track: diamonds are keyframes, the line is the playhead. */}
@@ -130,7 +131,7 @@ export function Timeline({
             if (e.buttons === 0 && e.target === e.currentTarget) show(at(e.clientX))
           }}
           onPointerLeave={() => !playing && show(null)}
-          title="Clicca per aggiungere un fotogramma chiave"
+          title={t('Clicca per aggiungere un fotogramma chiave')}
         >
           <div className="pointer-events-none absolute top-1/2 right-2 left-2 h-px bg-line2" />
           {head !== null && (
@@ -143,8 +144,8 @@ export function Timeline({
             <button
               key={k.id}
               type="button"
-              title={`Fotogramma al ${Math.round(k.at * 100)}% — trascina per spostarlo`}
-              aria-label={`Fotogramma al ${Math.round(k.at * 100)}%`}
+              title={t('Fotogramma al {at}% — trascina per spostarlo', { at: Math.round(k.at * 100) })}
+              aria-label={t('Fotogramma al {at}%', { at: Math.round(k.at * 100) })}
               aria-pressed={k.id === selected}
               onPointerDown={(e) => {
                 e.stopPropagation()
@@ -181,10 +182,10 @@ export function Timeline({
       {current && (
         <div className="space-y-2 rounded-lg bg-panel2 p-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-semibold">Fotogramma</span>
+            <span className="text-[12px] font-semibold">{t('Fotogramma')}</span>
             {keys.length > 2 && (
               <IconButton
-                label="Elimina il fotogramma"
+                label={t('Elimina il fotogramma')}
                 className="size-6 hover:text-danger"
                 onClick={() => {
                   const rest = keys.filter((k) => k.id !== current.id)
@@ -196,7 +197,7 @@ export function Timeline({
               </IconButton>
             )}
           </div>
-          <Row label="Posizione">
+          <Row label={t('Posizione')}>
             <NumField
               value={Math.round(current.at * 100)}
               unit="%"
@@ -205,11 +206,11 @@ export function Timeline({
             />
           </Row>
           {current !== keys[0] && (
-            <Row label="Curva" hint="Come arriva a questo fotogramma dal precedente">
+            <Row label={t('Curva')} hint={t('Come arriva a questo fotogramma dal precedente')}>
               <Select
-                label="Curva"
+                label={t('Curva')}
                 value={current.ease ?? 'inOut'}
-                options={EASES}
+                options={EASES()}
                 onChange={(ease) => setKey(current.id, { ease })}
               />
             </Row>
@@ -235,10 +236,10 @@ export function Timeline({
           ))}
           {unused.length > 0 && (
             <Select
-              label="Aggiungi una proprietà"
+              label={t('Aggiungi una proprietà')}
               value={'' as string}
               options={[
-                { value: '', label: '+ Proprietà animata' },
+                { value: '', label: t('+ Proprietà animata') },
                 ...unused.map((p) => ({ value: p.key, label: p.label })),
               ]}
               onChange={(k) => {
@@ -249,7 +250,8 @@ export function Timeline({
             />
           )}
           <p className="flex items-center gap-1 text-[11px] text-fg3">
-            <Plus className="size-3" /> Clicca sulla linea per aggiungere un fotogramma, trascinalo per spostarlo.
+            <Plus className="size-3" />{' '}
+            {t('Clicca sulla linea per aggiungere un fotogramma, trascinalo per spostarlo.')}
           </p>
         </div>
       )}

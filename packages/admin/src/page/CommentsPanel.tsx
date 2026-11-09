@@ -6,6 +6,7 @@ import { useSession } from '../app/context.ts'
 import { cx, IconButton, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
+import { t } from '../lib/i18n.ts'
 import { typeLabel } from './Canvas.tsx'
 
 /** Notes on the page for whoever works on it: pinned to an element, or to the whole page. */
@@ -35,19 +36,19 @@ export function CommentsPanel({
   const items = (list.data?.items ?? []).filter((c) => showResolved || !c.resolved)
   const nameOf = (id: string | null) => {
     const n = id ? findNode(nodes, id)?.node : null
-    return id ? (n ? n.name || typeLabel(n) : 'Elemento rimosso') : 'Pagina'
+    return id ? (n ? n.name || typeLabel(n) : t('Elemento rimosso')) : t('Pagina')
   }
 
-  if (!docId) return <p className="px-3.5 py-4 text-[12.5px] text-fg3">Salva la pagina per lasciare commenti.</p>
+  if (!docId) return <p className="px-3.5 py-4 text-[12.5px] text-fg3">{t('Salva la pagina per lasciare commenti.')}</p>
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-line px-3.5 py-3">
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold">Commenti</span>
+          <span className="text-[13px] font-semibold">{t('Commenti')}</span>
           <label className="flex items-center gap-1.5 text-[12px] text-fg2">
             <input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} />
-            Mostra risolti
+            {t('Mostra risolti')}
           </label>
         </div>
         <form
@@ -65,10 +66,12 @@ export function CommentsPanel({
           }}
         >
           <textarea
-            aria-label="Nuovo commento"
+            aria-label={t('Nuovo commento')}
             value={text}
             rows={3}
-            placeholder={target ? `Un commento su “${nameOf(target.id)}”…` : 'Un commento sulla pagina…'}
+            placeholder={
+              target ? t('Un commento su “{name}”…', { name: nameOf(target.id) }) : t('Un commento sulla pagina…')
+            }
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.form?.requestSubmit()
@@ -77,14 +80,14 @@ export function CommentsPanel({
           />
           <div className="flex items-center justify-between">
             <span className="truncate text-[11.5px] text-fg3">
-              {target ? 'Sull’elemento selezionato' : 'Seleziona un elemento per commentarlo'} · ⌘↵
+              {target ? t('Sull’elemento selezionato') : t('Seleziona un elemento per commentarlo')} · ⌘↵
             </span>
             <button
               type="submit"
               disabled={!text.trim()}
               className="h-7 rounded-md bg-accent px-2.5 text-[12.5px] font-medium text-white disabled:opacity-40"
             >
-              Commenta
+              {t('Commenta')}
             </button>
           </div>
         </form>
@@ -93,17 +96,17 @@ export function CommentsPanel({
         {items.length === 0 && (
           <li className="flex flex-col items-center gap-2 px-6 py-10 text-center text-[12.5px] text-fg3">
             <MessageSquare className="size-5" />
-            Nessun commento aperto.
+            {t('Nessun commento aperto.')}
           </li>
         )}
         {items.map((c) => (
           <li key={c.id} className={cx('px-3.5 py-3', c.resolved && 'opacity-55')}>
             <div className="flex items-center gap-1.5">
-              <span className="truncate text-[13px] font-semibold">{c.authorName || 'Qualcuno'}</span>
+              <span className="truncate text-[13px] font-semibold">{c.authorName || t('Qualcuno')}</span>
               <span className="shrink-0 text-[11.5px] text-fg3">{relativeTime(c.createdAt)}</span>
               <span className="flex-1" />
               <IconButton
-                label={c.resolved ? 'Riapri' : 'Risolvi'}
+                label={c.resolved ? t('Riapri') : t('Risolvi')}
                 className="size-6"
                 onClick={async () => {
                   await api.resolveComment(c.id, !c.resolved)
@@ -114,7 +117,7 @@ export function CommentsPanel({
               </IconButton>
               {(c.authorId === user.id || user.role === 'admin') && (
                 <IconButton
-                  label="Elimina"
+                  label={t('Elimina')}
                   className="size-6 hover:text-danger"
                   onClick={async () => {
                     await api.removeComment(c.id)

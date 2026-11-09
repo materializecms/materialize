@@ -30,6 +30,7 @@ import { type BlockDef, BlockLibrary, blockIcon } from '../fields/BlockLibrary.t
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import type { CollectionDescription, Data, FieldDescription, ValidationIssue } from '../lib/api.ts'
 import { blockTitle, countIssuesUnder, move, newBlock, newKey } from '../lib/doc.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { BlockPreview } from './BlockPreview.tsx'
 import { SiteCanvas } from './SiteCanvas.tsx'
@@ -194,25 +195,27 @@ export function DesignMode({
             value={device}
             onChange={setDevice}
             options={[
-              { value: 'desktop', label: <Monitor />, title: 'Desktop · 1280 px' },
-              { value: 'tablet', label: <Tablet />, title: 'Tablet · 820 px' },
-              { value: 'mobile', label: <Smartphone />, title: 'Mobile · 390 px' },
+              { value: 'desktop', label: <Monitor />, title: t('Desktop · 1280 px') },
+              { value: 'tablet', label: <Tablet />, title: t('Tablet · 820 px') },
+              { value: 'mobile', label: <Smartphone />, title: t('Mobile · 390 px') },
             ]}
           />
           <span className="text-[12px] text-fg3 tabular-nums">{WIDTH[device]} px</span>
           {live ? (
             <span
               className="absolute right-3 inline-flex items-center gap-1 text-[12px] text-fg3"
-              title="La tela usa il layout e i componenti del sito: è la pagina come la vedranno i visitatori."
+              title={t('La tela usa il layout e i componenti del sito: è la pagina come la vedranno i visitatori.')}
             >
-              <Globe className="size-3.5" /> Il sito vero
+              <Globe className="size-3.5" /> {t('Il sito vero')}
             </span>
           ) : (
             <span
               className="absolute right-3 inline-flex items-center gap-1 text-[12px] text-fg3"
-              title="La tela mostra struttura e contenuti con uno stile neutro. Collega un sito Astro per vedere l’aspetto definitivo."
+              title={t(
+                'La tela mostra struttura e contenuti con uno stile neutro. Collega un sito Astro per vedere l’aspetto definitivo.',
+              )}
             >
-              <Info className="size-3.5" /> Anteprima neutra
+              <Info className="size-3.5" /> {t('Anteprima neutra')}
             </span>
           )}
           {live && canAdd && (
@@ -276,28 +279,28 @@ export function DesignMode({
                       >
                         {blockIcon(block._type)}
                         {def?.label ?? block._type}
-                        {errors > 0 && ` · ${errors} da sistemare`}
+                        {errors > 0 && ` · ${tn(errors, '1 da sistemare', '{n} da sistemare')}`}
                       </span>
                       {isSelected && (
                         <div className="absolute top-2 right-2 z-10 flex items-center gap-0.5 rounded-lg border border-black/10 bg-white p-0.5 text-neutral-700 shadow-lg [&_button]:text-neutral-600 [&_button:hover]:bg-neutral-100 [&_button:hover]:text-neutral-950">
                           <IconButton
-                            label="Sposta su (⌥↑)"
+                            label={t('Sposta su (⌥↑)')}
                             disabled={i === 0}
                             onClick={() => setBlocks(move(blocks, i, i - 1))}
                           >
                             <ArrowUp />
                           </IconButton>
                           <IconButton
-                            label="Sposta giù (⌥↓)"
+                            label={t('Sposta giù (⌥↓)')}
                             disabled={i === blocks.length - 1}
                             onClick={() => setBlocks(move(blocks, i, i + 1))}
                           >
                             <ArrowDown />
                           </IconButton>
-                          <IconButton label="Duplica (⌘D)" disabled={!canAdd} onClick={() => duplicate(i)}>
+                          <IconButton label={t('Duplica (⌘D)')} disabled={!canAdd} onClick={() => duplicate(i)}>
                             <Copy />
                           </IconButton>
-                          <IconButton label="Elimina (⌫)" onClick={() => remove(i)}>
+                          <IconButton label={t('Elimina (⌫)')} onClick={() => remove(i)}>
                             <Trash2 />
                           </IconButton>
                         </div>
@@ -312,7 +315,7 @@ export function DesignMode({
                         />
                       ) : (
                         <div className="bg-amber-50 px-8 py-10 text-[14px] text-amber-800">
-                          Il blocco “{block._type}” non esiste più nello schema.
+                          {t('Il blocco “{type}” non esiste più nello schema.', { type: block._type })}
                         </div>
                       )}
                     </div>
@@ -338,23 +341,23 @@ export function DesignMode({
                 {defs.find((d) => d.name === current._type)?.label}
               </span>
               <IconButton
-                label="Sposta su (⌥↑)"
+                label={t('Sposta su (⌥↑)')}
                 disabled={index === 0}
                 onClick={() => setBlocks(move(blocks, index, index - 1))}
               >
                 <ArrowUp />
               </IconButton>
               <IconButton
-                label="Sposta giù (⌥↓)"
+                label={t('Sposta giù (⌥↓)')}
                 disabled={index === blocks.length - 1}
                 onClick={() => setBlocks(move(blocks, index, index + 1))}
               >
                 <ArrowDown />
               </IconButton>
-              <IconButton label="Duplica (⌘D)" disabled={!canAdd} onClick={() => duplicate(index)}>
+              <IconButton label={t('Duplica (⌘D)')} disabled={!canAdd} onClick={() => duplicate(index)}>
                 <Copy />
               </IconButton>
-              <IconButton label="Elimina (⌫)" onClick={() => remove(index)}>
+              <IconButton label={t('Elimina (⌫)')} onClick={() => remove(index)}>
                 <Trash2 />
               </IconButton>
             </div>
@@ -365,8 +368,8 @@ export function DesignMode({
                 value={inspectorTab}
                 onChange={setInspectorTab}
                 options={[
-                  { value: 'content', label: 'Contenuto' },
-                  { value: 'style', label: 'Stile' },
+                  { value: 'content', label: t('Contenuto') },
+                  { value: 'style', label: t('Stile') },
                 ]}
               />
             </div>
@@ -401,7 +404,7 @@ export function DesignMode({
           <div>
             <div className="sticky top-0 z-10 flex h-11 items-center gap-2 border-b border-line bg-panel px-4">
               <FileText className="size-4 text-fg2" />
-              <span className="text-[13px] font-semibold">Pagina</span>
+              <span className="text-[13px] font-semibold">{t('Pagina')}</span>
             </div>
             <div className="p-4">
               <FieldsForm
@@ -481,7 +484,7 @@ function AddButton({
               : 'h-9 rounded-full border border-dashed border-neutral-300 px-4 text-[13px] text-neutral-500 hover:border-[#3d5afe] hover:text-[#3d5afe]',
           )}
         >
-          <Plus className="size-4" /> Aggiungi blocco
+          <Plus className="size-4" /> {t('Aggiungi blocco')}
         </button>
       )}
     >
@@ -512,7 +515,7 @@ function Inserter({ defs, onPick }: { defs: BlockDef[]; onPick: (def: BlockDef) 
               ref={ref}
               type="button"
               aria-expanded={open}
-              aria-label="Inserisci un blocco qui"
+              aria-label={t('Inserisci un blocco qui')}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggle}
               className="relative flex size-6 items-center justify-center rounded-full bg-[#3d5afe] text-white shadow"
@@ -539,8 +542,8 @@ function Inserter({ defs, onPick }: { defs: BlockDef[]; onPick: (def: BlockDef) 
 function EmptyPage({ defs, onPick }: { defs: BlockDef[]; onPick: (def: BlockDef) => void }) {
   return (
     <div className="px-10 py-24 text-center">
-      <div className="text-[22px] font-semibold tracking-tight text-neutral-900">La pagina è vuota</div>
-      <p className="mt-2 text-[15px] text-neutral-500">Componila con i blocchi: scegli da dove partire.</p>
+      <div className="text-[22px] font-semibold tracking-tight text-neutral-900">{t('La pagina è vuota')}</div>
+      <p className="mt-2 text-[15px] text-neutral-500">{t('Componila con i blocchi: scegli da dove partire.')}</p>
       <div className="mx-auto mt-8 grid max-w-2xl grid-cols-2 gap-3 @3xl:grid-cols-3">
         {defs.map((d) => (
           <button
@@ -602,13 +605,13 @@ function Layers({
   return (
     <aside className="flex w-[240px] shrink-0 flex-col border-r border-line bg-panel">
       <div className="flex h-11 items-center justify-between border-b border-line pr-2 pl-4">
-        <span className="text-[13px] font-semibold">Livelli</span>
+        <span className="text-[13px] font-semibold">{t('Livelli')}</span>
         {canAdd && (
           <Popover
             width={300}
             side="right"
             trigger={({ toggle, ref }) => (
-              <IconButton ref={ref} label="Aggiungi blocco" onClick={toggle}>
+              <IconButton ref={ref} label={t('Aggiungi blocco')} onClick={toggle}>
                 <Plus />
               </IconButton>
             )}
@@ -635,7 +638,7 @@ function Layers({
           )}
         >
           <FileText className="size-4" />
-          Pagina
+          {t('Pagina')}
         </button>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: drop zone for the rows below */}
         <div
@@ -655,7 +658,7 @@ function Layers({
                     {blockIcon(block._type)}
                     <input
                       autoFocus
-                      aria-label="Nome del livello"
+                      aria-label={t('Nome del livello')}
                       defaultValue={title ?? def?.label ?? block._type}
                       maxLength={80}
                       onFocus={(e) => e.currentTarget.select()}
@@ -679,7 +682,7 @@ function Layers({
                   <button
                     type="button"
                     draggable
-                    title="Doppio clic per rinominare"
+                    title={t('Doppio clic per rinominare')}
                     onDoubleClick={() => setRenaming(block._key)}
                     onKeyDown={(e) => {
                       if (e.key === 'F2' || (e.key === 'Enter' && selected === block._key)) {
@@ -712,8 +715,8 @@ function Layers({
                 {renaming !== block._key && (
                   <button
                     type="button"
-                    aria-label={`Rinomina ${title ?? def?.label ?? block._type}`}
-                    title="Rinomina"
+                    aria-label={t('Rinomina {name}', { name: title ?? def?.label ?? block._type })}
+                    title={t('Rinomina')}
                     onClick={() => setRenaming(block._key)}
                     className={cx(
                       'absolute top-1 flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/row:opacity-100 hover:bg-hover hover:text-fg focus-visible:opacity-100',
@@ -731,7 +734,7 @@ function Layers({
           })}
         </div>
         {blocks.length === 0 && (
-          <p className="px-2 py-3 text-[12.5px] text-fg3">Nessun blocco. Aggiungine uno dalla tela.</p>
+          <p className="px-2 py-3 text-[12.5px] text-fg3">{t('Nessun blocco. Aggiungine uno dalla tela.')}</p>
         )}
       </div>
     </aside>

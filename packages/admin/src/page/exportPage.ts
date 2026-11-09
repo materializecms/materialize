@@ -1,5 +1,6 @@
 import { type Breakpoint, librarySrcset, renderPage } from '@materializecms/core/page'
 import { EMBED_FRAME } from '../lib/frames.ts'
+import { t } from '../lib/i18n.ts'
 
 type RenderInput = Parameters<typeof renderPage>
 export type ExportFormat = 'pdf' | 'png'
@@ -87,7 +88,7 @@ export function download(blob: Blob, name: string) {
 
 export function pngOf(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Immagine troppo grande'))), 'image/png'),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('Immagine troppo grande')))), 'image/png'),
   )
 }
 
@@ -121,7 +122,7 @@ function pdfText(text: string): string {
 
 async function jpegBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   const blob = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Immagine troppo grande'))), 'image/jpeg', 0.9),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('Immagine troppo grande')))), 'image/jpeg', 0.9),
   )
   return new Uint8Array(await blob.arrayBuffer())
 }

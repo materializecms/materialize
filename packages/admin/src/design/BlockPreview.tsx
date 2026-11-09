@@ -5,6 +5,7 @@ import { cx } from '../components/ui.tsx'
 import type { BlockDef } from '../fields/BlockLibrary.tsx'
 import { useDocumentTitles } from '../fields/RelationInput.tsx'
 import type { FieldDescription } from '../lib/api.ts'
+import { t } from '../lib/i18n.ts'
 
 type Value = Record<string, unknown>
 
@@ -156,7 +157,7 @@ export function BlockPreview({ def, value, index, selected, onField }: PreviewPr
               !link?.href && 'opacity-40',
             )}
           >
-            {link?.label || (link?.href ? link.href : `${f.label}: imposta nel pannello`)}
+            {link?.label || (link?.href ? link.href : t('{field}: imposta nel pannello', { field: f.label }))}
           </span>
         ))}
       </div>
@@ -286,7 +287,7 @@ export function BlockPreview({ def, value, index, selected, onField }: PreviewPr
           <Prose
             key={f.name}
             value={value[f.name] as RichText | undefined}
-            placeholder={selected ? `${f.label}: scrivi nel pannello a destra` : ''}
+            placeholder={selected ? t('{field}: scrivi nel pannello a destra', { field: f.label }) : ''}
           />
         ))}
         {r.image && media?.src && <Img media={media} className="mt-10 aspect-[16/9] w-full rounded-xl" />}
@@ -384,7 +385,7 @@ function RelatedGrid({ ids, label }: { ids: string[]; label: string }) {
   if (!ids.length) {
     return (
       <div className="mt-10 rounded-2xl border border-dashed border-neutral-300 px-6 py-12 text-center text-[15px] text-neutral-400">
-        Scegli i contenuti da mostrare in “{label}” nel pannello a destra
+        {t('Scegli i contenuti da mostrare in “{label}” nel pannello a destra', { label })}
       </div>
     )
   }

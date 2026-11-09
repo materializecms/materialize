@@ -1,4 +1,5 @@
 import { type Breakpoint, findNode, type NodeProps, type PageNode, resolveNode } from '@materializecms/core/page'
+import { t } from '../lib/i18n.ts'
 
 export type AlignHow = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom' | 'hdist' | 'vdist'
 type Patch = [string, Partial<NodeProps>]
@@ -18,9 +19,9 @@ export function alignPatches(how: AlignHow, ids: string[], nodes: PageNode[], de
     return f ? [f] : []
   })
   const first = found[0]
-  if (!first) return { error: 'Seleziona un elemento da allineare' }
+  if (!first) return { error: t('Seleziona un elemento da allineare') }
   if (found.some((f) => f.depth === 0))
-    return { error: 'Le sezioni occupano tutta la pagina: seleziona gli elementi al loro interno' }
+    return { error: t('Le sezioni occupano tutta la pagina: seleziona gli elementi al loro interno') }
   const horizontal = how === 'left' || how === 'hcenter' || how === 'right' || how === 'hdist'
   const free = found.map((f) => resolveNode(f.node, device).pos === 'absolute')
   if (free.every(Boolean))
@@ -30,21 +31,21 @@ export function alignPatches(how: AlignHow, ids: string[], nodes: PageNode[], de
       horizontal,
     )
   if (free.some(Boolean))
-    return { error: 'Allinea insieme solo elementi liberi, oppure solo elementi in colonna o in riga' }
+    return { error: t('Allinea insieme solo elementi liberi, oppure solo elementi in colonna o in riga') }
 
   const parent = first.parent
   if (!parent || found.some((f) => f.parent?.id !== parent.id))
-    return { error: 'Per allineare, seleziona elementi dello stesso contenitore' }
+    return { error: t('Per allineare, seleziona elementi dello stesso contenitore') }
   const layout = resolveNode(parent, device).layout ?? 'col'
 
   if (how === 'hdist' || how === 'vdist') {
-    if (layout === 'grid') return { error: 'In una griglia gli spazi li danno le colonne' }
+    if (layout === 'grid') return { error: t('In una griglia gli spazi li danno le colonne') }
     if ((how === 'hdist') !== (layout === 'row'))
       return {
         error:
           layout === 'row'
-            ? 'Il contenitore è in riga: distribuisci in orizzontale'
-            : 'Il contenitore è in colonna: distribuisci in verticale',
+            ? t('Il contenitore è in riga: distribuisci in orizzontale')
+            : t('Il contenitore è in colonna: distribuisci in verticale'),
       }
     return { patches: [[parent.id, { justify: 'between' }]] }
   }
@@ -59,7 +60,7 @@ export function alignPatches(how: AlignHow, ids: string[], nodes: PageNode[], de
     return { patches: found.map((f) => [f.node.id, { talign }] as Patch) }
   }
   if (layout === 'grid') {
-    if (horizontal) return { error: 'In una griglia ogni elemento riempie la sua colonna: allinea in verticale' }
+    if (horizontal) return { error: t('In una griglia ogni elemento riempie la sua colonna: allinea in verticale') }
     return { patches: [[parent.id, { align: pos }]] }
   }
   // In a column the cross axis is horizontal; in a row, vertical.
@@ -74,12 +75,12 @@ function freePatches(how: AlignHow, ids: string[], horizontal: boolean): Result 
       ? { id, x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight, parent: el.offsetParent }
       : null
   })
-  if (boxes.some((b) => !b)) return { error: 'Un elemento non è visibile su questo dispositivo' }
+  if (boxes.some((b) => !b)) return { error: t('Un elemento non è visibile su questo dispositivo') }
   const list = boxes as NonNullable<(typeof boxes)[number]>[]
   const host = list[0]?.parent as HTMLElement | null
-  if (!host) return { error: 'Un elemento non è visibile su questo dispositivo' }
+  if (!host) return { error: t('Un elemento non è visibile su questo dispositivo') }
   if (list.some((b) => b.parent !== host))
-    return { error: 'Per allineare, seleziona elementi dello stesso contenitore' }
+    return { error: t('Per allineare, seleziona elementi dello stesso contenitore') }
 
   // One element: its container. Several: the box around them.
   const ref =
@@ -99,7 +100,7 @@ function freePatches(how: AlignHow, ids: string[], horizontal: boolean): Result 
     horizontal ? [id, { left: Math.round(v), right: null }] : [id, { top: Math.round(v), bottom: null }]
 
   if (how === 'hdist' || how === 'vdist') {
-    if (list.length < 3) return { error: 'Per distribuire servono almeno tre elementi' }
+    if (list.length < 3) return { error: t('Per distribuire servono almeno tre elementi') }
     const start = (b: (typeof list)[number]) => (horizontal ? b.x : b.y)
     const size = (b: (typeof list)[number]) => (horizontal ? b.w : b.h)
     const sorted = [...list].sort((a, b) => start(a) - start(b))

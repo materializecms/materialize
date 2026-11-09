@@ -3,20 +3,21 @@ import { ANCHOR_PATTERN } from '@materializecms/core/style'
 import { Hash, Play } from 'lucide-react'
 import { cx, IconButton, Input, Segmented } from '../components/ui.tsx'
 import { useForm, useIssues } from '../fields/form-context.ts'
+import { t } from '../lib/i18n.ts'
 
-const BACKGROUNDS: { value: NonNullable<BlockStyle['background']>; label: string; swatch: string }[] = [
-  { value: 'default', label: 'Pagina', swatch: 'bg-white' },
-  { value: 'muted', label: 'Tenue', swatch: 'bg-neutral-200' },
-  { value: 'dark', label: 'Scuro', swatch: 'bg-neutral-900' },
-  { value: 'accent', label: 'Accento', swatch: 'bg-accent' },
+const BACKGROUNDS = (): { value: NonNullable<BlockStyle['background']>; label: string; swatch: string }[] => [
+  { value: 'default', label: t('Pagina'), swatch: 'bg-white' },
+  { value: 'muted', label: t('Tenue'), swatch: 'bg-neutral-200' },
+  { value: 'dark', label: t('Scuro'), swatch: 'bg-neutral-900' },
+  { value: 'accent', label: t('Accento'), swatch: 'bg-accent' },
 ]
 
-const ANIMATIONS: { value: NonNullable<BlockStyle['animation']>; label: string }[] = [
-  { value: 'none', label: 'Nessuna' },
-  { value: 'fade', label: 'Dissolvenza' },
-  { value: 'rise', label: 'Salita' },
-  { value: 'zoom', label: 'Zoom' },
-  { value: 'slide', label: 'Scorrimento' },
+const ANIMATIONS = (): { value: NonNullable<BlockStyle['animation']>; label: string }[] => [
+  { value: 'none', label: t('Nessuna') },
+  { value: 'fade', label: t('Dissolvenza') },
+  { value: 'rise', label: t('Salita') },
+  { value: 'zoom', label: t('Zoom') },
+  { value: 'slide', label: t('Scorrimento') },
 ]
 
 /**
@@ -48,9 +49,9 @@ export function StylePanel({
   return (
     <div className="space-y-4">
       <div>
-        <span className={label}>Sfondo</span>
+        <span className={label}>{t('Sfondo')}</span>
         <div className="grid grid-cols-4 gap-1.5">
-          {BACKGROUNDS.map((b) => {
+          {BACKGROUNDS().map((b) => {
             const active = (style.background ?? 'default') === b.value
             return (
               <button
@@ -74,32 +75,32 @@ export function StylePanel({
       </div>
 
       <div>
-        <span className={label}>Spazio sopra e sotto</span>
+        <span className={label}>{t('Spazio sopra e sotto')}</span>
         <Segmented
           size="sm"
           className="flex w-full"
           value={style.spacing ?? 'normal'}
           onChange={(v) => set('spacing', v === 'normal' ? undefined : v)}
           options={[
-            { value: 'none', label: 'Nessuno' },
-            { value: 'compact', label: 'Ridotto' },
-            { value: 'normal', label: 'Normale' },
-            { value: 'spacious', label: 'Ampio' },
+            { value: 'none', label: t('Nessuno') },
+            { value: 'compact', label: t('Ridotto') },
+            { value: 'normal', label: t('Normale') },
+            { value: 'spacious', label: t('Ampio') },
           ]}
         />
       </div>
 
       <div>
         <span className="mb-1.5 flex items-center justify-between text-[12.5px] font-medium text-fg2">
-          Animazione all’ingresso
+          {t('Animazione all’ingresso')}
           {onReplay && style.animation && style.animation !== 'none' && (
-            <IconButton label="Riproduci l’animazione" className="size-6" onClick={onReplay}>
+            <IconButton label={t('Riproduci l’animazione')} className="size-6" onClick={onReplay}>
               <Play />
             </IconButton>
           )}
         </span>
         <div className="flex flex-wrap gap-1">
-          {ANIMATIONS.map((a) => {
+          {ANIMATIONS().map((a) => {
             const active = (style.animation ?? 'none') === a.value
             return (
               <button
@@ -123,17 +124,17 @@ export function StylePanel({
           })}
         </div>
         <p className="mt-1.5 text-[12px] text-fg3">
-          Parte quando il blocco entra nello schermo, mai per chi ha chiesto meno movimento.
+          {t('Parte quando il blocco entra nello schermo, mai per chi ha chiesto meno movimento.')}
         </p>
       </div>
 
       <label className="block">
-        <span className={label}>Ancora</span>
+        <span className={label}>{t('Ancora')}</span>
         <div className="relative">
           <Hash className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
           <Input
             className="pl-7 font-mono text-[13px]"
-            placeholder="chi-siamo"
+            placeholder={t('chi-siamo')}
             value={style.anchor ?? ''}
             aria-invalid={!anchorValid || anchorErrors.length > 0 || undefined}
             onChange={(e) => set('anchor', e.target.value.toLowerCase().replace(/\s+/g, '-') || undefined, 'anchor')}
@@ -141,10 +142,10 @@ export function StylePanel({
         </div>
         <span className={cx('mt-1 block text-[12px]', anchorValid ? 'text-fg3' : 'text-danger')}>
           {!anchorValid
-            ? 'Usa lettere minuscole, numeri e trattini, iniziando con una lettera'
+            ? t('Usa lettere minuscole, numeri e trattini, iniziando con una lettera')
             : style.anchor
-              ? `Link diretto: ${docUrl ?? ''}#${style.anchor}`
-              : 'Per collegarsi direttamente a questo blocco, ad esempio dal menu.'}
+              ? t('Link diretto: {url}', { url: `${docUrl ?? ''}#${style.anchor}` })
+              : t('Per collegarsi direttamente a questo blocco, ad esempio dal menu.')}
         </span>
       </label>
     </div>

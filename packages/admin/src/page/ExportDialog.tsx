@@ -1,11 +1,11 @@
 import type { Breakpoint, renderPage } from '@materializecms/core/page'
 import { useState } from 'react'
 import { Button, Dialog, Segmented, Switch, toast } from '../components/ui.tsx'
+import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { captureDevices, DEVICE_LABEL, download, type ExportFormat, fileSlug, pdfOf, pngOf } from './exportPage.ts'
 
 type RenderInput = Parameters<typeof renderPage>
 const DEVICES = ['desktop', 'tablet', 'mobile'] as const
-const day = new Intl.DateTimeFormat('it', { day: 'numeric', month: 'long', year: 'numeric' })
 
 /**
  * The page as a file to send to whoever has to approve it: as it is now, published or not, on the
@@ -32,7 +32,7 @@ export function ExportDialog({
   const [format, setFormat] = useState<ExportFormat>('pdf')
   const [step, setStep] = useState<Breakpoint | null>(null)
   const chosen = DEVICES.filter((d) => devices[d])
-  const name = title.trim() || 'Pagina'
+  const name = title.trim() || t('Pagina')
 
   const run = async () => {
     try {
@@ -43,22 +43,27 @@ export function ExportDialog({
         chosen.map((device) => ({ device, width: widths[device] })),
         setStep,
       )
-      const date = day.format(new Date())
+      const date = new Intl.DateTimeFormat(intlLocale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(
+        new Date(),
+      )
       const slug = fileSlug(name)
       if (format === 'pdf') {
-        const pdf = await pdfOf(
-          shots,
-          name,
-          (s) => `${name}  ·  ${DEVICE_LABEL[s.device]}, ${s.width} px  ·  Anteprima del ${date}`,
+        const pdf = await pdfOf(shots, name, (s) =>
+          t('{name}  ·  {device}, {width} px  ·  Anteprima del {date}', {
+            name,
+            device: DEVICE_LABEL[s.device],
+            width: s.width,
+            date,
+          }),
         )
         download(pdf, `${slug}.pdf`)
       } else {
         for (const s of shots) download(await pngOf(s.canvas), `${slug}-${s.device}.png`)
       }
-      toast(format === 'pdf' ? 'PDF pronto' : shots.length === 1 ? 'Immagine pronta' : 'Immagini pronte')
+      toast(format === 'pdf' ? t('PDF pronto') : tn(shots.length, 'Immagine pronta', 'Immagini pronte'))
       onClose()
     } catch (error) {
-      toast(`Esportazione non riuscita: ${(error as Error).message}`, 'error')
+      toast(t('Esportazione non riuscita: {message}', { message: (error as Error).message }), 'error')
     } finally {
       setStep(null)
     }
@@ -68,36 +73,37 @@ export function ExportDialog({
     <Dialog
       open={open}
       onClose={() => !step && onClose()}
-      title="Esporta la pagina"
+      title={t('Esporta la pagina')}
       footer={
         <>
           <Button onClick={onClose} disabled={!!step}>
-            Annulla
+            {t('Annulla')}
           </Button>
           <Button variant="primary" loading={!!step} disabled={!chosen.length} onClick={run}>
-            {step ? `Preparo ${DEVICE_LABEL[step]}…` : 'Esporta'}
+            {step ? t('Preparo {device}…', { device: DEVICE_LABEL[step] }) : t('Esporta')}
           </Button>
         </>
       }
     >
       <p className="text-[14px] leading-relaxed text-fg2">
-        La pagina com’è adesso, anche se non è ancora pubblicata: per mostrarla a chi deve approvarla. Ogni dispositivo
-        è un’unica immagine lunga, senza tagli.
+        {t(
+          'La pagina com’è adesso, anche se non è ancora pubblicata: per mostrarla a chi deve approvarla. Ogni dispositivo è un’unica immagine lunga, senza tagli.',
+        )}
       </p>
       <div className="mt-4 space-y-3">
         <div>
-          <div className="mb-1.5 text-[13px] font-medium text-fg2">Formato</div>
+          <div className="mb-1.5 text-[13px] font-medium text-fg2">{t('Formato')}</div>
           <Segmented
             value={format}
             onChange={setFormat}
             options={[
-              { value: 'pdf', label: 'PDF', title: 'Un file, una pagina per dispositivo' },
-              { value: 'png', label: 'PNG', title: 'Un’immagine per dispositivo' },
+              { value: 'pdf', label: 'PDF', title: t('Un file, una pagina per dispositivo') },
+              { value: 'png', label: 'PNG', title: t('Un’immagine per dispositivo') },
             ]}
           />
         </div>
         <div>
-          <div className="mb-1.5 text-[13px] font-medium text-fg2">Dispositivi</div>
+          <div className="mb-1.5 text-[13px] font-medium text-fg2">{t('Dispositivi')}</div>
           <div className="space-y-2">
             {DEVICES.map((d) => (
               <span key={d} className="flex items-center gap-3 text-[14px]">

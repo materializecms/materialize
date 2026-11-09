@@ -8,18 +8,19 @@ import {
 } from '@materializecms/core/page'
 import { Moon, Plus, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { t } from '../lib/i18n.ts'
 import { NumField, Row, Section, Seg, Toggle } from './controls.tsx'
 import { FontPicker } from './FontPicker.tsx'
 
-const COLOR_LABELS: { key: keyof ThemeColors; label: string; hint: string }[] = [
-  { key: 'bg', label: 'Sfondo', hint: 'Lo sfondo delle pagine' },
-  { key: 'surface', label: 'Superficie', hint: 'Sezioni e schede in evidenza' },
-  { key: 'text', label: 'Testo', hint: 'Titoli e testi' },
-  { key: 'muted', label: 'Testo tenue', hint: 'Sottotitoli e didascalie' },
-  { key: 'accent', label: 'Accento', hint: 'Pulsanti principali e dettagli' },
-  { key: 'onAccent', label: 'Su accento', hint: 'Testo sopra il colore di accento' },
-  { key: 'inverse', label: 'Inverso', hint: 'Sezioni scure (o chiare, nel tema scuro)' },
-  { key: 'onInverse', label: 'Su inverso', hint: 'Testo sopra le sezioni inverse' },
+const colorLabels = (): { key: keyof ThemeColors; label: string; hint: string }[] => [
+  { key: 'bg', label: t('Sfondo'), hint: t('Lo sfondo delle pagine') },
+  { key: 'surface', label: t('Superficie'), hint: t('Sezioni e schede in evidenza') },
+  { key: 'text', label: t('Testo'), hint: t('Titoli e testi') },
+  { key: 'muted', label: t('Testo tenue'), hint: t('Sottotitoli e didascalie') },
+  { key: 'accent', label: t('Accento'), hint: t('Pulsanti principali e dettagli') },
+  { key: 'onAccent', label: t('Su accento'), hint: t('Testo sopra il colore di accento') },
+  { key: 'inverse', label: t('Inverso'), hint: t('Sezioni scure (o chiare, nel tema scuro)') },
+  { key: 'onInverse', label: t('Su inverso'), hint: t('Testo sopra le sezioni inverse') },
 ]
 
 /** The site's look, shared by every page: changes show on the canvas at once and are saved for the site. */
@@ -42,11 +43,11 @@ export function ThemePanel({
     <div className="min-h-0 flex-1 overflow-y-auto">
       <p className="border-b border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-fg2">
         {canEdit
-          ? 'Lo stile vale per tutto il sito: ogni pagina usa questi colori e caratteri.'
-          : 'Lo stile del sito lo cambia un amministratore.'}
+          ? t('Lo stile vale per tutto il sito: ogni pagina usa questi colori e caratteri.')
+          : t('Lo stile del sito lo cambia un amministratore.')}
       </p>
       <fieldset disabled={!canEdit} className="min-w-0 disabled:opacity-60">
-        <Section title="Tema">
+        <Section title={t('Tema')}>
           <Seg
             value={theme.mode}
             onChange={(mode) => set({ mode })}
@@ -55,7 +56,7 @@ export function ThemePanel({
                 value: 'light',
                 label: (
                   <>
-                    <Sun /> Chiaro
+                    <Sun /> {t('Chiaro')}
                   </>
                 ),
               },
@@ -63,16 +64,16 @@ export function ThemePanel({
                 value: 'dark',
                 label: (
                   <>
-                    <Moon /> Scuro
+                    <Moon /> {t('Scuro')}
                   </>
                 ),
               },
             ]}
           />
         </Section>
-        <Section title="Colori">
+        <Section title={t('Colori')}>
           <div className="grid grid-cols-2 gap-1.5">
-            {COLOR_LABELS.map((c) => (
+            {colorLabels().map((c) => (
               <div
                 key={c.key}
                 title={c.hint}
@@ -87,26 +88,30 @@ export function ThemePanel({
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-[12px] font-medium">{c.label}</span>
-                  <HexInput label={`${c.label}: codice`} value={colors[c.key]} onChange={(v) => setColor(c.key, v)} />
+                  <HexInput
+                    label={t('{name}: codice', { name: c.label })}
+                    value={colors[c.key]}
+                    onChange={(v) => setColor(c.key, v)}
+                  />
                 </span>
               </div>
             ))}
           </div>
         </Section>
         <Section
-          title="Colori personalizzati"
+          title={t('Colori personalizzati')}
           action={
             <button
               type="button"
-              title="Aggiungi un colore"
-              aria-label="Aggiungi un colore"
+              title={t('Aggiungi un colore')}
+              aria-label={t('Aggiungi un colore')}
               onClick={() =>
                 set({
                   swatches: [
                     ...swatches,
                     {
                       id: `sw-${Date.now().toString(36)}`,
-                      name: `Colore ${swatches.length + 1}`,
+                      name: t('Colore {n}', { n: swatches.length + 1 }),
                       light: '#7a8b6f',
                       dark: '#9fb08f',
                     },
@@ -121,8 +126,9 @@ export function ThemePanel({
         >
           {swatches.length === 0 && (
             <p className="text-[12px] leading-relaxed text-fg3">
-              Colori del marchio con un nome, da usare in ogni campo colore. Hanno una tinta per il tema chiaro e una
-              per quello scuro.
+              {t(
+                'Colori del marchio con un nome, da usare in ogni campo colore. Hanno una tinta per il tema chiaro e una per quello scuro.',
+              )}
             </p>
           )}
           {swatches.map((sw) => {
@@ -134,15 +140,15 @@ export function ThemePanel({
                   <input
                     key={m}
                     type="color"
-                    title={m === 'light' ? 'Nel tema chiaro' : 'Nel tema scuro'}
-                    aria-label={`${sw.name}: ${m === 'light' ? 'tema chiaro' : 'tema scuro'}`}
+                    title={m === 'light' ? t('Nel tema chiaro') : t('Nel tema scuro')}
+                    aria-label={`${sw.name}: ${m === 'light' ? t('tema chiaro') : t('tema scuro')}`}
                     value={sw[m]}
                     onChange={(e) => update({ [m]: e.target.value })}
                     className="size-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[5px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
                   />
                 ))}
                 <input
-                  aria-label="Nome del colore"
+                  aria-label={t('Nome del colore')}
                   defaultValue={sw.name}
                   onBlur={(e) => e.currentTarget.value.trim() && update({ name: e.currentTarget.value.trim() })}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -150,8 +156,8 @@ export function ThemePanel({
                 />
                 <button
                   type="button"
-                  title="Elimina il colore: gli elementi che lo usano tornano al colore del contenitore"
-                  aria-label={`Elimina ${sw.name}`}
+                  title={t('Elimina il colore: gli elementi che lo usano tornano al colore del contenitore')}
+                  aria-label={t('Elimina {name}', { name: sw.name })}
                   onClick={() => set({ swatches: swatches.filter((x) => x.id !== sw.id) })}
                   className="flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/sw:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100"
                 >
@@ -160,9 +166,13 @@ export function ThemePanel({
                 <div className="flex basis-full gap-3 pl-1">
                   {(['light', 'dark'] as const).map((m) => (
                     <span key={m} className="flex items-center gap-1 text-[11px] text-fg3">
-                      {m === 'light' ? 'Chiaro' : 'Scuro'}
+                      {m === 'light' ? t('Chiaro') : t('Scuro')}
                       <HexInput
-                        label={`${sw.name}: codice ${m === 'light' ? 'tema chiaro' : 'tema scuro'}`}
+                        label={
+                          m === 'light'
+                            ? t('{name}: codice tema chiaro', { name: sw.name })
+                            : t('{name}: codice tema scuro', { name: sw.name })
+                        }
                         value={sw[m]}
                         onChange={(v) => update({ [m]: v })}
                       />
@@ -173,29 +183,29 @@ export function ThemePanel({
             )
           })}
         </Section>
-        <Section title="Caratteri">
-          <Row label="Titoli">
+        <Section title={t('Caratteri')}>
+          <Row label={t('Titoli')}>
             <FontPicker
-              label="Carattere dei titoli"
+              label={t('Carattere dei titoli')}
               value={theme.display}
               onChange={(f) => set({ display: f.family, displayCategory: f.category })}
             />
           </Row>
-          <Row label="Testo">
+          <Row label={t('Testo')}>
             <FontPicker
-              label="Carattere del testo"
+              label={t('Carattere del testo')}
               value={theme.body}
               onChange={(f) => set({ body: f.family, bodyCategory: f.category })}
             />
           </Row>
-          <Row label="Scala" hint="Ingrandisce o riduce tutti i testi">
+          <Row label={t('Scala')} hint={t('Ingrandisce o riduce tutti i testi')}>
             <Seg
               value={theme.scale}
               onChange={(scale) => set({ scale })}
               options={[
-                { value: 0.9, label: 'S', title: 'Piccola' },
-                { value: 1, label: 'M', title: 'Normale' },
-                { value: 1.1, label: 'L', title: 'Grande' },
+                { value: 0.9, label: 'S', title: t('Piccola') },
+                { value: 1, label: 'M', title: t('Normale') },
+                { value: 1.1, label: 'L', title: t('Grande') },
               ]}
             />
           </Row>
@@ -222,27 +232,27 @@ export function ThemePanel({
             ))}
           </div>
         </Section>
-        <Section title="Forme">
-          <Row label="Pulsanti" hint="Raggio degli angoli dei pulsanti">
+        <Section title={t('Forme')}>
+          <Row label={t('Pulsanti')} hint={t('Raggio degli angoli dei pulsanti')}>
             <Seg
               value={theme.btnRadius >= 99 ? 999 : theme.btnRadius}
               onChange={(btnRadius) => set({ btnRadius })}
               options={[
-                { value: 0, label: 'Netti' },
-                { value: 8, label: 'Morbidi' },
-                { value: 999, label: 'Pillola' },
+                { value: 0, label: t('Netti') },
+                { value: 8, label: t('Morbidi') },
+                { value: 999, label: t('Pillola') },
               ]}
             />
           </Row>
-          <Row label="Schede" hint="Raggio degli angoli di immagini e schede">
+          <Row label={t('Schede')} hint={t('Raggio degli angoli di immagini e schede')}>
             <NumField value={theme.cardRadius} onChange={(v) => set({ cardRadius: v ?? 0 })} max={48} />
           </Row>
         </Section>
-        <Section title="Punti di rottura">
+        <Section title={t('Punti di rottura')}>
           <p className="text-[11.5px] leading-relaxed text-fg3">
-            Sotto queste larghezze il sito usa le modifiche fatte per tablet e per mobile.
+            {t('Sotto queste larghezze il sito usa le modifiche fatte per tablet e per mobile.')}
           </p>
-          <Row label="Tablet sotto">
+          <Row label={t('Tablet sotto')}>
             <NumField
               value={breakpointsOf(theme).tablet + 1}
               min={601}
@@ -250,7 +260,7 @@ export function ThemePanel({
               onChange={(v) => v && set({ breakpoints: { ...breakpointsOf(theme), tablet: v - 1 } })}
             />
           </Row>
-          <Row label="Mobile sotto">
+          <Row label={t('Mobile sotto')}>
             <NumField
               value={breakpointsOf(theme).mobile + 1}
               min={321}
@@ -259,43 +269,46 @@ export function ThemePanel({
             />
           </Row>
         </Section>
-        <Section title="Esperienza">
+        <Section title={t('Esperienza')}>
           <Toggle
-            label="Scorrimento morbido"
+            label={t('Scorrimento morbido')}
             checked={!!theme.smoothScroll}
             onChange={(smoothScroll) => set({ smoothScroll })}
           />
-          <Row label="Cursore">
+          <Row label={t('Cursore')}>
             <Seg
               value={theme.cursor ?? 'default'}
               onChange={(cursor) => set({ cursor })}
               options={[
-                { value: 'default', label: 'Normale' },
-                { value: 'dot', label: 'Punto' },
-                { value: 'ring', label: 'Anello' },
+                { value: 'default', label: t('Normale') },
+                { value: 'dot', label: t('Punto') },
+                { value: 'ring', label: t('Anello') },
               ]}
             />
           </Row>
-          <Row label="Tra le pagine" hint="Transizione quando si passa da una pagina all’altra">
+          <Row label={t('Tra le pagine')} hint={t('Transizione quando si passa da una pagina all’altra')}>
             <Seg
               value={theme.transition ?? 'none'}
               onChange={(transition) => set({ transition })}
               options={[
-                { value: 'none', label: 'Nessuna' },
-                { value: 'fade', label: 'Dissolvi' },
-                { value: 'slide', label: 'Scorri' },
+                { value: 'none', label: t('Nessuna') },
+                { value: 'fade', label: t('Dissolvi') },
+                { value: 'slide', label: t('Scorri') },
               ]}
             />
           </Row>
           <p className="text-[11.5px] leading-relaxed text-fg3">
-            Si vedono sul sito pubblicato. Chi ha chiesto meno movimento al proprio dispositivo non li riceve, e su
-            telefoni e tablet restano disattivati scorrimento morbido e cursore.
+            {t(
+              'Si vedono sul sito pubblicato. Chi ha chiesto meno movimento al proprio dispositivo non li riceve, e su telefoni e tablet restano disattivati scorrimento morbido e cursore.',
+            )}
           </p>
         </Section>
-        <Section title="Stili di testo">
+        <Section title={t('Stili di testo')}>
           {(theme.textStyles ?? []).length === 0 && (
             <p className="text-[12px] leading-relaxed text-fg3">
-              Nessuno stile ancora. Seleziona un testo e, nella sezione Testo, scegli “Crea uno stile da questo testo”.
+              {t(
+                'Nessuno stile ancora. Seleziona un testo e, nella sezione Testo, scegli “Crea uno stile da questo testo”.',
+              )}
             </p>
           )}
           {(theme.textStyles ?? []).map((ts) => {
@@ -310,7 +323,7 @@ export function ThemePanel({
                   Aa
                 </span>
                 <input
-                  aria-label="Nome dello stile"
+                  aria-label={t('Nome dello stile')}
                   defaultValue={ts.name}
                   onBlur={(e) => {
                     const name = e.currentTarget.value.trim()
@@ -322,8 +335,8 @@ export function ThemePanel({
                 />
                 <button
                   type="button"
-                  title="Elimina lo stile: i testi che lo usano tornano al proprio stile"
-                  aria-label={`Elimina lo stile ${ts.name}`}
+                  title={t('Elimina lo stile: i testi che lo usano tornano al proprio stile')}
+                  aria-label={t('Elimina lo stile {name}', { name: ts.name })}
                   onClick={() => set({ textStyles: (theme.textStyles ?? []).filter((x) => x.id !== ts.id) })}
                   className="flex size-6 items-center justify-center rounded text-fg3 opacity-0 group-hover/ts:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100"
                 >

@@ -48,6 +48,7 @@ import { localeName } from '../app/Sidebar.tsx'
 import { AiButton, CanvasTextMenu } from '../components/AiMenu.tsx'
 import { IconButton, Textarea } from '../components/ui.tsx'
 import { thumb } from '../lib/api.ts'
+import { t, tx } from '../lib/i18n.ts'
 import type { AlignHow } from './align.ts'
 import { typeLabel } from './Canvas.tsx'
 import { type ComponentActions, ComponentPanel } from './ComponentPanel.tsx'
@@ -86,23 +87,23 @@ export interface TextStyleActions {
   reset: () => void
 }
 
-const ALIGN: { how: AlignHow; label: string; icon: React.ReactNode }[] = [
-  { how: 'left', label: 'Allinea a sinistra · ⌥⌘A', icon: <AlignStartVertical /> },
-  { how: 'hcenter', label: 'Centra in orizzontale · ⌥⌘H', icon: <AlignCenterVertical /> },
-  { how: 'right', label: 'Allinea a destra · ⌥⌘D', icon: <AlignEndVertical /> },
-  { how: 'top', label: 'Allinea in alto · ⌥⌘W', icon: <AlignStartHorizontal /> },
-  { how: 'vcenter', label: 'Centra in verticale · ⌥⌘V', icon: <AlignCenterHorizontal /> },
-  { how: 'bottom', label: 'Allinea in basso · ⌥⌘S', icon: <AlignEndHorizontal /> },
-  { how: 'hdist', label: 'Distribuisci in orizzontale', icon: <AlignHorizontalSpaceAround /> },
-  { how: 'vdist', label: 'Distribuisci in verticale', icon: <AlignVerticalSpaceAround /> },
+const ALIGN = (): { how: AlignHow; label: string; icon: React.ReactNode }[] => [
+  { how: 'left', label: t('Allinea a sinistra · ⌥⌘A'), icon: <AlignStartVertical /> },
+  { how: 'hcenter', label: t('Centra in orizzontale · ⌥⌘H'), icon: <AlignCenterVertical /> },
+  { how: 'right', label: t('Allinea a destra · ⌥⌘D'), icon: <AlignEndVertical /> },
+  { how: 'top', label: t('Allinea in alto · ⌥⌘W'), icon: <AlignStartHorizontal /> },
+  { how: 'vcenter', label: t('Centra in verticale · ⌥⌘V'), icon: <AlignCenterHorizontal /> },
+  { how: 'bottom', label: t('Allinea in basso · ⌥⌘S'), icon: <AlignEndHorizontal /> },
+  { how: 'hdist', label: t('Distribuisci in orizzontale'), icon: <AlignHorizontalSpaceAround /> },
+  { how: 'vdist', label: t('Distribuisci in verticale'), icon: <AlignVerticalSpaceAround /> },
 ]
 
-const FILTER_OPS: { value: NonNullable<ListBinding['filter']>['op']; label: string }[] = [
-  { value: 'eq', label: 'è' },
-  { value: 'neq', label: 'non è' },
-  { value: 'contains', label: 'contiene' },
-  { value: 'gt', label: 'dopo / più di' },
-  { value: 'lt', label: 'prima / meno di' },
+const FILTER_OPS = (): { value: NonNullable<ListBinding['filter']>['op']; label: string }[] => [
+  { value: 'eq', label: t('è') },
+  { value: 'neq', label: t('non è') },
+  { value: 'contains', label: t('contiene') },
+  { value: 'gt', label: t('dopo / più di') },
+  { value: 'lt', label: t('prima / meno di') },
 ]
 
 export function Inspector({
@@ -209,7 +210,7 @@ export function Inspector({
   const LAYOUT: Key[] = ['layout', 'cols', 'gap', 'align', 'justify', 'wrap', 'size', 'minH']
   // On a section it sits with the layout, where it is looked for; elsewhere with the behaviour.
   const minHeight = (
-    <Row label="Altezza min." hint="In percentuale dell’altezza dello schermo">
+    <Row label={t('Altezza min.')} hint={t('In percentuale dell’altezza dello schermo')}>
       <Seg
         value={p.minH ?? 0}
         onChange={(v) => onProp('minH', v || null)}
@@ -236,58 +237,59 @@ export function Inspector({
         </span>
         <div className="min-w-0 flex-1">
           <input
-            aria-label="Nome del livello"
+            aria-label={t('Nome del livello')}
             value={node.name ?? ''}
             placeholder={typeLabel(node)}
             onChange={(e) => onContent({ name: e.target.value }, `name:${node.id}`)}
             className="h-6 w-full rounded border border-transparent bg-transparent px-1 text-[13px] font-semibold outline-none hover:border-line2 focus:border-accent"
           />
           <div className="px-1 text-[11.5px] text-fg3">
-            {isSec ? 'Sezione' : typeLabel(node)}
-            {device !== 'desktop' && ` · modifiche solo per ${device === 'tablet' ? 'tablet' : 'mobile'}`}
+            {isSec ? t('Sezione') : typeLabel(node)}
+            {device !== 'desktop' &&
+              (device === 'tablet' ? t(' · modifiche solo per tablet') : t(' · modifiche solo per mobile'))}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-0.5 border-b border-line px-2.5 py-1.5">
         {onSelectParent && (
-          <IconButton label="Seleziona il contenitore · Esc" onClick={onSelectParent}>
+          <IconButton label={t('Seleziona il contenitore · Esc')} onClick={onSelectParent}>
             <CornerLeftUp />
           </IconButton>
         )}
-        <IconButton label="Sposta su · ⌥↑" onClick={() => onMove(-1)}>
+        <IconButton label={t('Sposta su · ⌥↑')} onClick={() => onMove(-1)}>
           <ArrowUp />
         </IconButton>
-        <IconButton label="Sposta giù · ⌥↓" onClick={() => onMove(1)}>
+        <IconButton label={t('Sposta giù · ⌥↓')} onClick={() => onMove(1)}>
           <ArrowDown />
         </IconButton>
         <div className="flex-1" />
         {count > 1 && !isSec && (
-          <IconButton label="Raggruppa in un contenitore · ⌘G" onClick={onGroup}>
+          <IconButton label={t('Raggruppa in un contenitore · ⌘G')} onClick={onGroup}>
             <Group />
           </IconButton>
         )}
         {count === 1 && isF && !isSec && !node.component && !!node.children?.length && (
-          <IconButton label="Separa: gli elementi prendono il posto del contenitore · ⇧⌘G" onClick={onUngroup}>
+          <IconButton label={t('Separa: gli elementi prendono il posto del contenitore · ⇧⌘G')} onClick={onUngroup}>
             <Ungroup />
           </IconButton>
         )}
-        <IconButton label="Copia lo stile · ⌥⌘C" onClick={onCopyStyle}>
+        <IconButton label={t('Copia lo stile · ⌥⌘C')} onClick={onCopyStyle}>
           <Paintbrush />
         </IconButton>
-        <IconButton label="Incolla lo stile · ⌥⌘V" onClick={onPasteStyle}>
+        <IconButton label={t('Incolla lo stile · ⌥⌘V')} onClick={onPasteStyle}>
           <ClipboardPaste />
         </IconButton>
-        <IconButton label="Duplica · ⌘D" onClick={onDuplicate}>
+        <IconButton label={t('Duplica · ⌘D')} onClick={onDuplicate}>
           <Copy />
         </IconButton>
-        <IconButton label="Elimina · ⌫" onClick={onDelete} className="hover:text-danger">
+        <IconButton label={t('Elimina · ⌫')} onClick={onDelete} className="hover:text-danger">
           <Trash2 />
         </IconButton>
       </div>
 
       {!isSec && (
         <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5">
-          {ALIGN.map((a, i) => (
+          {ALIGN().map((a, i) => (
             <span key={a.how} className="contents">
               {i === 6 && <div className="mx-0.5 h-4 w-px bg-line" />}
               <IconButton label={a.label} onClick={() => onAlign(a.how)}>
@@ -299,8 +301,14 @@ export function Inspector({
       )}
       {count > 1 && (
         <p className="border-b border-line bg-accent/5 px-3.5 py-2 text-[12px] leading-relaxed text-fg2">
-          <strong className="font-semibold text-fg">{count} elementi selezionati.</strong> Le modifiche di stile valgono
-          per tutti; testi e immagini restano di ciascuno. ⇧ clic per aggiungere o togliere.
+          {tx(
+            '{selected} Le modifiche di stile valgono per tutti; testi e immagini restano di ciascuno. ⇧ clic per aggiungere o togliere.',
+            {
+              selected: (
+                <strong className="font-semibold text-fg">{t('{n} elementi selezionati.', { n: count })}</strong>
+              ),
+            },
+          )}
         </p>
       )}
 
@@ -308,11 +316,11 @@ export function Inspector({
 
       {isSec && (
         <div className="border-b border-line px-3.5 py-2.5">
-          <Row label="Ancora" hint="Per i link a questa sezione: #ancora">
+          <Row label={t('Ancora')} hint={t('Per i link a questa sezione: #ancora')}>
             <input
-              aria-label="Ancora della sezione"
+              aria-label={t('Ancora della sezione')}
               value={node.anchor ?? ''}
-              placeholder="es. progetti"
+              placeholder={t('es. progetti')}
               onChange={(e) =>
                 onContent(
                   { anchor: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') || null },
@@ -325,12 +333,15 @@ export function Inspector({
           {node.global ? (
             <div className="flex items-center gap-2 rounded-lg bg-accent/10 px-2.5 py-2 text-[12px] text-accent">
               <span className="min-w-0 flex-1">
-                Sezione globale: le modifiche valgono su tutte le pagine che la usano.
+                {t('Sezione globale: le modifiche valgono su tutte le pagine che la usano.')}
                 {locale !== schema.locales.default &&
-                  ` In ${localeName(locale).toLowerCase()} cambiano solo testi, link e immagini: struttura e stile si modificano nella lingua principale.`}
+                  t(
+                    ' In {lang} cambiano solo testi, link e immagini: struttura e stile si modificano nella lingua principale.',
+                    { lang: localeName(locale).toLowerCase() },
+                  )}
               </span>
               <button type="button" onClick={onUnlinkGlobal} className="shrink-0 font-medium underline">
-                Scollega
+                {t('Scollega')}
               </button>
             </div>
           ) : (
@@ -339,54 +350,55 @@ export function Inspector({
               onClick={onMakeGlobal}
               className="h-7 w-full rounded-md border border-line2 text-[12.5px] font-medium text-fg2 hover:bg-hover hover:text-fg"
             >
-              Rendi globale (es. menu e piè di pagina)
+              {t('Rendi globale (es. menu e piè di pagina)')}
             </button>
           )}
         </div>
       )}
 
       {boundFields && (
-        <Section title="Dato collegato">
-          <Row label="Mostra">
+        <Section title={t('Dato collegato')}>
+          <Row label={t('Mostra')}>
             <Select
-              label="Campo della raccolta"
+              label={t('Campo della raccolta')}
               value={node.field ?? ''}
               onChange={(v) => onContent({ field: v || null })}
-              options={[{ value: '', label: 'Contenuto fisso' }, ...boundFields]}
+              options={[{ value: '', label: t('Contenuto fisso') }, ...boundFields]}
             />
           </Row>
           <p className="text-[11.5px] leading-relaxed text-fg3">
-            Ogni copia dell’elenco mostra il valore della sua voce. Su un contenitore, “Indirizzo” lo rende un link alla
-            pagina.
+            {t(
+              'Ogni copia dell’elenco mostra il valore della sua voce. Su un contenitore, “Indirizzo” lo rende un link alla pagina.',
+            )}
           </p>
         </Section>
       )}
 
       {isF && !isSec && (
-        <Section title="Elenco dinamico">
-          <Row label="Raccolta">
+        <Section title={t('Elenco dinamico')}>
+          <Row label={t('Raccolta')}>
             <Select
-              label="Raccolta collegata"
+              label={t('Raccolta collegata')}
               value={node.bind?.collection ?? ''}
               onChange={(v) => onContent({ bind: v ? { collection: v, limit: node.bind?.limit ?? 6 } : null })}
-              options={[{ value: '', label: 'Nessuna' }, ...collections]}
+              options={[{ value: '', label: t('Nessuna') }, ...collections]}
             />
           </Row>
           {bind && (
             <>
-              <Row label={bind.more ? 'Voci per volta' : 'Quante voci'}>
+              <Row label={bind.more ? t('Voci per volta') : t('Quante voci')}>
                 <NumField value={bind.limit ?? 6} min={1} max={48} onChange={(v) => setBind({ limit: v ?? 6 })} />
               </Row>
-              <Row label="Ordina per">
+              <Row label={t('Ordina per')}>
                 <Select
-                  label="Ordina per"
+                  label={t('Ordina per')}
                   value={bind.sort?.field ?? ''}
                   onChange={(v) => setBind({ sort: v ? { field: v, dir: bind.sort?.dir ?? 'asc' } : null })}
-                  options={[{ value: '', label: 'Ordine della raccolta' }, ...collectionFields(bind.collection)]}
+                  options={[{ value: '', label: t('Ordine della raccolta') }, ...collectionFields(bind.collection)]}
                 />
               </Row>
               {bind.sort && (
-                <Row label="Verso">
+                <Row label={t('Verso')}>
                   <Seg
                     value={bind.sort.dir}
                     onChange={(dir) => bind.sort && setBind({ sort: { ...bind.sort, dir } })}
@@ -397,54 +409,55 @@ export function Inspector({
                   />
                 </Row>
               )}
-              <Row label="Filtra">
+              <Row label={t('Filtra')}>
                 <Select
-                  label="Campo del filtro"
+                  label={t('Campo del filtro')}
                   value={bind.filter?.field ?? ''}
                   onChange={(v) =>
                     setBind({
                       filter: v ? { field: v, op: bind.filter?.op ?? 'eq', value: bind.filter?.value ?? '' } : null,
                     })
                   }
-                  options={[{ value: '', label: 'Tutte le voci' }, ...collectionFields(bind.collection)]}
+                  options={[{ value: '', label: t('Tutte le voci') }, ...collectionFields(bind.collection)]}
                 />
               </Row>
               {bind.filter && (
                 <div className="mb-2 flex gap-1.5">
                   <Select
-                    label="Condizione"
+                    label={t('Condizione')}
                     value={bind.filter.op}
                     onChange={(op) => bind.filter && setBind({ filter: { ...bind.filter, op } })}
-                    options={FILTER_OPS}
+                    options={FILTER_OPS()}
                   />
                   <input
-                    aria-label="Valore del filtro"
+                    aria-label={t('Valore del filtro')}
                     value={bind.filter.value}
-                    placeholder="valore"
+                    placeholder={t('valore')}
                     onChange={(e) => bind.filter && setBind({ filter: { ...bind.filter, value: e.target.value } })}
                     className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
                   />
                 </div>
               )}
               <Toggle
-                label="Pulsante “Mostra altri” sotto l’elenco"
+                label={t('Pulsante “Mostra altri” sotto l’elenco')}
                 checked={!!bind.more}
                 onChange={(v) => setBind({ more: v || undefined })}
               />
               {bind.more && (
-                <Row label="Testo">
+                <Row label={t('Testo')}>
                   <input
-                    aria-label="Testo del pulsante"
+                    aria-label={t('Testo del pulsante')}
                     value={bind.moreLabel ?? ''}
-                    placeholder="Mostra altri"
+                    placeholder={t('Mostra altri')}
                     onChange={(e) => setBind({ moreLabel: e.target.value || undefined })}
                     className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
                   />
                 </Row>
               )}
               <p className="text-[11.5px] leading-relaxed text-fg3">
-                Il primo elemento interno si ripete per ogni voce: selezionane i testi e le immagini per scegliere quale
-                campo mostrano.
+                {t(
+                  'Il primo elemento interno si ripete per ogni voce: selezionane i testi e le immagini per scegliere quale campo mostrano.',
+                )}
               </p>
             </>
           )}
@@ -452,30 +465,31 @@ export function Inspector({
       )}
 
       {isT && node.langs ? (
-        <Section title="Lingue">
-          <Row label="Mostra">
+        <Section title={t('Lingue')}>
+          <Row label={t('Mostra')}>
             <Seg
               value={node.langs}
               onChange={(v) => onContent({ langs: v }, `langs:${node.id}`)}
               options={[
-                { value: 'code', label: 'Sigle · IT' },
-                { value: 'name', label: 'Nomi · Italiano' },
+                { value: 'code', label: t('Sigle · IT') },
+                { value: 'name', label: t('Nomi · Italiano') },
               ]}
             />
           </Row>
           <p className="text-[12px] leading-relaxed text-fg3">
-            Porta alla stessa pagina nelle altre lingue in cui è pubblicata. Le lingue si scelgono in Impostazioni →
-            Lingue.
+            {t(
+              'Porta alla stessa pagina nelle altre lingue in cui è pubblicata. Le lingue si scelgono in Impostazioni → Lingue.',
+            )}
           </p>
         </Section>
       ) : (
         (isT || isB) && (
           <Section
-            title="Contenuto"
+            title={t('Contenuto')}
             action={<CanvasTextMenu node={node} onResult={(patch) => onContent(patch, `ai:${node.id}`)} />}
           >
             <Textarea
-              aria-label="Testo"
+              aria-label={t('Testo')}
               value={isT ? plainText(node) : (node.text ?? '')}
               onChange={(e) =>
                 onContent(
@@ -485,13 +499,15 @@ export function Inspector({
               }
             />
             {isT && !!node.runs?.length && (
-              <p className="text-[11.5px] text-fg3">Grassetti e link si modificano sulla tela, con un doppio clic.</p>
+              <p className="text-[11.5px] text-fg3">
+                {t('Grassetti e link si modificano sulla tela, con un doppio clic.')}
+              </p>
             )}
             {isB && (
               <>
-                <Row label="Collegamento">
+                <Row label={t('Collegamento')}>
                   <input
-                    aria-label="Collegamento"
+                    aria-label={t('Collegamento')}
                     value={node.href ?? ''}
                     placeholder="/contatti"
                     onChange={(e) => onContent({ href: e.target.value }, `href:${node.id}`)}
@@ -499,12 +515,12 @@ export function Inspector({
                   />
                 </Row>
                 <Toggle
-                  label="Apri in una nuova scheda"
+                  label={t('Apri in una nuova scheda')}
                   checked={!!node.newTab}
                   onChange={(v) => onContent({ newTab: v || undefined })}
                 />
                 <Toggle
-                  label="Invia il modulo che lo contiene"
+                  label={t('Invia il modulo che lo contiene')}
                   checked={!!node.submit}
                   onChange={(v) => onContent({ submit: v || undefined })}
                 />
@@ -532,7 +548,7 @@ export function Inspector({
       )}
 
       {isI && (
-        <Section title="Immagine">
+        <Section title={t('Immagine')}>
           <button
             type="button"
             onClick={() => onPickImage('src')}
@@ -542,20 +558,20 @@ export function Inspector({
               <img src={thumb(node.src, 640)} alt="" className="size-full object-cover" />
             ) : (
               <span className="flex flex-col items-center gap-1 text-[12.5px]">
-                <ImagePlus className="size-5" /> Scegli un’immagine
+                <ImagePlus className="size-5" /> {t('Scegli un’immagine')}
               </span>
             )}
             {node.src && (
               <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-[12.5px] font-medium text-white opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
-                Cambia immagine
+                {t('Cambia immagine')}
               </span>
             )}
           </button>
           <div className="flex items-center gap-1">
             <input
-              aria-label="Testo alternativo"
+              aria-label={t('Testo alternativo')}
               value={node.alt ?? ''}
-              placeholder="Descrivi l’immagine a chi non la vede"
+              placeholder={t('Descrivi l’immagine a chi non la vede')}
               onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
               className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
             />
@@ -564,30 +580,30 @@ export function Inspector({
               src={node.src ?? undefined}
               text={node.alt ?? ''}
               label=""
-              title="Descrivi l’immagine con l’AI"
+              title={t('Descrivi l’immagine con l’AI')}
               onResult={(alt) => onContent({ alt }, `ai:${node.id}`)}
             />
           </div>
-          <Row label="Proporzioni">
+          <Row label={t('Proporzioni')}>
             <Select
-              label="Proporzioni"
+              label={t('Proporzioni')}
               value={p.ratio ?? '4/3'}
               options={RATIOS}
               onChange={(v) => onProp('ratio', v)}
             />
           </Row>
-          <Row label="Adatta">
+          <Row label={t('Adattamento')}>
             <Seg
               value={p.fit ?? 'cover'}
               onChange={(v) => onProp('fit', v)}
               options={[
-                { value: 'cover', label: 'Riempi' },
-                { value: 'contain', label: 'Intera' },
+                { value: 'cover', label: t('Riempi') },
+                { value: 'contain', label: t('Intera') },
               ]}
             />
           </Row>
           {node.src && (
-            <Row label="Punto focale" hint="Resta visibile quando l’immagine viene ritagliata">
+            <Row label={t('Punto focale')} hint={t('Resta visibile quando l’immagine viene ritagliata')}>
               <NumField
                 label="X"
                 unit="%"
@@ -608,9 +624,9 @@ export function Inspector({
       )}
 
       {isF && (
-        <Section title={isSec ? 'Sezione' : 'Disposizione'} {...sect(LAYOUT)}>
+        <Section title={isSec ? t('Sezione') : t('Disposizione')} {...sect(LAYOUT)}>
           {isSec && (
-            <Row label="Spazio">
+            <Row label={t('Spazio')}>
               <Seg
                 value={p.size ?? 'm'}
                 onChange={(v) => onProp('size', v)}
@@ -623,19 +639,19 @@ export function Inspector({
               />
             </Row>
           )}
-          <Row label="Direzione">
+          <Row label={t('Direzione')}>
             <Seg
               value={p.layout ?? 'col'}
               onChange={(v) => onProp('layout', v)}
               options={[
-                { value: 'col', label: <Rows3 />, title: 'In colonna' },
-                { value: 'row', label: <Columns3 />, title: 'In riga' },
-                { value: 'grid', label: <LayoutGrid />, title: 'Griglia' },
+                { value: 'col', label: <Rows3 />, title: t('In colonna') },
+                { value: 'row', label: <Columns3 />, title: t('In riga') },
+                { value: 'grid', label: <LayoutGrid />, title: t('Griglia') },
               ]}
             />
           </Row>
           {p.layout === 'grid' && (
-            <Row label="Colonne">
+            <Row label={t('Colonne')}>
               <Seg
                 value={p.cols ?? 3}
                 onChange={(v) => onProp('cols', v)}
@@ -643,7 +659,7 @@ export function Inspector({
               />
             </Row>
           )}
-          <Row label="Spazio interno" hint="Spazio tra gli elementi">
+          <Row label={t('Spazio interno')} hint={t('Spazio tra gli elementi')}>
             <LenField
               label="↔"
               value={p.gap ?? 16}
@@ -651,45 +667,52 @@ export function Inspector({
               max={240}
             />
           </Row>
-          <Row label="Allinea">
+          <Row label={t('Allinea')}>
             <Seg
               value={p.align ?? 'start'}
               onChange={(v) => onProp('align', v)}
               options={[
-                { value: 'start', label: 'Inizio' },
-                { value: 'center', label: 'Centro' },
-                { value: 'end', label: 'Fine' },
-                { value: 'stretch', label: 'Estendi' },
+                { value: 'start', label: t('Inizio') },
+                { value: 'center', label: t('Centro') },
+                { value: 'end', label: t('Fine') },
+                { value: 'stretch', label: t('Estendi') },
               ]}
             />
           </Row>
           {p.layout === 'row' && (
             <>
-              <Row label="Distribuisci">
+              <Row label={t('Distribuisci')}>
                 <Seg
                   value={p.justify ?? 'start'}
                   onChange={(v) => onProp('justify', v)}
                   options={[
-                    { value: 'start', label: 'Inizio' },
-                    { value: 'center', label: 'Centro' },
-                    { value: 'end', label: 'Fine' },
-                    { value: 'between', label: 'Tra' },
+                    { value: 'start', label: t('Inizio') },
+                    { value: 'center', label: t('Centro') },
+                    { value: 'end', label: t('Fine') },
+                    { value: 'between', label: t('Tra') },
                   ]}
                 />
               </Row>
-              <Toggle label="Vai a capo se non c’è spazio" checked={!!p.wrap} onChange={(v) => onProp('wrap', v)} />
+              <Toggle
+                label={t('Vai a capo se non c’è spazio')}
+                checked={!!p.wrap}
+                onChange={(v) => onProp('wrap', v)}
+              />
             </>
           )}
           {(p.layout ?? 'col') === 'col' && (
-            <Row label="In verticale" hint="Dove stanno gli elementi quando il contenitore è più alto di loro">
+            <Row
+              label={t('In verticale')}
+              hint={t('Dove stanno gli elementi quando il contenitore è più alto di loro')}
+            >
               <Seg
                 value={p.justify ?? 'start'}
                 onChange={(v) => onProp('justify', v)}
                 options={[
-                  { value: 'start', label: 'Alto' },
-                  { value: 'center', label: 'Centro' },
-                  { value: 'end', label: 'Basso' },
-                  { value: 'between', label: 'Tra' },
+                  { value: 'start', label: t('Alto') },
+                  { value: 'center', label: t('Centro') },
+                  { value: 'end', label: t('Basso') },
+                  { value: 'between', label: t('Tra') },
                 ]}
               />
             </Row>
@@ -699,20 +722,20 @@ export function Inspector({
       )}
 
       {!isSec && (
-        <Section title="Dimensioni" {...sect(SIZE)}>
-          <Row label="Larghezza">
+        <Section title={t('Dimensioni')} {...sect(SIZE)}>
+          <Row label={t('Larghezza')}>
             <Seg
               value={p.width ?? (isB ? 'hug' : 'fill')}
               onChange={(v) => onProp('width', v)}
               options={[
-                { value: 'fill', label: 'Riempi' },
-                { value: 'hug', label: 'Adatta' },
-                { value: 'fixed', label: 'Fissa' },
+                { value: 'fill', label: t('Riempi') },
+                { value: 'hug', label: t('Adatta') },
+                { value: 'fixed', label: t('Fissa') },
               ]}
             />
           </Row>
           {p.width === 'fixed' && (
-            <Row label="Fissa a">
+            <Row label={t('Fissa a')}>
               <LenField
                 label="L"
                 value={p.fixedW ?? 240}
@@ -720,16 +743,16 @@ export function Inspector({
               />
             </Row>
           )}
-          <Row label="Massima" hint="Larghezza massima">
+          <Row label={t('Massima')} hint={t('Larghezza massima')}>
             <LenField
               label="M"
               value={p.maxW ?? null}
-              placeholder="nessuna"
+              placeholder={t('nessuna')}
               onChange={(v) => onProp('maxW', v, `maxW:${node.id}`)}
             />
           </Row>
           {!isI && (
-            <Row label="Margine interno">
+            <Row label={t('Margine interno')}>
               <LenField
                 label="X"
                 value={p.padX ?? (isB ? 24 : 0)}
@@ -749,14 +772,17 @@ export function Inspector({
       )}
 
       {(isT || isB) && (
-        <Section title="Testo" {...sect(TYPE)}>
-          <Row label="Stile condiviso" hint="Uno stile del sito: cambiandolo, cambiano tutti i testi che lo usano">
+        <Section title={t('Testo')} {...sect(TYPE)}>
+          <Row
+            label={t('Stile condiviso')}
+            hint={t('Uno stile del sito: cambiandolo, cambiano tutti i testi che lo usano')}
+          >
             <Select
-              label="Stile condiviso"
+              label={t('Stile condiviso')}
               value={node.textStyle && linkedStyle ? node.textStyle : ''}
               onChange={(v) => textStyles.apply(v || null)}
               options={[
-                { value: '', label: 'Nessuno' },
+                { value: '', label: t('Nessuno') },
                 ...textStyles.list.map((s) => ({ value: s.id, label: s.name })),
               ]}
             />
@@ -772,15 +798,15 @@ export function Inspector({
             >
               <input
                 autoFocus
-                aria-label="Nome del nuovo stile"
+                aria-label={t('Nome del nuovo stile')}
                 value={naming}
-                placeholder="es. Titolo di sezione"
+                placeholder={t('es. Titolo di sezione')}
                 onChange={(e) => setNaming(e.target.value)}
                 onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
                 className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12.5px] outline-none"
               />
               <button type="submit" className="h-7 rounded-md bg-accent px-2.5 text-[12.5px] font-medium text-white">
-                Crea
+                {t('Crea')}
               </button>
             </form>
           ) : (
@@ -789,24 +815,24 @@ export function Inspector({
                 {linkedStyle && styleChanged && (
                   <>
                     <button type="button" onClick={textStyles.update} className="text-accent hover:underline">
-                      Aggiorna “{linkedStyle.name}” con queste modifiche
+                      {t('Aggiorna “{name}” con queste modifiche', { name: linkedStyle.name })}
                     </button>
                     <button type="button" onClick={textStyles.reset} className="text-fg2 hover:underline">
-                      Torna allo stile
+                      {t('Torna allo stile')}
                     </button>
                   </>
                 )}
                 {!linkedStyle && (
                   <button type="button" onClick={() => setNaming('')} className="text-accent hover:underline">
-                    Crea uno stile da questo testo
+                    {t('Crea uno stile da questo testo')}
                   </button>
                 )}
               </div>
             )
           )}
-          <Row label="Stile">
+          <Row label={t('Stile')}>
             <Select
-              label="Stile del testo"
+              label={t('Stile del testo')}
               value={p.style ?? (isB ? 'button' : 'body')}
               options={STYLE_OPTIONS}
               onChange={(v) => onProp('style', v)}
@@ -814,68 +840,68 @@ export function Inspector({
           </Row>
           {isT && (
             <>
-              <Row label="Tag" hint="Per Google e i lettori di schermo: l’aspetto resta quello dello stile">
+              <Row label="Tag" hint={t('Per Google e i lettori di schermo: l’aspetto resta quello dello stile')}>
                 <Select
-                  label="Elemento HTML"
+                  label={t('Elemento HTML')}
                   value={node.tag ?? ''}
                   onChange={(v) => onContent({ tag: (v || null) as NodeProps['tag'] })}
                   options={[
-                    { value: '', label: `Dallo stile (${textTag({ style: p.style }).toUpperCase()})` },
-                    { value: 'h1', label: 'H1 · titolo della pagina' },
-                    { value: 'h2', label: 'H2 · titolo di sezione' },
+                    { value: '', label: t('Dallo stile ({tag})', { tag: textTag({ style: p.style }).toUpperCase() }) },
+                    { value: 'h1', label: t('H1 · titolo della pagina') },
+                    { value: 'h2', label: t('H2 · titolo di sezione') },
                     { value: 'h3', label: 'H3' },
                     { value: 'h4', label: 'H4' },
-                    { value: 'p', label: 'Paragrafo (non un titolo)' },
+                    { value: 'p', label: t('Paragrafo (non un titolo)') },
                   ]}
                 />
               </Row>
-              <Row label="Collegamento">
+              <Row label={t('Collegamento')}>
                 <input
-                  aria-label="Collegamento del testo"
+                  aria-label={t('Collegamento del testo')}
                   value={node.href ?? ''}
-                  placeholder="nessuno, /pagina o #sezione"
+                  placeholder={t('nessuno, /pagina o #sezione')}
                   onChange={(e) => onContent({ href: e.target.value || undefined }, `href:${node.id}`)}
                   className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
                 />
               </Row>
-              <Row label="Colore">
+              <Row label={t('Colore')}>
                 <ColorField
                   value={p.color ?? 'text'}
                   palette={palette}
                   onChange={(v) => onProp('color', v ?? 'text')}
                 />
               </Row>
-              <Row label="Allineamento">
+              <Row label={t('Allineamento')}>
                 <Seg
                   value={p.talign ?? 'left'}
                   onChange={(v) => onProp('talign', v)}
                   options={[
-                    { value: 'left', label: <AlignLeft />, title: 'A sinistra' },
-                    { value: 'center', label: <AlignCenter />, title: 'Al centro' },
-                    { value: 'right', label: <AlignRight />, title: 'A destra' },
+                    { value: 'left', label: <AlignLeft />, title: t('Allinea a sinistra') },
+                    { value: 'center', label: <AlignCenter />, title: t('Al centro') },
+                    { value: 'right', label: <AlignRight />, title: t('Allinea a destra') },
                   ]}
                 />
               </Row>
             </>
           )}
-          <Row label="Peso">
+          <Row label={t('Peso')}>
             <Select
-              label="Peso del carattere"
+              label={t('Peso del carattere')}
               value={String(p.weight ?? '')}
               onChange={(v) => onProp('weight', v ? Number(v) : null)}
               options={[
-                { value: '', label: 'Dello stile' },
-                { value: '400', label: 'Normale' },
-                { value: '500', label: 'Medio' },
-                { value: '600', label: 'Semigrassetto' },
-                { value: '700', label: 'Grassetto' },
+                { value: '', label: t('Dello stile') },
+                { value: '400', label: t('Normale') },
+                { value: '500', label: t('Medio') },
+                { value: '600', label: t('Semigrassetto') },
+                { value: '700', label: t('Grassetto') },
               ]}
             />
           </Row>
-          <Row label="Dimensione">
+          <Row label={t('Dimensione')}>
             <LenField
               value={p.fontSize ?? null}
-              placeholder="dello stile"
+              placeholder={t('dello stile')}
               onChange={(v) => onProp('fontSize', v, `fontSize:${node.id}`)}
               min={8}
               max={200}
@@ -885,11 +911,11 @@ export function Inspector({
         </Section>
       )}
 
-      <Section title="Aspetto" {...sect(LOOK)}>
+      <Section title={t('Aspetto')} {...sect(LOOK)}>
         {isF && (
-          <Row label="Colori">
+          <Row label={t('Colori')}>
             <Select
-              label="Schema di colori"
+              label={t('Schema di colori')}
               value={p.scheme ?? 'default'}
               onChange={(v) =>
                 // A scheme brings its own background: a theme color set before would cancel it out.
@@ -899,31 +925,31 @@ export function Inspector({
                 })
               }
               options={[
-                { value: 'default', label: isSec ? 'Pagina' : 'Come il contenitore' },
-                { value: 'surface', label: 'Superficie' },
-                { value: 'inverse', label: 'Inverso' },
-                { value: 'accent', label: 'Accento' },
-                { value: 'dark', label: 'Scuro' },
+                { value: 'default', label: isSec ? t('Pagina') : t('Come il contenitore') },
+                { value: 'surface', label: t('Superficie') },
+                { value: 'inverse', label: t('Inverso') },
+                { value: 'accent', label: t('Accento') },
+                { value: 'dark', label: t('Scuro') },
               ]}
             />
           </Row>
         )}
         {isB && (
-          <Row label="Variante">
+          <Row label={t('Variante')}>
             <Seg
               value={p.variant ?? 'primary'}
               onChange={(v) => onProp('variant', v)}
               options={[
-                { value: 'primary', label: 'Principale' },
-                { value: 'secondary', label: 'Scura' },
-                { value: 'ghost', label: 'Bordo' },
+                { value: 'primary', label: t('Principale') },
+                { value: 'secondary', label: t('Scura') },
+                { value: 'ghost', label: t('Bordo') },
               ]}
             />
           </Row>
         )}
         {(isF || isT || node.type === 'embed') && <FillFields {...design} />}
         {isSec && (
-          <Row label="Foto di sfondo">
+          <Row label={t('Foto di sfondo')}>
             <button
               type="button"
               onClick={() => onPickImage('bgImage')}
@@ -934,10 +960,10 @@ export function Inspector({
               ) : (
                 <ImagePlus className="size-3.5 text-fg3" />
               )}
-              <span className="truncate">{node.bgImage?.src ? 'Cambia' : 'Aggiungi'}</span>
+              <span className="truncate">{node.bgImage?.src ? t('Cambia') : t('Aggiungi')}</span>
             </button>
             {node.bgImage?.src && (
-              <IconButton label="Togli la foto di sfondo" onClick={() => onContent({ bgImage: null })}>
+              <IconButton label={t('Togli la foto di sfondo')} onClick={() => onContent({ bgImage: null })}>
                 <X />
               </IconButton>
             )}
@@ -945,11 +971,11 @@ export function Inspector({
         )}
         {isSec && (node.bgImage?.src || node.scene) && (
           <Row
-            label="Oscura"
+            label={t('Oscura')}
             hint={
               node.bgImage?.src
-                ? 'Scurisce la foto perché il testo resti leggibile'
-                : 'Scurisce lo sfondo animato perché il testo resti leggibile'
+                ? t('Scurisce la foto perché il testo resti leggibile')
+                : t('Scurisce lo sfondo animato perché il testo resti leggibile')
             }
           >
             <input
@@ -960,36 +986,36 @@ export function Inspector({
               value={node.bgDim ?? (node.bgImage?.src ? 0.45 : 0)}
               onChange={(e) => onContent({ bgDim: Number(e.target.value) }, `dim:${node.id}`)}
               className="flex-1 accent-[var(--accent)]"
-              aria-label={node.bgImage?.src ? 'Oscura la foto' : 'Oscura lo sfondo animato'}
+              aria-label={node.bgImage?.src ? t('Oscura la foto') : t('Oscura lo sfondo animato')}
             />
           </Row>
         )}
         {!isSec && (
-          <Row label="Angoli">
+          <Row label={t('Angoli')}>
             <Select
-              label="Raggio degli angoli"
+              label={t('Raggio degli angoli')}
               value={String(p.radius ?? (isI ? 'card' : isB ? 'btn' : 0))}
               onChange={(v) => onProp('radius', v === 'btn' || v === 'card' ? v : Number(v))}
               options={[
-                { value: '0', label: 'Netti' },
+                { value: '0', label: t('Netti') },
                 { value: '4', label: '4 px' },
                 { value: '8', label: '8 px' },
                 { value: '16', label: '16 px' },
-                { value: 'card', label: 'Come le schede' },
-                { value: 'btn', label: 'Come i pulsanti' },
+                { value: 'card', label: t('Come le schede') },
+                { value: 'btn', label: t('Come i pulsanti') },
               ]}
             />
           </Row>
         )}
         {!isSec && (
-          <Row label="Ombra">
+          <Row label={t('Ombra')}>
             <Seg
               value={p.shadow ?? 'none'}
               onChange={(v) => onProp('shadow', v)}
               options={[
-                { value: 'none', label: 'Nessuna' },
-                { value: 'sm', label: 'Leggera' },
-                { value: 'lg', label: 'Forte' },
+                { value: 'none', label: t('Nessuna') },
+                { value: 'sm', label: t('Leggera') },
+                { value: 'lg', label: t('Forte') },
               ]}
             />
           </Row>
@@ -997,9 +1023,9 @@ export function Inspector({
         <div className="grid grid-cols-3 gap-1.5">
           {(
             [
-              ['border', 'Bordo'],
-              ['topline', 'Linea sopra'],
-              ['divider', 'Linea sotto'],
+              ['border', t('Bordo')],
+              ['topline', t('Linea sopra')],
+              ['divider', t('Linea sotto')],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -1018,17 +1044,17 @@ export function Inspector({
           ))}
         </div>
         {!isSec && (
-          <Row label="Al passaggio" hint="Effetto quando il mouse passa sopra">
+          <Row label={t('Al passaggio')} hint={t('Effetto quando il mouse passa sopra')}>
             <Select
-              label="Effetto al passaggio del mouse"
+              label={t('Effetto al passaggio del mouse')}
               value={p.hover ?? 'none'}
               onChange={(v) => onProp('hover', v)}
               options={[
-                { value: 'none', label: 'Nessuno' },
-                { value: 'lift', label: 'Si solleva' },
-                { value: 'grow', label: 'Si ingrandisce' },
-                { value: 'dim', label: 'Si attenua' },
-                { value: 'zoomimg', label: 'Zoom sull’immagine' },
+                { value: 'none', label: t('Nessuno') },
+                { value: 'lift', label: t('Si solleva') },
+                { value: 'grow', label: t('Si ingrandisce') },
+                { value: 'dim', label: t('Si attenua') },
+                { value: 'zoomimg', label: t('Zoom sull’immagine') },
               ]}
             />
           </Row>
@@ -1036,28 +1062,30 @@ export function Inspector({
       </Section>
 
       <Section
-        title="Entrata rapida"
+        title={t('Entrata rapida')}
         {...sect(MOTION)}
         action={
-          <IconButton label="Riproduci le animazioni" onClick={onPlay} className="size-6">
+          <IconButton label={t('Riproduci le animazioni')} onClick={onPlay} className="size-6">
             <Play />
           </IconButton>
         }
       >
         <p className="text-[11.5px] leading-relaxed text-fg3">
-          Un effetto pronto quando l’elemento compare. Per linee temporali, scroll e mouse usa Interazioni, qui sotto.
+          {t(
+            'Un effetto pronto quando l’elemento compare. Per linee temporali, scroll e mouse usa Interazioni, qui sotto.',
+          )}
         </p>
         {hasEntrance && p.anim && p.anim !== 'none' && (
           <div className="flex items-center gap-2 rounded-lg bg-warn/10 px-2.5 py-2 text-[12px] text-fg2">
             <span className="min-w-0 flex-1">
-              Si somma a un’interazione di entrata: i due effetti si sovrappongono.
+              {t('Si somma a un’interazione di entrata: i due effetti si sovrappongono.')}
             </span>
             <button
               type="button"
               onClick={() => onProp('anim', 'none')}
               className="shrink-0 font-medium text-accent underline"
             >
-              Tieni l’interazione
+              {t('Tieni l’interazione')}
             </button>
           </div>
         )}
@@ -1071,7 +1099,7 @@ export function Inspector({
         />
         {((p.anim && p.anim !== 'none') || p.stagger) && (
           <>
-            <Row label="Durata">
+            <Row label={t('Durata')}>
               <Seg
                 value={p.animDur ?? 'm'}
                 onChange={(v) => {
@@ -1079,13 +1107,13 @@ export function Inspector({
                   onPlay()
                 }}
                 options={[
-                  { value: 's', label: 'Rapida', title: '0,5 secondi' },
-                  { value: 'm', label: 'Media', title: '0,9 secondi' },
-                  { value: 'l', label: 'Lenta', title: '1,4 secondi' },
+                  { value: 's', label: t('Rapida'), title: t('0,5 secondi') },
+                  { value: 'm', label: t('Moderata'), title: t('0,9 secondi') },
+                  { value: 'l', label: t('Lenta'), title: t('1,4 secondi') },
                 ]}
               />
             </Row>
-            <Row label="Ritardo">
+            <Row label={t('Ritardo')}>
               <Seg
                 value={p.animDelay ?? 0}
                 onChange={(v) => {
@@ -1093,20 +1121,20 @@ export function Inspector({
                   onPlay()
                 }}
                 options={[
-                  { value: 0, label: '0', title: 'Nessun ritardo' },
-                  { value: 1, label: '.15', title: '0,15 secondi' },
-                  { value: 2, label: '.3', title: '0,3 secondi' },
-                  { value: 3, label: '.6', title: '0,6 secondi' },
+                  { value: 0, label: '0', title: t('Nessun ritardo') },
+                  { value: 1, label: '.15', title: t('0,15 secondi') },
+                  { value: 2, label: '.3', title: t('0,3 secondi') },
+                  { value: 3, label: '.6', title: t('0,6 secondi') },
                 ]}
               />
             </Row>
-            <Row label="Parte">
+            <Row label={t('Parte')}>
               <Seg
                 value={p.animTrig ?? 'load'}
                 onChange={(v) => onProp('animTrig', v)}
                 options={[
-                  { value: 'load', label: 'All’apertura' },
-                  { value: 'scroll', label: 'Scorrendo' },
+                  { value: 'load', label: t('All’apertura') },
+                  { value: 'scroll', label: t('Scorrendo') },
                 ]}
               />
             </Row>
@@ -1114,7 +1142,7 @@ export function Inspector({
         )}
         {isF && (
           <Toggle
-            label="Uno dopo l’altro, sugli elementi interni"
+            label={t('Uno dopo l’altro, sugli elementi interni')}
             checked={!!p.stagger}
             onChange={(v) => {
               onProps(v && (!p.anim || p.anim === 'none') ? { stagger: v, anim: 'up' } : { stagger: v })
@@ -1140,53 +1168,57 @@ export function Inspector({
       <PositionSection {...design} />
       <EffectsSection {...design} />
 
-      <Section title="Comportamento" {...sect(['sticky', 'stickyTop', 'minH'])}>
+      <Section title={t('Comportamento')} {...sect(['sticky', 'stickyTop', 'minH'])}>
         {!isSec && minHeight}
         {isSec && (
           <>
             <Toggle
-              label="Resta fisso in alto (menu)"
+              label={t('Resta fisso in alto (menu)')}
               checked={!!node.sticky}
               onChange={(v) => onContent({ sticky: v || undefined })}
             />
-            <Row label="Forma" hint="Per i menu: barra a tutta larghezza, sospesa, a isola centrale o trasparente">
+            <Row
+              label={t('Forma')}
+              hint={t('Per i menu: barra a tutta larghezza, sospesa, a isola centrale o trasparente')}
+            >
               <Select
-                label="Forma del menu"
+                label={t('Forma del menu')}
                 value={node.navShape ?? 'bar'}
                 onChange={(v) => onContent({ navShape: v === 'bar' ? null : (v as NodeProps['navShape']) })}
                 options={NAV_SHAPES.map((o) => ({ value: o.value, label: o.label }))}
               />
             </Row>
             <Toggle
-              label="Menu a scomparsa su mobile (☰)"
+              label={t('Menu a scomparsa su mobile (☰)')}
               checked={!!node.mobileMenu}
               onChange={(v) => onContent({ mobileMenu: v || undefined })}
             />
             {node.mobileMenu && (
               <p className="text-[11.5px] leading-relaxed text-fg3">
-                Su mobile gli elementi nascosti di questa sezione (per esempio i link) si aprono dal pulsante ☰.
+                {t('Su mobile gli elementi nascosti di questa sezione (per esempio i link) si aprono dal pulsante ☰.')}
               </p>
             )}
             {node.sticky && (
               <>
                 <Toggle
-                  label="Si nasconde scorrendo in giù"
+                  label={t('Si nasconde scorrendo in giù')}
                   checked={!!node.stickyHide}
                   onChange={(v) => onContent({ stickyHide: v || undefined })}
                 />
                 <Toggle
-                  label="Effetto vetro quando la pagina scorre"
+                  label={t('Effetto vetro quando la pagina scorre')}
                   checked={!!node.stickyGlass}
                   onChange={(v) => onContent({ stickyGlass: v || undefined })}
                 />
                 <Toggle
-                  label="Sopra la sezione successiva"
+                  label={t('Sopra la sezione successiva')}
                   checked={!!node.stickyOverlay}
                   onChange={(v) => onContent({ stickyOverlay: v || undefined })}
                 />
                 <p className="text-[11.5px] leading-relaxed text-fg3">
-                  Nascondi e vetro si vedono nell’anteprima e sul sito. Se la sezione è globale, il menu è fisso su
-                  tutte le pagine.
+                  {t(
+                    'Nascondi e vetro si vedono nell’anteprima e sul sito. Se la sezione è globale, il menu è fisso su tutte le pagine.',
+                  )}
                 </p>
               </>
             )}
@@ -1195,12 +1227,12 @@ export function Inspector({
         {!isSec && (
           <>
             <Toggle
-              label="Resta fermo mentre la pagina scorre"
+              label={t('Resta fermo mentre la pagina scorre')}
               checked={!!p.sticky}
               onChange={(v) => onProp('sticky', v || undefined)}
             />
             {p.sticky && (
-              <Row label="Distanza dall’alto">
+              <Row label={t('Distanza dall’alto')}>
                 <LenField
                   value={p.stickyTop ?? 24}
                   max={400}
@@ -1210,8 +1242,9 @@ export function Inspector({
             )}
             {p.sticky && (
               <p className="text-[11.5px] leading-relaxed text-fg3">
-                Resta fermo finché il suo contenitore è visibile: dai al contenitore un’altezza maggiore (per esempio
-                200%).
+                {t(
+                  'Resta fermo finché il suo contenitore è visibile: dai al contenitore un’altezza maggiore (per esempio 200%).',
+                )}
               </p>
             )}
           </>
@@ -1219,40 +1252,40 @@ export function Inspector({
         {isF && (
           <>
             <Toggle
-              label="Scorre all’infinito (nastro)"
+              label={t('Scorre all’infinito (nastro)')}
               checked={!!node.marquee}
               onChange={(v) => onContent({ marquee: v ? { duration: 30 } : null, ...(v ? {} : {}) })}
             />
             {node.marquee && (
               <>
-                <Row label="Velocità">
+                <Row label={t('Velocità')}>
                   <Seg
                     value={node.marquee.duration}
                     onChange={(duration) => onContent({ marquee: { ...node.marquee, duration } })}
                     options={[
-                      { value: 50, label: 'Lenta' },
-                      { value: 30, label: 'Media' },
-                      { value: 14, label: 'Veloce' },
+                      { value: 50, label: t('Lenta') },
+                      { value: 30, label: t('Moderata') },
+                      { value: 14, label: t('Veloce') },
                     ]}
                   />
                 </Row>
                 <Toggle
-                  label="Verso destra"
+                  label={t('Verso destra')}
                   checked={!!node.marquee.reverse}
                   onChange={(reverse) => onContent({ marquee: { duration: 30, ...node.marquee, reverse } })}
                 />
                 <Row
-                  label="Sfuma ai lati"
-                  hint="I contenuti compaiono e svaniscono gradualmente invece di essere tagliati"
+                  label={t('Sfuma ai lati')}
+                  hint={t('I contenuti compaiono e svaniscono gradualmente invece di essere tagliati')}
                 >
                   <Seg
                     value={node.marquee.fade ?? 0}
                     onChange={(fade) => onContent({ marquee: { duration: 30, ...node.marquee, fade } })}
                     options={[
                       { value: 0, label: 'No' },
-                      { value: 8, label: 'Poco' },
-                      { value: 15, label: 'Medio' },
-                      { value: 25, label: 'Molto' },
+                      { value: 8, label: t('Poco') },
+                      { value: 15, label: t('Medio') },
+                      { value: 25, label: t('Molto') },
                     ]}
                   />
                 </Row>
@@ -1262,7 +1295,7 @@ export function Inspector({
                     onClick={() => onProp('layout', 'row')}
                     className="text-left text-[12px] text-accent hover:underline"
                   >
-                    Il nastro funziona in riga: imposta la direzione in riga
+                    {t('Il nastro funziona in riga: imposta la direzione in riga')}
                   </button>
                 )}
               </>
@@ -1271,9 +1304,15 @@ export function Inspector({
         )}
       </Section>
 
-      <Section title="Visibilità" {...sect(['hidden'])}>
+      <Section title={t('Visibilità')} {...sect(['hidden'])}>
         <Toggle
-          label={device === 'desktop' ? 'Nascosto' : `Nascosto su ${device === 'tablet' ? 'tablet' : 'mobile'}`}
+          label={
+            device === 'desktop'
+              ? t('Nascosto')
+              : device === 'tablet'
+                ? t('Nascosto su tablet')
+                : t('Nascosto su mobile')
+          }
           checked={!!p.hidden}
           onChange={(v) => onProp('hidden', v)}
         />

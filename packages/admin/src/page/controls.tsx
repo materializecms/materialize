@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react'
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react'
 import { cx, Switch } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 
 /** A titled group of the inspector. */
 export function Section({
@@ -23,15 +24,15 @@ export function Section({
         <span className="flex items-center gap-1.5">
           {title}
           {overridden && (
-            <span title="Ha modifiche per questo dispositivo" className="size-1.5 rounded-full bg-accent" />
+            <span title={t('Ha modifiche per questo dispositivo')} className="size-1.5 rounded-full bg-accent" />
           )}
         </span>
         <span className="flex items-center gap-1">
           {overridden && onReset && (
             <button
               type="button"
-              title="Torna ai valori del desktop"
-              aria-label="Torna ai valori del desktop"
+              title={t('Torna ai valori del desktop')}
+              aria-label={t('Torna ai valori del desktop')}
               onClick={onReset}
               className="flex size-6 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg"
             >
@@ -239,15 +240,15 @@ export function Chips<T extends string>({
   )
 }
 
-const TOKENS: { value: string; label: string }[] = [
-  { value: 'text', label: 'Testo' },
-  { value: 'muted', label: 'Tenue' },
-  { value: 'accent', label: 'Accento' },
-  { value: 'bg', label: 'Sfondo' },
-  { value: 'surface', label: 'Superficie' },
-  { value: 'inverse', label: 'Inverso' },
-  { value: 'onAccent', label: 'Su accento' },
-  { value: 'onInverse', label: 'Su inverso' },
+const TOKENS = (): { value: string; label: string }[] => [
+  { value: 'text', label: t('Testo') },
+  { value: 'muted', label: t('Tenue') },
+  { value: 'accent', label: t('Accento') },
+  { value: 'bg', label: t('Sfondo') },
+  { value: 'surface', label: t('Superficie') },
+  { value: 'inverse', label: t('Inverso') },
+  { value: 'onAccent', label: t('Su accento') },
+  { value: 'onInverse', label: t('Su inverso') },
 ]
 
 /** The theme's named colors ("Verde salvia"), offered next to the built-in ones in every color field. */
@@ -267,7 +268,7 @@ export function ColorField({
   none?: string
 }) {
   const named = useContext(SwatchesContext)
-  const tokens = [...TOKENS, ...named]
+  const tokens = [...TOKENS(), ...named]
   const custom = !!value && !palette[value]
   const shown = value ? (palette[value] ?? value) : 'transparent'
   return (
@@ -285,23 +286,23 @@ export function ColorField({
           )}
         />
       )}
-      {tokens.map((t) => (
+      {tokens.map((tok) => (
         <button
-          key={t.value}
+          key={tok.value}
           type="button"
-          title={t.label}
-          aria-label={t.label}
-          aria-pressed={value === t.value}
-          onClick={() => onChange(t.value)}
-          style={{ background: palette[t.value] }}
+          title={tok.label}
+          aria-label={tok.label}
+          aria-pressed={value === tok.value}
+          onClick={() => onChange(tok.value)}
+          style={{ background: palette[tok.value] }}
           className={cx(
             'size-6 rounded-md border border-black/15',
-            value === t.value && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
+            value === tok.value && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
           )}
         />
       ))}
       <label
-        title="Colore libero"
+        title={t('Colore libero')}
         className={cx(
           'relative size-6 cursor-pointer overflow-hidden rounded-md border border-black/15 bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]',
           custom && 'ring-2 ring-accent ring-offset-1 ring-offset-panel',
@@ -309,7 +310,7 @@ export function ColorField({
       >
         <input
           type="color"
-          aria-label="Colore libero"
+          aria-label={t('Colore libero')}
           value={/^#[0-9a-f]{6}$/i.test(shown) ? shown : '#000000'}
           onChange={(e) => onChange(e.target.value)}
           className="absolute inset-0 cursor-pointer opacity-0"
@@ -319,7 +320,7 @@ export function ColorField({
       {/* The chosen theme color by name: the swatches alone do not say it. */}
       {!custom && (
         <span className="w-full text-[11px] text-fg3">
-          {value ? (tokens.find((t) => t.value === value)?.label ?? value) : (none ?? '')}
+          {value ? (tokens.find((tok) => tok.value === value)?.label ?? value) : (none ?? '')}
         </span>
       )}
     </div>
@@ -372,8 +373,8 @@ export function LenField({
       placeholder={placeholder}
       suffix={
         <select
-          aria-label="Unità di misura"
-          title="Unità di misura"
+          aria-label={t('Unità di misura')}
+          title={t('Unità di misura')}
           value={unit}
           onChange={(e) => {
             setUnit(e.target.value)

@@ -3,6 +3,8 @@
  * the admin). A chosen icon is saved in the page as its SVG, so the site never loads a library.
  */
 
+import { t } from '../lib/i18n.ts'
+
 interface IconifyJson {
   prefix: string
   width?: number
@@ -22,53 +24,70 @@ export interface IconSet {
   load: () => Promise<{ default: IconifyJson }>
 }
 
+// Texts for people are getters: read in the panel's language when drawn, while each set stays the same object.
 export const ICON_SETS: IconSet[] = [
   {
     id: 'lucide',
     label: 'Lucide',
-    hint: 'Linee pulite, ~1.900 icone',
+    get hint() {
+      return t('Linee pulite, ~1.900 icone')
+    },
     line: true,
     load: () => import('@iconify-json/lucide/icons.json'),
   },
   {
     id: 'ph',
     label: 'Phosphor',
-    hint: '~1.500 icone in sei pesi',
+    get hint() {
+      return t('~1.500 icone in sei pesi')
+    },
     line: false,
-    styles: [
-      { value: '', label: 'Normale' },
-      { value: '-thin', label: 'Sottile' },
-      { value: '-light', label: 'Leggero' },
-      { value: '-bold', label: 'Grassetto' },
-      { value: '-fill', label: 'Pieno' },
-      { value: '-duotone', label: 'Due toni' },
-    ],
+    get styles() {
+      return [
+        { value: '', label: t('Normale') },
+        { value: '-thin', label: t('Sottile') },
+        { value: '-light', label: t('Leggero') },
+        { value: '-bold', label: t('Grassetto') },
+        { value: '-fill', label: t('Pieno') },
+        { value: '-duotone', label: t('Due toni') },
+      ]
+    },
     load: () => import('@iconify-json/ph/icons.json'),
   },
   {
     id: 'tabler',
     label: 'Tabler',
-    hint: 'La più vasta a linee, ~6.000',
+    get hint() {
+      return t('La più vasta a linee, ~6.000')
+    },
     line: true,
     load: () => import('@iconify-json/tabler/icons.json'),
   },
   {
     id: 'material-symbols',
     label: 'Material',
-    hint: 'Lo standard di Google',
+    get hint() {
+      return t('Lo standard di Google')
+    },
     line: false,
-    styles: [
-      { value: '', label: 'Pieno' },
-      { value: '-outline', label: 'Contorno' },
-      { value: '-rounded', label: 'Arrotondato' },
-      { value: '-sharp', label: 'Squadrato' },
-    ],
+    get styles() {
+      return [
+        { value: '', label: t('Pieno') },
+        { value: '-outline', label: t('Contorno') },
+        { value: '-rounded', label: t('Arrotondato') },
+        { value: '-sharp', label: t('Squadrato') },
+      ]
+    },
     load: () => import('@iconify-json/material-symbols/icons.json'),
   },
   {
     id: 'simple-icons',
-    label: 'Marchi',
-    hint: '~3.700 loghi: Instagram, Stripe, Figma…',
+    get label() {
+      return t('Marchi')
+    },
+    get hint() {
+      return t('~3.700 loghi: Instagram, Stripe, Figma…')
+    },
     line: false,
     load: () => import('@iconify-json/simple-icons/icons.json'),
   },

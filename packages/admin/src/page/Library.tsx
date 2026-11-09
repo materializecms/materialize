@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Kbd } from '../components/ui.tsx'
+import { t, tn } from '../lib/i18n.ts'
 import { DRAG_ELEMENT, DRAG_SECTION } from './Canvas.tsx'
 
 export type ElementKind =
@@ -31,17 +32,17 @@ export type ElementKind =
   | 'input'
   | 'langs'
 
-const ELEMENTS: { kind: ElementKind; label: string; key: string; icon: React.ReactNode }[] = [
-  { kind: 'frame', label: 'Contenitore', key: 'F', icon: <Rows3 /> },
-  { kind: 'text', label: 'Testo', key: 'T', icon: <Type /> },
-  { kind: 'image', label: 'Immagine', key: 'I', icon: <ImageIcon /> },
-  { kind: 'button', label: 'Pulsante', key: 'B', icon: <MousePointerClick /> },
+const elements = (): { kind: ElementKind; label: string; key: string; icon: React.ReactNode }[] => [
+  { kind: 'frame', label: t('Contenitore'), key: 'F', icon: <Rows3 /> },
+  { kind: 'text', label: t('Testo'), key: 'T', icon: <Type /> },
+  { kind: 'image', label: t('Immagine'), key: 'I', icon: <ImageIcon /> },
+  { kind: 'button', label: t('Pulsante'), key: 'B', icon: <MousePointerClick /> },
   { kind: 'video', label: 'Video', key: 'V', icon: <Video /> },
-  { kind: 'embed', label: 'Codice', key: 'C', icon: <Code /> },
+  { kind: 'embed', label: t('Codice'), key: 'C', icon: <Code /> },
   { kind: 'scene', label: 'WebGL', key: 'G', icon: <Sparkles /> },
-  { kind: 'icon', label: 'Icona', key: 'O', icon: <Shapes /> },
-  { kind: 'input', label: 'Campo', key: 'K', icon: <TextCursorInput /> },
-  { kind: 'langs', label: 'Lingue', key: 'L', icon: <Languages /> },
+  { kind: 'icon', label: t('Icona'), key: 'O', icon: <Shapes /> },
+  { kind: 'input', label: t('Campo'), key: 'K', icon: <TextCursorInput /> },
+  { kind: 'langs', label: t('Lingue'), key: 'L', icon: <Languages /> },
 ]
 
 const TILE_W = 1280
@@ -83,8 +84,8 @@ export function Library({
   const [cat, setCat] = useState('all')
   const [query, setQuery] = useState('')
   // Without accents and across every category: "pie" finds "Piè", a search ignores the chosen chip.
-  const fold = (t: string) =>
-    t
+  const fold = (s: string) =>
+    s
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
@@ -113,7 +114,7 @@ export function Library({
     () =>
       Object.entries(globals).map(([id, node]) => ({
         id,
-        label: node.name || 'Sezione globale',
+        label: node.name || t('Sezione globale'),
         ...renderSections([node], theme, { animations: 'none', base: false }),
       })),
     [globals, theme],
@@ -128,7 +129,7 @@ export function Library({
           {
             id: c.id,
             name: c.name,
-            label: `${c.name} · ${c.variants.length === 1 ? '1 variante' : `${c.variants.length} varianti`}`,
+            label: `${c.name} · ${tn(c.variants.length, '1 variante', '{n} varianti')}`,
             ...out,
           },
         ]
@@ -148,7 +149,7 @@ export function Library({
       <div className="space-y-3 border-b border-line p-3">
         {/* Elements as a compact row of icons: the sections below get the room. */}
         <div className="grid grid-cols-5 gap-1">
-          {ELEMENTS.map((e) => (
+          {elements().map((e) => (
             <button
               key={e.kind}
               type="button"
@@ -159,7 +160,7 @@ export function Library({
                 ev.dataTransfer.effectAllowed = 'copy'
               }}
               onClick={() => onAddElement(e.kind)}
-              aria-label={`Aggiungi ${e.label}`}
+              aria-label={t('Aggiungi {name}', { name: e.label })}
               className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-line bg-panel text-[10.5px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
             >
               {e.icon}
@@ -172,14 +173,14 @@ export function Library({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca sezioni"
-            aria-label="Cerca sezioni"
+            placeholder={t('Cerca sezioni')}
+            aria-label={t('Cerca sezioni')}
             className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
           />
         </div>
         {/* One scrolling row of categories instead of seven wrapped lines. */}
         <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:thin]">
-          {[{ key: 'all', label: 'Tutte' }, ...LIBRARY].map((c) => (
+          {[{ key: 'all', label: t('Tutte') }, ...LIBRARY].map((c) => (
             <button
               key={c.key}
               type="button"
@@ -201,8 +202,8 @@ export function Library({
         {componentPreviews.length > 0 && !q && cat === 'all' && (
           <section>
             <h3 className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
-              Componenti
-              <span className="font-normal text-fg3">riutilizzabili, con varianti</span>
+              {t('Componenti')}
+              <span className="font-normal text-fg3">{t('riutilizzabili, con varianti')}</span>
             </h3>
             <div className="space-y-2.5">
               {componentPreviews.map((g) => (
@@ -216,10 +217,16 @@ export function Library({
                   />
                   <button
                     type="button"
-                    title="Togli dalla libreria"
-                    aria-label={`Togli “${g.name}” dalla libreria`}
+                    title={t('Togli dalla libreria')}
+                    aria-label={t('Togli “{name}” dalla libreria', { name: g.name })}
                     onClick={() => {
-                      if (confirm(`Togliere “${g.name}” dalla libreria? Le copie già nelle pagine restano com’erano.`))
+                      if (
+                        confirm(
+                          t('Togliere “{name}” dalla libreria? Le copie già nelle pagine restano com’erano.', {
+                            name: g.name,
+                          }),
+                        )
+                      )
                         onRemoveComponent(g.id)
                     }}
                     className="absolute right-1.5 bottom-1 flex size-6 items-center justify-center rounded-md text-fg3 opacity-0 group-hover/c:opacity-100 hover:bg-hover hover:text-danger focus:opacity-100 [&_svg]:size-3.5"
@@ -234,19 +241,21 @@ export function Library({
         {globalPreviews.length > 0 && !q && cat === 'all' && (
           <section>
             <h3 className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
-              Sezioni globali
-              <span className="font-normal text-fg3">condivise da tutte le pagine</span>
+              {t('Sezioni globali')}
+              <span className="font-normal text-fg3">{t('condivise da tutte le pagine')}</span>
             </h3>
             <div className="space-y-2.5">
               {globalPreviews.map((g) => {
                 const pages = globalUsage[g.id] ?? []
                 const used = pages.length > 0 || usedHere.has(g.id)
-                const where = usedHere.has(g.id) ? 'in questa pagina' : `in ${pages.map((t) => `“${t}”`).join(', ')}`
+                const where = usedHere.has(g.id)
+                  ? t('in questa pagina')
+                  : t('in {pages}', { pages: pages.map((p) => `“${p}”`).join(', ') })
                 return (
                   <div key={g.id} className="group/c relative">
                     <Tile
                       id={`global:${g.id}`}
-                      label={`${g.label} · ${used ? (pages.length > 1 ? `${pages.length} pagine` : 'in uso') : 'non usata'}`}
+                      label={`${g.label} · ${used ? (pages.length > 1 ? t('{n} pagine', { n: pages.length }) : t('in uso')) : t('non usata')}`}
                       html={g.html}
                       root={pageRootStyle(theme)}
                       onAdd={() => onAddGlobal(g.id)}
@@ -254,10 +263,10 @@ export function Library({
                     <div className="absolute right-1.5 bottom-1 flex gap-0.5 opacity-0 group-hover/c:opacity-100 focus-within:opacity-100">
                       <button
                         type="button"
-                        title="Rinomina"
-                        aria-label={`Rinomina “${g.label}”`}
+                        title={t('Rinomina')}
+                        aria-label={t('Rinomina “{name}”', { name: g.label })}
                         onClick={() => {
-                          const name = prompt('Nome della sezione globale', g.label)?.trim()
+                          const name = prompt(t('Nome della sezione globale'), g.label)?.trim()
                           if (name && name !== g.label) onRenameGlobal(g.id, name)
                         }}
                         className="flex size-6 items-center justify-center rounded-md text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
@@ -266,11 +275,16 @@ export function Library({
                       </button>
                       <button
                         type="button"
-                        title={used ? `Usata ${where}: toglila prima dalle pagine` : 'Elimina la sezione globale'}
-                        aria-label={`Elimina “${g.label}”`}
+                        title={
+                          used
+                            ? t('Usata {where}: toglila prima dalle pagine', { where })
+                            : t('Elimina la sezione globale')
+                        }
+                        aria-label={t('Elimina “{name}”', { name: g.label })}
                         disabled={used}
                         onClick={() => {
-                          if (confirm(`Eliminare “${g.label}”? Nessuna pagina la usa.`)) onRemoveGlobal(g.id)
+                          if (confirm(t('Eliminare “{name}”? Nessuna pagina la usa.', { name: g.label })))
+                            onRemoveGlobal(g.id)
                         }}
                         className="flex size-6 items-center justify-center rounded-md text-fg3 hover:bg-hover hover:text-danger disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-fg3 [&_svg]:size-3.5"
                       >
@@ -303,9 +317,11 @@ export function Library({
             </div>
           </section>
         ))}
-        {!groups.length && <p className="py-8 text-center text-[13px] text-fg3">Nessuna sezione per “{query}”.</p>}
+        {!groups.length && (
+          <p className="py-8 text-center text-[13px] text-fg3">{t('Nessuna sezione per “{query}”.', { query })}</p>
+        )}
         <p className="flex items-center justify-center gap-1.5 pt-2 text-[12px] text-fg3">
-          Scorciatoie: <Kbd>F</Kbd> <Kbd>T</Kbd> <Kbd>I</Kbd> <Kbd>B</Kbd>
+          {t('Scorciatoie:')} <Kbd>F</Kbd> <Kbd>T</Kbd> <Kbd>I</Kbd> <Kbd>B</Kbd>
         </p>
       </div>
     </div>
@@ -382,7 +398,7 @@ const Tile = memo(function Tile({
         )}
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent/0 opacity-0 transition group-hover:bg-accent/10 group-hover:opacity-100">
           <span className="rounded-full bg-accent px-3 py-1 text-[12.5px] font-medium text-white shadow-sm">
-            Aggiungi
+            {t('Aggiungi')}
           </span>
         </span>
       </div>
@@ -391,8 +407,8 @@ const Tile = memo(function Tile({
       </div>
       <button
         type="button"
-        title={`Aggiungi “${label}”: clicca o trascina sulla pagina`}
-        aria-label={`Aggiungi “${label}”`}
+        title={t('Aggiungi “{name}”: clicca o trascina sulla pagina', { name: label })}
+        aria-label={t('Aggiungi “{name}”', { name: label })}
         draggable
         onDragStart={(e) => {
           e.dataTransfer.setData(DRAG_SECTION, id)

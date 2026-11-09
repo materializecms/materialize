@@ -1,6 +1,7 @@
 import { type Component, type PageNode, plainText } from '@materializecms/core/page'
 import { Component as ComponentIcon, Eye, EyeOff, ImagePlus, Plus, RotateCcw, Unlink } from 'lucide-react'
 import { useState } from 'react'
+import { t, tn } from '../lib/i18n.ts'
 import { Row, Section, Select } from './controls.tsx'
 
 export interface ComponentActions {
@@ -57,7 +58,7 @@ export function ComponentPanel({
         <div className="border-b border-line px-3.5 py-2.5">
           <p className="flex items-start gap-2 rounded-lg bg-[#8b5cf6]/10 px-2.5 py-2 text-[12px] leading-relaxed text-[#8b5cf6]">
             <ComponentIcon className="mt-0.5 size-3.5 shrink-0" />
-            Fa parte di un componente: testi, immagini e link valgono solo qui, il design per tutte le copie.
+            {t('Fa parte di un componente: testi, immagini e link valgono solo qui, il design per tutte le copie.')}
           </p>
         </div>
       )
@@ -65,7 +66,7 @@ export function ComponentPanel({
     return (
       <div className="border-b border-line px-3.5 py-2.5">
         <button type="button" className={`${btn} w-full`} onClick={() => actions.make(node.id)}>
-          <ComponentIcon /> Crea componente riutilizzabile
+          <ComponentIcon /> {t('Crea componente riutilizzabile')}
         </button>
       </div>
     )
@@ -74,25 +75,25 @@ export function ComponentPanel({
   const variant = def.variants.find((v) => v.id === node.componentVariant) ?? def.variants[0]
   const own = Object.keys(node.overrides ?? {}).length
   return (
-    <Section title="Componente">
+    <Section title={t('Componente')}>
       <input
-        aria-label="Nome del componente"
+        aria-label={t('Nome del componente')}
         value={def.name}
         onChange={(e) => actions.rename(def.id, e.target.value)}
         className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[13px] font-medium outline-none focus:border-accent"
       />
-      <Row label="Variante">
+      <Row label={t('Variante')}>
         <Select
-          label="Variante"
+          label={t('Variante')}
           value={variant?.id ?? ''}
           options={def.variants.map((v) => ({ value: v.id, label: v.name }))}
           onChange={(v) => actions.setVariant(node.id, v)}
         />
       </Row>
       {variant && (
-        <Row label="Nome variante">
+        <Row label={t('Nome variante')}>
           <input
-            aria-label="Nome della variante"
+            aria-label={t('Nome della variante')}
             value={variant.name}
             onChange={(e) => actions.renameVariant(def.id, variant.id, e.target.value)}
             className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
@@ -103,9 +104,9 @@ export function ComponentPanel({
         <button
           type="button"
           className={`${btn} w-full`}
-          onClick={() => setNaming(`Variante ${def.variants.length + 1}`)}
+          onClick={() => setNaming(t('Variante {n}', { n: def.variants.length + 1 }))}
         >
-          <Plus /> Aggiungi variante
+          <Plus /> {t('Aggiungi variante')}
         </button>
       ) : (
         <form
@@ -118,24 +119,24 @@ export function ComponentPanel({
         >
           <input
             autoFocus
-            aria-label="Nome della nuova variante"
+            aria-label={t('Nome della nuova variante')}
             value={naming}
             onChange={(e) => setNaming(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && setNaming(null)}
             className="h-7 min-w-0 flex-1 rounded-md border border-accent bg-input px-2 text-[12.5px] outline-none"
           />
           <button type="submit" className={btn}>
-            Crea
+            {t('Crea')}
           </button>
         </form>
       )}
       {def.variants.length > 1 && (
-        <Row label="Al passaggio" hint="La copia prende i colori di un’altra variante sotto il puntatore">
+        <Row label={t('Al passaggio')} hint={t('La copia prende i colori di un’altra variante sotto il puntatore')}>
           <Select
-            label="Variante al passaggio del mouse"
+            label={t('Variante al passaggio del mouse')}
             value={node.hoverVariant ?? ''}
             options={[
-              { value: '', label: 'Nessuna' },
+              { value: '', label: t('Nessuna') },
               ...def.variants.filter((v) => v.id !== variant?.id).map((v) => ({ value: v.id, label: v.name })),
             ]}
             onChange={(v) => actions.setHoverVariant(node.id, v || null)}
@@ -143,13 +144,15 @@ export function ComponentPanel({
         </Row>
       )}
       <div className="space-y-1.5 rounded-lg border border-line p-2">
-        <div className="text-[11.5px] font-medium text-fg2">Proprietà di questa copia</div>
+        <div className="text-[11.5px] font-medium text-fg2">{t('Proprietà di questa copia')}</div>
         {properties(node).map((c) => (
           <div key={c.id} className="flex items-center gap-1.5">
             <button
               type="button"
-              title={c.hidden ? 'Mostra in questa copia' : 'Nascondi in questa copia'}
-              aria-label={c.hidden ? `Mostra ${c.name ?? ''}` : `Nascondi ${c.name ?? ''}`}
+              title={c.hidden ? t('Mostra in questa copia') : t('Nascondi in questa copia')}
+              aria-label={
+                c.hidden ? t('Mostra {name}', { name: c.name ?? '' }) : t('Nascondi {name}', { name: c.name ?? '' })
+              }
               onClick={() => actions.setChild(c.id, { hidden: !c.hidden })}
               className="flex size-6 shrink-0 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
             >
@@ -157,7 +160,7 @@ export function ComponentPanel({
             </button>
             {c.type === 'text' || c.type === 'button' ? (
               <input
-                aria-label={c.name || 'Testo'}
+                aria-label={c.name || t('Testo')}
                 title={c.name}
                 value={c.type === 'text' ? plainText(c) : (c.text ?? '')}
                 onChange={(e) => actions.setChild(c.id, { text: e.target.value, runs: null })}
@@ -170,22 +173,28 @@ export function ComponentPanel({
                 className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-line2 px-2 text-left text-[12.5px] text-fg2 hover:text-fg [&_svg]:size-3.5"
               >
                 <ImagePlus className="shrink-0" />
-                <span className="truncate">{c.name || (c.type === 'image' ? 'Immagine' : 'Icona')}</span>
+                <span className="truncate">{c.name || (c.type === 'image' ? t('Immagine') : t('Icona'))}</span>
               </button>
             )}
           </div>
         ))}
       </div>
       <p className="text-[11.5px] leading-relaxed text-fg3">
-        Il design vale per tutte le copie di questa variante; testi, immagini e link restano di questa copia
-        {own ? ` (${own} ${own === 1 ? 'elemento modificato' : 'elementi modificati'})` : ''}.
+        {own
+          ? t(
+              'Il design vale per tutte le copie di questa variante; testi, immagini e link restano di questa copia ({changed}).',
+              {
+                changed: tn(own, '1 elemento modificato', '{n} elementi modificati'),
+              },
+            )
+          : t('Il design vale per tutte le copie di questa variante; testi, immagini e link restano di questa copia.')}
       </p>
       <div className="grid grid-cols-2 gap-1.5">
         <button type="button" className={btn} disabled={!own} onClick={() => actions.reset(node.id)}>
-          <RotateCcw /> Contenuti originali
+          <RotateCcw /> {t('Contenuti originali')}
         </button>
         <button type="button" className={btn} onClick={() => actions.detach(node.id)}>
-          <Unlink /> Scollega
+          <Unlink /> {t('Scollega')}
         </button>
       </div>
     </Section>

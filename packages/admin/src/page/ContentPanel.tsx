@@ -4,17 +4,18 @@ import { Globe, ImagePlus, Link2, ListTree } from 'lucide-react'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { AiButton, CanvasTextMenu } from '../components/AiMenu.tsx'
 import { cx } from '../components/ui.tsx'
+import { t } from '../lib/i18n.ts'
 import { domToRuns, simplify } from './runs.ts'
 
-const STYLE_LABEL: Record<string, string> = {
-  display: 'Titolo grande',
-  h1: 'Titolo',
-  h2: 'Sottotitolo',
-  h3: 'Titoletto',
-  eyebrow: 'Occhiello',
-  small: 'Nota',
-  logo: 'Logo',
-}
+const styleLabels = (): Record<string, string> => ({
+  display: t('Titolo grande'),
+  h1: t('Titolo'),
+  h2: t('Sottotitolo'),
+  h3: t('Titoletto'),
+  eyebrow: t('Occhiello'),
+  small: t('Nota'),
+  logo: t('Logo'),
+})
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
@@ -46,7 +47,7 @@ export function sectionLabel(n: PageNode, i: number): string {
     }
   }
   walk(n.children ?? [])
-  return found ? found.slice(0, 48) : `Sezione ${i + 1}`
+  return found ? found.slice(0, 48) : t('Sezione {n}', { n: i + 1 })
 }
 
 /** The sections of the page, in order: a click shows one on the canvas. */
@@ -62,7 +63,7 @@ export function SectionsIndex({
 }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-      <div className="px-2 pt-1.5 pb-2 text-[11.5px] font-medium tracking-wide text-fg3 uppercase">Sezioni</div>
+      <div className="px-2 pt-1.5 pb-2 text-[11.5px] font-medium tracking-wide text-fg3 uppercase">{t('Sezioni')}</div>
       <ol className="space-y-0.5">
         {nodes.map((n, i) => (
           <li key={n.id}>
@@ -77,7 +78,9 @@ export function SectionsIndex({
             >
               <span className="w-4 shrink-0 text-right font-mono text-[11px] text-fg3">{i + 1}</span>
               <span className="min-w-0 flex-1 truncate">{sectionLabel(n, i)}</span>
-              {n.global && <Globe className="size-3 shrink-0 text-fg3" aria-label="Condivisa con le altre pagine" />}
+              {n.global && (
+                <Globe className="size-3 shrink-0 text-fg3" aria-label={t('Condivisa con le altre pagine')} />
+              )}
             </button>
           </li>
         ))}
@@ -142,10 +145,10 @@ function itemsOf(section: PageNode): Item[] {
   const walk = (list: PageNode[], bound?: string) => {
     for (const n of list) {
       if (n.hidden) continue
-      const from = n.field ? `dal campo “${n.field}”` : bound
+      const from = n.field ? t('dal campo “{field}”', { field: n.field }) : bound
       if (['text', 'button', 'image', 'icon', 'input'].includes(n.type) && !n.langs) out.push({ node: n, bound: from })
       // A list fed by a collection: its first child is a template, the entries fill it.
-      if (n.children) walk(n.bind ? n.children.slice(0, 1) : n.children, n.bind ? 'da una raccolta' : from)
+      if (n.children) walk(n.bind ? n.children.slice(0, 1) : n.children, n.bind ? t('da una raccolta') : from)
     }
   }
   walk(section.children ?? [])
@@ -188,8 +191,8 @@ export function ContentPanel({
       <div className="flex items-center gap-2 border-b border-line px-3.5 py-3">
         <ListTree className="size-4 text-fg3" />
         <div>
-          <div className="text-[13px] font-semibold">Contenuti della pagina</div>
-          <div className="text-[12px] text-fg3">In ordine di lettura. Il layout resta com’è.</div>
+          <div className="text-[13px] font-semibold">{t('Contenuti della pagina')}</div>
+          <div className="text-[12px] text-fg3">{t('In ordine di lettura. Il layout resta com’è.')}</div>
         </div>
       </div>
       {nodes.map((section, i) => {
@@ -205,7 +208,9 @@ export function ContentPanel({
               <span className="font-mono">{i + 1}</span>
               <span className="truncate">{sectionLabel(section, i)}</span>
               {section.global && (
-                <span className="ml-auto shrink-0 font-normal tracking-normal normal-case">su tutte le pagine</span>
+                <span className="ml-auto shrink-0 font-normal tracking-normal normal-case">
+                  {t('su tutte le pagine')}
+                </span>
               )}
             </button>
             <div className="space-y-3">
@@ -222,14 +227,14 @@ export function ContentPanel({
                   <div className="flex min-h-6 items-center gap-1 text-[11.5px] text-fg3">
                     <span className="min-w-0 flex-1 truncate">
                       {n.type === 'image'
-                        ? 'Immagine'
+                        ? t('Immagine')
                         : n.type === 'button'
-                          ? 'Pulsante'
+                          ? t('Pulsante')
                           : n.type === 'icon'
-                            ? 'Icona'
+                            ? t('Icona')
                             : n.type === 'input'
-                              ? 'Campo del modulo'
-                              : (STYLE_LABEL[n.style ?? ''] ?? 'Testo')}
+                              ? t('Campo del modulo')
+                              : (styleLabels()[n.style ?? ''] ?? t('Testo'))}
                       {bound && <span> · {bound}</span>}
                     </span>
                     {!bound && (n.type === 'text' || n.type === 'button') && (
@@ -240,26 +245,26 @@ export function ContentPanel({
                         action="alt"
                         src={n.src ?? undefined}
                         text={n.alt ?? ''}
-                        label="Descrivi"
-                        title="Scrivi la descrizione con l’AI"
+                        label={t('Descrivi')}
+                        title={t('Scrivi la descrizione con l’AI')}
                         onResult={(alt) => onContent(n.id, { alt }, `ai:${n.id}`)}
                       />
                     )}
                   </div>
                   {bound ? (
                     <p className="truncate text-[13px] text-fg3 italic">
-                      {n.type === 'image' ? 'Immagine della voce' : plain(n) || '—'}
+                      {n.type === 'image' ? t('Immagine della voce') : plain(n) || '—'}
                     </p>
                   ) : n.type === 'text' ? (
                     <div className="space-y-1">
                       <RunsField
                         node={n}
-                        label={STYLE_LABEL[n.style ?? ''] ?? 'Testo'}
+                        label={styleLabels()[n.style ?? ''] ?? t('Testo')}
                         onCommit={(r) => onText(n.id, r)}
                       />
                       {n.href !== undefined && (
                         <LinkInput
-                          label="Collegamento del testo"
+                          label={t('Collegamento del testo')}
                           value={n.href}
                           onChange={(href) => onContent(n.id, { href }, `href:${n.id}`)}
                         />
@@ -274,14 +279,14 @@ export function ContentPanel({
                       />
                       <div className="min-w-0 flex-1 space-y-1">
                         <input
-                          aria-label="Descrizione dell’icona"
+                          aria-label={t('Descrizione dell’icona')}
                           value={n.alt ?? ''}
-                          placeholder="Descrizione (vuota se è solo decorativa)"
+                          placeholder={t('Descrizione (vuota se è solo decorativa)')}
                           onChange={(e) => onContent(n.id, { alt: e.target.value }, `alt:${n.id}`)}
                           className={input}
                         />
                         <LinkInput
-                          label="Collegamento dell’icona"
+                          label={t('Collegamento dell’icona')}
                           value={n.href ?? ''}
                           onChange={(href) => onContent(n.id, { href: href || undefined }, `href:${n.id}`)}
                         />
@@ -290,24 +295,24 @@ export function ContentPanel({
                   ) : n.type === 'input' ? (
                     <div className="space-y-1">
                       <input
-                        aria-label="Etichetta del campo"
+                        aria-label={t('Etichetta del campo')}
                         value={n.text ?? ''}
-                        placeholder="Etichetta"
+                        placeholder={t('Etichetta')}
                         onChange={(e) => onContent(n.id, { text: e.target.value }, `text:${n.id}`)}
                         className={cx(input, 'h-8 text-[13px] font-medium')}
                       />
                       {n.inputKind !== 'checkbox' && n.inputKind !== 'select' && n.inputKind !== 'file' && (
                         <input
-                          aria-label="Testo di esempio del campo"
+                          aria-label={t('Testo di esempio del campo')}
                           value={n.placeholder ?? ''}
-                          placeholder="Testo di esempio dentro il campo"
+                          placeholder={t('Testo di esempio dentro il campo')}
                           onChange={(e) => onContent(n.id, { placeholder: e.target.value }, `ph:${n.id}`)}
                           className={input}
                         />
                       )}
                       {n.inputKind === 'select' && (
                         <textarea
-                          aria-label="Scelte del campo, una per riga"
+                          aria-label={t('Scelte del campo, una per riga')}
                           value={(n.options ?? []).join('\n')}
                           onChange={(e) => onContent(n.id, { options: e.target.value.split('\n') }, `opt:${n.id}`)}
                           className="min-h-16 w-full resize-y rounded-md border border-line2 bg-input px-2 py-1 text-[12.5px] leading-snug outline-none focus:border-accent"
@@ -317,14 +322,14 @@ export function ContentPanel({
                   ) : n.type === 'button' ? (
                     <div className="space-y-1">
                       <input
-                        aria-label="Testo del pulsante"
+                        aria-label={t('Testo del pulsante')}
                         value={n.text ?? ''}
                         onChange={(e) => onContent(n.id, { text: e.target.value }, `text:${n.id}`)}
                         className={cx(input, 'h-8 text-[13px] font-medium')}
                       />
                       {!n.submit && (
                         <LinkInput
-                          label="Collegamento del pulsante"
+                          label={t('Collegamento del pulsante')}
                           value={n.href ?? ''}
                           onChange={(href) => onContent(n.id, { href }, `href:${n.id}`)}
                         />
@@ -336,7 +341,7 @@ export function ContentPanel({
                         type="button"
                         onClick={() => onPickImage(n.id)}
                         className="group relative size-16 shrink-0 overflow-hidden rounded-md border border-line2 bg-panel2"
-                        aria-label="Cambia immagine"
+                        aria-label={t('Cambia immagine')}
                       >
                         {n.src && <img src={n.src} alt="" className="size-full object-cover" />}
                         <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
@@ -344,9 +349,9 @@ export function ContentPanel({
                         </span>
                       </button>
                       <textarea
-                        aria-label="Descrizione dell’immagine"
+                        aria-label={t('Descrizione dell’immagine')}
                         value={n.alt ?? ''}
-                        placeholder="Descrizione per chi non vede e per Google"
+                        placeholder={t('Descrizione per chi non vede e per Google')}
                         onChange={(e) => onContent(n.id, { alt: e.target.value }, `alt:${n.id}`)}
                         className="h-16 min-w-0 flex-1 resize-none rounded-md border border-line2 bg-input px-2 py-1 text-[12.5px] leading-snug outline-none focus:border-accent"
                       />
@@ -370,7 +375,7 @@ function LinkInput({ label, value, onChange }: { label: string; value: string; o
       <input
         aria-label={label}
         value={value}
-        placeholder="/pagina, #sezione o https://…"
+        placeholder={t('/pagina, #sezione o https://…')}
         onChange={(e) => onChange(e.target.value)}
         className={cx(input, 'font-mono')}
       />

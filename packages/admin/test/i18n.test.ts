@@ -56,6 +56,22 @@ describe('panel in English', () => {
     expect(dynamic).toEqual([])
   })
 
+  it('gives a text shared by two areas the same translation', async () => {
+    const dir = join(SRC, 'i18n', 'en')
+    const seen = new Map<string, string>()
+    const clashes: string[] = []
+    for (const name of readdirSync(dir).filter((f) => f.endsWith('.ts') && f !== 'index.ts')) {
+      const mod: Record<string, Record<string, string>> = await import(join(dir, name))
+      for (const dict of Object.values(mod))
+        for (const [it, tr] of Object.entries(dict)) {
+          const before = seen.get(it)
+          if (before !== undefined && before !== tr) clashes.push(`${name}  ${it}: ${before} / ${tr}`)
+          seen.set(it, tr)
+        }
+    }
+    expect(clashes).toEqual([])
+  })
+
   it('keeps the same {placeholders} in the translation', () => {
     const names = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
     const wrong = Object.entries(en)

@@ -77,7 +77,7 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 - **Vivi di newsletter e abbonamenti**: **Ghost**.
 - **I contenuti alimentano molte app** (sito, app mobile, schermi) o un team grande lavora insieme in tempo reale: **Sanity**, **Contentful**, **Storyblok** o **Payload**.
 - **Ti serve un prodotto maturo**, con supporto commerciale e anni di storia: oggi Materialize è in Alpha.
-- **Il pannello deve essere in un'altra lingua**: per ora è solo in italiano (i contenuti del sito possono essere in più lingue).
+- **Il pannello deve essere in un'altra lingua**: oggi è in italiano, e l'inglese è a metà strada (editor, accesso e panoramica sono tradotti; impostazioni e moduli dei documenti non ancora). I contenuti del sito possono essere in più lingue.
 
 ## Cosa arriverà
 

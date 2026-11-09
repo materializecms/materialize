@@ -2,6 +2,7 @@ import { Loader2, TriangleAlert } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Data } from '../lib/api.ts'
 import { EMBED_FRAME, writeFrame } from '../lib/frames.ts'
+import { t } from '../lib/i18n.ts'
 
 /**
  * The page rendered by the site itself (its layout and block components), inside an iframe.
@@ -98,7 +99,10 @@ export function SiteCanvas(props: SiteCanvasProps) {
         body: JSON.stringify(input.current),
         signal: controller.signal,
       })
-      if (!res.ok) throw new Error(res.status === 401 ? 'Sessione scaduta' : `Errore ${res.status} dal sito`)
+      if (!res.ok)
+        throw new Error(
+          res.status === 401 ? t('Sessione scaduta') : t('Errore {status} dal sito', { status: res.status }),
+        )
       const html = await res.text()
       setError(null)
       apply(html)
@@ -190,7 +194,7 @@ export function SiteCanvas(props: SiteCanvasProps) {
       if (key === selected && !handle) {
         const h = doc.createElement('div')
         h.dataset.mzHandle = ''
-        h.textContent = '⠿ Trascina per spostare'
+        h.textContent = `⠿ ${t('Trascina per spostare')}`
         el.append(h)
       } else if (key !== selected) handle?.remove()
     }
@@ -399,7 +403,7 @@ export function SiteCanvas(props: SiteCanvasProps) {
         <iframe
           ref={frame}
           src={EMBED_FRAME}
-          title="Anteprima della pagina"
+          title={t('Anteprima della pagina')}
           onLoad={onLoad}
           className="shrink-0 rounded-md bg-white shadow-[0_0_0_1px_rgba(0,0,0,.06),0_8px_40px_rgba(0,0,0,.08)] transition-[width] duration-200"
           style={{ width, height: size.height, zoom: size.scale }}
@@ -413,7 +417,7 @@ export function SiteCanvas(props: SiteCanvasProps) {
       {error && (
         <div className="absolute inset-x-0 top-4 flex justify-center">
           <div className="flex items-center gap-2 rounded-lg bg-panel px-3 py-2 text-[13px] text-warn shadow-pop">
-            <TriangleAlert className="size-4" /> Anteprima non aggiornata: {error}
+            <TriangleAlert className="size-4" /> {t('Anteprima non aggiornata: {error}', { error })}
           </div>
         </div>
       )}

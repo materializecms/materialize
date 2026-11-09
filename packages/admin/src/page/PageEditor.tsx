@@ -63,6 +63,7 @@ import { useSession } from '../app/context.ts'
 import { Button, cx, IconButton, MenuItem, Popover, Segmented, toast } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
+import { t, tn, tx } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { AssistantPanel } from './Assistant.tsx'
@@ -230,12 +231,12 @@ function ownTypography(n: PageNode): Pick<SharedTextStyle, 'props' | 'over'> {
 function newElement(kind: ElementKind): PageNode {
   const id = newId()
   if (kind === 'text')
-    return { id, type: 'text', name: 'Testo', text: 'Nuovo testo', style: 'body', color: 'text', width: 'fill' }
+    return { id, type: 'text', name: t('Testo'), text: t('Nuovo testo'), style: 'body', color: 'text', width: 'fill' }
   if (kind === 'langs')
     return {
       id,
       type: 'text',
-      name: 'Lingue',
+      name: t('Lingue'),
       text: 'IT / EN',
       langs: 'code',
       style: 'body',
@@ -246,7 +247,7 @@ function newElement(kind: ElementKind): PageNode {
     return {
       id,
       type: 'image',
-      name: 'Immagine',
+      name: t('Immagine'),
       src: null,
       alt: '',
       ratio: '4/3',
@@ -258,7 +259,7 @@ function newElement(kind: ElementKind): PageNode {
     return {
       id,
       type: 'input',
-      name: 'Campo',
+      name: t('Campo'),
       text: 'Email',
       fieldName: 'email',
       inputKind: 'email',
@@ -266,12 +267,12 @@ function newElement(kind: ElementKind): PageNode {
       width: 'fill',
     }
   if (kind === 'icon')
-    return { id, type: 'icon', name: 'Icona', icon: 'ArrowUpRight', color: 'text', width: 'fixed', fixedW: 32 }
+    return { id, type: 'icon', name: t('Icona'), icon: 'ArrowUpRight', color: 'text', width: 'fixed', fixedW: 32 }
   if (kind === 'scene')
     return {
       id,
       type: 'scene',
-      name: 'Scena WebGL',
+      name: t('Scena WebGL'),
       scene: { preset: 'mesh' },
       ratio: '16/9',
       radius: 'card',
@@ -283,16 +284,16 @@ function newElement(kind: ElementKind): PageNode {
     return {
       id,
       type: 'embed',
-      name: 'Codice',
-      html: '<div style="padding:24px;text-align:center">Codice personalizzato</div>',
+      name: t('Codice'),
+      html: `<div style="padding:24px;text-align:center">${t('Codice personalizzato')}</div>`,
       width: 'fill',
     }
   if (kind === 'button')
     return {
       id,
       type: 'button',
-      name: 'Pulsante',
-      text: 'Pulsante',
+      name: t('Pulsante'),
+      text: t('Pulsante'),
       variant: 'primary',
       href: '/contatti',
       width: 'hug',
@@ -300,7 +301,7 @@ function newElement(kind: ElementKind): PageNode {
       padY: 14,
       radius: 'btn',
     }
-  return { id, type: 'frame', name: 'Contenitore', layout: 'col', gap: 16, width: 'fill', children: [] }
+  return { id, type: 'frame', name: t('Contenitore'), layout: 'col', gap: 16, width: 'fill', children: [] }
 }
 
 /**
@@ -525,12 +526,12 @@ export function PageEditor({
       const n = findNode(nodesRef.current, selected)?.node
       if (!n) return
       styleClipboard.current = copyStyle(n)
-      toast('Stile copiato: ⌥⌘V per incollarlo su altri elementi')
+      toast(t('Stile copiato: ⌥⌘V per incollarlo su altri elementi'))
     },
     paste: () => {
       const c = styleClipboard.current
       if (!c) {
-        toast('Prima copia lo stile di un elemento (⌥⌘C)', 'error')
+        toast(t('Prima copia lo stile di un elemento (⌥⌘C)'), 'error')
         return
       }
       setNodes(
@@ -702,11 +703,11 @@ export function PageEditor({
     const list = siblingsOfSelection()
     const first = list?.[0]
     if (!list || !first) {
-      toast('Per raggruppare, seleziona elementi dello stesso contenitore', 'error')
+      toast(t('Per raggruppare, seleziona elementi dello stesso contenitore'), 'error')
       return
     }
     if (first.depth === 0) {
-      toast('Le sezioni non si raggruppano: seleziona elementi al loro interno', 'error')
+      toast(t('Le sezioni non si raggruppano: seleziona elementi al loro interno'), 'error')
       return
     }
     const parentLayout = first.parent ? (resolveNode(first.parent, device).layout ?? 'col') : 'col'
@@ -854,7 +855,7 @@ export function PageEditor({
       if (!style.props.style) style.props.style = n.type === 'button' ? 'button' : 'body'
       setTheme({ ...theme, textStyles: [...textStyleList, style] })
       setNodes(updateNode(nodesRef.current, n.id, (x) => ({ ...clearTypography(x), textStyle: style.id })))
-      toast(`Stile “${name}” creato: ora lo puoi usare su ogni testo`)
+      toast(t('Stile “{name}” creato: ora lo puoi usare su ogni testo', { name }))
     },
     /** The element's own changes become the style's, for every text that uses it. */
     update: () => {
@@ -914,7 +915,7 @@ export function PageEditor({
       const { component, ref } = makeComponent(f.node, f.node.name || 'Componente')
       storeComponents({ ...componentsRef.current, [component.id]: { ...component, section: f.depth === 0 } })
       replaceNode(id, showCopy(ref))
-      toast('Componente creato: lo trovi nella libreria')
+      toast(t('Componente creato: lo trovi nella libreria'))
     },
     setVariant: (id: string, variantId: string) => {
       const n = findNode(nodesRef.current, id)?.node
@@ -1032,7 +1033,7 @@ export function PageEditor({
 
   const copyNode = (id: string) => {
     clipboard.current = findNode(nodesRef.current, id)?.node ?? null
-    if (clipboard.current) toast('Copiato')
+    if (clipboard.current) toast(t('Copiato'))
   }
   const pasteNode = () => {
     if (!clipboard.current) return
@@ -1061,64 +1062,69 @@ export function PageEditor({
     const hidden = !!resolveNode(n, device).hidden
     return [
       {
-        label: 'Seleziona il contenitore',
+        label: t('Seleziona il contenitore'),
         hint: 'Esc',
         onClick: () => setSelected(f.parent?.id ?? null),
         disabled: !f.parent,
       },
       {
-        label: 'Seleziona gli elementi vicini',
+        label: t('Seleziona gli elementi vicini'),
         hint: '⌘A',
         onClick: () => setSelection([...f.siblings.map((x) => x.id).filter((x) => x !== n.id), n.id]),
       },
       'separator',
       {
-        label: 'Rinomina',
+        label: t('Rinomina'),
         onClick: () =>
           setTimeout(
-            () => document.querySelector<HTMLInputElement>('input[aria-label="Nome del livello"]')?.select(),
+            () => document.querySelector<HTMLInputElement>(`input[aria-label="${t('Nome del livello')}"]`)?.select(),
             50,
           ),
         disabled: many,
       },
-      { label: 'Duplica', hint: '⌘D', onClick: duplicateSelection },
-      { label: 'Copia', hint: '⌘C', onClick: () => copyNode(n.id), disabled: many },
-      { label: 'Incolla', hint: '⌘V', onClick: pasteNode, disabled: !clipboard.current },
-      { label: 'Copia lo stile', hint: '⌥⌘C', onClick: styleActions.copy, disabled: many },
-      { label: 'Incolla lo stile', hint: '⌥⌘V', onClick: styleActions.paste, disabled: !styleClipboard.current },
+      { label: t('Duplica'), hint: '⌘D', onClick: duplicateSelection },
+      { label: t('Copia'), hint: '⌘C', onClick: () => copyNode(n.id), disabled: many },
+      { label: t('Incolla'), hint: '⌘V', onClick: pasteNode, disabled: !clipboard.current },
+      { label: t('Copia lo stile'), hint: '⌥⌘C', onClick: styleActions.copy, disabled: many },
+      { label: t('Incolla lo stile'), hint: '⌥⌘V', onClick: styleActions.paste, disabled: !styleClipboard.current },
       'separator',
-      ...(many ? [{ label: 'Raggruppa', hint: '⌘G', onClick: group }] : []),
+      ...(many ? [{ label: t('Raggruppa'), hint: '⌘G', onClick: group }] : []),
       ...(n.type === 'frame' && !isSection && !n.component && n.children?.length
-        ? [{ label: 'Separa', hint: '⇧⌘G', onClick: ungroup }]
+        ? [{ label: t('Separa'), hint: '⇧⌘G', onClick: ungroup }]
         : []),
-      { label: 'Sposta su', hint: '⌥↑', onClick: () => move(n.id, -1), disabled: f.index === 0 || many },
+      { label: t('Sposta su'), hint: '⌥↑', onClick: () => move(n.id, -1), disabled: f.index === 0 || many },
       {
-        label: 'Sposta giù',
+        label: t('Sposta giù'),
         hint: '⌥↓',
         onClick: () => move(n.id, 1),
         disabled: f.index === f.siblings.length - 1 || many,
       },
       'separator',
       ...(n.type === 'frame' && !n.component && !many
-        ? [{ label: 'Crea componente', onClick: () => componentActions.make(n.id) }]
+        ? [{ label: t('Crea componente'), onClick: () => componentActions.make(n.id) }]
         : []),
       ...(isSection && !n.global && !many
-        ? [{ label: 'Rendi sezione globale', onClick: () => setProps(n.id, { global: newId() } as Partial<NodeProps>) }]
+        ? [
+            {
+              label: t('Rendi sezione globale'),
+              onClick: () => setProps(n.id, { global: newId() } as Partial<NodeProps>),
+            },
+          ]
         : []),
       'separator',
       {
-        label: hidden ? 'Mostra su questo dispositivo' : 'Nascondi su questo dispositivo',
+        label: hidden ? t('Mostra su questo dispositivo') : t('Nascondi su questo dispositivo'),
         onClick: () => setPropsMany(selectionRef.current.map((id) => [id, { hidden: !hidden }])),
       },
       {
-        label: n.locked ? 'Sblocca' : 'Blocca',
-        hint: n.locked ? undefined : 'fermo sulla tela',
+        label: n.locked ? t('Sblocca') : t('Blocca'),
+        hint: n.locked ? undefined : t('fermo sulla tela'),
         onClick: () => setPropsMany(selectionRef.current.map((id) => [id, { locked: !n.locked || undefined }])),
       },
-      { label: 'Commenta', onClick: () => setCommenting(true), disabled: !docId || many },
+      { label: t('Commenta'), onClick: () => setCommenting(true), disabled: !docId || many },
       'separator',
       {
-        label: many ? `Elimina ${selection.length} elementi` : 'Elimina',
+        label: many ? t('Elimina {n} elementi', { n: selection.length }) : t('Elimina'),
         hint: '⌫',
         onClick: removeSelection,
         danger: true,
@@ -1278,8 +1284,8 @@ export function PageEditor({
     const def = schema.collections.find((c) => c.name === (name ?? templateOf))
     if (!def) return null
     return [
-      { value: 'title', label: 'Titolo' },
-      { value: 'url', label: 'Indirizzo della pagina' },
+      { value: 'title', label: t('Titolo') },
+      { value: 'url', label: t('Indirizzo della pagina') },
       ...def.fields
         .filter((f) =>
           ['text', 'number', 'date', 'select', 'slug', 'media', 'color', 'richText', 'relation'].includes(f.kind),
@@ -1294,7 +1300,7 @@ export function PageEditor({
     const def = schema.collections.find((c) => c.name === name)
     if (!def) return []
     return [
-      { value: 'title', label: 'Titolo' },
+      { value: 'title', label: t('Titolo') },
       ...def.fields
         .filter((f) => ['text', 'number', 'date', 'select', 'slug', 'boolean', 'array'].includes(f.kind))
         .filter((f) => f.name !== def.titleField)
@@ -1337,8 +1343,8 @@ export function PageEditor({
             <div className="mx-2 mt-2 flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-seg p-0.5">
               {(
                 [
-                  ['sections', 'Sezioni', <ListOrdered key="s" />],
-                  ['seo', 'Controlli', <ListChecks key="q" />],
+                  ['sections', t('Sezioni'), <ListOrdered key="s" />],
+                  ['seo', t('Controlli'), <ListChecks key="q" />],
                 ] as const
               ).map(([value, label, icon]) => (
                 <button
@@ -1388,7 +1394,7 @@ export function PageEditor({
             {/* Drag the edge to make the panel wider (remembered in this browser); double click resets it. */}
             {/* biome-ignore lint/a11y/noStaticElementInteractions: a pointer handle; the width has a sensible default */}
             <div
-              title="Trascina per allargare il pannello · doppio clic per la larghezza normale"
+              title={t('Trascina per allargare il pannello · doppio clic per la larghezza normale')}
               className="absolute inset-y-4 -right-[5px] z-10 w-1.5 cursor-col-resize rounded-full hover:bg-accent/40 active:bg-accent/60"
               onDoubleClick={() => setLeftWidth(String(LEFT_DEFAULT))}
               onPointerDown={(e) => {
@@ -1412,10 +1418,10 @@ export function PageEditor({
             >
               {(
                 [
-                  ['layers', 'Livelli', <LayersIcon key="l" />],
-                  ['add', 'Aggiungi', <Plus key="a" />],
-                  ['styles', 'Stili', <Palette key="s" />],
-                  ['seo', 'Controlli', <ListChecks key="q" />],
+                  ['layers', t('Livelli'), <LayersIcon key="l" />],
+                  ['add', t('Aggiungi'), <Plus key="a" />],
+                  ['styles', t('Stili'), <Palette key="s" />],
+                  ['seo', t('Controlli'), <ListChecks key="q" />],
                 ] as const
               ).map(([value, label, icon]) => (
                 <button
@@ -1460,7 +1466,7 @@ export function PageEditor({
                 usedHere={new Set(nodes.flatMap((n) => (n.global ? [n.global] : [])))}
                 onRenameGlobal={(gid, name) => {
                   if (!mainLanguage) {
-                    toast('Le sezioni globali si rinominano nella lingua principale', 'error')
+                    toast(t('Le sezioni globali si rinominano nella lingua principale'), 'error')
                     return
                   }
                   const next = { ...globalsRef.current, [gid]: { ...(globalsRef.current[gid] as PageNode), name } }
@@ -1472,7 +1478,7 @@ export function PageEditor({
                 }}
                 onRemoveGlobal={(gid) => {
                   if (!mainLanguage) {
-                    toast('Le sezioni globali si eliminano nella lingua principale', 'error')
+                    toast(t('Le sezioni globali si eliminano nella lingua principale'), 'error')
                     return
                   }
                   const { [gid]: _, ...next } = globalsRef.current
@@ -1529,13 +1535,13 @@ export function PageEditor({
         {/* Small screens: the canvas does not fit; contents can still be changed. */}
         {mode === 'design' && (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:hidden">
-            <p className="text-[15px] font-medium">Il Design si usa da uno schermo più grande</p>
+            <p className="text-[15px] font-medium">{t('Il Design si usa da uno schermo più grande')}</p>
             <p className="max-w-xs text-[13px] leading-relaxed text-fg2">
-              Da qui puoi cambiare testi, immagini e collegamenti della pagina.
+              {t('Da qui puoi cambiare testi, immagini e collegamenti della pagina.')}
             </p>
             {onContentMode && (
               <Button variant="primary" onClick={onContentMode}>
-                Modifica i contenuti
+                {t('Modifica i contenuti')}
               </Button>
             )}
           </div>
@@ -1551,19 +1557,19 @@ export function PageEditor({
             <div className={cx('mz-notch', mode === 'content' && '@max-[58rem]/center:hidden')}>
               {mode === 'design' && (
                 <div data-tour="add-bar" className={TOOL_GROUP}>
-                  <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">Aggiungi</span>
+                  <span className="px-1.5 text-[12px] font-medium text-fg3 max-2xl:hidden">{t('Aggiungi')}</span>
                   {(
                     [
-                      ['frame', 'Contenitore · F', <Rows3 key="f" />],
-                      ['text', 'Testo · T', <Type key="t" />],
-                      ['image', 'Immagine · I', <ImageIcon key="i" />],
-                      ['button', 'Pulsante · B', <MousePointerClick key="b" />],
-                      ['icon', 'Icona o forma · O', <Shapes key="o" />],
+                      ['frame', t('Aggiungi Contenitore · F'), <Rows3 key="f" />],
+                      ['text', t('Aggiungi Testo · T'), <Type key="t" />],
+                      ['image', t('Aggiungi Immagine · I'), <ImageIcon key="i" />],
+                      ['button', t('Aggiungi Pulsante · B'), <MousePointerClick key="b" />],
+                      ['icon', t('Aggiungi Icona o forma · O'), <Shapes key="o" />],
                     ] as const
                   ).map(([kind, label, icon]) => (
                     <IconButton
                       key={kind}
-                      label={`Aggiungi ${label}`}
+                      label={label}
                       onClick={() => insertAfterSelection(newElement(kind))}
                       // Narrow canvas: button and icon stay in the Aggiungi tab and on their keys (B, O).
                       className={kind === 'button' || kind === 'icon' ? '@max-[58rem]/center:hidden' : undefined}
@@ -1575,7 +1581,7 @@ export function PageEditor({
                   <Popover
                     width={240}
                     trigger={({ toggle, ref, open }) => (
-                      <IconButton ref={ref} label="Altri elementi" active={open} onClick={toggle}>
+                      <IconButton ref={ref} label={t('Altri elementi')} active={open} onClick={toggle}>
                         <Ellipsis />
                       </IconButton>
                     )}
@@ -1583,10 +1589,10 @@ export function PageEditor({
                     {(close) =>
                       (
                         [
-                          ['video', 'Video', 'V', <Video key="v" />],
-                          ['embed', 'Codice', 'C', <Code key="c" />],
-                          ['scene', 'Scena WebGL', 'G', <Sparkles key="g" />],
-                          ['input', 'Campo di un modulo', 'K', <TextCursorInput key="k" />],
+                          ['video', t('Video'), 'V', <Video key="v" />],
+                          ['embed', t('Codice'), 'C', <Code key="c" />],
+                          ['scene', t('Scena WebGL'), 'G', <Sparkles key="g" />],
+                          ['input', t('Campo di un modulo'), 'K', <TextCursorInput key="k" />],
                         ] as const
                       ).map(([kind, label, key, icon]) => (
                         <MenuItem
@@ -1607,10 +1613,10 @@ export function PageEditor({
               )}
               {mode === 'content' && (
                 <span
-                  title="Clicca un testo per scriverci, un’immagine per cambiarla."
+                  title={t('Clicca un testo per scriverci, un’immagine per cambiarla.')}
                   className="mz-pill h-9 min-w-0 truncate px-3.5 text-[12.5px] text-fg2"
                 >
-                  Clicca un testo per scriverci, un’immagine per cambiarla.
+                  {t('Clicca un testo per scriverci, un’immagine per cambiarla.')}
                 </span>
               )}
             </div>
@@ -1631,8 +1637,8 @@ export function PageEditor({
                   ]}
                 />
                 <select
-                  aria-label="Larghezza dell’anteprima"
-                  title="Larghezza dello schermo su cui provi la pagina"
+                  aria-label={t('Larghezza dell’anteprima')}
+                  title={t('Larghezza dello schermo su cui provi la pagina')}
                   value={widths[device]}
                   onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
                   className="h-7 rounded-full bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
@@ -1644,7 +1650,7 @@ export function PageEditor({
                   ))}
                 </select>
                 <IconButton
-                  label="Tutti i dispositivi affiancati"
+                  label={t('Tutti i dispositivi affiancati')}
                   active={sideBySide}
                   onClick={() => setSideBySide(!sideBySide)}
                   className="@max-[58rem]/center:hidden"
@@ -1652,7 +1658,7 @@ export function PageEditor({
                   <Columns3 />
                 </IconButton>
                 <IconButton
-                  label="Esporta in PDF o PNG"
+                  label={t('Esporta in PDF o PNG')}
                   onClick={() => setExporting(true)}
                   className="@max-[58rem]/center:hidden"
                 >
@@ -1664,14 +1670,14 @@ export function PageEditor({
             <div className="mz-notch">
               <div className="mz-pill">
                 <IconButton
-                  label="Scorciatoie da tastiera · ?"
+                  label={t('Scorciatoie da tastiera · ?')}
                   onClick={() => setShowShortcuts(true)}
                   className="@max-[58rem]/center:hidden"
                 >
                   <Keyboard />
                 </IconButton>
                 <IconButton
-                  label="Righelli · ⇧R"
+                  label={t('Righelli · ⇧R')}
                   active={rulers}
                   onClick={() => setRulers(!rulers)}
                   className="@max-[58rem]/center:hidden"
@@ -1681,7 +1687,7 @@ export function PageEditor({
                 <button
                   type="button"
                   data-tour="ai"
-                  title="Assistente AI"
+                  title={t('Assistente AI')}
                   onClick={() => {
                     setAssisting(!assisting)
                     setCommenting(false)
@@ -1696,7 +1702,7 @@ export function PageEditor({
                 </button>
                 <button
                   type="button"
-                  title="Commenti sulla pagina"
+                  title={t('Commenti sulla pagina')}
                   onClick={() => {
                     setCommenting(!commenting)
                     setAssisting(false)
@@ -1707,13 +1713,18 @@ export function PageEditor({
                   )}
                 >
                   <MessageSquare />
-                  <span className="max-2xl:hidden">Commenti</span>
+                  <span className="max-2xl:hidden">{t('Commenti')}</span>
                   {openComments.length > 0 && <span className="font-mono">{openComments.length}</span>}
                 </button>
                 {others.length > 0 && (
                   <div
                     className="ml-1 flex -space-x-1.5"
-                    title={`${others.map((o) => o.name).join(', ')} ${others.length === 1 ? 'sta' : 'stanno'} lavorando su questa pagina: chi salva per ultimo sovrascrive.`}
+                    title={tn(
+                      others.length,
+                      '{names} sta lavorando su questa pagina: chi salva per ultimo sovrascrive.',
+                      '{names} stanno lavorando su questa pagina: chi salva per ultimo sovrascrive.',
+                      { names: others.map((o) => o.name).join(', ') },
+                    )}
                   >
                     {others.map((o, i) => (
                       <span
@@ -1733,7 +1744,7 @@ export function PageEditor({
                   trigger={({ toggle, ref, open }) => (
                     <IconButton
                       ref={ref}
-                      label="Altri comandi della tela"
+                      label={t('Altri comandi della tela')}
                       active={open}
                       onClick={toggle}
                       className="@min-[58rem]/center:hidden"
@@ -1752,7 +1763,7 @@ export function PageEditor({
                           close()
                         }}
                       >
-                        Tutti i dispositivi affiancati
+                        {t('Tutti i dispositivi affiancati')}
                       </MenuItem>
                       <MenuItem
                         icon={<FileDown />}
@@ -1761,7 +1772,7 @@ export function PageEditor({
                           close()
                         }}
                       >
-                        Esporta in PDF o PNG
+                        {t('Esporta in PDF o PNG')}
                       </MenuItem>
                       <MenuItem
                         icon={<Ruler />}
@@ -1772,7 +1783,7 @@ export function PageEditor({
                           close()
                         }}
                       >
-                        Righelli
+                        {t('Righelli')}
                       </MenuItem>
                       <MenuItem
                         icon={<Play />}
@@ -1781,7 +1792,7 @@ export function PageEditor({
                           close()
                         }}
                       >
-                        Riproduci le animazioni
+                        {t('Riproduci le animazioni')}
                       </MenuItem>
                       <MenuItem
                         icon={<Keyboard />}
@@ -1791,27 +1802,27 @@ export function PageEditor({
                           close()
                         }}
                       >
-                        Scorciatoie da tastiera
+                        {t('Scorciatoie da tastiera')}
                       </MenuItem>
                     </div>
                   )}
                 </Popover>
                 <div className="mx-1 h-5 w-px bg-line @max-[58rem]/center:hidden" />
-                <IconButton label="Riproduci le animazioni" onClick={play} className="@max-[58rem]/center:hidden">
+                <IconButton label={t('Riproduci le animazioni')} onClick={play} className="@max-[58rem]/center:hidden">
                   <Play />
                 </IconButton>
                 <button
                   type="button"
                   data-tour="preview"
                   onClick={() => setPreviewing(!previewing)}
-                  title="Prova scroll, mouse e clic come sul sito · Esc per uscire"
+                  title={t('Prova scroll, mouse e clic come sul sito · Esc per uscire')}
                   className={cx(
                     'ml-1 flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] font-medium transition-colors [&_svg]:size-3.5',
                     previewing ? 'bg-accent text-white' : 'text-fg2 hover:bg-hover hover:text-fg',
                   )}
                 >
                   <Eye />
-                  {previewing ? 'Esci dall’anteprima' : <span className="max-2xl:hidden">Anteprima</span>}
+                  {previewing ? t('Esci dall’anteprima') : <span className="max-2xl:hidden">{t('Anteprima')}</span>}
                 </button>
               </div>
             </div>
@@ -1819,26 +1830,26 @@ export function PageEditor({
           {/* Zoom floats on the canvas, bottom right, out of the way of the page. */}
           <div data-tour="zoom" className={cx(TOOL_GROUP, 'absolute right-3 bottom-3 z-30 shadow-pop')}>
             <IconButton
-              label="Riduci lo zoom"
+              label={t('Riduci lo zoom')}
               onClick={() => setZoom(Math.max(0.25, Math.round(((zoom === 'fit' ? fitZoom : zoom) - 0.1) * 10) / 10))}
             >
               <Minus />
             </IconButton>
             <button
               type="button"
-              title="Adatta alla finestra"
+              title={t('Adatta alla finestra')}
               onClick={() => setZoom('fit')}
               className="h-7 min-w-12 rounded-full px-1.5 font-mono text-[12px] text-fg2 hover:bg-hover hover:text-fg"
             >
               {Math.round((zoom === 'fit' ? fitZoom : zoom) * 100)}%
             </button>
             <IconButton
-              label="Aumenta lo zoom"
+              label={t('Aumenta lo zoom')}
               onClick={() => setZoom(Math.min(1.5, Math.round(((zoom === 'fit' ? fitZoom : zoom) + 0.1) * 10) / 10))}
             >
               <Plus />
             </IconButton>
-            <IconButton label="Adatta alla finestra" active={zoom === 'fit'} onClick={() => setZoom('fit')}>
+            <IconButton label={t('Adatta alla finestra')} active={zoom === 'fit'} onClick={() => setZoom('fit')}>
               <Maximize />
             </IconButton>
           </div>
@@ -1851,14 +1862,15 @@ export function PageEditor({
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-accent/10 px-4 py-2.5 text-[13px]"
               >
                 <span className="min-w-0 flex-1">
-                  Stai guardando <strong className="font-semibold">{preview.label}</strong>. La bozza resta com’è finché
-                  non ripristini.
+                  {tx('Stai guardando {version}. La bozza resta com’è finché non ripristini.', {
+                    version: <strong className="font-semibold">{preview.label}</strong>,
+                  })}
                 </span>
                 <Button size="sm" variant="primary" onClick={preview.onRestore}>
-                  Ripristina questa versione
+                  {t('Ripristina questa versione')}
                 </Button>
                 <Button size="sm" onClick={preview.onClose}>
-                  Chiudi
+                  {t('Chiudi')}
                 </Button>
               </div>
               <DevicesView
@@ -1875,9 +1887,9 @@ export function PageEditor({
               {startBlank ? (
                 <div className="w-full max-w-md rounded-2xl border-2 border-dashed border-line2 p-8 text-center text-fg2">
                   <LayersIcon className="mx-auto size-6 text-fg3" />
-                  <p className="mt-3 text-[13.5px] font-medium text-fg">Pagina vuota</p>
+                  <p className="mt-3 text-[13.5px] font-medium text-fg">{t('Pagina vuota')}</p>
                   <p className="mt-1 text-[13px] leading-relaxed">
-                    Scegli una sezione nella libreria a sinistra: un clic la aggiunge qui.
+                    {t('Scegli una sezione nella libreria a sinistra: un clic la aggiunge qui.')}
                   </p>
                 </div>
               ) : (
@@ -1885,10 +1897,11 @@ export function PageEditor({
                   <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
                     <LayersIcon className="size-5" />
                   </div>
-                  <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">Da dove vuoi partire?</h2>
+                  <h2 className="mt-4 text-[17px] font-semibold tracking-[-0.01em]">{t('Da dove vuoi partire?')}</h2>
                   <p className="mt-1 text-[13px] text-fg2">
-                    Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della
-                    libreria.
+                    {t(
+                      'Una pagina già composta da modificare, oppure una pagina vuota da riempire con le sezioni della libreria.',
+                    )}
                   </p>
                   <div className="mt-5 grid gap-2">
                     <button
@@ -1899,7 +1912,7 @@ export function PageEditor({
                       }}
                       className="h-10 rounded-lg bg-accent text-[13px] font-medium text-white hover:brightness-110"
                     >
-                      Pagina pronta: menu, apertura, servizi, invito e piè di pagina
+                      {t('Pagina pronta: menu, apertura, servizi, invito e piè di pagina')}
                     </button>
                     <button
                       type="button"
@@ -1909,7 +1922,7 @@ export function PageEditor({
                       }}
                       className="h-10 rounded-lg border border-line2 text-[13px] font-medium hover:bg-hover"
                     >
-                      Pagina vuota: scelgo io le sezioni
+                      {t('Pagina vuota: scelgo io le sezioni')}
                     </button>
                   </div>
                 </div>
@@ -2118,47 +2131,51 @@ export function PageEditor({
           ) : (
             <div>
               <div className="border-b border-line px-3.5 py-3">
-                <div className="text-[13px] font-semibold">Pagina</div>
+                <div className="text-[13px] font-semibold">{t('Pagina')}</div>
                 <p className="mt-0.5 text-[12px] text-fg3">
-                  {nodes.length === 1 ? '1 sezione' : `${nodes.length} sezioni`} · seleziona un elemento sulla tela per
-                  modificarlo.
+                  {tn(
+                    nodes.length,
+                    '1 sezione · seleziona un elemento sulla tela per modificarlo.',
+                    '{n} sezioni · seleziona un elemento sulla tela per modificarlo.',
+                  )}
                 </p>
               </div>
               <div className="space-y-2 border-b border-line px-3.5 py-3">
-                <div className="text-[12.5px] font-semibold">Modello</div>
+                <div className="text-[12.5px] font-semibold">{t('Modello')}</div>
                 {docId ? (
                   <>
                     <select
-                      aria-label="Modello per le voci di una raccolta"
+                      aria-label={t('Modello per le voci di una raccolta')}
                       value={templateOf ?? ''}
                       onChange={(e) => setTemplateOf(e.target.value || null)}
                       className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12.5px] outline-none focus:border-accent"
                     >
-                      <option value="">Pagina normale</option>
+                      <option value="">{t('Pagina normale')}</option>
                       {schema.collections
                         .filter((c) => !c.singleton && c.name !== collection.name)
                         .map((c) => (
                           <option key={c.name} value={c.name}>
-                            Modello per ogni voce di “{c.label}”
+                            {t('Modello per ogni voce di “{collection}”', { collection: c.label })}
                           </option>
                         ))}
                     </select>
                     {templateOf ? (
                       <>
                         <p className="text-[11.5px] leading-relaxed text-fg3">
-                          Ogni voce usa questa pagina. Seleziona un testo o un’immagine e scegli quale campo mostra, in
-                          “Dato collegato”.
+                          {t(
+                            'Ogni voce usa questa pagina. Seleziona un testo o un’immagine e scegli quale campo mostra, in “Dato collegato”.',
+                          )}
                         </p>
                         {(samples.data?.items.length ?? 0) > 0 && (
                           <select
-                            aria-label="Voce mostrata nell’anteprima"
+                            aria-label={t('Voce mostrata nell’anteprima')}
                             value={sampleIndex}
                             onChange={(e) => setSampleIndex(Number(e.target.value))}
                             className="h-7 w-full rounded-md border border-line2 bg-input px-1.5 text-[12.5px] outline-none focus:border-accent"
                           >
                             {samples.data?.items.map((it, i) => (
                               <option key={it.id} value={i}>
-                                Anteprima con: {it.title}
+                                {t('Anteprima con: {title}', { title: it.title })}
                               </option>
                             ))}
                           </select>
@@ -2166,13 +2183,14 @@ export function PageEditor({
                       </>
                     ) : (
                       <p className="text-[11.5px] leading-relaxed text-fg3">
-                        Una pagina può fare da modello per tutte le voci di una raccolta, come la pagina di ogni
-                        progetto.
+                        {t(
+                          'Una pagina può fare da modello per tutte le voci di una raccolta, come la pagina di ogni progetto.',
+                        )}
                       </p>
                     )}
                   </>
                 ) : (
-                  <p className="text-[11.5px] text-fg3">Salva la pagina per usarla come modello.</p>
+                  <p className="text-[11.5px] text-fg3">{t('Salva la pagina per usarla come modello.')}</p>
                 )}
               </div>
               <div className="px-3.5 py-4">

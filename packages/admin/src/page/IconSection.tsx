@@ -2,10 +2,21 @@ import { ICONS, iconSvg } from '@materializecms/core/icons'
 import type { NodeProps, PageNode } from '@materializecms/core/page'
 import { useEffect, useMemo, useState } from 'react'
 import { cx, Textarea } from '../components/ui.tsx'
+import { t, tn } from '../lib/i18n.ts'
 import { ColorField, NumField, Row, Section, Select } from './controls.tsx'
 import { ICON_SETS, type LoadedSet, loadSet, searchNames, styleOf } from './iconSets.ts'
 
 const GROUPS = ['Frecce', 'Contatti', 'Social', 'Interfaccia', 'Temi', 'Forme'] as const
+/** The groups' names for people: the values above are the basic set's own and stay as they are. */
+const groupLabel = (g: (typeof GROUPS)[number]) =>
+  ({
+    Frecce: t('Frecce'),
+    Contatti: t('Contatti'),
+    Social: t('Social'),
+    Interfaccia: t('Interfaccia'),
+    Temi: t('Temi'),
+    Forme: t('Forme'),
+  })[g]
 /** At most this many icons drawn at once: libraries have thousands. */
 const LIMIT = 240
 
@@ -65,31 +76,32 @@ export function IconSection({
   const line = node.svg ? /^(lucide|tabler):/.test(node.icon ?? '') : !node.icon?.startsWith('shape:')
 
   return (
-    <Section title="Icona">
-      <Row label="Da">
+    <Section title={t('Icona')}>
+      <Row label={t('Da')}>
         <Select
-          label="Libreria di icone"
+          label={t('Libreria di icone')}
           value={source}
           onChange={setSource}
           options={[
-            { value: 'base', label: 'Essenziali e forme' },
+            { value: 'base', label: t('Essenziali e forme') },
             ...ICON_SETS.map((s) => ({ value: s.id, label: s.label })),
-            { value: 'custom', label: 'SVG personale' },
+            { value: 'custom', label: t('SVG personale') },
           ]}
         />
       </Row>
       {source === 'custom' ? (
         <>
           <Textarea
-            aria-label="Codice SVG"
+            aria-label={t('Codice SVG')}
             value={node.svg ?? ''}
             placeholder="<svg viewBox=…>…</svg>"
             onChange={(e) => onContent({ svg: e.target.value || null, icon: null }, `svg:${node.id}`)}
             className="font-mono text-[11.5px]"
           />
           <p className="text-[11.5px] leading-relaxed text-fg3">
-            Incolla un SVG da Figma o Illustrator. Gli script vengono tolti; usa “currentColor” per prendere il colore
-            qui sotto.
+            {t(
+              'Incolla un SVG da Figma o Illustrator. Gli script vengono tolti; usa “currentColor” per prendere il colore qui sotto.',
+            )}
           </p>
         </>
       ) : (
@@ -97,15 +109,15 @@ export function IconSection({
           {set && <p className="text-[11.5px] text-fg3">{set.hint}</p>}
           <div className="flex gap-1.5">
             <input
-              aria-label="Cerca un’icona"
+              aria-label={t('Cerca un’icona')}
               value={query}
-              placeholder="Cerca: freccia, email, stella…"
+              placeholder={t('Cerca: freccia, email, stella…')}
               onChange={(e) => setQuery(e.target.value)}
               className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
             />
             {set?.styles && (
               <select
-                aria-label="Stile delle icone"
+                aria-label={t('Stile delle icone')}
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
                 className="h-7 rounded-md border border-line2 bg-input px-1 text-[12px] outline-none focus:border-accent"
@@ -120,7 +132,7 @@ export function IconSection({
           </div>
           {set ? (
             !loaded ? (
-              <p className="py-6 text-center text-[12.5px] text-fg3">Carico {set.label}…</p>
+              <p className="py-6 text-center text-[12.5px] text-fg3">{t('Carico {name}…', { name: set.label })}</p>
             ) : (
               <>
                 <div className="grid max-h-72 grid-cols-6 gap-1 overflow-y-auto pr-0.5">
@@ -143,10 +155,10 @@ export function IconSection({
                 </div>
                 <p className="text-[11.5px] text-fg3">
                   {found.length === 0
-                    ? 'Nessuna icona: prova in inglese (arrow, mail…).'
+                    ? t('Nessuna icona: prova in inglese (arrow, mail…).')
                     : found.length > LIMIT
-                      ? `${found.length} icone: scrivi per restringere.`
-                      : `${found.length} icone.`}
+                      ? t('{n} icone: scrivi per restringere.', { n: found.length })
+                      : tn(found.length, '1 icona.', '{n} icone.')}
                 </p>
               </>
             )
@@ -157,7 +169,7 @@ export function IconSection({
                 if (!items.length) return null
                 return (
                   <div key={g}>
-                    <div className="mb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">{g}</div>
+                    <div className="mb-1 text-[11px] font-medium tracking-wide text-fg3 uppercase">{groupLabel(g)}</div>
                     <div className="grid grid-cols-6 gap-1">
                       {items.map((i) => (
                         <button
@@ -180,11 +192,11 @@ export function IconSection({
           )}
         </>
       )}
-      <Row label="Colore">
+      <Row label={t('Colore')}>
         <ColorField value={p.color ?? 'text'} palette={palette} onChange={(v) => onProps({ color: v ?? 'text' })} />
       </Row>
       {line && (
-        <Row label="Spessore" hint="Spessore delle linee dell’icona">
+        <Row label={t('Spessore')} hint={t('Spessore delle linee dell’icona')}>
           <NumField
             value={p.strokeW ?? (node.svg ? 2 : 1.5)}
             min={0.5}
@@ -195,19 +207,19 @@ export function IconSection({
           />
         </Row>
       )}
-      <Row label="Collegamento">
+      <Row label={t('Collegamento')}>
         <input
-          aria-label="Collegamento dell’icona"
+          aria-label={t('Collegamento dell’icona')}
           value={node.href ?? ''}
-          placeholder="nessuno, oppure /contatti"
+          placeholder={t('nessuno, oppure /contatti')}
           onChange={(e) => onContent({ href: e.target.value || undefined }, `href:${node.id}`)}
           className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 font-mono text-[12.5px] outline-none focus:border-accent"
         />
       </Row>
       <input
-        aria-label="Descrizione per chi non vede"
+        aria-label={t('Descrizione per chi non vede')}
         value={node.alt ?? ''}
-        placeholder="Descrizione (vuota se è solo decorativa)"
+        placeholder={t('Descrizione (vuota se è solo decorativa)')}
         onChange={(e) => onContent({ alt: e.target.value }, `alt:${node.id}`)}
         className="h-7 w-full rounded-md border border-line2 bg-input px-2 text-[12.5px] outline-none focus:border-accent"
       />

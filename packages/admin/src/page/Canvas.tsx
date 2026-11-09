@@ -18,6 +18,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { useSession } from '../app/context.ts'
 import { cx } from '../components/ui.tsx'
 import { EMBED_FRAME } from '../lib/frames.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { domToRuns } from './runs.ts'
 
 export type Mode = 'design' | 'content'
@@ -960,7 +961,7 @@ export function Canvas({
   const chip =
     boxes.sel && selectedNode
       ? selection.length > 1
-        ? `${selection.length} elementi`
+        ? tn(selection.length, 'un elemento', '{n} elementi')
         : selectedNode.name || typeLabel(selectedNode)
       : null
 
@@ -1142,7 +1143,7 @@ export function Canvas({
                 ) : (
                   <span
                     key={`c${m.id}`}
-                    title={`${m.label} ${m.label === '1' ? 'commento aperto' : 'commenti aperti'}`}
+                    title={tn(+m.label, '{n} commento aperto', '{n} commenti aperti')}
                     className="absolute flex size-5 items-center justify-center rounded-full rounded-bl-none text-[11px] font-semibold text-white shadow"
                     style={{ left: b.x + b.w - 10, top: b.y - 10, background: m.color }}
                   >
@@ -1165,7 +1166,7 @@ export function Canvas({
                     // biome-ignore lint/a11y/noStaticElementInteractions: a guide is dragged with the pointer, an editing aid only
                     <div
                       key={`r${g.axis}${g.index}`}
-                      title="Trascina per spostare, sul righello per togliere · doppio clic toglie"
+                      title={t('Trascina per spostare, sul righello per togliere · doppio clic toglie')}
                       className={cx(
                         'group/guide pointer-events-auto absolute',
                         g.axis === 'x' ? 'cursor-col-resize' : 'cursor-row-resize',
@@ -1473,7 +1474,7 @@ function Rulers({
     <>
       <canvas
         ref={top}
-        title={onPull ? 'Trascina verso la pagina per una guida orizzontale' : undefined}
+        title={onPull ? t('Trascina verso la pagina per una guida orizzontale') : undefined}
         onPointerDown={onPull && ((e) => onPull('y', e))}
         className={cx(
           'absolute top-0 left-5 z-10 h-5 w-[calc(100%-20px)] border-b border-line bg-panel text-fg3',
@@ -1482,7 +1483,7 @@ function Rulers({
       />
       <canvas
         ref={left}
-        title={onPull ? 'Trascina verso la pagina per una guida verticale' : undefined}
+        title={onPull ? t('Trascina verso la pagina per una guida verticale') : undefined}
         onPointerDown={onPull && ((e) => onPull('x', e))}
         className={cx(
           'absolute top-5 left-0 z-10 h-[calc(100%-20px)] w-5 border-r border-line bg-panel text-fg3',
@@ -1516,17 +1517,23 @@ function Handles({
       x: box.x + box.w / 2,
       y: box.y + box.h,
       cursor: 'ns-resize',
-      title: 'Trascina per cambiare lo spazio della sezione',
+      title: t('Trascina per cambiare lo spazio della sezione'),
     })
   else {
     list.push(
-      { h: 'left', x: box.x, y: box.y + box.h / 2, cursor: 'ew-resize', title: 'Trascina per cambiare la larghezza' },
+      {
+        h: 'left',
+        x: box.x,
+        y: box.y + box.h / 2,
+        cursor: 'ew-resize',
+        title: t('Trascina per cambiare la larghezza'),
+      },
       {
         h: 'right',
         x: box.x + box.w,
         y: box.y + box.h / 2,
         cursor: 'ew-resize',
-        title: 'Trascina per cambiare la larghezza',
+        title: t('Trascina per cambiare la larghezza'),
       },
     )
     if (node.type === 'image')
@@ -1536,14 +1543,14 @@ function Handles({
           x: box.x + box.w / 2,
           y: box.y + box.h,
           cursor: 'ns-resize',
-          title: 'Trascina per cambiare le proporzioni',
+          title: t('Trascina per cambiare le proporzioni'),
         },
         {
           h: 'corner',
           x: box.x + box.w,
           y: box.y + box.h,
           cursor: 'nwse-resize',
-          title: 'Trascina per cambiare dimensioni e proporzioni',
+          title: t('Trascina per cambiare dimensioni e proporzioni'),
         },
       )
   }
@@ -1566,15 +1573,15 @@ function Handles({
 }
 
 export function typeLabel(n: PageNode): string {
-  if (n.type === 'frame') return 'Contenitore'
-  if (n.type === 'text') return n.langs ? 'Lingue' : 'Testo'
-  if (n.type === 'image') return 'Immagine'
+  if (n.type === 'frame') return t('Contenitore')
+  if (n.type === 'text') return n.langs ? t('Lingue') : t('Testo')
+  if (n.type === 'image') return t('Immagine')
   if (n.type === 'video') return 'Video'
-  if (n.type === 'embed') return 'Codice'
-  if (n.type === 'scene') return 'Scena WebGL'
-  if (n.type === 'icon') return 'Icona'
-  if (n.type === 'input') return 'Campo'
-  return 'Pulsante'
+  if (n.type === 'embed') return t('Codice')
+  if (n.type === 'scene') return t('Scena WebGL')
+  if (n.type === 'icon') return t('Icona')
+  if (n.type === 'input') return t('Campo')
+  return t('Pulsante')
 }
 
 /** Bold, italic and links for the text being edited; buttons keep the focus in the text. */
@@ -1625,8 +1632,8 @@ function FormatBar({ x, y }: { x: number; y: number }) {
         <>
           <button
             type="button"
-            title="Grassetto · ⌘B"
-            aria-label="Grassetto"
+            title={t('Grassetto · ⌘B')}
+            aria-label={t('Grassetto')}
             onMouseDown={keep}
             onClick={() => document.execCommand('bold')}
             className={btn(state('bold'))}
@@ -1635,8 +1642,8 @@ function FormatBar({ x, y }: { x: number; y: number }) {
           </button>
           <button
             type="button"
-            title="Corsivo · ⌘I"
-            aria-label="Corsivo"
+            title={t('Corsivo · ⌘I')}
+            aria-label={t('Corsivo')}
             onMouseDown={keep}
             onClick={() => document.execCommand('italic')}
             className={btn(state('italic'))}
@@ -1646,8 +1653,8 @@ function FormatBar({ x, y }: { x: number; y: number }) {
           {inLink ? (
             <button
               type="button"
-              title="Rimuovi collegamento"
-              aria-label="Rimuovi collegamento"
+              title={t('Rimuovi collegamento')}
+              aria-label={t('Rimuovi collegamento')}
               onMouseDown={keep}
               onClick={() => document.execCommand('unlink')}
               className={btn(true)}
@@ -1657,8 +1664,8 @@ function FormatBar({ x, y }: { x: number; y: number }) {
           ) : (
             <button
               type="button"
-              title="Collegamento · ⌘K"
-              aria-label="Collegamento"
+              title={t('Collegamento · ⌘K')}
+              aria-label={t('Collegamento')}
               onMouseDown={keep}
               onClick={() => {
                 const s = getSelection()
@@ -1683,8 +1690,8 @@ function FormatBar({ x, y }: { x: number; y: number }) {
         >
           <input
             autoFocus
-            aria-label="Indirizzo del collegamento"
-            placeholder="/contatti o https://…"
+            aria-label={t('Indirizzo del collegamento')}
+            placeholder={t('/contatti o https://…')}
             value={link}
             onChange={(e) => setLink(e.target.value)}
             onKeyDown={(e) => {

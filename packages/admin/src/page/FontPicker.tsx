@@ -4,15 +4,16 @@ import { Check, ChevronDown, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cx, Popover, Spinner } from '../components/ui.tsx'
 import { api, type FontInfo } from '../lib/api.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { loadFont } from './fonts.ts'
 
-const CATEGORIES = [
-  { value: 'all', label: 'Tutti' },
-  { value: 'serif', label: 'Graziati' },
-  { value: 'sans-serif', label: 'Bastoni' },
-  { value: 'display', label: 'Decorativi' },
-  { value: 'handwriting', label: 'Calligrafici' },
-  { value: 'monospace', label: 'Monospazio' },
+const CATEGORIES = () => [
+  { value: 'all', label: t('Tutti') },
+  { value: 'serif', label: t('Graziati') },
+  { value: 'sans-serif', label: t('Bastoni') },
+  { value: 'display', label: t('Decorativi') },
+  { value: 'handwriting', label: t('Calligrafici') },
+  { value: 'monospace', label: t('Monospazio') },
 ]
 const SHOWN = 120
 
@@ -42,7 +43,7 @@ export function FontPicker({
           className="flex h-7 min-w-0 flex-1 items-center gap-1 rounded-md border border-line2 bg-input px-2 text-left text-[13px] hover:border-fg3/50"
         >
           <span className="min-w-0 flex-1 truncate" style={{ fontFamily: fontStack(value) }}>
-            {value}
+            {value === 'Del tema' ? t('Del tema') : value}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-fg3" />
         </button>
@@ -83,13 +84,13 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={fonts.data ? `Cerca tra ${fonts.data.items.length} caratteri` : 'Cerca'}
-            aria-label="Cerca un carattere"
+            placeholder={fonts.data ? t('Cerca tra {n} caratteri', { n: fonts.data.items.length }) : t('Cerca')}
+            aria-label={t('Cerca un carattere')}
             className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
           />
         </div>
         <div className="flex flex-wrap gap-1">
-          {CATEGORIES.map((c) => (
+          {CATEGORIES().map((c) => (
             <button
               key={c.value}
               type="button"
@@ -116,11 +117,11 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
             ))}
             {matches.length > SHOWN && (
               <p className="px-2 py-2 text-[12px] text-fg3">
-                Altri {matches.length - SHOWN} caratteri: scrivi il nome per trovarli.
+                {t('Altri {n} caratteri: scrivi il nome per trovarli.', { n: matches.length - SHOWN })}
               </p>
             )}
             {!matches.length && (
-              <p className="px-2 py-4 text-center text-[12.5px] text-fg3">Nessun carattere trovato.</p>
+              <p className="px-2 py-4 text-center text-[12.5px] text-fg3">{t('Nessun carattere trovato.')}</p>
             )}
           </>
         )}
@@ -161,7 +162,7 @@ function FontRow({ font, selected, onPick }: { font: FontInfo; selected: boolean
         {font.family}
       </span>
       <span className="shrink-0 text-[11px] text-fg3">
-        {font.variable ? 'variabile' : `${font.weights.length} pesi`}
+        {font.variable ? t('variabile') : tn(font.weights.length, 'un peso', '{n} pesi')}
       </span>
       {selected && <Check className="size-3.5 shrink-0 text-accent" />}
     </button>

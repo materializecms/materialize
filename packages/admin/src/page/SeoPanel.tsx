@@ -9,6 +9,7 @@ import { Button, cx } from '../components/ui.tsx'
 import { FieldsForm } from '../fields/FieldInput.tsx'
 import { useForm } from '../fields/form-context.ts'
 import { api, type Data, type FieldDescription } from '../lib/api.ts'
+import { t, tn } from '../lib/i18n.ts'
 import { qualityOf } from './quality.ts'
 import { Review } from './Review.tsx'
 
@@ -81,13 +82,13 @@ export function SeoPanel({
   // Measured once the canvas has drawn the change.
   const [quality, setQuality] = useState(() => qualityOf(nodes, { media, theme }))
   useEffect(() => {
-    const t = setTimeout(() => setQuality(qualityOf(nodes, { media, theme })), 400)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setQuality(qualityOf(nodes, { media, theme })), 400)
+    return () => clearTimeout(timer)
   }, [nodes, media, theme])
   const groups = [
-    { title: 'Motori di ricerca', checks },
-    { title: 'Accessibilità', checks: quality.accessibility },
-    { title: 'Prestazioni', checks: quality.performance },
+    { title: t('Motori di ricerca'), checks },
+    { title: t('Accessibilità'), checks: quality.accessibility },
+    { title: t('Prestazioni'), checks: quality.performance },
   ]
   const all = groups.flatMap((g) => g.checks)
   const errors = all.filter((c) => c.level === 'error').length
@@ -97,19 +98,16 @@ export function SeoPanel({
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="border-b border-line px-3.5 py-3">
         <div className="text-[13px] font-semibold">
-          {errors ? `${errors} da sistemare` : warnings ? 'Quasi a posto' : 'Tutto a posto'}
+          {errors ? t('{n} da sistemare', { n: errors }) : warnings ? t('Quasi a posto') : t('Tutto a posto')}
         </div>
         <div className="text-[12px] text-fg3">
-          {[
-            errors && `${errors} ${errors === 1 ? 'errore' : 'errori'}`,
-            warnings && `${warnings} ${warnings === 1 ? 'consiglio' : 'consigli'}`,
-          ]
+          {[errors && tn(errors, '1 errore', '{n} errori'), warnings && tn(warnings, '1 consiglio', '{n} consigli')]
             .filter(Boolean)
-            .join(' · ') || 'La pagina è pronta: motori di ricerca, accessibilità e prestazioni.'}
+            .join(' · ') || t('La pagina è pronta: motori di ricerca, accessibilità e prestazioni.')}
         </div>
       </div>
       <section className="border-b border-line px-3.5 pt-3 pb-3.5">
-        <h3 className="pb-2 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">Revisione AI</h3>
+        <h3 className="pb-2 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">{t('Revisione AI')}</h3>
         <Review docId={docId} data={data} onApply={(next) => onChange(next, 'ai:review')} onSelect={onSelect} />
       </section>
       {groups.map((g) => (
@@ -126,10 +124,10 @@ export function SeoPanel({
       {seoField && onEditFields && (
         <div className="border-t border-line px-3.5 py-4">
           <p className="mb-2.5 text-[13px] leading-relaxed text-fg3">
-            Titolo, descrizione e immagine per Google e i social sono nel pannello della pagina, a destra.
+            {t('Titolo, descrizione e immagine per Google e i social sono nel pannello della pagina, a destra.')}
           </p>
           <Button size="sm" className="w-full" onClick={onEditFields}>
-            Modifica titolo e descrizione
+            {t('Modifica titolo e descrizione')}
           </Button>
         </div>
       )}
