@@ -223,6 +223,12 @@ class ApiError extends HTTPException {
  */
 const langFor = (locale: string | null | undefined): Lang => (isLang(locale) ? locale : 'it')
 
+/** A document's schedules with the reason of the last failure in the reader's language (t.keep). */
+const readSchedule = <S extends { failed: { error: string | null } | null }>(schedule: S): S =>
+  schedule.failed?.error
+    ? { ...schedule, failed: { ...schedule.failed, error: t.read(schedule.failed.error) } }
+    : schedule
+
 const credentials = z.object({ email: z.email(), password: z.string().min(1) })
 const setupBody = z.object({
   email: z.email(),
@@ -642,7 +648,7 @@ export function createApp(base: ServerContext) {
       url: def?.url ? def.url(doc.data as never) : null,
       issues: check && !check.ok ? check.issues : [],
       /** When it goes on or off the site by itself, and the last scheduled action that failed. */
-      schedule: await schedules.forDocument(doc.id),
+      schedule: readSchedule(await schedules.forDocument(doc.id)),
       /** The release it goes out with, if any. */
       release: await releases
         .forDocument(doc.id)
@@ -1139,7 +1145,14 @@ export function createApp(base: ServerContext) {
       before: before || undefined,
       limit: 50,
     })
-    return c.json({ items })
+    // Messages copied into the log (a release or a schedule that failed) are kept texts.
+    return c.json({
+      items: items.map((i) =>
+        typeof i.detail?.message === 'string'
+          ? { ...i, detail: { ...i.detail, message: t.read(i.detail.message) } }
+          : i,
+      ),
+    })
   })
 
   /**
@@ -3013,7 +3026,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       const fingerprint = fingerprintOf(form, data)
       const spam =
         spamReason(data, elapsed) ??
-        ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? t('Messaggio ripetuto') : null)
+        ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? t.keep('Messaggio ripetuto') : null)
       // A signup form: no message, a subscriber waiting to confirm. Spam gets the same answer.
       if (def?.newsletter) {
         if (!spam) await signUp(c, def, data, page)
@@ -3082,8 +3095,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.get('/api/submissions', requireUser, async (c) => {
     const limit = Math.min(Number(c.req.query('limit') ?? 50), 200)
     const offset = Math.max(Number(c.req.query('offset') ?? 0), 0)
+    const list = await submissions.list(limit, offset, filterOf(c))
     return c.json({
-      ...(await submissions.list(limit, offset, filterOf(c))),
+      ...list,
+      // The spam reason is saved as a kept text: read in the language of whoever looks.
+      items: list.items.map((m) => ({ ...m, spam: m.spam && t.read(m.spam) })),
       forms: await submissions.forms(),
     })
   })
@@ -3121,7 +3137,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const input = await body(c, z.object({ read: z.boolean().optional(), spam: z.boolean().optional() }))
     const id = c.req.param('id')
     if (input.read !== undefined) await submissions.markRead(id, input.read)
-    if (input.spam !== undefined) await submissions.markSpam(id, input.spam ? t('Segnato a mano') : null)
+    if (input.spam !== undefined) await submissions.markSpam(id, input.spam ? t.keep('Segnato a mano') : null)
     return c.json({ ok: true })
   })
 
@@ -3554,13 +3570,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   /** Why a document's draft cannot go on the site now, in words; null when it can. */
   const publishProblem = (doc: StoredDocument): string | null => {
     const def = ctx.config().collections.find((x) => x.name === doc.collection)
-    if (!def) return t('La raccolta non esiste più')
+    if (!def) return t.keep('La raccolta non esiste più')
     const check = validate(def, prepare(def, doc.data))
     if (check.ok) return null
     const fields = [...new Set(check.issues.map((i) => def.fields[i.path.split('.')[0] ?? '']?.label ?? i.path))]
     return fields.length
-      ? t('Alcuni campi vanno completati: {fields}', { fields: fields.join(', ') })
-      : t('Alcuni campi vanno completati')
+      ? t.keep('Alcuni campi vanno completati: {fields}', { fields: fields.join(', ') })
+      : t.keep('Alcuni campi vanno completati')
   }
 
   /**
@@ -3588,7 +3604,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             .catch((error) => console.error('Materialize: activity not recorded', error))
         const existing = await content.get(item.documentId)
         if (!existing) {
-          await schedules.finish(item.id, 'failed', t('La pagina non esiste più'))
+          await schedules.finish(item.id, 'failed', t.keep('La pagina non esiste più'))
           continue
         }
         try {
@@ -3605,7 +3621,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           }
           ran++
         } catch (error) {
-          const message = error instanceof Error && error.message ? error.message : t('Errore imprevisto')
+          const message = error instanceof Error && error.message ? error.message : t.keep('Errore imprevisto')
           await schedules.finish(item.id, 'failed', message)
           await note('document.schedule_failed', existing.title, {
             collection: existing.collection,
@@ -3651,13 +3667,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const out: ReleaseProblem[] = []
     for (const item of release.items) {
       const doc = await content.get(item.documentId)
-      if (!doc) out.push({ documentId: item.documentId, title: '', message: t('La pagina non esiste più') })
+      if (!doc) out.push({ documentId: item.documentId, title: '', message: t.keep('La pagina non esiste più') })
       else if (item.action === 'publish') {
         const message = publishProblem(doc)
         if (message) out.push({ documentId: doc.id, title: doc.title, message })
       }
     }
-    if (!release.items.length) out.push({ documentId: '', title: '', message: t('Il rilascio è vuoto') })
+    if (!release.items.length) out.push({ documentId: '', title: '', message: t.keep('Il rilascio è vuoto') })
     return out
   }
 
@@ -3672,7 +3688,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         .catch((error) => console.error('Materialize: activity not recorded', error))
     const problems = await releaseProblems(release)
     if (problems.length) {
-      const message = problems.map((p) => (p.title ? `${p.title}: ${p.message}` : p.message)).join('; ')
+      const message = t.keep('{list}', {
+        list: problems.map((p) =>
+          p.title ? t.keep('{title}: {message}', { title: p.title, message: p.message }) : p.message,
+        ),
+      })
       await releases.finish(release.id, 'failed', message)
       await note('release.failed', release.name, { id: release.id, message })
       return false
@@ -3692,8 +3712,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         done.push(doc.title)
       }
     } catch (error) {
-      const why = error instanceof Error && error.message ? error.message : t('Errore imprevisto')
-      const message = done.length ? t('{why} (già uscite: {done})', { why, done: done.join(', ') }) : why
+      const why = error instanceof Error && error.message ? error.message : t.keep('Errore imprevisto')
+      const message = done.length ? t.keep('{why} (già uscite: {done})', { why, done: done.join(', ') }) : why
       await releases.finish(release.id, 'failed', message)
       await note('release.failed', release.name, { id: release.id, message })
       return false
@@ -3716,10 +3736,10 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         collection: doc.collection,
         locale: doc.locale,
         status: doc.status,
-        problem: problems.find((p) => p.documentId === doc.id)?.message ?? null,
+        problem: t.read(problems.find((p) => p.documentId === doc.id)?.message) || null,
       })
     }
-    return { ...release, items, ready: problems.length === 0 }
+    return { ...release, error: release.error && t.read(release.error), items, ready: problems.length === 0 }
   }
 
   const loadRelease = async (id: string) => {
@@ -3796,7 +3816,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           error: {
             code: 'release_not_ready',
             message: t('Alcune pagine non sono pronte: non è uscito niente'),
-            problems,
+            problems: problems.map((p) => ({ ...p, message: t.read(p.message) })),
           },
         },
         422,
@@ -4089,7 +4109,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   // ----- panel: newsletters -----
 
-  const newsletterJson = async (n: Newsletter) => ({ ...n, stats: await newsletter.stats(n.id) })
+  const newsletterJson = async (n: Newsletter) => ({
+    ...n,
+    error: n.error && t.read(n.error),
+    stats: await newsletter.stats(n.id),
+  })
   const loadNewsletter = async (id: string) => {
     const found = await newsletter.get(id)
     if (!found) throw new ApiError(404, 'not_found', t('Questa newsletter non esiste'))
@@ -4355,7 +4379,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       for (const n of await newsletter.due(now)) {
         const mail = await settings.get<MailSettings>('mail')
         if (!isConfigured(mail)) {
-          await newsletter.setStatus(n.id, 'failed', { error: t('L’email non è configurata') })
+          await newsletter.setStatus(n.id, 'failed', { error: t.keep('L’email non è configurata') })
           continue
         }
         if (n.status === 'scheduled') await newsletter.setStatus(n.id, 'sending')
@@ -4366,7 +4390,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           for (const item of batch) {
             const who = await newsletter.subscriber(item.subscriberId)
             if (!who || who.status !== 'active') {
-              await newsletter.markSend(item.id, 'failed', t('Non più iscritto'))
+              await newsletter.markSend(item.id, 'failed', t.keep('Non più iscritto'))
               continue
             }
             try {
@@ -4378,7 +4402,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
               await newsletter.markSend(
                 item.id,
                 'failed',
-                error instanceof Error ? error.message.slice(0, 300) : t('Errore'),
+                error instanceof Error ? error.message.slice(0, 300) : t.keep('Errore'),
               )
             }
             if (pause) await new Promise((r) => setTimeout(r, pause))
@@ -4388,7 +4412,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         const allFailed = stats.total > 0 && stats.sent === 0
         await newsletter.setStatus(n.id, allFailed ? 'failed' : 'sent', {
           sentAt: new Date(),
-          error: allFailed ? t('Nessun invio riuscito: controlla Impostazioni → Email') : null,
+          error: allFailed ? t.keep('Nessun invio riuscito: controlla Impostazioni → Email') : null,
         })
       }
       // Signups never confirmed are dropped after a week.

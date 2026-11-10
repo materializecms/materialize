@@ -8,6 +8,7 @@ import { type Database, openDatabase } from '@materializecms/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { spamReason } from '../src/forms.ts'
 import { createApp } from '../src/index.ts'
+import { t } from '../src/t.ts'
 
 let dir: string
 let database: Database
@@ -166,6 +167,13 @@ describe('forms', () => {
       'Link nascosti nel testo',
       'Messaggio ripetuto',
     ])
+    // Saved once, read in the language of whoever opens the list.
+    const english = (await admin('GET', '/api/submissions?status=spam', undefined, { 'x-mz-lang': 'en' })).body.items
+    expect(english.map((m: { spam: string }) => m.spam).sort()).toEqual([
+      'Filled in under 3 seconds',
+      'Links hidden in the text',
+      'Repeated message',
+    ])
     await admin('PATCH', `/api/submissions/${spam[0].id}`, { spam: false })
     expect((await admin('GET', '/api/submissions')).body.items).toHaveLength(2)
   })
@@ -288,9 +296,10 @@ describe('spam signs', () => {
   it('counts links and filling time', () => {
     expect(spamReason({ m: 'Ciao' }, 5000)).toBeNull()
     expect(spamReason({ m: 'Ciao' }, null)).toBeNull()
-    expect(spamReason({ m: 'https://a.example https://b.example www.c.example http://d.example' }, 5000)).toBe(
-      'Troppi link (4)',
-    )
-    expect(spamReason({ m: '<a href="x">y</a>' }, 5000)).toBe('Link nascosti nel testo')
+    // Saved as kept texts: read in the language of whoever opens the message.
+    const links = spamReason({ m: 'https://a.example https://b.example www.c.example http://d.example' }, 5000)
+    expect(t.read(links)).toBe('Troppi link (4)')
+    expect(t.in('en', 'Troppi link ({n})', { n: 4 })).toBe('Too many links (4)')
+    expect(t.read(spamReason({ m: '<a href="x">y</a>' }, 5000))).toBe('Link nascosti nel testo')
   })
 })

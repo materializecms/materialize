@@ -49,7 +49,20 @@ export type Translate = {
   n: (n: number, one: string, many: string, vars?: Vars) => string
   /** The same text in a given language, whatever the current one is (an email to someone else). */
   in: (lang: Lang, text: string, vars?: Vars) => string
+  /**
+   * A text to save in the database, to be read later by people in different languages: it keeps
+   * the Italian text and its values, and `read` writes it in the reader's language. A value can be
+   * another kept text, or a list of them (joined with "; ").
+   */
+  keep: (text: string, vars?: KeptVars) => string
+  /** A saved text in the current language: kept texts are translated, anything else stays as is. */
+  read: (stored: string | null | undefined) => string
 }
+
+export type KeptVars = Record<string, string | number | string[] | null | undefined>
+
+/** How a kept text starts in the database: anything else is plain text, shown as it is. */
+const KEPT = 'i18n:'
 
 /** A translator over one package's English dictionary. */
 export function translator(en: Record<string, string>): Translate {
@@ -57,5 +70,24 @@ export function translator(en: Record<string, string>): Translate {
   const t = ((text: string, vars?: Vars) => fill(pick(currentLang(), text), vars)) as Translate
   t.n = (n, one, many, vars) => t(n === 1 ? one : many, { n, ...vars })
   t.in = (lang, text, vars) => fill(pick(lang, text), vars)
+  t.keep = (text, vars) => KEPT + JSON.stringify(vars ? { t: text, v: vars } : { t: text })
+  t.read = (stored) => {
+    if (!stored) return ''
+    if (!stored.startsWith(KEPT)) return stored
+    try {
+      const { t: text, v } = JSON.parse(stored.slice(KEPT.length)) as { t: string; v?: KeptVars }
+      if (typeof text !== 'string') return stored
+      const vars: Vars = {}
+      for (const [k, value] of Object.entries(v ?? {}))
+        vars[k] = Array.isArray(value)
+          ? value.map((x) => t.read(String(x))).join('; ')
+          : typeof value === 'string'
+            ? t.read(value)
+            : value
+      return t(text, vars)
+    } catch {
+      return stored
+    }
+  }
   return t
 }

@@ -176,4 +176,8 @@ export const services: Record<string, string> = {
   'l’AI avrebbe tolto parte del testo': 'the AI would have removed part of the text',
   'l’AI avrebbe aggiunto testi che non c’erano': 'the AI would have added texts that were not there',
   'l’AI avrebbe tolto delle immagini': 'the AI would have removed some images',
+  // Spam reasons, saved with each message and read in the language of whoever opens it
+  'Compilato in meno di 3 secondi': 'Filled in under 3 seconds',
+  'Link nascosti nel testo': 'Links hidden in the text',
+  'Troppi link ({n})': 'Too many links ({n})',
 }

@@ -17,12 +17,15 @@ const unquote = (raw: string) => {
 }
 
 /**
- * Every text given to t(), t.n() and t.in() in a package's sources: `t('…')`, `t.n(count, '…', '…')`,
- * `t.in(lang, '…')`. The first argument of t.n and t.in must not contain parentheses.
+ * Every text given to t(), t.n(), t.in() and t.keep() in a package's sources: `t('…')`,
+ * `t.n(count, '…', '…')`, `t.in(lang, '…')`, `t.keep('…')`. The first argument of t.n and t.in must not contain parentheses.
  */
 export function texts(src: string): { text: string; where: string }[] {
   const out: { text: string; where: string }[] = []
-  const call = new RegExp(String.raw`\bt(\.n|\.in)?\(\s*(?:[^,()]+,\s*)?(${literal})(?:\s*,\s*(${literal}))?`, 'g')
+  const call = new RegExp(
+    String.raw`\bt(\.n|\.in|\.keep)?\(\s*(?:[^,()]+,\s*)?(${literal})(?:\s*,\s*(${literal}))?`,
+    'g',
+  )
   for (const file of files(src)) {
     // The dictionaries, and the examples in the comments of the translator itself.
     if (file.includes(join(src, 'en')) || file.endsWith(join('core', 'src', 'lang.ts'))) continue

@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { FILE_TYPES, FORM_FILE_MAX, type FormDefinition } from '@materializecms/core/page'
 import type { SubmissionFile } from '@materializecms/db'
+import { t } from './t.ts'
 
 /** Settings for every form, kept in the "forms" setting. */
 export interface FormsSettings {
@@ -103,14 +104,15 @@ const MIN_FILL_MS = 2500
 
 /**
  * Why a message looks like spam, without a CAPTCHA: filled in at once, too many links, links
- * hidden in markup. Null for a message that looks real. Repeats are checked by the caller.
+ * hidden in markup. Null for a message that looks real. Repeats are checked by the caller. The
+ * reason is saved with the message and read in the language of whoever opens it (t.keep).
  */
 export function spamReason(data: Record<string, string>, elapsedMs: number | null): string | null {
-  if (elapsedMs !== null && elapsedMs >= 0 && elapsedMs < MIN_FILL_MS) return 'Compilato in meno di 3 secondi'
+  if (elapsedMs !== null && elapsedMs >= 0 && elapsedMs < MIN_FILL_MS) return t.keep('Compilato in meno di 3 secondi')
   const text = Object.values(data).join('\n')
-  if (/\[url=|<a\s+href|\[link=/i.test(text)) return 'Link nascosti nel testo'
+  if (/\[url=|<a\s+href|\[link=/i.test(text)) return t.keep('Link nascosti nel testo')
   const links = text.match(/https?:\/\/|www\./gi)?.length ?? 0
-  if (links > 3) return `Troppi link (${links})`
+  if (links > 3) return t.keep('Troppi link ({n})', { n: links })
   return null
 }
 

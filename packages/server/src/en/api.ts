@@ -242,4 +242,7 @@ export const api: Record<string, string> = {
   'SVG: la libreria non li accetta, perché possono contenere codice':
     'SVG: the library does not accept them, since they can contain code',
   'in un formato che la libreria non legge': 'in a format the library cannot read',
+  // Pieces of saved messages (a release that did not go out)
+  '{list}': '{list}',
+  '{title}: {message}': '{title}: {message}',
 }
