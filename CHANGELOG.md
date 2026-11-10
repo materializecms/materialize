@@ -4,6 +4,9 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.9.0 — 2026-11-10
+
+- **Da sapere se aggiorni.** `materialize dev` si raggiunge solo dal computer (`--host 0.0.0.0` per il telefono). Online, «Password dimenticata?» manda il link solo se è configurato l'indirizzo del sito (`site.url` o `MATERIALIZE_SITE_URL`). I webhook dei moduli verso indirizzi interni vengono rifiutati (`MATERIALIZE_PRIVATE_WEBHOOKS=1` per un servizio sullo stesso server). `getEntries` non restituisce più le pagine modello (`{ templates: true }` per averle). Il pannello parte nella lingua del browser finché ognuno non ne sceglie una. Cambiando il server dell'AI, dell'email o dei backup esterni, la chiave salvata va scritta di nuovo. Il terminale parla la lingua del sistema (`MATERIALIZE_LANG=it` per l'italiano).
 - **Il pannello, dal controllo generale.** Da telefono si pubblica: il pulsante resta visibile, una freccia riporta all'elenco e le pagine si aprono in modalità Contenuto; annulla, ripristina, tema e cronologia sono in «Altre azioni». «Pubblicato» non sembra più un pulsante spento. Impostazioni → Sito non mostra più comandi che lì non servono.
 - **Coerenza del nuovo aspetto**: menu delle impostazioni a pillole con una larghezza e un titolo uguali in ogni scheda; dettaglio dei media, newsletter, persone e campi su carte arrotondate; pulsanti, selettori e filtri a pillola ovunque; elenchi allineati alla loro intestazione.
 - **Editor**: i selettori del pannello delle proprietà vanno su due righe invece di accavallare le etichette; la scheda Aggiungi mostra i nomi interi; nel pannello Contenuto le voci del menu si chiamano «Voce del menu»; i due «⋯» della tela hanno icone diverse.
