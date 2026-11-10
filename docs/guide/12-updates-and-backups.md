@@ -2,7 +2,7 @@
 
 ## Updating Materialize
 
-Once a day, the server checks for a new version. When there is one, a dot appears on **Settings**. In **Settings → Updates**, an administrator sees what's new and clicks **Update now**:
+Once a day, the server checks for a new version. When there is one, administrators see it right away: a pill with the version number appears at the top right (hover it for the first changes), an **Update** card on the Overview, and a dot on **Settings**. The pill closes with its ×, and comes back with the next version. In **Settings → Updates**, an administrator sees what's new and clicks **Update now**:
 
 1. Materialize makes a **backup** of the database and the media;
 2. it downloads the new version **while the site stays online**;

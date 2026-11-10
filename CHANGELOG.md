@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Avviso di aggiornamento**: quando esce una nuova versione di Materialize, gli amministratori vedono in alto a destra una pillola con il numero della versione (al passaggio del mouse, le prime novità) e una scheda **Aggiornamento** nella Panoramica, che portano a Impostazioni → Aggiornamenti. La pillola si chiude e torna con la versione successiva. Si vede anche in sviluppo, dove si aggiorna dal terminale.
+- **Scorrimento fluido verso le sezioni**: i link a una sezione della stessa pagina, come le voci del menu, non saltano più di colpo: la pagina scorre in modo morbido (al massimo un secondo) e la sezione si ferma sotto il menu fisso, anche se intanto finiscono di caricarsi immagini più in alto. La rotella o un tocco fermano lo scorrimento; chi ha chiesto meno movimento vede il salto di sempre.
 - **Materialize in inglese, completo.** Oltre al pannello, sono in inglese i messaggi del server, le email a chi ha un account, i controlli SEO, di accessibilità e di prestazioni, i nomi delle sezioni della libreria e degli stili, il terminale (`materialize` e `create-materialize`), la guida (`docs/guide`) e il README (`README.en.md`).
 - Ognuno sceglie la lingua per sé, nel profilo o nella pagina di accesso; prima di scegliere, il pannello segue la lingua del browser. Due persone possono usare lo stesso sito una in italiano e una in inglese: il server risponde a ognuna nella sua lingua, e le email partono nella lingua del profilo di chi le riceve.
 - Il terminale parla la lingua del sistema; `MATERIALIZE_LANG=it` o `en` la sceglie a mano.

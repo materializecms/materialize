@@ -610,6 +610,7 @@ export function startMotion(root: ParentNode = document, options: MotionOptions 
   if (options.site && host && !reduced) {
     const coarse = matchMedia('(pointer: coarse)').matches
     if (host.dataset.mzSmooth !== undefined && !coarse) cleanups.push(smoothScroll())
+    cleanups.push(anchorGlide())
     const cursor = host.dataset.mzCursor
     if (cursor && !coarse) cleanups.push(customCursor(cursor as 'dot' | 'ring'))
   }
@@ -624,6 +625,67 @@ export function startMotion(root: ParentNode = document, options: MotionOptions 
       t.el.style.clipPath = ''
       t.el.style.willChange = ''
     }
+  }
+}
+
+/**
+ * Links to a section of the same page (the menu's «Servizi» → #servizi) glide there instead of
+ * jumping: quick for a short way, never longer than a second, stopped by the wheel or a touch. The
+ * section stops below a fixed menu (its scroll-margin). With reduced motion the browser jumps as
+ * usual; a hash with no section behind it (#preferenze-cookie) is left to whoever handles it.
+ */
+function anchorGlide(): () => void {
+  let raf = 0
+  const stop = () => cancelAnimationFrame(raf)
+  /**
+   * `target` is asked again at every frame: images that load above the section while the page
+   * moves push it down, and the glide follows instead of landing short and jumping.
+   */
+  const glide = (target: () => number) => {
+    stop()
+    const from = scrollY
+    const distance = target() - from
+    if (Math.abs(distance) < 2) return
+    const duration = Math.min(1000, Math.max(450, Math.abs(distance) * 0.4))
+    const start = performance.now()
+    // Ease in and out: it leaves gently and lands softly.
+    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2)
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / duration)
+      scrollTo(0, from + (target() - from) * ease(p))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+  }
+  const onClick = (e: MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    const link = (e.target as Element | null)?.closest?.<HTMLAnchorElement>('a[href]')
+    if (!link || (link.target && link.target !== '_self')) return
+    const url = new URL(link.href, location.href)
+    if (url.origin !== location.origin || url.pathname !== location.pathname || !url.hash) return
+    const id = decodeURIComponent(url.hash.slice(1))
+    const section = id ? document.getElementById(id) : null
+    if (id && !section) return
+    e.preventDefault()
+    if (url.hash !== location.hash) history.pushState(null, '', url.hash)
+    // After this click has closed an open mobile menu, so the page has its final layout.
+    requestAnimationFrame(() => {
+      const margin = section ? Number.parseFloat(getComputedStyle(section).scrollMarginTop) || 0 : 0
+      glide(() => {
+        const max = document.documentElement.scrollHeight - innerHeight
+        const top = section ? section.getBoundingClientRect().top + scrollY - margin : 0
+        return Math.max(0, Math.min(max, top))
+      })
+    })
+  }
+  addEventListener('click', onClick)
+  addEventListener('wheel', stop, { passive: true })
+  addEventListener('touchstart', stop, { passive: true })
+  return () => {
+    stop()
+    removeEventListener('click', onClick)
+    removeEventListener('wheel', stop)
+    removeEventListener('touchstart', stop)
   }
 }
 

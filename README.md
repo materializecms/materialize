@@ -99,7 +99,7 @@ In produzione (`materialize start`) l'installazione chiede il link che il server
 
 ### Aggiornamenti
 
-Con `materialize start`, il server gira sotto un piccolo supervisore che lo tiene acceso (lo riavvia se si ferma) e applica gli aggiornamenti. Una volta al giorno il server controlla se c'è una versione nuova; l'amministratore la vede in **Impostazioni → Aggiornamenti**, con le novità dal changelog, e la installa con un clic:
+Con `materialize start`, il server gira sotto un piccolo supervisore che lo tiene acceso (lo riavvia se si ferma) e applica gli aggiornamenti. Una volta al giorno il server controlla se c'è una versione nuova; gli amministratori la vedono in una pillola in alto a destra e nella Panoramica, e in **Impostazioni → Aggiornamenti** con le novità dal changelog, e la installa con un clic:
 
 1. backup del database e dei media;
 2. la nuova versione si scarica in `.materialize/updates/next`, mentre il sito resta online;
@@ -225,7 +225,7 @@ Sulla tela:
 - allinea e distribuisci (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): gli elementi liberi si spostano, quelli in colonna o in riga si allineano tramite il loro contenitore;
 - trascinando un elemento libero compaiono le guide magnetiche verso i bordi e i centri del contenitore e degli elementi vicini (⌘ per spostarlo senza agganci); tenendo premuto ⌥ si vedono le distanze dall’elemento sotto il puntatore.
 
-Per tutto il sito si scelgono anche scorrimento morbido, cursore personalizzato e transizioni tra le pagine. Chi ha chiesto meno movimento al proprio dispositivo vede il sito fermo. Il codice personalizzato lo inserisce solo un amministratore.
+I link del menu alle sezioni della stessa pagina scorrono fluidi fino alla sezione, che si ferma sotto il menu fisso. Per tutto il sito si scelgono anche scorrimento morbido, cursore personalizzato e transizioni tra le pagine. Chi ha chiesto meno movimento al proprio dispositivo vede il sito fermo. Il codice personalizzato lo inserisce solo un amministratore.
 
 ## Caratteri
 

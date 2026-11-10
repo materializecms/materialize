@@ -99,7 +99,7 @@ In production (`materialize start`) setup requires the link the server prints at
 
 ### Updates
 
-With `materialize start`, the server runs under a small supervisor that keeps it running (restarting it if it stops) and applies updates. Once a day the server checks for a new version. The administrator sees it in **Settings → Updates**, with the changelog notes, and installs it with one click:
+With `materialize start`, the server runs under a small supervisor that keeps it running (restarting it if it stops) and applies updates. Once a day the server checks for a new version. Administrators see it in a pill at the top right and on the Overview, and in **Settings → Updates** with the changelog notes, and installs it with one click:
 
 1. the database and media are backed up;
 2. the new version downloads into `.materialize/updates/next` while the site stays online;
@@ -225,7 +225,7 @@ On the canvas:
 - align and distribute (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): free-positioned elements move, while those in a column or row align through their container;
 - dragging a free-positioned element shows snapping guides to the edges and centers of the container and nearby elements (⌘ to move it without snapping); holding ⌥ shows the distances to the element under the pointer.
 
-For the whole site you can also choose smooth scrolling, a custom cursor and page transitions. People who asked their device for reduced motion see a still site. Only an administrator can add custom code.
+Menu links to a section of the same page glide to it, and the section stops below a fixed menu. For the whole site you can also choose smooth scrolling, a custom cursor and page transitions. People who asked their device for reduced motion see a still site. Only an administrator can add custom code.
 
 ## Fonts
 

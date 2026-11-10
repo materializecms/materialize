@@ -7,6 +7,7 @@ import { api, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { href, navigate, type Route } from '../lib/router.ts'
+import { useUpdateNotice } from '../settings/UpdatesSettings.tsx'
 import { BriefDialog } from './BriefDialog.tsx'
 import { useSession } from './context.ts'
 import { useReleases } from './ReleasesScreen.tsx'
@@ -57,6 +58,7 @@ export function Overview() {
   const release = releases.data?.releases[0] ?? null
   const next = schedules.data?.items[0] ?? null
   const unread = messages.data?.unread ?? 0
+  const update = useUpdateNotice()
   const lastMessage = messages.data?.items[0] ?? null
   const today = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(
     new Date(),
@@ -115,7 +117,7 @@ export function Overview() {
           </div>
         )}
 
-        {(waiting.length > 0 || release || next || unread > 0) && (
+        {(waiting.length > 0 || release || next || unread > 0 || update) && (
           <section
             data-tour="todo"
             aria-label={t('Da fare')}
@@ -174,6 +176,18 @@ export function Overview() {
                     : ''}
                   .
                 </p>
+              </Todo>
+            )}
+            {update && (
+              <Todo label={t('Aggiornamento')} color="#8b5cf6">
+                <p className="font-semibold">{t('È disponibile Materialize {version}', { version: update.version })}</p>
+                {update.headline && <p className="line-clamp-2 text-[13px] text-fg2">{update.headline}</p>}
+                <a
+                  {...go({ name: 'settings', tab: 'updates' })}
+                  className="text-[13px] font-medium text-accent hover:underline"
+                >
+                  {update.installable ? t('Vedi le novità e aggiorna →') : t('Vedi le novità →')}
+                </a>
               </Todo>
             )}
             {unread > 0 && (

@@ -74,6 +74,49 @@ export function useUpdateAvailable(): string | null {
 }
 
 /**
+ * A newer Materialize for the notice in the panel (administrators only): the version, whether the
+ * panel can install it here (in development or without the supervisor it is done by hand), and the
+ * first line of what is new. Null when there is nothing newer.
+ */
+export function useUpdateNotice(): { version: string; installable: boolean; headline: string } | null {
+  const { user } = useSession()
+  const data = useQuery({
+    queryKey: ['updates'],
+    queryFn: api.updates,
+    enabled: user.role === 'admin',
+    staleTime: 60 * 60_000,
+  }).data
+  if (!data?.latest || data.notes.length === 0) return null
+  const first = data.notes[0]?.notes ?? ''
+  const headline =
+    first
+      .split('\n')
+      .map((l) =>
+        l
+          .replace(/^[-*#\s]+/, '')
+          .replace(/\*\*/g, '')
+          .trim(),
+      )
+      .find((l) => l.length > 0) ?? ''
+  return { version: data.latest, installable: !data.unavailable, headline }
+}
+
+/** The version whose notice someone closed: it comes back with the next one. */
+const HIDDEN = 'mz-update-hidden'
+export const noticeHidden = (version: string) => {
+  try {
+    return localStorage.getItem(HIDDEN) === version
+  } catch {
+    return false
+  }
+}
+export const hideNotice = (version: string) => {
+  try {
+    localStorage.setItem(HIDDEN, version)
+  } catch {}
+}
+
+/**
  * Impostazioni → Aggiornamenti: the running version, what is new, and one button to install it.
  * The server backs up, installs the new version beside the site and restarts on it; if it does
  * not start, the previous version comes back by itself.

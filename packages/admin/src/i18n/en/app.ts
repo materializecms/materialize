@@ -166,4 +166,11 @@ export const app: Record<string, string> = {
 
   // dates
   adesso: 'just now',
+
+  // a new version of Materialize
+  Aggiornamento: 'Update',
+  'Vedi le novità e aggiorna →': 'See what’s new and update →',
+  'Vedi le novità →': 'See what’s new →',
+  'Materialize {version}': 'Materialize {version}',
+  'Nascondi fino alla prossima versione': 'Hide until the next version',
 }
