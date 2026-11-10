@@ -1025,7 +1025,23 @@ export interface RenderOptions {
   frame?: string
   /** The page's language, and the same page in the site's other languages, for language switchers. */
   locale?: string
+  /** The home page of this language ("/", "/en/"): where links to sections not on this page go. */
+  home?: string
   alternates?: { locale: string; url: string }[]
+}
+
+/**
+ * The few words the site itself says to visitors (the menu button, the skip link), in the page's
+ * language: they belong to the site, not to the panel.
+ */
+export function siteWords(locale = 'it'): { open: string; close: string; skip: string } {
+  const lang = locale.slice(0, 2).toLowerCase()
+  if (lang === 'it') return { open: 'Apri il menu', close: 'Chiudi il menu', skip: 'Vai al contenuto' }
+  if (lang === 'de') return { open: 'Menü öffnen', close: 'Menü schließen', skip: 'Zum Inhalt' }
+  if (lang === 'fr') return { open: 'Ouvrir le menu', close: 'Fermer le menu', skip: 'Aller au contenu' }
+  if (lang === 'es') return { open: 'Abrir el menú', close: 'Cerrar el menú', skip: 'Ir al contenido' }
+  if (lang === 'pt') return { open: 'Abrir o menu', close: 'Fechar o menu', skip: 'Ir para o conteúdo' }
+  return { open: 'Open the menu', close: 'Close the menu', skip: 'Skip to content' }
 }
 
 /** A language's own name, as its speakers write it: "English", "Deutsch", "Italiano". */
@@ -1456,6 +1472,9 @@ const BASE_CSS = `
 .mz-page .mz-more{display:flex;justify-content:center;width:100%;padding-top:32px}
 .mz-page [data-mz-sticky]{transition:transform .45s cubic-bezier(.2,.8,.2,1),background-color .3s,backdrop-filter .3s,box-shadow .3s}
 .mz-page [data-mz-sticky].mz-away{transform:translateY(-100%)}
+.mz-page .mz-skip{position:absolute;left:12px;top:-60px;z-index:100;padding:10px 16px;border-radius:999px;background:#111;color:#fff;font-size:15px;text-decoration:none;transition:top .2s}
+.mz-page .mz-skip:focus{top:12px}
+.mz-page [tabindex="-1"]:focus{outline:none}
 .mz-page .mz-burger{display:none;flex-direction:column;justify-content:center;gap:6px;width:40px;height:40px;padding:0 9px;margin-left:4px;border:0;border-radius:999px;background:transparent;color:inherit;cursor:pointer}
 .mz-page .mz-burger span{display:block;height:1.5px;width:100%;background:currentColor;transition:transform .3s}
 .mz-page .mz-open>.mz-burger span:first-child{transform:translateY(3.75px) rotate(45deg)}
@@ -1557,6 +1576,8 @@ interface Ctx {
   ghost?: boolean
   /** Inside a section with a mobile menu: its children hidden on mobile open from ☰. */
   menu?: boolean
+  /** Roughly how much of the window's width this element can take (1: all of it), for image sizes. */
+  share?: number
 }
 
 /** The CSS of one node at one breakpoint. */
@@ -1945,6 +1966,8 @@ export function renderSections(
     sections = sections.map((n) => bindTo(n, entry))
   }
   const C = palette(theme)
+  // Which top-level section is being drawn, and how many images may still load at once.
+  const eager = { section: 0, left: 1 }
   const mode = options.animations ?? 'site'
   const desktop: string[] = []
   const tablet: string[] = []
@@ -2039,6 +2062,10 @@ export function renderSections(
         (p.bgImage?.src
           ? `<img class="mz-bgimg" src="${esc(p.bgImage.src)}" alt=""${srcsetAttr(p.bgImage.src, options)} sizes="100vw"><div class="mz-bgdim" style="background:rgba(0,0,0,${p.bgDim ?? 0.45})"></div>`
           : '')
+      // How wide each child can get: a grid splits the width in columns, a row among its children.
+      const columns =
+        p.layout === 'grid' ? (p.cols ?? 3) : p.layout === 'row' && !p.wrap ? Math.max(1, n.children?.length ?? 1) : 1
+      const share = (c.share ?? 1) / columns
       const renderKids = (ghost: boolean) =>
         (n.children ?? [])
           .map((ch, i) =>
@@ -2050,6 +2077,7 @@ export function renderSections(
               idx: i,
               ghost: ghost || c.ghost,
               menu: c.depth === 0 && !!p.mobileMenu,
+              share,
             }),
           )
           .join('')
@@ -2072,6 +2100,7 @@ export function renderSections(
               inherit,
               idx: i,
               ghost: i > 0 || c.ghost,
+              share: (c.share ?? 1) / (p.layout === 'grid' ? (p.cols ?? 3) : 1),
             })
             return i >= pageSize ? html.replace(/^<(\w+) /, '<$1 data-mz-later ') : html
           })
@@ -2118,7 +2147,8 @@ export function renderSections(
       }
       if (c.depth === 0 && p.mobileMenu) {
         // ☰ on mobile: it opens the parts of the menu that are hidden there, below the bar.
-        kids += `<button type="button" class="mz-burger" data-mz-burger aria-expanded="false" aria-label="Apri il menu"><span></span><span></span></button>`
+        const words = siteWords(options.locale)
+        kids += `<button type="button" class="mz-burger" data-mz-burger aria-expanded="false" aria-label="${esc(words.open)}" data-mz-open="${esc(words.open)}" data-mz-close="${esc(words.close)}"><span></span><span></span></button>`
         mobile.push(
           `.mz-page .${cls}{flex-wrap:wrap}.mz-page .${cls}>.mz-burger{display:flex}` +
             `.mz-page .${cls}.mz-open>[data-mz-menu]{display:flex!important;flex-direction:column;align-items:flex-start;order:10;flex:1 0 100%;width:100%;gap:18px;padding:18px 0 8px}` +
@@ -2200,7 +2230,18 @@ export function renderSections(
       } else if (kind === 'file') {
         const accept = FILE_TYPES[p.accept ?? 'any'].join(',')
         field = `<input class="mz-field mz-file" type="file" name="${name}" accept="${accept}"${req}${options.editor ? ' tabindex="-1" disabled' : ''}>`
-      } else field = `<input class="mz-field" type="${kind}" name="${name}"${ph}${req}${still}>`
+      } else {
+        // Browsers fill in what they know about the person: name, email, phone.
+        const auto =
+          kind === 'email'
+            ? 'email'
+            : kind === 'tel'
+              ? 'tel'
+              : /^(nome|name|nome-e-cognome|full-?name)$/i.test(inputName(p))
+                ? 'name'
+                : ''
+        field = `<input class="mz-field" type="${kind}" name="${name}"${auto ? ` autocomplete="${auto}"` : ''}${ph}${req}${still}>`
+      }
       return `<label ${attrs.join(' ')}>${label}${field}</label>`
     }
     if (n.type === 'icon') {
@@ -2214,10 +2255,14 @@ export function renderSections(
       const col = (t: string) => color(C, t, d.scheme)
       // A transparent 3D scene floats on the section: nothing behind it, even before WebGL starts.
       if (!cfg.transparent) desktop.push(`.mz-page .${cls}{background-image:${sceneFallback(cfg, col)}}`)
-      return `<div ${attrs.join(' ')} role="img" aria-label="${esc(p.alt || p.name || 'Animazione')}">${sceneCanvas(cfg, col)}</div>`
+      // Decoration unless it says something: only a scene with a description is announced.
+      const label = p.alt ? ` role="img" aria-label="${esc(p.alt)}"` : ' aria-hidden="true"'
+      return `<div ${attrs.join(' ')}${label}>${sceneCanvas(cfg, col)}</div>`
     }
     if (n.type === 'video') {
       if (!p.src) {
+        // The empty frame is the editor's prompt to choose one: the site shows nothing.
+        if (!options.editor) return ''
         return `<div ${attrs.join(' ').replace('class="mz-n ', 'class="mz-n mz-ph ')} role="img" aria-label="${esc(p.alt || p.name || 'Video')}">${PLACEHOLDER_ICON}</div>`
       }
       const poster = p.poster ? ` poster="${esc(p.poster)}"` : ''
@@ -2238,13 +2283,25 @@ export function renderSections(
     }
     // image
     if (!p.src) {
+      if (!options.editor) return ''
       return `<div ${attrs.join(' ').replace('class="mz-n ', 'class="mz-n mz-ph ')} role="img" aria-label="${esc(p.alt || p.name || 'Immagine')}">${PLACEHOLDER_ICON}</div>`
     }
-    return `<img ${attrs.join(' ')} src="${esc(p.src)}" alt="${esc(p.alt ?? '')}"${srcsetAttr(p.src, options)}${p.interactions?.length ? '' : ' loading="lazy"'} decoding="async">`
+    // The browser picks the copy for the width the image really takes, not the whole window.
+    const width =
+      p.width === 'fixed' && p.fixedW ? `${Number(p.fixedW)}px` : `${Math.min(100, Math.ceil((c.share ?? 1) * 100))}vw`
+    const sizes = srcsetAttr(p.src, options) ? ` sizes="(max-width: 640px) 100vw, ${width}"` : ''
+    // The first image of the opening section is what people see first: no waiting for it.
+    const first = !options.editor && !p.interactions?.length && eager.left > 0 && eager.section <= 1
+    if (first) eager.left--
+    const loading = p.interactions?.length ? '' : first ? ' fetchpriority="high"' : ' loading="lazy"'
+    return `<img ${attrs.join(' ')} src="${esc(p.src)}" alt="${esc(p.alt ?? '')}"${srcsetAttr(p.src, options)}${sizes}${loading} decoding="async">`
   }
 
   const html = sections
-    .map((s, i) => render(s, { depth: 0, scheme: 'default', parent: null, inherit: null, idx: i }))
+    .map((s, i) => {
+      eager.section = i
+      return render(s, { depth: 0, scheme: 'default', parent: null, inherit: null, idx: i })
+    })
     .join('')
   const reduced = (rules: string[]) =>
     rules.length ? `@media (prefers-reduced-motion:no-preference){${rules.join('')}}` : ''
@@ -2332,6 +2389,34 @@ export function librarySrcset(src: string): string | undefined {
   return [320, 640, 960, 1280, 1920].map((w) => `${src}@${w}.webp ${w}w`).join(', ')
 }
 
+/**
+ * Two things for visitors, on the site only. A link to a section that is not on this page (the
+ * shared menu's «Servizi» → #servizi, seen from an article) goes to that section on the home page.
+ * And when the page opens with a menu, a "skip to content" link lets keyboards jump past it.
+ */
+function siteLinks(sections: PageNode[], html: string, options: RenderOptions): string {
+  const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]))
+  const home = options.home ?? '/'
+  // Some hashes are not sections: the cookie preferences, a form's result. They stay on the page.
+  const kept = /^(preferenze-cookie|cookie-preferences|inviato|non-inviato)$/
+  let out = html.replace(/href="#([^"]+)"/g, (all, id: string) =>
+    ids.has(id) || kept.test(id) ? all : `href="${esc(home)}#${id}"`,
+  )
+  const first = sections[0]
+  const content = sections.findIndex((s) => !s.sticky && !s.mobileMenu)
+  if (first && (first.sticky || first.mobileMenu) && content > 0) {
+    const target = sections[content]
+    const id = target?.anchor && /^[a-z][a-z0-9-]*$/.test(target.anchor) ? target.anchor : null
+    // Without an anchor of its own, the first content section gets one for the link to reach.
+    if (!id && target) {
+      const cls = `n-${target.id.replace(/[^\w-]/g, '')}`
+      out = out.replace(`class="mz-n ${cls}"`, `class="mz-n ${cls}" id="mz-contenuto"`)
+    }
+    out = `<a class="mz-skip" href="#${id ?? 'mz-contenuto'}">${esc(siteWords(options.locale).skip)}</a>${out}`
+  }
+  return out
+}
+
 /** The page's root styles: background, text color and body font. */
 export function pageRootStyle(theme: Theme = DEFAULT_THEME): string {
   const C = palette(theme)
@@ -2340,7 +2425,8 @@ export function pageRootStyle(theme: Theme = DEFAULT_THEME): string {
 
 /** A complete page fragment: root element, HTML and CSS. */
 export function renderPage(sections: PageNode[], theme: Theme = DEFAULT_THEME, options: RenderOptions = {}) {
-  const { html, css } = renderSections(sections, theme, options)
+  let { html, css } = renderSections(sections, theme, options)
+  if (!options.editor) html = siteLinks(sections, html, options)
   const data = [
     theme.smoothScroll ? ' data-mz-smooth' : '',
     theme.cursor && theme.cursor !== 'default' ? ` data-mz-cursor="${theme.cursor}"` : '',

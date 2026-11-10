@@ -17,7 +17,7 @@ const { entry } = Astro.props as { entry: Entry | null }
 {
   entry ? (
     <Site title={entry.title} entry={entry}>
-      <Page sections={entry.data.page} document={entry} />
+      <Page sections={entry.data.page} document={entry} main />
     </Site>
   ) : (
     <Site title="Benvenuto">

@@ -13,10 +13,38 @@ export const hasSite = (root: string) => ASTRO_CONFIGS.some((name) => existsSync
 
 export type Handler = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
 
+/**
+ * Project files a browser never needs, which Vite in dev would otherwise hand to anyone who can reach
+ * it (with --host 0.0.0.0, the whole Wi-Fi): the config, the packages, secrets, the database and Git,
+ * at the root or through /@fs/. The site's own modules (/src, /node_modules/.vite) stay served, or
+ * pages would not load.
+ */
+export const PRIVATE_DEV_FILES =
+  /(?:^|\/)(?:(?:materialize|astro)\.config\.[cm]?[jt]s|package(?:-lock)?\.json|tsconfig\.json|\.env(?:\.[^/]*)?)$|(?:^|\/)\.(?:materialize|git)(?:\/|$)/i
+
+/**
+ * What the dev server answers before Vite sees a request: 400 to a malformed address (Astro would
+ * log a URI error and answer 500), 404 to a private file, nothing for everything else.
+ */
+export function devGuard(url: string | undefined): 400 | 404 | null {
+  const path = (url ?? '/').split(/[?#]/)[0] ?? '/'
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(path)
+  } catch {
+    return 400
+  }
+  return PRIVATE_DEV_FILES.test(decoded.replace(/\/{2,}/g, '/')) ? 404 : null
+}
+
+/** The address Astro's dev server listens on: the CMS's own, so hot reload answers wherever the page was opened. */
+export const devSiteHost = (host: string | undefined): string | boolean => host ?? true
+
 /** Astro's dev server, mounted inside Materialize: pages render on demand from the database. */
 export async function startDevSite(
   root: string,
   port: number,
+  host?: string,
 ): Promise<{ handle: Handler; close: () => Promise<void> }> {
   const { dev } = await import('astro')
   const server = await dev({
@@ -24,9 +52,36 @@ export async function startDevSite(
     logLevel: 'warn',
     // The canvas shows the site itself: Astro's own toolbar would get in the way.
     devToolbar: { enabled: false },
-    // Astro also listens on its own port, where the browser connects for hot reload.
-    server: { port, host: 'localhost' },
-    vite: { server: { ws: { clientPort: port } } },
+    // Astro also listens on its own port, where the browser connects for hot reload: on the same
+    // address as the CMS (127.0.0.1 by default, 0.0.0.0 with --host), never just `localhost`, which
+    // macOS may resolve to ::1 alone and leave a page opened at 127.0.0.1 without hot reload.
+    server: { port, host: devSiteHost(host) },
+    vite: {
+      // No ws.host: the browser connects to the address it opened the page at, on Astro's port.
+      server: { ws: { clientPort: port } },
+      plugins: [
+        {
+          name: 'materialize:dev-guard',
+          configureServer(vite) {
+            // At the very front, ahead of Vite's and Astro's own middleware (Astro puts its own first,
+            // and its trailing-slash check would fail on a malformed address): this hook runs after
+            // Astro's, since our plugin comes later.
+            return () => {
+              vite.middlewares.stack.unshift({
+                route: '',
+                handle: (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+                  const status = devGuard(req.url)
+                  if (!status) return next()
+                  res.statusCode = status
+                  res.setHeader('content-type', 'text/plain; charset=utf-8')
+                  res.end(status === 400 ? 'Bad request' : 'Not found')
+                },
+              })
+            }
+          },
+        },
+      ],
+    },
   })
   return { handle: (req, res) => server.handle(req, res), close: () => server.stop() }
 }
@@ -186,7 +241,15 @@ export class ProductionSite {
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname.startsWith('/_materialize/')) return live.ssr(req, res)
     const client = join(live.dir, 'client')
-    const path = decodeURIComponent(url.pathname)
+    let path: string
+    try {
+      path = decodeURIComponent(url.pathname)
+    } catch {
+      // A malformed address (/%E0%A4%A): the visitor's mistake, answered without an error in the log.
+      res.writeHead(400, { 'content-type': TYPES['.txt'] as string })
+      res.end('Bad request')
+      return
+    }
     const candidates = [path, join(path, 'index.html'), `${path.replace(/\/$/, '')}.html`]
     for (const candidate of candidates) {
       const file = normalize(join(client, candidate))

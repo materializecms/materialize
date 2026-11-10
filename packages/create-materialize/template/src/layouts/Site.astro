@@ -5,8 +5,9 @@ import '@fontsource-variable/geist-mono'
 import '@fontsource/instrument-serif'
 import '@fontsource-variable/fraunces'
 import '@fontsource-variable/inter'
+import Seo from '@materializecms/astro/components/Seo.astro'
 import Tracking from '@materializecms/astro/components/Tracking.astro'
-import { type Entry, getSingleton, getTheme } from '@materializecms/astro/content'
+import { type Entry, getLocales, getSingleton, getSiteSeo, getTheme } from '@materializecms/astro/content'
 import { pageRootStyle } from '@materializecms/core/page'
 
 interface Props {
@@ -20,27 +21,25 @@ interface Props {
 const { title, description, entry } = Astro.props
 const settings = await getSingleton('settings')
 const siteName: string = settings?.data.siteName ?? '__SITE_NAME__'
-const seo = entry?.data.seo ?? {}
-const pageTitle = seo.title || (entry?.url === '/' ? siteName : `${title} · ${siteName}`)
-const metaDescription = seo.description || description
 const root = pageRootStyle(await getTheme())
+const lang = entry?.locale ?? (await getLocales()).default
+// The favicon chosen in Impostazioni → SEO replaces the starter's one.
+const favicon = (await getSiteSeo()).favicon?.src
 ---
 
 <!doctype html>
-<html lang={entry?.locale ?? 'it'}>
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{pageTitle}</title>
-    {metaDescription && <meta name="description" content={metaDescription} />}
-    {seo.noindex && <meta name="robots" content="noindex" />}
-    {seo.image?.src && <meta property="og:image" content={seo.image.src} />}
-    <meta property="og:title" content={pageTitle} />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {/* Title, description, sharing cards, canonical, other languages, structured data, feeds. */}
+    <Seo entry={entry} title={title} description={description} siteName={siteName} />
+    {!favicon && <link rel="icon" href="/favicon.svg" type="image/svg+xml" />}
     <Tracking lang={entry?.locale} />
-    {Astro.site && entry?.url && <link rel="canonical" href={new URL(entry.url, Astro.site)} />}
   </head>
   <body style={root}>
+    {/* No <main> here: canvas pages put their own around the content (Page main), between their
+        menu and footer sections, so those stay the page's banner and contentinfo. */}
     <slot />
   </body>
 </html>

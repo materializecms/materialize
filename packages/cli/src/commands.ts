@@ -231,7 +231,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
       return resolveRedirect((await settings.get<Redirect[]>('redirects')) ?? [], path)
     }
     if (mode === 'dev') {
-      const site = await startDevSite(cwd, port + 1)
+      const site = await startDevSite(cwd, port + 1, host)
       siteHandler = site.handle
       closeSite = site.close
     } else {

@@ -68,6 +68,9 @@ describe('media library', () => {
 
     const file = await app.request(res.body.url)
     expect(file.headers.get('cache-control')).toContain('immutable')
+    // Social previews and feed readers load og:image and RSS enclosures from other sites.
+    expect(file.headers.get('cross-origin-resource-policy')).toBe('cross-origin')
+    expect(file.headers.get('x-content-type-options')).toBe('nosniff')
     const meta = await sharp(Buffer.from(await file.arrayBuffer())).metadata()
     expect(meta.exif).toBeUndefined()
     expect(meta.orientation).toBeUndefined()

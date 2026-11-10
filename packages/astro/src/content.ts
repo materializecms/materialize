@@ -1,10 +1,18 @@
 import type { Collection, Field, Fields, MaterializeConfig, Media } from '@materializecms/core'
 import { mergeTranslation } from '@materializecms/core/i18n'
-import { type Component, normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
+import {
+  type Component,
+  expandComponents,
+  expandGlobals,
+  normalizeTheme,
+  type PageNode,
+  type Theme,
+} from '@materializecms/core/page'
 import {
   type FeedItem,
   feedCollections,
   type LlmsSection,
+  pageSummary,
   type Redirect,
   type SitemapPage,
   type SiteSeo,
@@ -201,9 +209,13 @@ async function templateIds(): Promise<Set<string>> {
   )
 }
 
+/** A template, or a translation of one (it lays out the entries in that language). */
+const isTemplate = (entry: Entry, ids: Set<string>) =>
+  ids.has(entry.id) || (!!entry.sourceId && ids.has(entry.sourceId))
+
 /**
- * The entry's own summary, its first multi-line text (an excerpt, a description): what search
- * engines show when the SEO panel has no description.
+ * The entry's own summary, its first multi-line text (an excerpt, a description), or on a canvas
+ * page its first paragraph: what search engines show when the SEO panel has no description.
  */
 export async function summaryOf(entry: Entry): Promise<string | undefined> {
   const { config } = await getRuntime()
@@ -211,6 +223,14 @@ export async function summaryOf(entry: Entry): Promise<string | undefined> {
   for (const [name, f] of Object.entries(def.fields)) {
     const v = entry.data[name]
     if (f.kind === 'text' && f.options.multiline && typeof v === 'string' && v.trim()) return v.trim()
+  }
+  if (Array.isArray(entry.data.page)) {
+    // Components hold content too; shared menus and footers are skipped by pageSummary.
+    const nodes = expandComponents(
+      expandGlobals(entry.data.page as PageNode[], await getGlobals(entry.locale)),
+      await getComponents(),
+    )
+    return pageSummary(nodes)
   }
   return undefined
 }
@@ -227,21 +247,29 @@ export async function getTheme(): Promise<Theme> {
   return normalizeTheme(settings ? await settings.get('theme') : null)
 }
 
-/** Published entries of a collection, in the default locale unless another is given. */
+/**
+ * Published entries of a collection, in the default locale unless another is given. Pages used
+ * as a collection's template are left out (they have no address: a menu built from this list
+ * would link to a missing page); `templates: true` keeps them.
+ */
 export async function getEntries<T extends Data = Data>(
   collection: string,
-  options: { locale?: string } = {},
+  options: { locale?: string; templates?: boolean } = {},
 ): Promise<Entry<T>[]> {
   const { config } = await getRuntime()
-  return (await published(collection, options.locale ?? config().locales.default)) as Entry<T>[]
+  const all = await published(collection, options.locale ?? config().locales.default)
+  if (options.templates) return all as Entry<T>[]
+  const templates = await templateIds()
+  return all.filter((e) => !isTemplate(e, templates)) as Entry<T>[]
 }
 
+/** One entry by its slug: asked for by name, so a template is found too. */
 export async function getEntry<T extends Data = Data>(
   collection: string,
   slug: string,
   options: { locale?: string } = {},
 ): Promise<Entry<T> | undefined> {
-  return (await getEntries<T>(collection, options)).find((e) => e.slug === slug)
+  return (await getEntries<T>(collection, { ...options, templates: true })).find((e) => e.slug === slug)
 }
 
 /** The single document of a singleton collection, such as site settings. */
@@ -249,7 +277,7 @@ export async function getSingleton<T extends Data = Data>(
   collection: string,
   options: { locale?: string } = {},
 ): Promise<Entry<T> | undefined> {
-  return (await getEntries<T>(collection, options))[0]
+  return (await getEntries<T>(collection, { ...options, templates: true }))[0]
 }
 
 /**
@@ -263,7 +291,7 @@ export async function getRoutes(): Promise<{ params: { path: string | undefined 
   for (const collection of config().collections) {
     if (!collection.url) continue
     for (const entry of await published(collection.name)) {
-      if (!entry.url || templates.has(entry.id)) continue
+      if (!entry.url || isTemplate(entry, templates)) continue
       routes.push({ params: { path: entry.url.replace(/^\/+|\/+$/g, '') || undefined }, props: { entry } })
     }
   }
@@ -325,6 +353,40 @@ export async function getAlternates(entry: Entry): Promise<{ locale: string; url
   return out
 }
 
+/**
+ * The published pages above an entry, from its language's home page down (/progetti for
+ * /progetti/casa-sul-lago): the breadcrumb. Addresses that are not pages are left out.
+ */
+export async function getTrail(entry: Entry): Promise<Entry[]> {
+  if (!entry.url) return []
+  const { config } = await getRuntime()
+  const cfg = config()
+  const parts = entry.url.split('/').filter(Boolean)
+  const above = new Set(['/', ...parts.slice(0, -1).map((_, i) => `/${parts.slice(0, i + 1).join('/')}`)])
+  above.delete(entry.url)
+  if (!above.size) return []
+  const templates = await templateIds()
+  const found = new Map<string, Entry>()
+  for (const collection of cfg.collections) {
+    if (!collection.url) continue
+    for (const e of await published(collection.name, entry.locale))
+      if (e.url && above.has(e.url) && !found.has(e.url) && !isTemplate(e, templates)) found.set(e.url, e)
+  }
+  return [...above].flatMap((url) => {
+    const e = found.get(url)
+    return e ? [e] : []
+  })
+}
+
+/**
+ * Whether an entry is a post (news, an article): a dated entry of a collection like the ones the
+ * RSS feed picks by default. Shared as an article unless its SEO says otherwise.
+ */
+export async function isPost(entry: Entry): Promise<boolean> {
+  const { config } = await getRuntime()
+  return feedCollections(config().collections).includes(entry.collection)
+}
+
 /** Every published page search engines may index, for sitemap.xml. */
 export async function getSitemapPages(): Promise<SitemapPage[]> {
   const { config } = await getRuntime()
@@ -333,7 +395,7 @@ export async function getSitemapPages(): Promise<SitemapPage[]> {
   for (const collection of config().collections) {
     if (!collection.url) continue
     for (const entry of await published(collection.name)) {
-      if (!entry.url || templates.has(entry.id) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
+      if (!entry.url || isTemplate(entry, templates) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
       const alternates = await getAlternates(entry)
       pages.push({ url: entry.url, updatedAt: entry.publishedAt, alternates })
     }
@@ -392,7 +454,7 @@ export async function getLlmsSections(): Promise<LlmsSection[]> {
     if (!collection.url) continue
     const items: LlmsSection['items'] = []
     for (const entry of await published(collection.name, cfg.locales.default)) {
-      if (!entry.url || templates.has(entry.id) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
+      if (!entry.url || isTemplate(entry, templates) || entry.data.seo?.noindex || entry.data.seo?.canonical) continue
       items.push({
         title: entry.data.seo?.title || entry.title,
         url: entry.url,

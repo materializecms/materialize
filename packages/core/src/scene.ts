@@ -388,13 +388,15 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
   const scenes: Running[] = []
   const cleanups: (() => void)[] = []
   let sh: Shared | null = null
+  let listening = false
 
-  for (const canvas of root.querySelectorAll<HTMLCanvasElement>('canvas[data-mz-scene]')) {
+  /** Sets one scene going: its shader or its 3D model, textures and a first frame. */
+  function setup(canvas: HTMLCanvasElement) {
     let cfg: SceneConfig
     try {
       cfg = JSON.parse(canvas.dataset.mzScene ?? '{}') as SceneConfig
     } catch {
-      continue
+      return
     }
     // 3D scenes use three.js, loaded only when a page has one.
     if (THREE_D.has(cfg.preset)) {
@@ -409,12 +411,12 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
         cancelled = true
         stop?.()
       })
-      continue
+      return
     }
     const ctx = canvas.getContext('2d')
-    if (!ctx) continue
+    if (!ctx) return
     sh ??= acquire()
-    if (!sh) break
+    if (!sh) return
     const gl = sh.gl
     const source =
       cfg.preset === 'custom'
@@ -423,7 +425,7 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
           ? SCENES.mesh
           : (SCENES[cfg.preset as keyof typeof SCENES] ?? SCENES.mesh)
     const program = programFor(sh, source) ?? programFor(sh, SCENES.mesh)
-    if (!program) continue
+    if (!program) return
     const [c1, c2, c3] = cfg.colors ?? []
     const scene: Running = {
       canvas,
@@ -490,6 +492,15 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
     }
     canvas.dataset.mzReady = ''
     scenes.push(scene)
+    io.observe(canvas)
+    if (!listening) {
+      listening = true
+      addEventListener('pointermove', onPointer, { passive: true })
+      cleanups.push(() => removeEventListener('pointermove', onPointer))
+    }
+    // A still frame straight away, even before the first visibility report.
+    draw(scene, performance.now())
+    wake()
   }
   const finish = () => {
     for (const c of cleanups) c()
@@ -497,7 +508,6 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
       for (const t of [s.tex, s.tex2]) if (t && sh && !sh.gl.isContextLost()) sh.gl.deleteTexture(t)
     if (sh) release()
   }
-  if (!scenes.length) return finish
 
   function draw(s: Running, now: number) {
     if (!sh || sh.gl.isContextLost()) return
@@ -560,7 +570,6 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
     },
     { root: options.scroller ?? null, rootMargin: '100px' },
   )
-  for (const s of scenes) io.observe(s.canvas)
   cleanups.push(() => io.disconnect())
 
   const onPointer = (e: PointerEvent) => {
@@ -572,8 +581,6 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
       s.goal = [0.5 + (x - 0.5) * react, 0.5 + (y - 0.5) * react]
     }
   }
-  addEventListener('pointermove', onPointer, { passive: true })
-  cleanups.push(() => removeEventListener('pointermove', onPointer))
 
   let frame = 0
   function tick(now: number) {
@@ -590,9 +597,45 @@ export function startScenes(root: ParentNode = document, options: SceneOptions =
   function wake() {
     if (!frame) frame = requestAnimationFrame(tick)
   }
-  // A still frame straight away, even before the first visibility report.
-  for (const s of scenes) draw(s, performance.now())
-  wake()
+  // A scene starts only when it comes near the screen and has a size: one hidden on phones
+  // (display: none, or a section 0 px tall) never compiles its shader nor downloads its model
+  // or pictures, and starts if a resize later shows it.
+  const waiting = new Set(root.querySelectorAll<HTMLCanvasElement>('canvas[data-mz-scene]'))
+  const near = new Set<Element>()
+  const sized = (c: HTMLCanvasElement) => c.clientWidth > 0 && c.clientHeight > 0
+  const tryStart = (c: HTMLCanvasElement) => {
+    if (!waiting.has(c) || !near.has(c) || !sized(c)) return
+    waiting.delete(c)
+    approach.unobserve(c)
+    resize?.unobserve(c)
+    setup(c)
+  }
+  const approach = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) near.add(e.target)
+        else near.delete(e.target)
+        tryStart(e.target as HTMLCanvasElement)
+      }
+    },
+    // About a screen ahead: a model has time to arrive before it scrolls into view.
+    { root: options.scroller ?? null, rootMargin: '100% 0px' },
+  )
+  // A canvas already near the screen but 0 px tall reports nothing more when it grows: watch its size.
+  const resize =
+    typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver((entries) => {
+          for (const e of entries) tryStart(e.target as HTMLCanvasElement)
+        })
+  for (const c of waiting) {
+    approach.observe(c)
+    resize?.observe(c)
+  }
+  cleanups.push(() => {
+    approach.disconnect()
+    resize?.disconnect()
+  })
 
   return () => {
     cancelAnimationFrame(frame)

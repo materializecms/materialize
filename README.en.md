@@ -182,7 +182,7 @@ Uploaded images lose their camera metadata (GPS location included) and are strai
 
 Each block can have `_style` with `background` (`default`, `muted`, `dark`, `accent`), `spacing` (`none`, `compact`, `normal`, `spacious`), `animation` (`fade`, `rise`, `zoom`, `slide`) and `anchor`. `Blocks` turns them into CSS variables on the block's wrapper; the site decides what they mean by defining `--theme-muted-bg`, `--theme-dark-bg`, `--theme-dark-fg`, `--theme-accent-bg` and so on. Components read `--mz-bg`, `--mz-fg` and `--mz-space` with their own defaults. Animations start on scroll, in pure CSS, and don't run for people who asked for reduced motion.
 
-In templates, relations arrive already resolved: a `relation` field contains the linked documents, with title, address and data. For everything else there are `getEntries`, `getEntry`, `getSingleton` and the `RichText` and `Media` components (images with a focal point).
+In templates, relations arrive already resolved: a `relation` field contains the linked documents, with title, address and data. For everything else there are `getEntries` (template pages are left out unless you pass `{ templates: true }`), `getEntry`, `getSingleton`, `getTrail` (the pages above an entry, for breadcrumbs) and the `RichText`, `Media` (images with a focal point), `Seo` and `Page` components (with `main`, `Page` puts the content in a `<main>` and leaves the menu and footer outside). New sites start with `Seo` and `<Page main />`.
 
 In development, pages are generated on every request, so a publish shows up immediately. In production (`materialize start`) the site is static files and rebuilds itself after every publish, usually in under a second: the new version replaces the old one only when it's complete.
 

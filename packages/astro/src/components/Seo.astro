@@ -12,7 +12,9 @@ import {
   getComponents,
   getGlobals,
   getSiteSeo,
+  getTrail,
   hasFeed,
+  isPost,
   summaryOf,
 } from '../content.ts'
 import { getRuntime } from '../runtime.ts'
@@ -36,21 +38,31 @@ const live = !locals.materializePreview && !locals.materializeShare
 const page = Array.isArray(entry?.data.page)
   ? expandComponents(expandGlobals(entry.data.page as PageNode[], await getGlobals()), await getComponents())
   : null
+const locales = config().locales
+// The pages above this one; the home page by the site's name, as Google shows it.
+const trail = entry
+  ? (await getTrail(entry)).map((e) => ({
+      name: e.url === '/' || e.url === `/${e.locale}` ? site.siteName || e.title : e.title,
+      url: e.url as string,
+    }))
+  : undefined
 const html = headHtml(
   pageHead({
     title,
     url: entry?.url ?? null,
-    locale: entry?.locale ?? config().locales.default,
+    locale: entry?.locale ?? locales.default,
     seo: entry?.data.seo,
     site,
     siteUrl: Astro.site,
     alternates: entry ? await getAlternates(entry) : [],
-    defaultLocale: config().locales.default,
+    defaultLocale: locales.default,
     publishedAt: entry?.publishedAt,
     description: description ?? (entry ? await summaryOf(entry) : undefined),
     image: entry ? firstImage(page ?? entry.data) : undefined,
     feed: live && (await hasFeed()) ? '/rss.xml' : undefined,
     markdown: live && entry?.url && saved.llms !== false ? markdownPath(entry.url) : undefined,
+    trail,
+    article: entry ? await isPost(entry) : false,
   }),
 )
 ---

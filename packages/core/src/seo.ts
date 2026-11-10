@@ -108,6 +108,14 @@ export interface PageHeadInput {
   feed?: string
   /** Path of the page's Markdown copy, for AI assistants. */
   markdown?: string
+  /**
+   * The published pages above this one, from the home page down (names without the site's
+   * suffix): the breadcrumb trail. Unset, the trail is the home page and this page, since an
+   * address such as /progetti may not exist as a page.
+   */
+  trail?: { name: string; url: string }[]
+  /** A dated entry of a collection of posts: an article for sharing and structured data, unless its SEO says otherwise. */
+  article?: boolean
 }
 
 const absolute = (path: string, base?: string | URL) => {
@@ -124,9 +132,53 @@ export function pageTitle(input: Pick<PageHeadInput, 'title' | 'url' | 'seo' | '
   return template.replace('%s', input.title)
 }
 
+/** Languages whose sharing locale is not simply the code twice (en → en_US, not en_EN). */
+const TERRITORIES: Record<string, string> = { it: 'IT', en: 'US', de: 'DE', fr: 'FR', es: 'ES', pt: 'PT' }
+
+/** og:locale wants language_TERRITORY (it_IT): Facebook ignores a bare "it". */
+export function ogLocale(locale: string): string {
+  if (/[-_]/.test(locale)) return locale.replace('-', '_')
+  const territory = TERRITORIES[locale.toLowerCase()]
+  return territory ? `${locale.toLowerCase()}_${territory}` : locale
+}
+
+/**
+ * The first real paragraph of a canvas page, cut to about 160 characters on a word: the
+ * description of a page that has none. Body text only: headings, labels, buttons, menus and
+ * footers say little about the page.
+ */
+export function pageSummary(nodes: PageNode[], max = 160): string | undefined {
+  let found: string | undefined
+  const walk = (list: PageNode[]) => {
+    for (const n of list) {
+      if (found) return
+      if (n.hidden) continue
+      if (n.section?.startsWith('nav') || n.section?.startsWith('footer')) continue
+      if (n.type === 'text' && !n.href && (n.style ?? 'body') === 'body' && textTag(n) === 'p') {
+        const text = (n.runs?.map((r) => r.t).join('') ?? n.text ?? '').replace(/\s+/g, ' ').trim()
+        // A few words are a label or a caption, not what the page is about.
+        if (text.length >= 40 && text.split(' ').length >= 6) found = text
+      }
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(nodes)
+  return found === undefined ? undefined : clip(found, max)
+}
+
+/** Cut on a word, with an ellipsis, so search results do not end mid-word. */
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text
+  const cut = text.slice(0, max - 1)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.–—-]+$/, '')}…`
+}
+
 /** Every tag of a page's head for search engines and sharing. */
 export function pageHead(input: PageHeadInput): HeadTag[] {
-  const { seo = {}, site = {}, siteUrl } = input
+  const { site = {}, siteUrl } = input
+  // Posts are articles by default; the SEO panel's choice wins.
+  const seo: Seo = input.article && !input.seo?.schema ? { ...input.seo, schema: 'article' } : (input.seo ?? {})
   const base = siteUrl ? String(siteUrl) : undefined
   const title = pageTitle(input)
   const description = seo.description || input.description || site.description
@@ -169,7 +221,7 @@ export function pageHead(input: PageHeadInput): HeadTag[] {
     ...meta({ property: 'og:description', content: shareDescription }),
     ...meta({ property: 'og:url', content: canonical }),
     ...meta({ property: 'og:site_name', content: site.siteName }),
-    ...meta({ property: 'og:locale', content: input.locale.replace('-', '_') }),
+    ...meta({ property: 'og:locale', content: ogLocale(input.locale) }),
     ...meta({ property: 'og:image', content: imageUrl }),
     ...meta({ property: 'og:image:alt', content: imageUrl ? image?.alt : undefined }),
     ...meta({ property: 'og:image:width', content: imageUrl && image?.width ? String(image.width) : undefined }),
@@ -190,7 +242,7 @@ export function pageHead(input: PageHeadInput): HeadTag[] {
     tags.push({ tag: 'link', attrs: { rel: 'icon', href: site.favicon.src } })
     tags.push({ tag: 'link', attrs: { rel: 'apple-touch-icon', href: site.favicon.src } })
   }
-  for (const data of structuredData({ ...input, title, description, image, canonical })) {
+  for (const data of structuredData({ ...input, seo, name: input.title, title, description, image, canonical })) {
     tags.push({ tag: 'script', attrs: { type: 'application/ld+json' }, content: JSON.stringify(data) })
   }
   return tags
@@ -239,7 +291,7 @@ export function businessData(site: SiteSeo, siteUrl?: string): Json | null {
 }
 
 function structuredData(
-  input: PageHeadInput & { title: string; description?: string; image?: Media; canonical?: string },
+  input: PageHeadInput & { name: string; title: string; description?: string; image?: Media; canonical?: string },
 ): Json[] {
   const { seo = {}, site = {} } = input
   const base = input.siteUrl ? String(input.siteUrl) : undefined
@@ -261,7 +313,8 @@ function structuredData(
       )
   }
   const image = input.image?.src ? absolute(input.image.src, base) : undefined
-  const headline = seo.title || input.title
+  // The page's own title: the one in the tab ends with the site's name.
+  const headline = seo.title || input.name
   const common = clean({
     '@context': 'https://schema.org',
     url: input.canonical,
@@ -339,19 +392,22 @@ function structuredData(
       break
     }
   }
-  // The trail from the home page, for pages below it.
-  const parts = (input.url ?? '').split('/').filter(Boolean)
-  if (base && parts.length > 1) {
-    out.push({
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: parts.map((p, i) => ({
-        '@type': 'ListItem',
-        position: i + 1,
-        name: i === parts.length - 1 ? headline : p.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase()),
-        item: absolute(`/${parts.slice(0, i + 1).join('/')}`, base),
-      })),
-    })
+  // The trail from the home page, for pages below it: only addresses that are real pages, and
+  // this page's own title, never the one with the site's name after it.
+  if (base && input.url && input.url !== '/') {
+    const trail = (input.trail ?? [{ name: site.siteName || 'Home', url: '/' }]).filter((c) => c.url !== input.url)
+    const items = [...trail, { name: seo.title || input.name, url: input.url }]
+    if (items.length > 1)
+      out.push({
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: items.map((c, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          name: c.name,
+          item: absolute(c.url, base),
+        })),
+      })
   }
   return out
 }

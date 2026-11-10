@@ -782,6 +782,12 @@ export function createApp(base: ServerContext) {
     }
   }
 
+  // Library files are the og:image of shared pages and the enclosures of the RSS feed: social previews
+  // and feed readers load them from other sites. Registered before secureHeaders, so this runs after it.
+  app.use('/media/*', async (c, next) => {
+    await next()
+    c.res.headers.set('cross-origin-resource-policy', 'cross-origin')
+  })
   app.use('*', secureHeaders())
   // Every body is limited before anything reads it: the sign-in, setup and form routes are open to
   // anyone. Uploads and the WordPress export set their own limits (larger, after the sign-in check).

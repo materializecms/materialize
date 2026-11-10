@@ -129,11 +129,13 @@ function mobileMenus(root: ParentNode): () => void {
     if (!section) return
     if (burger) {
       const open = section.classList.toggle('mz-open')
-      burger.setAttribute('aria-expanded', String(open))
-      burger.setAttribute('aria-label', open ? 'Chiudi il menu' : 'Apri il menu')
+      label(burger, open)
+      // The links come before the button in the page: a keyboard goes to them, not past them.
+      if (open) section.querySelector<HTMLElement>('[data-mz-menu] a, [data-mz-menu] button')?.focus()
     } else if (target.closest('a')) {
       section.classList.remove('mz-open')
-      section.querySelector('[data-mz-burger]')?.setAttribute('aria-expanded', 'false')
+      const b = section.querySelector<HTMLElement>('[data-mz-burger]')
+      if (b) label(b, false)
     } else return
     // A menu lying over the page opens over it too, instead of pushing the page down.
     if (section.matches('[data-mz-sticky~="overlay"]')) {
@@ -148,8 +150,28 @@ function mobileMenus(root: ParentNode): () => void {
       }
     }
   }
+  // Esc closes an open menu and gives the focus back to its button.
+  const onKey = (e: Event) => {
+    if ((e as KeyboardEvent).key !== 'Escape') return
+    const section = root.querySelector<HTMLElement>('.mz-open')
+    const burger = section?.querySelector<HTMLElement>('[data-mz-burger]')
+    if (!section || !burger) return
+    burger.click()
+    burger.focus()
+  }
   root.addEventListener('click', onClick)
-  return () => root.removeEventListener('click', onClick)
+  root.addEventListener('keydown', onKey)
+  return () => {
+    root.removeEventListener('click', onClick)
+    root.removeEventListener('keydown', onKey)
+  }
+}
+
+/** The menu button says what it will do, in the site's language (written by the page). */
+function label(burger: HTMLElement, open: boolean) {
+  burger.setAttribute('aria-expanded', String(open))
+  const words = open ? burger.dataset.mzClose : burger.dataset.mzOpen
+  if (words) burger.setAttribute('aria-label', words)
 }
 
 /** Fixed menus: hidden while scrolling down, glass once scrolled. */
@@ -662,7 +684,8 @@ function anchorGlide(): () => void {
     const link = (e.target as Element | null)?.closest?.<HTMLAnchorElement>('a[href]')
     if (!link || (link.target && link.target !== '_self')) return
     const url = new URL(link.href, location.href)
-    if (url.origin !== location.origin || url.pathname !== location.pathname || !url.hash) return
+    if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search) return
+    if (!url.hash) return
     const id = decodeURIComponent(url.hash.slice(1))
     const section = id ? document.getElementById(id) : null
     if (id && !section) return
@@ -676,6 +699,11 @@ function anchorGlide(): () => void {
         const top = section ? section.getBoundingClientRect().top + scrollY - margin : 0
         return Math.max(0, Math.min(max, top))
       })
+      // Like a jump, the keyboard continues from the section, not from the menu.
+      if (section) {
+        if (!section.hasAttribute('tabindex')) section.setAttribute('tabindex', '-1')
+        section.focus({ preventScroll: true })
+      }
     })
   }
   addEventListener('click', onClick)

@@ -26,6 +26,7 @@ import {
   getLocales,
   getTheme,
 } from '../content.ts'
+import { withMain } from '../landmarks.ts'
 
 interface Props {
   sections?: PageNode[] | null
@@ -44,9 +45,14 @@ interface Props {
    * picks the words of menus and footers, the lists' entries and where internal links go.
    */
   document?: Entry
+  /**
+   * Wraps the page's content in <main>, leaving its menu and footer sections outside: they stay
+   * the page's banner and contentinfo for screen readers. For layouts with no <main> of their own.
+   */
+  main?: boolean
 }
 
-const { sections, theme, entry } = Astro.props
+const { sections, theme, entry, main } = Astro.props
 const shown = Astro.props.document ?? (entry && 'collection' in entry ? (entry as Entry) : undefined)
 const locales = await getLocales()
 const lang = shown?.locale ?? entry?.locale ?? locales.default
@@ -79,7 +85,11 @@ for (const name of bound) {
 const page = entry
   ? { title: entry.title, url: entry.url, data: entry.data, labels: entry.labels, locale: entry.locale }
   : undefined
-const { html, css } = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page, locale: lang, alternates })
+// Links to a section that is not on this page go to the home page of the same language.
+const home = lang === locales.default ? '/' : ((await getLinkMap(lang))['/'] ?? '/')
+const rendered = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page, locale: lang, alternates, home })
+const { css } = rendered
+const html = main ? withMain(rendered.html, nodes) : rendered.html
 ---
 
 {pageFontLinks(active, nodes).map((href) => <link rel="stylesheet" href={href} />)}
