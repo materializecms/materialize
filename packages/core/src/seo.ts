@@ -4,26 +4,31 @@
  */
 import type { Media, Seo } from './fields.ts'
 import { type PageNode, textTag } from './page.ts'
+import { t } from './t.ts'
 
 /** Kinds of business for structured data: what Google shows next to the site's name. */
-export const BUSINESS_TYPES = [
-  { value: 'Organization', label: 'Organizzazione' },
-  { value: 'LocalBusiness', label: 'Attività locale' },
-  { value: 'ProfessionalService', label: 'Studio professionale' },
-  { value: 'Store', label: 'Negozio' },
-  { value: 'Restaurant', label: 'Ristorante' },
-  { value: 'Person', label: 'Persona' },
-] as const
+export const businessTypes = () =>
+  [
+    { value: 'Organization', label: t('Organizzazione') },
+    { value: 'LocalBusiness', label: t('Attività locale') },
+    { value: 'ProfessionalService', label: t('Studio professionale') },
+    { value: 'Store', label: t('Negozio') },
+    { value: 'Restaurant', label: t('Ristorante') },
+    { value: 'Person', label: t('Persona') },
+  ] as const
+
+export type BusinessType = ReturnType<typeof businessTypes>[number]['value']
 
 /** Structured data a page can declare: Google may show it as a rich result. */
-export const SCHEMA_TYPES = [
-  { value: '', label: 'Pagina' },
-  { value: 'article', label: 'Articolo' },
-  { value: 'project', label: 'Progetto o opera' },
-  { value: 'service', label: 'Servizio' },
-  { value: 'event', label: 'Evento' },
-  { value: 'faq', label: 'Domande frequenti' },
-] as const
+export const schemaTypes = () =>
+  [
+    { value: '', label: t('Pagina') },
+    { value: 'article', label: t('Articolo') },
+    { value: 'project', label: t('Progetto o opera') },
+    { value: 'service', label: t('Servizio') },
+    { value: 'event', label: t('Evento') },
+    { value: 'faq', label: t('Domande frequenti') },
+  ] as const
 
 /** Site-wide settings for search engines and sharing, kept in the "seo" setting. */
 export interface SiteSeo {
@@ -38,7 +43,7 @@ export interface SiteSeo {
   /** Account on X, such as "@nomeaccount". */
   xHandle?: string
   business?: {
-    type?: (typeof BUSINESS_TYPES)[number]['value']
+    type?: BusinessType
     name?: string
     logo?: Media
     phone?: string
@@ -496,32 +501,33 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
     add(
       'noindex',
       'warning',
-      'La pagina è nascosta ai motori di ricerca',
-      'Togli “Nascondi” se deve comparire su Google.',
+      t('La pagina è nascosta ai motori di ricerca'),
+      t('Togli “Nascondi” se deve comparire su Google.'),
     )
 
   const title = pageTitle(input)
   if (title.length > 60)
-    add('title', 'warning', `Titolo lungo (${title.length} caratteri)`, 'Google ne mostra circa 60.')
-  else if (title.length < 15) add('title', 'warning', 'Titolo molto corto', 'Descrivi la pagina in 30–60 caratteri.')
-  else add('title', 'ok', 'Titolo di lunghezza giusta')
+    add('title', 'warning', t('Titolo lungo ({n} caratteri)', { n: title.length }), t('Google ne mostra circa 60.'))
+  else if (title.length < 15)
+    add('title', 'warning', t('Titolo molto corto'), t('Descrivi la pagina in 30–60 caratteri.'))
+  else add('title', 'ok', t('Titolo di lunghezza giusta'))
 
   const description = seo.description || site.description
   if (!description)
-    add('description', 'error', 'Manca la descrizione', 'È il testo sotto al titolo nei risultati di Google.')
+    add('description', 'error', t('Manca la descrizione'), t('È il testo sotto al titolo nei risultati di Google.'))
   else if (description.length < 70)
-    add('description', 'warning', 'Descrizione corta', 'Meglio tra 120 e 160 caratteri.')
+    add('description', 'warning', t('Descrizione corta'), t('Meglio tra 120 e 160 caratteri.'))
   else if (description.length > 160)
     add(
       'description',
       'warning',
-      `Descrizione lunga (${description.length} caratteri)`,
-      'Google la taglia a circa 160.',
+      t('Descrizione lunga ({n} caratteri)', { n: description.length }),
+      t('Google la taglia a circa 160.'),
     )
-  else add('description', 'ok', 'Descrizione di lunghezza giusta')
+  else add('description', 'ok', t('Descrizione di lunghezza giusta'))
 
   if (input.url && input.url.length > 75)
-    add('url', 'warning', 'Indirizzo lungo', 'Indirizzi brevi si leggono e si ricordano meglio.')
+    add('url', 'warning', t('Indirizzo lungo'), t('Indirizzi brevi si leggono e si ricordano meglio.'))
 
   if (input.nodes) {
     let h1 = 0
@@ -560,27 +566,32 @@ export function pageChecks(input: CheckInput): SeoCheck[] {
       add(
         `link:${path}`,
         'error',
-        `Collegamento a una pagina che non esiste: ${path}`,
-        at.length > 1 ? `In ${at.length} punti della pagina.` : undefined,
+        t('Collegamento a una pagina che non esiste: {path}', { path }),
+        at.length > 1 ? t('In {n} punti della pagina.', { n: at.length }) : undefined,
         at[0]?.id,
       )
     if (h1 === 0)
-      add('h1', 'error', 'Manca il titolo principale (H1)', 'Dai lo stile “Titolo 1” al titolo della pagina.')
+      add('h1', 'error', t('Manca il titolo principale (H1)'), t('Dai lo stile “Titolo 1” al titolo della pagina.'))
     else if (h1 > 1)
       add(
         'h1',
         'warning',
-        `${h1} titoli principali (H1)`,
-        'Clicca per selezionare il secondo: se non è il titolo della pagina, in Testo scegli Tag → Paragrafo o H2.',
+        t('{n} titoli principali (H1)', { n: h1 }),
+        t('Clicca per selezionare il secondo: se non è il titolo della pagina, in Testo scegli Tag → Paragrafo o H2.'),
         (extraH1 as PageNode | null)?.id,
       )
-    else add('h1', 'ok', 'Un solo titolo principale (H1)')
+    else add('h1', 'ok', t('Un solo titolo principale (H1)'))
     if (words < 150)
-      add('words', 'warning', `Poco testo (${words} parole)`, 'Le pagine con almeno 300 parole si posizionano meglio.')
-    else add('words', 'ok', `${words} parole`)
+      add(
+        'words',
+        'warning',
+        t.n(words, 'Poco testo ({n} parola)', 'Poco testo ({n} parole)'),
+        t('Le pagine con almeno 300 parole si posizionano meglio.'),
+      )
+    else add('words', 'ok', t('{n} parole', { n: words }))
     if (!seo.image && !site.image && !firstImage)
-      add('image', 'warning', 'Nessuna immagine per la condivisione', 'Sui social apparirà solo il testo.')
-    else add('image', 'ok', 'Immagine per la condivisione')
+      add('image', 'warning', t('Nessuna immagine per la condivisione'), t('Sui social apparirà solo il testo.'))
+    else add('image', 'ok', t('Immagine per la condivisione'))
   }
 
   const order: Record<CheckLevel, number> = { error: 0, warning: 1, ok: 2 }

@@ -1,3 +1,5 @@
+[English](README.en.md) · **Italiano**
+
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-wordmark-dark.svg">
@@ -136,6 +138,7 @@ La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso
 - **Cronologia**: ogni salvataggio è una versione, con il nome di chi l'ha fatta. Per le pagine sulla tela, il pulsante Cronologia elenca le versioni; cliccandone una la si vede su desktop, tablet e mobile prima di ripristinarla. Il ripristino torna nella bozza e ⌘Z lo annulla. Per le voci modificate con i campi la cronologia è nel pannello del documento.
 - **Esporta in PDF o PNG** la pagina com'è adesso, anche non pubblicata, per mandarla al cliente: desktop, tablet e mobile, ognuno come un'unica immagine lunga (nel PDF una pagina per dispositivo, con nome, dispositivo e data).
 - Annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
+- **Lingue del pannello**: italiano e inglese. Ognuno sceglie la lingua nel proprio profilo o nella pagina di accesso; prima di scegliere, il pannello segue la lingua del browser. Nella stessa lingua arrivano i messaggi del server e le email a chi ha un account. Il terminale parla la lingua del sistema, oppure quella di `MATERIALIZE_LANG` (`it` o `en`). I contenuti del sito hanno le loro lingue, a parte.
 - **Aspetto del pannello**: superfici arrotondate su un fondo scuro, controlli a pillola e barre degli strumenti negli incavi del bordo (ricerca e profilo in alto a destra, i comandi della tela in cima alla tela, lo zoom in basso a destra).
 - **Assistente AI** (facoltativo, Impostazioni → AI e MCP): con una chiave API di Claude, oppure un server compatibile OpenAI come Ollama. Il pulsante ✨ accanto ai testi riscrive, accorcia, allunga, corregge, cambia il tono o traduce. Funziona anche sul testo formattato degli articoli, mantenendo titoli, elenchi, grassetti e link, e il risultato rispetta la lunghezza massima del campo. L'AI scrive titolo e descrizione per Google, descrive le immagini (conservando il credito del fotografo già scritto, per esempio «foto di … su Unsplash»), traduce una pagina intera in un'altra lingua e, nell'editor, modifica la pagina su richiesta a parole, anche partendo da un'immagine di riferimento (uno screenshot, un mockup, uno schizzo) allegata, incollata o trascinata nella chat. Le modifiche restano in bozza e un ⌘Z le annulla. Le azioni rapide (✨, SEO, testo alternativo) usano un modello più economico, Claude Haiku 5.5 se non se ne sceglie un altro; l'assistente e le traduzioni delle pagine restano sul modello principale. Con Claude, l'assistente usa la cache dei prompt: istruzioni, strumenti e pagina, che si ripetono a ogni passaggio, costano una frazione dopo il primo. Impostazioni → AI e MCP mostra l'uso del mese: richieste, token letti (e quanti dalla cache) e scritti.
 - **Richieste dalla panoramica**: il campo «Cosa facciamo oggi sul sito?» manda all'AI una richiesta su tutto il sito (descrizioni per Google, controllo dei testi, pagine nuove, traduzioni). Lavora solo in bozza: non pubblica, non programma, non cambia il tema né le sezioni condivise; elenca le bozze toccate da rivedere e si può rispondere per chiedere altro. API `POST /api/ai/studio` (eventi in streaming).
@@ -387,8 +390,7 @@ Si può fare tutto anche a mano: `npm run release`, `npm run smoke`, poi `npm ru
 
 In quest'ordine:
 
-1. **Il pannello anche in inglese**: pannello, messaggi del server e del terminale, email e guida, con la lingua scelta da ogni persona. L'interfaccia del pannello è già tutta in inglese; mancano i messaggi del server, del terminale e delle email, i testi del core (controlli SEO, sezioni della libreria) e la guida. I contenuti del sito sono già in più lingue.
-2. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
-3. **Più avanti**: vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
+1. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
+2. **Più avanti**: vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
 
 Per ora non sono in programma estensioni e plugin, né più siti in una sola installazione. Quello che è già uscito è nel [CHANGELOG](CHANGELOG.md).

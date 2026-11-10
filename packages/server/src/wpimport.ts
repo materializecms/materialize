@@ -1,6 +1,7 @@
 import type { Collection, Field, Media } from '@materializecms/core'
 import { slugify } from '@materializecms/core'
 import type { PageNode } from '@materializecms/core/page'
+import { t } from './t.ts'
 import {
   type ConvertContext,
   htmlToPage,
@@ -204,10 +205,10 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
   }
   const report = () => deps.onProgress({ ...progress })
   const targetOf = (item: WpItem) => (item.kind === 'post' ? plan.posts : plan.pages)
-  const defOf = (t: ImportTarget) => deps.collections.find((c) => c.name === t.collection)
+  const defOf = (target: ImportTarget) => deps.collections.find((c) => c.name === target.collection)
   const items = site.items.filter((i) => {
-    const t = targetOf(i)
-    return t && defOf(t)
+    const target = targetOf(i)
+    return target && defOf(target)
   })
 
   // 0. Items the API gave empty (some themes and page builders keep the page elsewhere): their
@@ -222,8 +223,8 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
   // 1. Images: each address once, the original size when WordPress has it.
   const wanted = new Map<string, string>()
   for (const item of items) {
-    const t = targetOf(item) as ImportTarget
-    const fields = Object.values(t.fields)
+    const target = targetOf(item) as ImportTarget
+    const fields = Object.values(target.fields)
     if (fields.includes('content'))
       for (const [src, alt] of imageAltsIn(item.html)) {
         const url = new URL(src, site.url).href
@@ -257,12 +258,12 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
 
   // 2. Where every item will live, so links between them point to the new pages.
   const plans = items.map((item) => {
-    const t = targetOf(item) as ImportTarget
-    const def = defOf(t) as Collection
+    const target = targetOf(item) as ImportTarget
+    const def = defOf(target) as Collection
     const slug = slugify(decodeURIComponent(item.slug)) || slugify(item.title) || item.sourceId
     const sample: Record<string, unknown> = {}
-    for (const [name, source] of Object.entries(t.fields)) if (source === 'slug') sample[name] = slug
-    return { item, t, def, slug, url: deps.urlOf(def, sample) }
+    for (const [name, source] of Object.entries(target.fields)) if (source === 'slug') sample[name] = slug
+    return { item, target, def, slug, url: deps.urlOf(def, sample) }
   })
   const moved = new Map<string, string>()
   for (const p of plans) {
@@ -304,7 +305,7 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
   // Canvas pages filled from the content: the ones the AI may lay out again.
   const canvas: { id: string; collection: string; title: string }[] = []
   for (const entry of plans) {
-    const { item, t, def } = entry
+    const { item, target, def } = entry
     let { slug, url } = entry
     try {
       const mine = taken.get(def.name) ?? new Set<string>()
@@ -315,26 +316,29 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
         const before = slug
         slug = `${slug}-${n}`
         const sample: Record<string, unknown> = {}
-        for (const [name, source] of Object.entries(t.fields)) if (source === 'slug') sample[name] = slug
+        for (const [name, source] of Object.entries(target.fields)) if (source === 'slug') sample[name] = slug
         url = deps.urlOf(def, sample)
         progress.problems.push({
           title: item.title,
-          reason: `indirizzo già usato da un’altra pagina importata: ora è ${url ?? slug}, era ${before}`,
+          reason: t('indirizzo già usato da un’altra pagina importata: ora è {now}, era {before}', {
+            now: url ?? slug,
+            before,
+          }),
         })
       } else if (await deps.exists(def.name, slug)) {
         // Already there from before (a second import): left as it is.
-        progress.skipped.push({ title: item.title, reason: 'c’è già un contenuto con lo stesso indirizzo' })
+        progress.skipped.push({ title: item.title, reason: t('c’è già un contenuto con lo stesso indirizzo') })
         continue
       }
       mine.add(slug)
       const data: Record<string, unknown> = {}
-      for (const [name, source] of Object.entries(t.fields)) {
+      for (const [name, source] of Object.entries(target.fields)) {
         const f = def.fields[name]
         if (!f) continue
         const value = await valueFor(f, source, item, ctx, plan, site, relations, deps)
         if (value !== undefined) data[name] = value
       }
-      for (const [name, source] of Object.entries(t.fields)) if (source === 'slug') data[name] = slug
+      for (const [name, source] of Object.entries(target.fields)) if (source === 'slug') data[name] = slug
       const doc = await deps.create(def, data)
       let published = false
       if (plan.publish && item.status === 'publish')
@@ -342,10 +346,14 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
           await deps.publish(doc.id)
           published = true
         } catch {
-          progress.problems.push({ title: doc.title, reason: 'importato come bozza: ha campi da completare' })
+          progress.problems.push({ title: doc.title, reason: t('importato come bozza: ha campi da completare') })
         }
       progress.created.push({ id: doc.id, collection: def.name, title: doc.title, published })
-      if (Object.entries(t.fields).some(([name, source]) => source === 'content' && def.fields[name]?.kind === 'page'))
+      if (
+        Object.entries(target.fields).some(
+          ([name, source]) => source === 'content' && def.fields[name]?.kind === 'page',
+        )
+      )
         canvas.push({ id: doc.id, collection: def.name, title: doc.title })
       const from = pathOf(item.link, site.url)
       if (published && from && url && from !== url) moves.push({ from, to: url })
@@ -368,12 +376,13 @@ export async function runImport(site: WpSite, plan: ImportPlan, deps: ImportDeps
     for (const doc of canvas) {
       try {
         const why = await deps.relayout(doc)
-        if (why) progress.problems.push({ title: doc.title, reason: `impaginazione semplice lasciata: ${why}` })
+        if (why)
+          progress.problems.push({ title: doc.title, reason: t('impaginazione semplice lasciata: {why}', { why }) })
         else progress.relaid++
       } catch (error) {
         progress.problems.push({
           title: doc.title,
-          reason: `l’AI non ha rifatto l’impaginazione: ${(error as Error).message}`,
+          reason: t('l’AI non ha rifatto l’impaginazione: {detail}', { detail: (error as Error).message }),
         })
       }
       progress.done++
@@ -488,13 +497,13 @@ function imagesOf(nodes: PageNode[]): Set<string> {
 export function relayoutProblem(before: PageNode[], after: PageNode[]): string | null {
   const was = wordsOf(before)
   const now = wordsOf(after)
-  if (!now.size) return 'la pagina sarebbe rimasta vuota'
+  if (!now.size) return t('la pagina sarebbe rimasta vuota')
   const lost = [...was].filter((w) => !now.has(w)).length
   const added = [...now].filter((w) => !was.has(w)).length
-  if (lost > Math.max(3, was.size * 0.1)) return 'l’AI avrebbe tolto parte del testo'
-  if (added > Math.max(8, was.size * 0.15)) return 'l’AI avrebbe aggiunto testi che non c’erano'
+  if (lost > Math.max(3, was.size * 0.1)) return t('l’AI avrebbe tolto parte del testo')
+  if (added > Math.max(8, was.size * 0.15)) return t('l’AI avrebbe aggiunto testi che non c’erano')
   const pictures = imagesOf(after)
-  if ([...imagesOf(before)].some((src) => !pictures.has(src))) return 'l’AI avrebbe tolto delle immagini'
+  if ([...imagesOf(before)].some((src) => !pictures.has(src))) return t('l’AI avrebbe tolto delle immagini')
   return null
 }
 

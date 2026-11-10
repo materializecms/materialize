@@ -1,7 +1,9 @@
 import { Resolver } from 'node:dns/promises'
 import { connect } from 'node:net'
+import { currentLang, type Lang } from '@materializecms/core/lang'
 import { COMMON_DKIM, providerByHost, providerById } from '@materializecms/core/mail'
 import nodemailer from 'nodemailer'
+import { t } from './t.ts'
 
 /** Outgoing email settings, saved in the panel. The password never goes back to the browser. */
 export interface MailSettings {
@@ -63,10 +65,16 @@ export async function sendMail(
   await transport.sendMail({ from: m.from, ...message })
 }
 
-/** A message from a site form as plain text: one "Label: value" per field. */
-export function submissionText(page: string, data: Record<string, string>): string {
+/**
+ * A message from a site form as plain text: one "Label: value" per field. It goes to the site's
+ * owner, in `lang` (the current language by default).
+ */
+export function submissionText(page: string, data: Record<string, string>, lang: Lang = currentLang()): string {
   const lines = Object.entries(data).map(([k, v]) => `${k}:\n${v}\n`)
-  return `Nuovo messaggio dal modulo del sito${page ? ` (pagina ${page})` : ''}.\n\n${lines.join('\n')}`
+  const intro = page
+    ? t.in(lang, 'Nuovo messaggio dal modulo del sito (pagina {page}).', { page })
+    : t.in(lang, 'Nuovo messaggio dal modulo del sito.')
+  return `${intro}\n\n${lines.join('\n')}`
 }
 
 // ---------- why sending failed, in words ----------
@@ -111,18 +119,18 @@ export async function explainMailError(error: unknown, m: MailSettings): Promise
   const provider = providerById(m.provider) ?? providerByHost(m.host)
   if (e.code === 'EDNS' || /ENOTFOUND|EAI_AGAIN/.test(text))
     return {
-      message: `Il server «${m.host}» non esiste`,
-      hint: 'Controlla il nome del server: un errore di battitura basta.',
+      message: t('Il server «{host}» non esiste', { host: m.host }),
+      hint: t('Controlla il nome del server: un errore di battitura basta.'),
     }
   if (/wrong version number|ssl3_get_record|packet length too long|unknown protocol/i.test(text))
     return {
-      message: 'La sicurezza non corrisponde alla porta',
-      hint: 'Di solito: porta 587 con STARTTLS, porta 465 con TLS.',
+      message: t('La sicurezza non corrisponde alla porta'),
+      hint: t('Di solito: porta 587 con STARTTLS, porta 465 con TLS.'),
     }
   if (/certificate|self.signed|CERT_/i.test(text))
     return {
-      message: 'Il certificato del server di posta non è valido',
-      hint: 'Controlla il nome del server: deve essere esattamente quello indicato dal fornitore.',
+      message: t('Il certificato del server di posta non è valido'),
+      hint: t('Controlla il nome del server: deve essere esattamente quello indicato dal fornitore.'),
     }
   if (
     e.code === 'ETIMEDOUT' ||
@@ -135,34 +143,54 @@ export async function explainMailError(error: unknown, m: MailSettings): Promise
     for (const p of others) if (await portOpen(m.host, p)) open.push(p)
     if (open.length)
       return {
-        message: `Il server non risponde sulla porta ${m.port}, ma risponde sulla ${open.join(' e sulla ')}`,
-        hint: `Prova la porta ${open[0]}${open[0] === 465 ? ' con TLS' : ' con STARTTLS'}: la ${m.port} potrebbe essere bloccata dal fornitore del server.`,
+        message: t('Il server non risponde sulla porta {port}, ma risponde sulla {open}', {
+          port: m.port,
+          open: open.join(t(' e sulla ')),
+        }),
+        hint:
+          open[0] === 465
+            ? t('Prova la porta {try} con TLS: la {port} potrebbe essere bloccata dal fornitore del server.', {
+                try: open[0],
+                port: m.port,
+              })
+            : t('Prova la porta {try} con STARTTLS: la {port} potrebbe essere bloccata dal fornitore del server.', {
+                try: open[0],
+                port: m.port,
+              }),
       }
     return {
-      message: `Il server di posta non risponde (porta ${m.port})`,
-      hint: 'Molti fornitori di VPS bloccano le porte della posta in uscita, soprattutto per gli account nuovi: chiedi al loro supporto di sbloccarle, oppure usa un servizio che accetta la porta 2525.',
+      message: t('Il server di posta non risponde (porta {port})', { port: m.port }),
+      hint: t(
+        'Molti fornitori di VPS bloccano le porte della posta in uscita, soprattutto per gli account nuovi: chiedi al loro supporto di sbloccarle, oppure usa un servizio che accetta la porta 2525.',
+      ),
     }
   }
   if (e.code === 'EAUTH' || e.responseCode === 535 || e.responseCode === 534)
     return {
-      message: 'Utente o password rifiutati dal server di posta',
-      hint: provider ? `${provider.name}: ${provider.userHint} ${provider.passHint}` : 'Controlla utente e password.',
+      message: t('Utente o password rifiutati dal server di posta'),
+      hint: provider
+        ? `${provider.name}: ${provider.userHint} ${provider.passHint}`
+        : t('Controlla utente e password.'),
     }
   if (e.code === 'EENVELOPE' || (e.responseCode && e.responseCode >= 550 && e.responseCode <= 554)) {
     const sender = e.command === 'MAIL FROM' || /sender|from address|not verified|not allowed to send/i.test(text)
     return sender
       ? {
-          message: 'Il server di posta non accetta questo mittente',
-          hint: `${provider?.note ?? 'Il mittente deve essere un indirizzo o un dominio verificato presso il fornitore.'}`,
+          message: t('Il server di posta non accetta questo mittente'),
+          hint:
+            provider?.note ?? t('Il mittente deve essere un indirizzo o un dominio verificato presso il fornitore.'),
         }
-      : { message: 'Il destinatario è stato rifiutato', hint: 'Controlla l’indirizzo del destinatario dei moduli.' }
+      : {
+          message: t('Il destinatario è stato rifiutato'),
+          hint: t('Controlla l’indirizzo del destinatario dei moduli.'),
+        }
   }
   if (e.responseCode && e.responseCode >= 421 && e.responseCode <= 452)
     return {
-      message: 'Il server di posta ha rimandato l’invio',
-      hint: 'Spesso è un limite di messaggi raggiunto: riprova più tardi o controlla il piano del fornitore.',
+      message: t('Il server di posta ha rimandato l’invio'),
+      hint: t('Spesso è un limite di messaggi raggiunto: riprova più tardi o controlla il piano del fornitore.'),
     }
-  return { message: e.message || text.trim() || 'Invio non riuscito' }
+  return { message: e.message || text.trim() || t('Invio non riuscito') }
 }
 
 // ---------- the sender's domain: SPF, DKIM, DMARC ----------
@@ -191,39 +219,61 @@ export async function checkSenderDomain(domain: string, providerId?: string): Pr
     checks.push({
       id: 'spf',
       state: 'bad',
-      title: 'Manca il record SPF',
-      detail: `Senza SPF le email da ${domain} finiscono spesso nello spam. ${provider?.spf ? `Aggiungi nel DNS un record TXT su ${domain}: v=spf1 include:${provider.spf[0]} ~all` : 'Il fornitore della posta indica quale record TXT aggiungere nel DNS.'}`,
+      title: t('Manca il record SPF'),
+      detail: provider?.spf
+        ? t(
+            'Senza SPF le email da {domain} finiscono spesso nello spam. Aggiungi nel DNS un record TXT su {domain}: v=spf1 include:{host} ~all',
+            { domain, host: provider.spf[0] },
+          )
+        : t(
+            'Senza SPF le email da {domain} finiscono spesso nello spam. Il fornitore della posta indica quale record TXT aggiungere nel DNS.',
+            { domain },
+          ),
     })
   else if (spf.length > 1)
     checks.push({
       id: 'spf',
       state: 'bad',
-      title: 'Ci sono due record SPF',
-      detail: 'I server di posta li scartano entrambi: uniscili in un solo record TXT che inizia con v=spf1.',
+      title: t('Ci sono due record SPF'),
+      detail: t('I server di posta li scartano entrambi: uniscili in un solo record TXT che inizia con v=spf1.'),
     })
   else if (!/\b(include:|a\b|a:|mx\b|mx:|ip4:|ip6:|exists:|redirect=)/i.test(spf[0] as string))
     checks.push({
       id: 'spf',
       state: 'bad',
-      title: 'Il record SPF non autorizza nessun server',
-      detail: `${spf[0]}: così il dominio dichiara di non inviare email, e i messaggi vengono rifiutati. Aggiungi il server del tuo fornitore${provider?.spf ? ` (include:${provider.spf[0]})` : ''}.`,
+      title: t('Il record SPF non autorizza nessun server'),
+      detail: provider?.spf
+        ? t(
+            '{record}: così il dominio dichiara di non inviare email, e i messaggi vengono rifiutati. Aggiungi il server del tuo fornitore (include:{host}).',
+            { record: spf[0], host: provider.spf[0] },
+          )
+        : t(
+            '{record}: così il dominio dichiara di non inviare email, e i messaggi vengono rifiutati. Aggiungi il server del tuo fornitore.',
+            { record: spf[0] },
+          ),
     })
   else if (provider?.spf && !provider.spf.some((h) => (spf[0] as string).includes(`include:${h}`)))
     checks.push({
       id: 'spf',
       state: 'warn',
-      title: `Il record SPF non autorizza ${provider.name}`,
-      detail: `Aggiungi include:${provider.spf[0]} al record attuale, prima di ~all o -all: ${spf[0]}`,
+      title: t('Il record SPF non autorizza {provider}', { provider: provider.name }),
+      detail: t('Aggiungi include:{host} al record attuale, prima di ~all o -all: {record}', {
+        host: provider.spf[0],
+        record: spf[0],
+      }),
     })
-  else checks.push({ id: 'spf', state: 'ok', title: 'Record SPF presente', detail: spf[0] as string })
+  else checks.push({ id: 'spf', state: 'ok', title: t('Record SPF presente'), detail: spf[0] as string })
 
   const selectors = provider ? provider.dkim : COMMON_DKIM
   if (provider && !selectors.length)
     checks.push({
       id: 'dkim',
       state: 'info',
-      title: 'Firma DKIM: da controllare nel pannello del fornitore',
-      detail: `${provider.name} dà a ogni account nomi propri per la firma DKIM: nel suo pannello vedi se il dominio è verificato.`,
+      title: t('Firma DKIM: da controllare nel pannello del fornitore'),
+      detail: t(
+        '{provider} dà a ogni account nomi propri per la firma DKIM: nel suo pannello vedi se il dominio è verificato.',
+        { provider: provider.name },
+      ),
     })
   else {
     let found: string | null = null
@@ -238,14 +288,21 @@ export async function checkSenderDomain(domain: string, providerId?: string): Pr
         ? {
             id: 'dkim',
             state: 'ok',
-            title: 'Firma DKIM presente',
-            detail: `Trovata con il nome ${found}._domainkey.${domain}.`,
+            title: t('Firma DKIM presente'),
+            detail: t('Trovata con il nome {name}.', { name: `${found}._domainkey.${domain}` }),
           }
         : {
             id: 'dkim',
             state: 'warn',
-            title: 'Firma DKIM non trovata',
-            detail: `Non l’ho trovata con i nomi più comuni${provider ? ` di ${provider.name}` : ''}. Nel pannello del fornitore attiva la firma del dominio: ti dà i record da aggiungere nel DNS.`,
+            title: t('Firma DKIM non trovata'),
+            detail: provider
+              ? t(
+                  'Non l’ho trovata con i nomi più comuni di {provider}. Nel pannello del fornitore attiva la firma del dominio: ti dà i record da aggiungere nel DNS.',
+                  { provider: provider.name },
+                )
+              : t(
+                  'Non l’ho trovata con i nomi più comuni. Nel pannello del fornitore attiva la firma del dominio: ti dà i record da aggiungere nel DNS.',
+                ),
           },
     )
   }
@@ -255,16 +312,19 @@ export async function checkSenderDomain(domain: string, providerId?: string): Pr
     checks.push({
       id: 'dmarc',
       state: 'warn',
-      title: 'Manca il record DMARC',
-      detail: `Gmail e Yahoo lo chiedono a chi invia molte email. Un inizio sicuro, che osserva senza bloccare niente: record TXT su _dmarc.${domain} con v=DMARC1; p=none`,
+      title: t('Manca il record DMARC'),
+      detail: t(
+        'Gmail e Yahoo lo chiedono a chi invia molte email. Un inizio sicuro, che osserva senza bloccare niente: record TXT su _dmarc.{domain} con v=DMARC1; p=none',
+        { domain },
+      ),
     })
   else {
     const policy = /\bp=(none|quarantine|reject)/i.exec(dmarc)?.[1]?.toLowerCase()
     checks.push({
       id: 'dmarc',
       state: 'ok',
-      title: 'Record DMARC presente',
-      detail: policy === 'none' ? `Osserva soltanto (p=none): ${dmarc}` : dmarc,
+      title: t('Record DMARC presente'),
+      detail: policy === 'none' ? t('Osserva soltanto (p=none): {record}', { record: dmarc }) : dmarc,
     })
   }
   return checks

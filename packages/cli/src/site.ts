@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Fonts, MediaFiles } from '@materializecms/server'
+import { t } from './t.ts'
 
 export const ASTRO_CONFIGS = ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']
 
@@ -161,14 +162,17 @@ export class ProductionSite {
       const entry = (await import(pathToFileURL(join(dir, 'server/entry.mjs')).href)) as { handler: Handler }
       const previous = this.live?.dir
       this.live = { dir, ssr: entry.handler }
-      this.log(`Sito aggiornato in ${Math.round(performance.now() - started)} ms`, true)
+      this.log(t('Sito aggiornato in {ms} ms', { ms: Math.round(performance.now() - started) }), true)
       for (const old of await readdir(this.builds)) {
         const path = join(this.builds, old)
         if (path !== dir && path !== previous) await rm(path, { recursive: true, force: true })
       }
     } catch (error) {
       await rm(dir, { recursive: true, force: true })
-      this.log(`Il sito non si è aggiornato: ${error instanceof Error ? error.message : String(error)}`, false)
+      this.log(
+        t('Il sito non si è aggiornato: {error}', { error: error instanceof Error ? error.message : String(error) }),
+        false,
+      )
     }
   }
 

@@ -4,7 +4,11 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
-- **Pannello in inglese, terza parte: tutto il resto del pannello.** Documenti, liste e rilasci, ricerca ⌘K, campi e libreria media, newsletter, persone e verifica in due passaggi, tutte le impostazioni, l'installazione iniziale (con il selettore della lingua) e i tour. Restano in italiano i messaggi che arrivano dal server (controlli di sicurezza, errori, email), i testi del core (controlli SEO, sezioni della libreria) e la guida.
+- **Materialize in inglese, completo.** Oltre al pannello, sono in inglese i messaggi del server, le email a chi ha un account, i controlli SEO, di accessibilità e di prestazioni, i nomi delle sezioni della libreria e degli stili, il terminale (`materialize` e `create-materialize`), la guida (`docs/guide`) e il README (`README.en.md`).
+- Ognuno sceglie la lingua per sé, nel profilo o nella pagina di accesso; prima di scegliere, il pannello segue la lingua del browser. Due persone possono usare lo stesso sito una in italiano e una in inglese: il server risponde a ognuna nella sua lingua, e le email partono nella lingua del profilo di chi le riceve.
+- Il terminale parla la lingua del sistema; `MATERIALIZE_LANG=it` o `en` la sceglie a mano.
+- Restano nella lingua del sito i testi che vedono i visitatori: pagine, moduli, banner dei cookie, newsletter.
+- **Pannello in inglese, terza parte: tutto il resto del pannello.** Documenti, liste e rilasci, ricerca ⌘K, campi e libreria media, newsletter, persone e verifica in due passaggi, tutte le impostazioni, l'installazione iniziale (con il selettore della lingua) e i tour.
 - **Pannello in inglese, seconda parte: l'editor.** Tela, livelli, libreria, stili, controlli, pannello delle proprietà, animazioni, interazioni, assistente, commenti, tour e scorciatoie, esportazione e modalità Design delle raccolte a blocchi. I nuovi elementi prendono nome e testo segnaposto nella lingua del pannello.
 - **`materialize dev` resta sul tuo computer**: prima si poteva raggiungere da tutta la rete, e su una Wi-Fi condivisa qualcun altro avrebbe potuto aprire un sito nuovo e crearne l'amministratore. Per provarlo dal telefono: `--host 0.0.0.0`. `materialize start` non cambia.
 - **Nuovo aspetto del pannello**: menu, area di lavoro e pannelli dell'editor sono superfici arrotondate su un fondo più scuro; pulsanti, filtri e selettori sono a pillola.

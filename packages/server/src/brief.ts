@@ -1,6 +1,7 @@
 import { normalizeTheme, type PageNode, type Theme } from '@materializecms/core/page'
 import type { BrandVoice } from '@materializecms/core/voice'
 import { z } from 'zod'
+import { t } from './t.ts'
 import { type ApiCall, contentTools, pageTools, type SiteTool, ToolError } from './tools.ts'
 
 /**
@@ -133,7 +134,7 @@ export function briefTools(
     }),
     {
       name: 'propose_theme',
-      title: 'Propongo colori e caratteri',
+      title: t('Propongo colori e caratteri'),
       description:
         'Proposes the site’s colors (light and dark), fonts (Google Fonts names) and roundness. Nothing changes now: the person sees the proposal at the end and applies it if they like it. Call it once, with the whole palette; pages built meanwhile use the theme tokens, so they follow it.',
       input: z.object({
@@ -171,7 +172,7 @@ export function briefTools(
   if (options.askVoice)
     tools.push({
       name: 'propose_voice',
-      title: 'Propongo la voce del brand',
+      title: t('Propongo la voce del brand'),
       description:
         'Proposes how the site speaks, from the brief: who the brand is and who it writes for, up to three tones, how readers are addressed, words to prefer and to avoid, other rules. Nothing is saved now: the person sees it at the end. Call it once.',
       input: z.object({

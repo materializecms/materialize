@@ -6,6 +6,7 @@ import { Readable } from 'node:stream'
 import { slugify } from '@materializecms/core'
 import type { MediaAsset } from '@materializecms/db'
 import sharp, { type Metadata } from 'sharp'
+import { t } from './t.ts'
 
 /** Formats people can upload, by what the file really is (not by its name). */
 const FORMATS = { jpeg: 'jpg', png: 'png', webp: 'webp', gif: 'gif', heif: 'avif' } as const
@@ -58,10 +59,10 @@ export function createMediaFiles(dir: string) {
       try {
         meta = await sharp(input, { animated: true }).metadata()
       } catch {
-        throw new MediaError('Il file non è un’immagine leggibile né un modello 3D (.glb)')
+        throw new MediaError(t('Il file non è un’immagine leggibile né un modello 3D (.glb)'))
       }
       const format = meta.format as SourceFormat
-      if (!(format in FORMATS)) throw new MediaError('Formato non supportato: usa JPG, PNG, WebP, AVIF o GIF')
+      if (!(format in FORMATS)) throw new MediaError(t('Formato non supportato: usa JPG, PNG, WebP, AVIF o GIF'))
       const ext = FORMATS[format]
       let output = input
       let width = meta.width

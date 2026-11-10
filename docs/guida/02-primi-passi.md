@@ -13,6 +13,8 @@ La prima volta che entri, un **tour** ti mostra il pannello una zona alla volta:
 
 In alto a sinistra, **Visita il sito** apre il sito pubblicato; in basso a sinistra c'è la lingua dei contenuti. In alto a destra, in un incavo dell'area di lavoro, ci sono la ricerca, il tema chiaro o scuro del pannello e il tuo profilo (il cerchio con l'iniziale). ⌘K (Ctrl+K su Windows) apre la ricerca da qualsiasi schermata: pagine, impostazioni, comandi.
 
+Il pannello è in italiano e in inglese. La prima volta segue la lingua del browser; per cambiarla, apri il tuo profilo (il cerchio con l'iniziale) → **Il tuo profilo** → **Lingua del pannello**, oppure scegli la lingua nella pagina di accesso. Ognuno ha la sua: due persone possono usare lo stesso sito una in italiano e una in inglese. Nella stessa lingua arrivano i messaggi del pannello e le email che Materialize ti manda. La lingua dei contenuti del sito è un'altra cosa: si sceglie in basso a sinistra.
+
 ## La prima pagina
 
 1. Dalla **Panoramica** premi **Nuova pagina**, oppure vai in **Pagine** e premi **Nuovo**.

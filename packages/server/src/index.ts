@@ -5,6 +5,7 @@ import type { MaterializeConfig } from '@materializecms/core'
 import type { Updates } from '@materializecms/core/updates'
 import { type Database, openDatabase } from '@materializecms/db'
 import { createApp } from './app.ts'
+import { t } from './t.ts'
 
 export {
   isPatch,
@@ -67,7 +68,7 @@ export async function startServer(initial: MaterializeConfig, options: ServerOpt
     if (site && !OWN.test(req.url ?? '/')) {
       Promise.resolve(site(req, res)).catch((error) => {
         console.error(error)
-        if (!res.headersSent) res.writeHead(500).end('Errore del sito')
+        if (!res.headersSent) res.writeHead(500).end(t('Errore del sito'))
       })
       return
     }

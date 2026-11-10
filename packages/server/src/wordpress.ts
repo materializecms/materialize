@@ -1,6 +1,7 @@
 import type { Media, RichText, RichTextBlock, RichTextRun } from '@materializecms/core'
 import { newId, type PageNode, type Run } from '@materializecms/core/page'
 import { DomUtils, parseDocument } from 'htmlparser2'
+import { t } from './t.ts'
 
 /**
  * WordPress, read: from a site's REST API (/wp-json, also with an application password for drafts
@@ -92,7 +93,9 @@ export async function readRest(base: string, fetcher: Fetcher, options: { limit?
   }
   if (!api)
     throw new WordPressError(
-      'Non trovo l’API di WordPress a questo indirizzo: controlla che sia il sito giusto, oppure usa il file di esportazione.',
+      t(
+        'Non trovo l’API di WordPress a questo indirizzo: controlla che sia il sito giusto, oppure usa il file di esportazione.',
+      ),
     )
   const endpoint = api
 
@@ -108,8 +111,9 @@ export async function readRest(base: string, fetcher: Fetcher, options: { limit?
       if (res.status === 400 || res.status === 401 || res.status === 403) res = await fetcher(endpoint(route, base))
       if (res.status === 400 && page > 1) break
       if (res.status === 401 || res.status === 403)
-        throw new WordPressError('WordPress non dà accesso ai contenuti: controlla utente e password applicativa.')
-      if (res.status !== 200) throw new WordPressError(`WordPress ha risposto ${res.status} leggendo ${route}`)
+        throw new WordPressError(t('WordPress non dà accesso ai contenuti: controlla utente e password applicativa.'))
+      if (res.status !== 200)
+        throw new WordPressError(t('WordPress ha risposto {status} leggendo {route}', { status: res.status, route }))
       const list = JSON.parse(res.text) as RestPost[]
       for (const p of list) items.push(fromRest(p, kind))
       const pages = Number(res.headers.get('x-wp-totalpages') ?? 1)
@@ -186,7 +190,7 @@ export function readWxr(xml: string): WpSite {
   }
   const channel = find(doc, 'channel')
   if (!channel || !find(channel, 'wp:wxr_version'))
-    throw new WordPressError('Questo non è un file di esportazione di WordPress (Strumenti → Esporta).')
+    throw new WordPressError(t('Questo non è un file di esportazione di WordPress (Strumenti → Esporta).'))
   const child = (node: DomNode, name: string) => (node.children ?? []).find((c) => c.name === name)
   const text = (node: DomNode | undefined) => (node ? textOf(node).trim() : '')
   const rawItems = (channel.children ?? []).filter((c) => c.name === 'item')
@@ -565,7 +569,7 @@ export function htmlToPage(html: string, title: string, ctx: ConvertContext): Pa
   const sections: PageNode[] = []
   let current: PageNode | null = null
   const section = (): PageNode => {
-    current = { id: newId(), type: 'frame', name: 'Sezione', layout: 'col', gap: 20, size: 'm', children: [] }
+    current = { id: newId(), type: 'frame', name: t('Sezione'), layout: 'col', gap: 20, size: 'm', children: [] }
     sections.push(current)
     return current
   }
@@ -592,7 +596,7 @@ export function htmlToPage(html: string, title: string, ctx: ConvertContext): Pa
         add({
           id: newId(),
           type: 'image',
-          name: 'Immagine',
+          name: t('Immagine'),
           src: img.src,
           alt: p.alt || img.alt,
           ratio: img.width && img.height ? `${img.width}/${img.height}` : '16/9',
@@ -605,7 +609,7 @@ export function htmlToPage(html: string, title: string, ctx: ConvertContext): Pa
       add({
         id: newId(),
         type: 'button',
-        name: 'Pulsante',
+        name: t('Pulsante'),
         text: p.text,
         href: p.href,
         variant: 'primary',
@@ -638,12 +642,12 @@ export function htmlToPage(html: string, title: string, ctx: ConvertContext): Pa
         runs,
         style,
         p.style === 'li'
-          ? 'Punto elenco'
+          ? t('Punto elenco')
           : p.style.startsWith('h')
-            ? 'Titolo'
+            ? t('Titolo')
             : p.style === 'quote'
-              ? 'Citazione'
-              : 'Testo',
+              ? t('Citazione')
+              : t('Testo'),
       ),
     )
   }

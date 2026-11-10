@@ -1,4 +1,4 @@
-import { MAIL_PROVIDERS, providerByHost, providerById } from '@materializecms/core/mail'
+import { mailProviders, providerByHost, providerById } from '@materializecms/core/mail'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, CircleX, Info, Send, ShieldCheck } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
@@ -119,7 +119,7 @@ export function MailForm() {
       <Field label={t('Il tuo fornitore')}>
         <select value={mail.provider ?? ''} onChange={(e) => choose(e.target.value)} className={inputClass}>
           <option value="">{t('Altro: inserisco io i dati')}</option>
-          {MAIL_PROVIDERS.map((p) => (
+          {mailProviders().map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>

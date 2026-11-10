@@ -6,6 +6,7 @@ import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { newer, type ReleaseNotes, type UpdateStatus, type Updates } from '@materializecms/server'
 import { type Pending, type SwapResult, updatesDir } from './supervisor.ts'
+import { t } from './t.ts'
 
 const CURRENT: string = createRequire(import.meta.url)('../package.json').version
 const CLI = '@materializecms/cli'
@@ -23,12 +24,18 @@ function npm(args: string[], cwd: string, timeout = 600_000): Promise<string> {
     child.stdout.on('data', (d) => (out += d))
     child.stderr.on('data', (d) => (out += d))
     child.on('error', (error) =>
-      reject(Object.assign(new Error(`npm non si avvia: ${error.message}`), { log: out.slice(-4000) })),
+      reject(
+        Object.assign(new Error(t('npm non si avvia: {error}', { error: error.message })), { log: out.slice(-4000) }),
+      ),
     )
     child.on('close', (code) => {
       if (code === 0) resolve(out)
       else
-        reject(Object.assign(new Error(`npm si è fermato con un errore (codice ${code})`), { log: out.slice(-4000) }))
+        reject(
+          Object.assign(new Error(t('npm si è fermato con un errore (codice {code})', { code })), {
+            log: out.slice(-4000),
+          }),
+        )
     })
   })
 }
@@ -54,25 +61,32 @@ export function createUpdates(options: {
   let latest: string | null = null
   let notes: ReleaseNotes[] = []
   let checkedAt: string | null = null
-  let checkError: string | undefined
+  // Kept as a kind and written when asked, in the language of whoever reads the status.
+  let checkFailure: 'unpublished' | 'unreachable' | undefined
   let job: UpdateStatus['job'] = { state: 'idle' }
 
   const unavailable = async (): Promise<string | undefined> => {
     if (options.mode === 'dev')
-      return 'In sviluppo (materialize dev) si aggiorna da terminale: gli aggiornamenti dal pannello funzionano con materialize start.'
+      return t(
+        'In sviluppo (materialize dev) si aggiorna da terminale: gli aggiornamenti dal pannello funzionano con materialize start.',
+      )
     if (!process.env.MATERIALIZE_SUPERVISED)
-      return 'Il server è avviato senza il suo supervisore: aggiorna da terminale, oppure avvialo con materialize start.'
+      return t(
+        'Il server è avviato senza il suo supervisore: aggiorna da terminale, oppure avvialo con materialize start.',
+      )
     // Linked from a source checkout (like the example in the repository): git updates it.
     const here = realpathSync(fileURLToPath(import.meta.url))
     if (!here.startsWith(realpathSync(join(site, 'node_modules')) + sep))
-      return 'Materialize è collegato dal codice sorgente: si aggiorna con git.'
+      return t('Materialize è collegato dal codice sorgente: si aggiorna con git.')
     const pkg = await readJson<{ dependencies?: Record<string, string> }>(join(site, 'package.json'))
-    if (!pkg?.dependencies?.[CLI]) return `Il package.json del sito non ha ${CLI} tra le dipendenze.`
+    if (!pkg?.dependencies?.[CLI]) return t('Il package.json del sito non ha {name} tra le dipendenze.', { name: CLI })
     try {
       await access(site, constants.W_OK)
       await access(join(site, 'node_modules'), constants.W_OK)
     } catch {
-      return 'Il programma non può scrivere nella cartella del sito: aggiorna da terminale, con l’utente che la possiede.'
+      return t(
+        'Il programma non può scrivere nella cartella del sito: aggiorna da terminale, con l’utente che la possiede.',
+      )
     }
     return undefined
   }
@@ -87,16 +101,21 @@ export function createUpdates(options: {
     latest,
     notes,
     checkedAt,
-    checkError,
+    checkError:
+      checkFailure === 'unpublished'
+        ? t('Nessuna versione pubblicata da controllare.')
+        : checkFailure === 'unreachable'
+          ? t('Non riesco a raggiungere il registro dei pacchetti: riprova più tardi.')
+          : undefined,
     unavailable: await unavailable(),
     previous: await previous(),
-    job: swapping ? { state: 'restarting', step: 'Preparo il sito con la nuova versione' } : job,
+    job: swapping ? { state: 'restarting', step: t('Preparo il sito con la nuova versione') } : job,
     last: await readJson<SwapResult>(join(dir, 'result.json')),
   })
 
   const restartWith = async (pending: Pending) => {
     await writeFile(join(dir, 'pending.json'), JSON.stringify(pending))
-    job = { state: 'restarting', step: 'Riavvio' }
+    job = { state: 'restarting', step: t('Riavvio') }
     // A moment for the panel to hear back before the server goes away.
     setTimeout(() => void options.restart(), 300)
   }
@@ -118,12 +137,10 @@ export function createUpdates(options: {
         const info = JSON.parse(out) as { version?: string; changelog?: ReleaseNotes[] } | string
         latest = typeof info === 'string' ? info : (info.version ?? null)
         notes = (typeof info === 'string' ? [] : (info.changelog ?? [])).filter((r) => newer(r.version, CURRENT))
-        checkError = undefined
+        checkFailure = undefined
       } catch (error) {
         const log = (error as { log?: string }).log ?? ''
-        checkError = /E404|404 Not Found/.test(log)
-          ? 'Nessuna versione pubblicata da controllare.'
-          : 'Non riesco a raggiungere il registro dei pacchetti: riprova più tardi.'
+        checkFailure = /E404|404 Not Found/.test(log) ? 'unpublished' : 'unreachable'
       }
       checkedAt = new Date().toISOString()
       return status()
@@ -132,13 +149,13 @@ export function createUpdates(options: {
     async install(version, backup) {
       const reason = await unavailable()
       if (reason) throw new Error(reason)
-      if (job.state === 'working' || job.state === 'restarting') throw new Error('C’è già un aggiornamento in corso')
-      if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error('Versione non valida')
-      job = { state: 'working', step: 'Backup del database e dei media' }
+      if (job.state === 'working' || job.state === 'restarting') throw new Error(t('C’è già un aggiornamento in corso'))
+      if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(t('Versione non valida'))
+      job = { state: 'working', step: t('Backup del database e dei media') }
       void (async () => {
         try {
           await backup()
-          job = { state: 'working', step: `Scarico Materialize ${version}` }
+          job = { state: 'working', step: t('Scarico Materialize {version}', { version }) }
           const next = join(dir, 'next')
           await rm(next, { recursive: true, force: true })
           await mkdir(next, { recursive: true })
@@ -151,10 +168,12 @@ export function createUpdates(options: {
             if (existsSync(join(site, name))) await copyFile(join(site, name), join(next, name))
           await npm(['install', '--no-audit', '--no-fund'], next)
 
-          job = { state: 'working', step: 'Controllo la nuova versione' }
+          job = { state: 'working', step: t('Controllo la nuova versione') }
           const installed = await readJson<{ version: string }>(join(next, 'node_modules', CLI, 'package.json'))
           if (installed?.version !== version)
-            throw new Error(`Installata la ${installed?.version ?? '?'} invece della ${version}`)
+            throw new Error(
+              t('Installata la {installed} invece della {version}', { installed: installed?.version ?? '?', version }),
+            )
           await restartWith({ kind: 'install', from: CURRENT, to: version, at: new Date().toISOString() })
         } catch (error) {
           job = {
@@ -171,7 +190,7 @@ export function createUpdates(options: {
       const reason = await unavailable()
       if (reason) throw new Error(reason)
       const to = await previous()
-      if (!to) throw new Error('Non c’è una versione precedente a cui tornare')
+      if (!to) throw new Error(t('Non c’è una versione precedente a cui tornare'))
       await restartWith({ kind: 'rollback', from: CURRENT, to, at: new Date().toISOString() })
     },
   }

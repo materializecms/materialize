@@ -1,3 +1,4 @@
+import { setLangSource } from '@materializecms/core/lang'
 import { createElement, Fragment, type ReactNode, useSyncExternalStore } from 'react'
 import { en } from '../i18n/en/index.ts'
 
@@ -16,10 +17,17 @@ export const LANGS: { value: Lang; label: string }[] = [
 const KEY = 'mz-lang'
 
 /**
- * Until the whole panel is translated, it starts in Italian for everyone: English is a choice
- * (the profile, the sign-in page), never a half-translated surprise for an English browser.
+ * Before anyone chooses (in the profile or on the sign-in page), the panel follows the browser:
+ * Italian for an Italian browser, English for everyone else.
  */
-const DEFAULT: Lang = 'it'
+const browserLang = (): Lang => {
+  try {
+    return /^it\b/i.test(navigator.language) ? 'it' : 'en'
+  } catch {
+    return 'it'
+  }
+}
+const DEFAULT: Lang = typeof navigator === 'undefined' ? 'it' : browserLang()
 
 function initial(): Lang {
   try {
@@ -34,6 +42,9 @@ const listeners = new Set<() => void>()
 if (typeof document !== 'undefined') document.documentElement.lang = current
 
 export const lang = (): Lang => current
+
+// The core's texts (checks, library, labels) follow the panel's language.
+setLangSource(() => current)
 
 /** Sets the language (null: the browser's) and redraws the panel. */
 export function setLang(next: Lang | null) {

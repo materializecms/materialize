@@ -29,7 +29,8 @@ const run = (args: string[], env: Record<string, string> = {}) =>
   spawnSync(process.execPath, [CLI, 'decrypt', ...args], {
     cwd: dir,
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    // The messages checked below are the Italian ones, whatever the language of this computer.
+    env: { ...process.env, MATERIALIZE_LANG: 'it', ...env },
   })
 
 describe('materialize decrypt', () => {

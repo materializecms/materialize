@@ -14,6 +14,7 @@ import { type ChildProcess, fork } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { t } from './supervisor-t.ts'
 
 /** Exit code with which the server asks to be started again (and to apply a pending swap). */
 export const RESTART = 75
@@ -66,13 +67,13 @@ export async function applyPending(site: string, pending: Pending): Promise<void
   const dir = updatesDir(site)
   if (pending.kind === 'install') {
     const next = join(dir, 'next')
-    if (!existsSync(join(next, 'node_modules'))) throw new Error('La nuova versione non è stata scaricata')
+    if (!existsSync(join(next, 'node_modules'))) throw new Error(t('La nuova versione non è stata scaricata'))
     await exchange(site, next)
     await rm(join(dir, 'previous'), { recursive: true, force: true })
     await rename(next, join(dir, 'previous'))
   } else {
     const previous = join(dir, 'previous')
-    if (!existsSync(join(previous, 'node_modules'))) throw new Error('Non c’è una versione precedente')
+    if (!existsSync(join(previous, 'node_modules'))) throw new Error(t('Non c’è una versione precedente'))
     await exchange(site, previous)
   }
 }
@@ -141,7 +142,7 @@ export async function supervise(script: string, args: string[], site = process.c
         await writeFile(join(dir, 'result.json'), JSON.stringify(result))
         continue
       }
-      console.log(`  Materialize ${pending.from} → ${pending.to}: avvio la ${pending.to}…`)
+      console.log(`  Materialize ${pending.from} → ${pending.to}: ${t('avvio la {version}…', { version: pending.to })}`)
       // The new version must report ready in time; otherwise the old one comes back.
       let ready = false
       let timer: NodeJS.Timeout | undefined
@@ -151,22 +152,22 @@ export async function supervise(script: string, args: string[], site = process.c
           clearTimeout(timer)
         },
         () => {
-          result.message = 'Con la nuova versione il sito non si compila'
+          result.message = t('Con la nuova versione il sito non si compila')
           child?.kill('SIGTERM')
         },
         pending,
       )
       timer = setTimeout(() => {
-        result.message = 'La nuova versione non è partita in tempo'
+        result.message = t('La nuova versione non è partita in tempo')
         child?.kill('SIGTERM')
       }, READY_TIMEOUT)
       code = await running
       clearTimeout(timer)
       if (!ready && !stopping) {
-        result.message ??= `La nuova versione si è fermata all’avvio (codice ${code})`
+        result.message ??= t('La nuova versione si è fermata all’avvio (codice {code})', { code })
         await revertPending(site, pending)
         await writeFile(join(dir, 'result.json'), JSON.stringify(result))
-        console.log(`  ✗ ${result.message}: torno alla ${pending.from}`)
+        console.log(`  ✗ ${t('{message}: torno alla {version}', { message: result.message, version: pending.from })}`)
         continue
       }
     } else {
@@ -181,7 +182,7 @@ export async function supervise(script: string, args: string[], site = process.c
     // An unexpected stop: start again, waiting a little longer each time (up to half a minute).
     failures++
     const wait = Math.min(30, 2 ** Math.min(failures, 5))
-    console.log(`  ✗ Il server si è fermato (codice ${code}): riparto tra ${wait} s`)
+    console.log(`  ✗ ${t('Il server si è fermato (codice {code}): riparto tra {wait} s', { code, wait })}`)
     await new Promise((r) => setTimeout(r, wait * 1000))
   }
 }

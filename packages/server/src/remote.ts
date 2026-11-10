@@ -1,8 +1,18 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
+import { t } from './t.ts'
 
-/** Raised when a remote file cannot be fetched: the message says why, in words. */
-export class RemoteError extends Error {}
+/**
+ * Raised when a remote file cannot be fetched: the message says why, in words (in the reader's
+ * language); `reason` says it to code.
+ */
+export class RemoteError extends Error {
+  readonly reason?: 'too_large'
+  constructor(message: string, reason?: 'too_large') {
+    super(message)
+    this.reason = reason
+  }
+}
 
 /** Loopback, private, link-local and other addresses a public file never lives at. */
 function isPrivate(address: string): boolean {
@@ -47,11 +57,11 @@ export async function remoteFetch(
   const origin = current.origin
   for (let hop = 0; hop < 5; hop++) {
     if (current.protocol !== 'https:' && current.protocol !== 'http:')
-      throw new RemoteError('Only http and https addresses')
+      throw new RemoteError(t('Solo indirizzi http e https'))
     if (!options.allowPrivate) {
       const host = current.hostname.replace(/^\[|\]$/g, '')
       const addresses = isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address)
-      if (!addresses.length || addresses.some(isPrivate)) throw new RemoteError('This address is not public')
+      if (!addresses.length || addresses.some(isPrivate)) throw new RemoteError(t('Questo indirizzo non è pubblico'))
     }
     const res = await fetch(current, {
       redirect: 'manual',
@@ -60,23 +70,24 @@ export async function remoteFetch(
     })
     if (res.status >= 300 && res.status < 400) {
       const to = res.headers.get('location')
-      if (!to) throw new RemoteError(`Redirect without a destination (${res.status})`)
+      if (!to) throw new RemoteError(t('Reindirizzamento senza destinazione ({status})', { status: res.status }))
       current = new URL(to, current)
       continue
     }
     const type = (res.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? ''
-    if (Number(res.headers.get('content-length') ?? 0) > options.max) throw new RemoteError('The file is too large')
+    if (Number(res.headers.get('content-length') ?? 0) > options.max)
+      throw new RemoteError(t('Il file è troppo grande'), 'too_large')
     const chunks: Buffer[] = []
     let size = 0
     for await (const chunk of res.body ?? []) {
       size += chunk.length
-      if (size > options.max) throw new RemoteError('The file is too large')
+      if (size > options.max) throw new RemoteError(t('Il file è troppo grande'), 'too_large')
       chunks.push(Buffer.from(chunk))
     }
     const name = decodeURIComponent(current.pathname.split('/').pop() || 'immagine')
     return { status: res.status, headers: res.headers, bytes: Buffer.concat(chunks), type, name, url: current.href }
   }
-  throw new RemoteError('Too many redirects')
+  throw new RemoteError(t('Troppi reindirizzamenti'))
 }
 
 /**
@@ -88,6 +99,7 @@ export async function fetchPublicFile(
   max: number,
 ): Promise<{ bytes: Buffer; type: string; name: string }> {
   const res = await remoteFetch(url, { max })
-  if (res.status < 200 || res.status >= 300) throw new RemoteError(`The server answered ${res.status}`)
+  if (res.status < 200 || res.status >= 300)
+    throw new RemoteError(t('Il server ha risposto {status}', { status: res.status }))
   return { bytes: res.bytes, type: res.type, name: res.name }
 }

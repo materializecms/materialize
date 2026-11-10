@@ -5,7 +5,7 @@ import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { UpdateSettings, UpdateStatus } from '@materializecms/core/updates'
 import type { BrandVoice } from '@materializecms/core/voice'
 
-import { t } from './i18n.ts'
+import { lang, t } from './i18n.ts'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -462,7 +462,7 @@ async function streamEvents<E>(path: string, input: unknown, onEvent: (e: E) => 
     res = await fetch(path, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-mz-lang': lang() },
       body: JSON.stringify(input),
       signal,
     })
@@ -576,7 +576,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin',
-      headers: { 'x-mz-tab': TAB, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+      headers: {
+        'x-mz-tab': TAB,
+        'x-mz-lang': lang(),
+        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
@@ -592,7 +596,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 async function requestForm<T>(path: string, form: FormData): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`/api${path}`, { method: 'POST', credentials: 'same-origin', body: form })
+    res = await fetch(`/api${path}`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'x-mz-lang': lang() },
+      body: form,
+    })
   } catch {
     throw new ApiError(0, 'offline', t('Il server non risponde. Controlla che materialize dev sia attivo.'))
   }
@@ -766,7 +775,7 @@ export const api = {
       method: 'DELETE',
       credentials: 'same-origin',
       keepalive: true,
-      headers: { 'x-mz-tab': TAB },
+      headers: { 'x-mz-tab': TAB, 'x-mz-lang': lang() },
     }).catch(() => {})
   },
   presence: (docId: string, selected: string | null) =>

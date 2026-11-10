@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { type Block, type Field, type Fields, type InferFields, objectShape } from './fields.ts'
 import { slugify } from './slug.ts'
+import { t } from './t.ts'
 
 const NAME = /^[a-z][a-z0-9-]*$/
 
@@ -172,27 +173,30 @@ export function validate<N extends string, F extends Fields>(
   }
 }
 
-/** Messages for editors, in plain Italian. Messages set on a field (e.g. a regex hint) win. */
+/** Messages for editors, in their language. Messages set on a field (e.g. a regex hint) win. */
 function message(issue: z.core.$ZodRawIssue): string | undefined {
   const i = issue as z.core.$ZodRawIssue & { minimum?: number | bigint; maximum?: number | bigint; origin?: string }
   switch (i.code) {
     case 'invalid_type':
-      return i.input === undefined || i.input === null ? 'Campo obbligatorio' : 'Valore non valido'
-    case 'too_small':
-      if (i.origin === 'string') return Number(i.minimum) <= 1 ? 'Campo obbligatorio' : `Almeno ${i.minimum} caratteri`
-      if (i.origin === 'array')
-        return `Aggiungi almeno ${i.minimum} ${Number(i.minimum) === 1 ? 'elemento' : 'elementi'}`
-      return `Il valore minimo è ${i.minimum}`
-    case 'too_big':
-      if (i.origin === 'string') return `Al massimo ${i.maximum} caratteri`
-      if (i.origin === 'array') return `Al massimo ${i.maximum} elementi`
-      return `Il valore massimo è ${i.maximum}`
+      return i.input === undefined || i.input === null ? t('Campo obbligatorio') : t('Valore non valido')
+    case 'too_small': {
+      const min = Number(i.minimum)
+      if (i.origin === 'string') return min <= 1 ? t('Campo obbligatorio') : t('Almeno {n} caratteri', { n: min })
+      if (i.origin === 'array') return t.n(min, 'Aggiungi almeno {n} elemento', 'Aggiungi almeno {n} elementi')
+      return t('Il valore minimo è {n}', { n: min })
+    }
+    case 'too_big': {
+      const max = Number(i.maximum)
+      if (i.origin === 'string') return t('Al massimo {n} caratteri', { n: max })
+      if (i.origin === 'array') return t('Al massimo {n} elementi', { n: max })
+      return t('Il valore massimo è {n}', { n: max })
+    }
     case 'invalid_value':
-      return 'Scegli una delle opzioni disponibili'
+      return t('Scegli una delle opzioni disponibili')
     case 'invalid_format':
-      return 'Formato non valido'
+      return t('Formato non valido')
     case 'invalid_union':
-      return 'Valore non valido'
+      return t('Valore non valido')
     default:
       return undefined
   }

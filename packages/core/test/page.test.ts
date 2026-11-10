@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSection, LIBRARY } from '../src/library.ts'
+import { buildSection, library } from '../src/library.ts'
 import {
   collapseComponents,
   collapseGlobals,
@@ -18,7 +18,7 @@ import {
   withTextStyle,
 } from '../src/page.ts'
 
-const all = LIBRARY.flatMap((c) => c.variants.map((v) => v.key))
+const all = library().flatMap((c) => c.variants.map((v) => v.key))
 
 describe('library', () => {
   it('builds every variant with unique ids', () => {

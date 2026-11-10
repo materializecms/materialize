@@ -2,12 +2,17 @@ import { z } from 'zod'
 import type { PageNode } from './page.ts'
 import { SLUG_PATTERN } from './slug.ts'
 import { ANCHOR_PATTERN, BLOCK_STYLE, type BlockStyle } from './style.ts'
+import { t } from './t.ts'
 
 const blockStyleSchema = z.object({
   background: z.enum(BLOCK_STYLE.background).optional(),
   spacing: z.enum(BLOCK_STYLE.spacing).optional(),
   animation: z.enum(BLOCK_STYLE.animation).optional(),
-  anchor: z.string().max(60).regex(ANCHOR_PATTERN, 'Usa lettere minuscole, numeri e trattini').optional(),
+  anchor: z
+    .string()
+    .max(60)
+    .regex(ANCHOR_PATTERN, { error: () => t('Usa lettere minuscole, numeri e trattini') })
+    .optional(),
 })
 
 export type FieldKind =
@@ -116,7 +121,7 @@ export interface Seo {
   socialDescription?: string
   /** The address search engines should consider the original, when this page repeats another. */
   canonical?: string
-  /** Structured data: what kind of page this is (see SCHEMA_TYPES in seo.ts). */
+  /** Structured data: what kind of page this is (see schemaTypes in seo.ts). */
   schema?: 'article' | 'project' | 'service' | 'event' | 'faq'
   faq?: { q: string; a: string }[]
   event?: { start?: string; end?: string; place?: string; address?: string; online?: boolean; price?: string }
@@ -171,7 +176,7 @@ const richTextSchema = z.array(
       children: z.array(runSchema),
       image: mediaSchema.optional(),
     })
-    .refine((b) => b.type !== 'image' || !!b.image, { message: 'Scegli l’immagine', path: ['image'] }),
+    .refine((b) => b.type !== 'image' || !!b.image, { error: () => t('Scegli l’immagine'), path: ['image'] }),
 )
 
 // ---------- builders ----------
@@ -245,7 +250,10 @@ interface SlugOptions<R extends boolean> extends Common<R> {
 
 function slug<const O extends SlugOptions<boolean>>(o?: O): Field<string, Req<O>> {
   return field('slug', o, { from: o?.from }, () =>
-    z.string().max(96).regex(SLUG_PATTERN, 'Usa lettere minuscole, numeri e trattini singoli'),
+    z
+      .string()
+      .max(96)
+      .regex(SLUG_PATTERN, { error: () => t('Usa lettere minuscole, numeri e trattini singoli') }),
   )
 }
 
@@ -379,7 +387,9 @@ function seo<const O extends Common<boolean>>(o?: O): Field<Seo, Req<O>> {
 }
 
 function color<const O extends Common<boolean>>(o?: O): Field<string, Req<O>> {
-  return field('color', o, {}, () => z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Usa un colore nel formato #rrggbb'))
+  return field('color', o, {}, () =>
+    z.string().regex(/^#[0-9a-fA-F]{6}$/, { error: () => t('Usa un colore nel formato #rrggbb') }),
+  )
 }
 
 const pageNodeSchema: z.ZodType<PageNode> = z.lazy(() =>

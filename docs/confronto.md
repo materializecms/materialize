@@ -77,11 +77,11 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 - **Vivi di newsletter e abbonamenti**: **Ghost**.
 - **I contenuti alimentano molte app** (sito, app mobile, schermi) o un team grande lavora insieme in tempo reale: **Sanity**, **Contentful**, **Storyblok** o **Payload**.
 - **Ti serve un prodotto maturo**, con supporto commerciale e anni di storia: oggi Materialize è in Alpha.
-- **Il pannello deve essere in un'altra lingua**: oggi è in italiano e in inglese per tutta l'interfaccia; restano in italiano i messaggi del server, le email e la guida. I contenuti del sito possono essere in più lingue.
+- **Il pannello deve essere in una lingua diversa da italiano e inglese**: per ora ci sono solo queste due (pannello, messaggi, email, terminale e guida). I contenuti del sito possono essere in qualsiasi lingua.
 
 ## Cosa arriverà
 
-Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: pannello anche in inglese; più avanti vendita semplice e collaborazione in tempo reale.
+Le novità già uscite sono nel [CHANGELOG](../CHANGELOG.md). In programma: le prove verso la Beta; più avanti vendita semplice e collaborazione in tempo reale.
 
 ## Fonti
 

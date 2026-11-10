@@ -26,7 +26,8 @@
     "./tracking": "./src/tracking.ts",
     "./updates": "./src/updates.ts",
     "./quality": "./src/quality.ts",
-    "./voice": "./src/voice.ts"
+    "./voice": "./src/voice.ts",
+    "./lang": "./src/lang.ts"
   },
   "dependencies": {
     "lucide": "1.64.0",

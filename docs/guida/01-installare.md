@@ -73,6 +73,8 @@ npm run dev
 
 e apri `http://localhost:4321/admin`. Sul tuo computer non serve il link di installazione: in sviluppo il sito si raggiunge solo da lì, così su una Wi-Fi condivisa nessun altro può aprirlo e creare per primo l'amministratore. Per provarlo dal telefono sulla stessa rete, avvialo con `npm run dev -- --host 0.0.0.0`.
 
+Il terminale parla la lingua del sistema: italiano su un computer in italiano, inglese negli altri casi. Per sceglierla a mano, aggiungi `MATERIALIZE_LANG=it` (o `en`) all'ambiente, per esempio con `export MATERIALIZE_LANG=it` nel file `~/.zshrc`.
+
 ## Finire l'installazione nel browser
 
 Apri il link che ti ha dato l'installazione: finisce con `/admin/?installa=` seguito da un codice. Il codice serve perché nessun altro possa «prendersi» un server appena messo online.

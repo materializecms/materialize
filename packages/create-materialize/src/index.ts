@@ -7,6 +7,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { fileURLToPath } from 'node:url'
 import { parseArgs, styleText } from 'node:util'
+import { t } from './t.ts'
 
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), '..', 'template')
 /** Materialize packages move together: a new site uses the version of this starter. */
@@ -18,7 +19,7 @@ const TEXT_FILES = ['package.json', 'materialize.config.ts', 'README.md', 'src/l
 export async function createProject(target: string, siteName?: string): Promise<string> {
   const dir = resolve(target)
   if (existsSync(dir) && (await readdir(dir)).length > 0) {
-    throw new Error(`La cartella ${dir} esiste e non è vuota`)
+    throw new Error(t('La cartella {dir} esiste e non è vuota', { dir }))
   }
   await cp(TEMPLATE, dir, { recursive: true })
   for (const [from, to] of Object.entries(RENAMES)) {
@@ -80,35 +81,37 @@ async function main() {
     options: { 'no-install': { type: 'boolean' }, help: { type: 'boolean', short: 'h' } },
   })
   if (values.help) {
-    console.log('\n  npm create materialize@latest [cartella] [--no-install]\n')
+    console.log(`\n  npm create materialize@latest [${t('cartella')}] [--no-install]\n`)
     return
   }
   console.log()
   console.log(`  ${styleText(['bold', 'blue'], 'Materialize')} ${styleText('dim', VERSION)}`)
   console.log()
-  const target = positionals[0] ?? (await ask('Dove creo il sito?', 'il-mio-sito'))
+  const target = positionals[0] ?? (await ask(t('Dove creo il sito?'), t('il-mio-sito')))
   const dir = await createProject(target)
   const rel = relative(process.cwd(), dir) || '.'
-  console.log(`  ${styleText('green', '✓')} Progetto creato in ${rel}`)
+  console.log(`  ${styleText('green', '✓')} ${t('Progetto creato in {dir}', { dir: rel })}`)
 
   const pm = packageManager()
   let installed = false
   if (!values['no-install']) {
-    console.log(`  ${styleText('dim', `Installo le dipendenze con ${pm}…`)}`)
+    console.log(`  ${styleText('dim', t('Installo le dipendenze con {pm}…', { pm }))}`)
     console.log()
     installed = await install(dir, pm)
     console.log()
-    if (!installed) console.log(`  ${styleText('yellow', '!')} Installazione non riuscita: riprova a mano.`)
+    if (!installed) console.log(`  ${styleText('yellow', '!')} ${t('Installazione non riuscita: riprova a mano.')}`)
   }
 
   const run = pm === 'npm' ? 'npm run' : pm
-  console.log('  Per iniziare:')
+  console.log(`  ${t('Per iniziare:')}`)
   console.log()
   if (rel !== '.') console.log(`    cd ${rel}`)
   if (!installed) console.log(`    ${pm} install`)
   console.log(`    ${run} dev`)
   console.log()
-  console.log(`  Poi apri ${styleText('blue', 'http://localhost:4321/admin')} e crea il tuo account.`)
+  console.log(
+    `  ${t('Poi apri {url} e crea il tuo account.', { url: styleText('blue', 'http://localhost:4321/admin') })}`,
+  )
   console.log()
 }
 

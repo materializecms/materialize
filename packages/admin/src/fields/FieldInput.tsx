@@ -1,6 +1,6 @@
 import type { Link as LinkValue, Media, RichText, Seo } from '@materializecms/core'
 import { parseRichTextMarkup, richTextMarkup } from '@materializecms/core/i18n'
-import { pageTitle, SCHEMA_TYPES } from '@materializecms/core/seo'
+import { pageTitle, schemaTypes } from '@materializecms/core/seo'
 import { slugify } from '@materializecms/core/slug'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ChevronRight, Plus, Trash2, Wand2 } from 'lucide-react'
@@ -592,7 +592,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               onChange={(e) => set('schema', e.target.value || undefined)}
               className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
-              {SCHEMA_TYPES.map((type) => (
+              {schemaTypes().map((type) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
                 </option>

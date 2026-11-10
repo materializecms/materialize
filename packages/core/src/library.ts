@@ -1,4 +1,5 @@
 import { newId, type PageNode, type SceneConfig, type TextStyle } from './page.ts'
+import { t } from './t.ts'
 
 /**
  * Ready-made sections, by category and variant: the canvas library. Each build returns fresh ids;
@@ -14,171 +15,178 @@ export interface LibraryCategory {
   variants: { key: string; label: string; keywords: string }[]
 }
 
-const RAW: [string, string, [string, string, string][]][] = [
+/**
+ * The categories and their first variants: [key, label, [variant, label, keywords]]. A function,
+ * so the labels come in the panel's language; the keywords hold Italian and English words, so a
+ * search finds a section in either.
+ */
+const raw = (): [string, string, [string, string, string][]][] => [
   [
     'nav',
-    'Navigazione',
+    t('Navigazione'),
     [
-      ['classic', 'Classica', 'menu link'],
-      ['center', 'Centrata', 'menu'],
-      ['minimal', 'Minimale', 'menu hamburger'],
+      ['classic', t('Classica'), 'menu link links'],
+      ['center', t('Centrata'), 'menu'],
+      ['minimal', t('Minimale'), 'menu hamburger'],
     ],
   ],
   [
     'hero',
     'Hero',
     [
-      ['split', 'Testo e immagine', 'apertura'],
-      ['center', 'Centrato', 'apertura'],
-      ['inverse', 'Scuro', 'apertura'],
-      ['cover', 'Foto a tutto schermo', 'apertura sfondo foto'],
+      ['split', t('Testo e immagine'), 'apertura hero opening'],
+      ['center', t('Centrato'), 'apertura hero opening'],
+      ['inverse', t('Scuro'), 'apertura hero opening'],
+      ['cover', t('Foto a tutto schermo'), 'apertura sfondo foto hero opening background photo'],
     ],
   ],
-  ['banner', 'Annuncio', [['bar', 'Barra', 'avviso novità']]],
+  ['banner', t('Annuncio'), [['bar', t('Barra'), 'avviso novità notice announcement news']]],
   [
     'logos',
-    'Loghi',
+    t('Loghi'),
     [
-      ['row', 'Fila', 'clienti partner'],
-      ['grid', 'Griglia', 'clienti partner'],
+      ['row', t('Fila'), 'clienti partner clients customers'],
+      ['grid', t('Griglia'), 'clienti partner clients customers'],
     ],
   ],
   [
     'about',
-    'Chi siamo',
+    t('Chi siamo'),
     [
-      ['story', 'Racconto', 'studio storia'],
-      ['image', 'Con foto', 'studio storia firma'],
+      ['story', t('Racconto'), 'studio storia story history'],
+      ['image', t('Con foto'), 'studio storia firma story history signature'],
     ],
   ],
   [
     'features',
-    'Servizi',
+    t('Servizi'),
     [
-      ['cols', 'Tre colonne', 'funzionalità'],
-      ['split', 'Con immagine', 'metodo'],
-      ['cards', 'Schede', 'funzionalità card'],
-      ['alternating', 'Alternati', 'zig zag foto'],
+      ['cols', t('Tre colonne'), 'funzionalità features'],
+      ['split', t('Con immagine'), 'metodo method'],
+      ['cards', t('Schede'), 'funzionalità card features'],
+      ['alternating', t('Alternati'), 'zig zag foto alternating photo'],
     ],
   ],
   [
     'process',
-    'Processo',
+    t('Processo'),
     [
-      ['steps', 'Passaggi', 'fasi metodo'],
-      ['timeline', 'Cronologia', 'storia anni'],
+      ['steps', t('Passaggi'), 'fasi metodo phases steps method'],
+      ['timeline', t('Cronologia'), 'storia anni story history years'],
     ],
   ],
   [
     'stats',
-    'Numeri',
+    t('Numeri'),
     [
-      ['row', 'In fila', 'statistiche'],
-      ['big', 'Grandi', 'statistiche'],
+      ['row', t('In fila'), 'statistiche stats numbers'],
+      ['big', t('Grandi'), 'statistiche stats numbers'],
     ],
   ],
   [
     'gallery',
-    'Progetti',
+    t('Progetti'),
     [
-      ['grid', 'Griglia', 'portfolio lavori'],
-      ['feature', 'Due colonne', 'portfolio'],
-      ['masonry', 'Mosaico', 'portfolio foto'],
-      ['list', 'Elenco', 'portfolio indice'],
+      ['grid', t('Griglia'), 'portfolio lavori work projects'],
+      ['feature', t('Due colonne'), 'portfolio'],
+      ['masonry', t('Mosaico'), 'portfolio foto photo'],
+      ['list', t('Elenco'), 'portfolio indice index'],
     ],
   ],
-  ['media', 'Video', [['video', 'Video', 'filmato']]],
+  ['media', 'Video', [['video', 'Video', 'filmato film']]],
   [
     'testimonial',
-    'Testimonianze',
+    t('Testimonianze'),
     [
-      ['quote', 'Citazione', 'recensione'],
-      ['cards', 'Schede', 'recensioni'],
-      ['split', 'Con foto', 'recensione'],
+      ['quote', t('Citazione'), 'recensione review testimonial'],
+      ['cards', t('Schede'), 'recensioni reviews testimonials'],
+      ['split', t('Con foto'), 'recensione review testimonial'],
     ],
   ],
-  ['awards', 'Premi e stampa', [['list', 'Elenco', 'riconoscimenti pubblicazioni']]],
+  ['awards', t('Premi e stampa'), [['list', t('Elenco'), 'riconoscimenti pubblicazioni awards publications press']]],
   [
     'pricing',
-    'Formule',
+    t('Formule'),
     [
-      ['three', 'Tre colonne', 'prezzi piani'],
-      ['two', 'Due colonne', 'prezzi piani'],
+      ['three', t('Tre colonne'), 'prezzi piani prices pricing plans'],
+      ['two', t('Due colonne'), 'prezzi piani prices pricing plans'],
     ],
   ],
   [
     'team',
     'Team',
     [
-      ['grid', 'Griglia', 'persone'],
-      ['list', 'Elenco', 'persone'],
+      ['grid', t('Griglia'), 'persone people'],
+      ['list', t('Elenco'), 'persone people'],
     ],
   ],
-  ['blog', 'Articoli', [['grid', 'Griglia', 'blog notizie diario']]],
+  ['blog', t('Articoli'), [['grid', t('Griglia'), 'blog notizie diario news journal']]],
   [
     'faq',
     'FAQ',
     [
-      ['list', 'Elenco', 'domande'],
-      ['grid', 'Griglia', 'domande'],
+      ['list', t('Elenco'), 'domande questions'],
+      ['grid', t('Griglia'), 'domande questions'],
     ],
   ],
   [
     'contact',
-    'Contatti',
+    t('Contatti'),
     [
-      ['form', 'Con modulo', 'modulo di contatto form email messaggio richiesta preventivo'],
-      ['simple', 'Essenziale', 'email'],
-      ['locations', 'Sedi', 'indirizzi mappa'],
+      [
+        'form',
+        t('Con modulo'),
+        'modulo di contatto form email messaggio richiesta preventivo contact message request quote estimate',
+      ],
+      ['simple', t('Essenziale'), 'email'],
+      ['locations', t('Sedi'), 'indirizzi mappa addresses map'],
     ],
   ],
   [
     'cta',
-    'Invito',
+    t('Invito'),
     [
-      ['banner', 'Banner scuro', 'call to action'],
-      ['accent', 'Accento', 'call to action'],
-      ['split', 'Con foto', 'call to action'],
-      ['newsletter', 'Newsletter', 'iscrizione email'],
+      ['banner', t('Banner scuro'), 'call to action'],
+      ['accent', t('Accento'), 'call to action'],
+      ['split', t('Con foto'), 'call to action'],
+      ['newsletter', 'Newsletter', 'iscrizione email signup subscribe'],
     ],
   ],
   [
     'divider',
-    'Separatori',
+    t('Separatori'),
     [
-      ['statement', 'Frase', 'manifesto'],
-      ['line', 'Linea', 'spazio'],
+      ['statement', t('Frase'), 'manifesto'],
+      ['line', t('Linea'), 'spazio space spacer'],
     ],
   ],
   [
     'effects',
-    'Effetti',
+    t('Effetti'),
     [
-      ['aurora', 'Apertura su aurora', 'hero apertura sfondo animato webgl movimento'],
-      ['silk', 'Apertura con seta', 'hero apertura webgl animazione'],
-      ['logo', 'Logo 3D', 'tre d 3d marchio cromo vetro oro webgl'],
-      ['object', 'Oggetto 3D', 'tre d 3d prodotto modello glb webgl'],
-      ['globe', 'Numeri sul globo', 'statistiche mondo webgl'],
-      ['image', 'Immagine animata', 'foto effetto distorsione webgl'],
-      ['cta', 'Invito con particelle', 'call to action webgl animazione'],
+      [
+        'aurora',
+        t('Apertura su aurora'),
+        'hero apertura sfondo animato webgl movimento opening background animated motion',
+      ],
+      ['silk', t('Apertura con seta'), 'hero apertura webgl animazione opening animation'],
+      ['logo', t('Logo 3D'), 'tre d 3d marchio cromo vetro oro webgl brand chrome glass gold'],
+      ['object', t('Oggetto 3D'), 'tre d 3d prodotto modello glb webgl product model'],
+      ['globe', t('Numeri sul globo'), 'statistiche mondo webgl stats numbers world globe'],
+      ['image', t('Immagine animata'), 'foto effetto distorsione webgl photo effect distortion'],
+      ['cta', t('Invito con particelle'), 'call to action webgl animazione animation'],
     ],
   ],
   [
     'footer',
     'Footer',
     [
-      ['simple', 'Semplice', 'piè di pagina'],
-      ['columns', 'Colonne', 'piè di pagina'],
-      ['big', 'Grande', 'piè di pagina'],
+      ['simple', t('Semplice'), 'piè di pagina footer'],
+      ['columns', t('Colonne'), 'piè di pagina footer'],
+      ['big', t('Grande'), 'piè di pagina footer'],
     ],
   ],
 ]
-
-export const LIBRARY: LibraryCategory[] = RAW.map(([key, label, variants]) => ({
-  key,
-  label,
-  variants: variants.map(([v, l, k]) => ({ key: `${key}.${v}`, label: l, keywords: k })),
-}))
 
 /** Schematic thumbnails: rectangles on a 120×72 grid (x, y, w, h, tone). */
 export const LIBRARY_THUMBS: Record<string, string> = {
@@ -1431,86 +1439,107 @@ export function buildSection(key: string, brand = 'Studio Rossi'): PageNode {
 // ---------- more sections ----------
 
 /** Variants added to the prototype's library: [category, variant, label, keywords]. */
-const MORE: [string, string, string, string][] = [
-  ['nav', 'split', 'Logo al centro', 'menu centrato'],
-  ['nav', 'pill', 'Barra sospesa', 'menu arrotondato'],
-  ['hero', 'reverse', 'Immagine a sinistra', 'apertura'],
-  ['hero', 'minimal', 'Solo testo', 'apertura manifesto'],
-  ['hero', 'stats', 'Con numeri', 'apertura statistiche'],
-  ['hero', 'mosaic', 'Con mosaico', 'apertura foto galleria'],
-  ['hero', 'accent', 'Colore di accento', 'apertura'],
-  ['hero', 'form', 'Con iscrizione', 'apertura email newsletter'],
-  ['banner', 'cta', 'Con pulsante', 'avviso promozione'],
-  ['banner', 'inverse', 'Scuro', 'avviso'],
-  ['logos', 'inverse', 'Su fondo scuro', 'clienti partner'],
-  ['logos', 'quote', 'Con citazione', 'clienti recensione'],
-  ['logos', 'marquee', 'Nastro di parole', 'nastro scorrevole marquee scorre infinito parole servizi'],
-  ['logos', 'marquee-logos', 'Nastro di loghi', 'nastro scorrevole marquee scorre infinito clienti partner'],
-  ['about', 'values', 'Valori', 'principi studio'],
-  ['about', 'mission', 'Manifesto', 'missione frase'],
-  ['about', 'stats', 'Con numeri', 'studio storia statistiche'],
-  ['features', 'icons', 'Quattro colonne', 'servizi vantaggi'],
-  ['features', 'bento', 'Bento', 'griglia schede foto'],
-  ['features', 'checklist', 'Con spunte', 'elenco vantaggi inclusi'],
-  ['features', 'list', 'Elenco a due colonne', 'servizi'],
-  ['process', 'cards', 'Schede numerate', 'fasi metodo'],
-  ['process', 'image', 'Con immagine', 'fasi metodo foto'],
-  ['stats', 'cards', 'Schede', 'statistiche'],
-  ['stats', 'four', 'Quattro colonne', 'statistiche'],
-  ['stats', 'image', 'Con immagine', 'statistiche foto'],
-  ['gallery', 'wide', 'A tutta larghezza', 'foto portfolio'],
-  ['gallery', 'row', 'Fila di quattro', 'portfolio foto'],
-  ['gallery', 'captions', 'Con didascalie', 'portfolio storie'],
-  ['gallery', 'pair', 'Prima e dopo', 'confronto ristrutturazione'],
-  ['media', 'split', 'Video e testo', 'filmato racconto'],
-  ['media', 'two', 'Due video', 'filmati'],
-  ['testimonial', 'big', 'Grande su fondo scuro', 'recensione citazione'],
-  ['testimonial', 'grid', 'Griglia di sei', 'recensioni'],
-  ['testimonial', 'logo', 'Con logo del cliente', 'recensione azienda'],
-  ['awards', 'grid', 'Griglia', 'premi riconoscimenti'],
-  ['awards', 'press', 'Rassegna stampa', 'pubblicazioni giornali'],
-  ['pricing', 'one', 'Formula unica', 'prezzo piano'],
-  ['pricing', 'list', 'Listino', 'prezzi tariffe'],
-  ['team', 'cards', 'Schede con biografia', 'persone'],
-  ['team', 'founder', 'Fondatrice', 'persona ritratto'],
-  ['blog', 'list', 'Elenco', 'articoli notizie'],
-  ['blog', 'featured', 'In evidenza', 'articoli notizie copertina'],
-  ['faq', 'center', 'Centrate', 'domande'],
-  ['faq', 'split', 'Con contatto', 'domande aiuto'],
-  ['contact', 'split', 'Con immagine', 'contatti foto'],
-  ['contact', 'hours', 'Orari e recapiti', 'contatti apertura'],
-  ['contact', 'cards', 'Tre modi', 'contatti telefono email'],
-  ['cta', 'two', 'Due pulsanti', 'call to action'],
-  ['cta', 'photo', 'Con foto di sfondo', 'call to action'],
-  ['cta', 'card', 'Scheda centrale', 'call to action'],
-  ['divider', 'space', 'Spazio', 'vuoto respiro'],
-  ['divider', 'quote', 'Citazione', 'frase autore'],
-  ['footer', 'centered', 'Centrato', 'piè di pagina'],
-  ['footer', 'newsletter', 'Con iscrizione', 'piè di pagina email'],
-  ['events', 'list', 'Elenco di date', 'eventi calendario incontri'],
-  ['events', 'cards', 'Schede', 'eventi workshop'],
-  ['products', 'grid', 'Griglia', 'prodotti negozio shop'],
-  ['products', 'feature', 'In evidenza', 'prodotto negozio'],
-  ['compare', 'table', 'Tabella', 'confronto formule'],
-  ['hours', 'week', 'Settimana', 'orari apertura'],
+/** Variants added to the prototype's library: [category, variant, label, keywords]. */
+const more = (): [string, string, string, string][] => [
+  ['nav', 'split', t('Logo al centro'), 'menu centrato centered'],
+  ['nav', 'pill', t('Barra sospesa'), 'menu arrotondato rounded'],
+  ['hero', 'reverse', t('Immagine a sinistra'), 'apertura hero opening'],
+  ['hero', 'minimal', t('Solo testo'), 'apertura manifesto hero opening'],
+  ['hero', 'stats', t('Con numeri'), 'apertura statistiche hero opening stats numbers'],
+  ['hero', 'mosaic', t('Con mosaico'), 'apertura foto galleria hero opening photo gallery'],
+  ['hero', 'accent', t('Colore di accento'), 'apertura hero opening'],
+  ['hero', 'form', t('Con iscrizione'), 'apertura email newsletter hero opening'],
+  ['banner', 'cta', t('Con pulsante'), 'avviso promozione notice announcement promotion'],
+  ['banner', 'inverse', t('Scuro'), 'avviso notice announcement'],
+  ['logos', 'inverse', t('Su fondo scuro'), 'clienti partner clients customers'],
+  ['logos', 'quote', t('Con citazione'), 'clienti recensione clients customers review testimonial'],
+  [
+    'logos',
+    'marquee',
+    t('Nastro di parole'),
+    'nastro scorrevole marquee scorre infinito parole servizi ticker scrolling infinite words services',
+  ],
+  [
+    'logos',
+    'marquee-logos',
+    t('Nastro di loghi'),
+    'nastro scorrevole marquee scorre infinito clienti partner ticker scrolling infinite clients customers',
+  ],
+  ['about', 'values', t('Valori'), 'principi studio principles'],
+  ['about', 'mission', t('Manifesto'), 'missione frase mission statement'],
+  ['about', 'stats', t('Con numeri'), 'studio storia statistiche story history stats numbers'],
+  ['features', 'icons', t('Quattro colonne'), 'servizi vantaggi services benefits'],
+  ['features', 'bento', 'Bento', 'griglia schede foto grid cards photo'],
+  ['features', 'checklist', t('Con spunte'), 'elenco vantaggi inclusi list benefits included'],
+  ['features', 'list', t('Elenco a due colonne'), 'servizi services'],
+  ['process', 'cards', t('Schede numerate'), 'fasi metodo phases steps method'],
+  ['process', 'image', t('Con immagine'), 'fasi metodo foto phases steps method photo'],
+  ['stats', 'cards', t('Schede'), 'statistiche stats numbers'],
+  ['stats', 'four', t('Quattro colonne'), 'statistiche stats numbers'],
+  ['stats', 'image', t('Con immagine'), 'statistiche foto stats numbers photo'],
+  ['gallery', 'wide', t('A tutta larghezza'), 'foto portfolio photo'],
+  ['gallery', 'row', t('Fila di quattro'), 'portfolio foto photo'],
+  ['gallery', 'captions', t('Con didascalie'), 'portfolio storie'],
+  ['gallery', 'pair', t('Prima e dopo'), 'confronto ristrutturazione comparison renovation'],
+  ['media', 'split', t('Video e testo'), 'filmato racconto film story'],
+  ['media', 'two', t('Due video'), 'filmati videos'],
+  ['testimonial', 'big', t('Grande su fondo scuro'), 'recensione citazione review testimonial quote'],
+  ['testimonial', 'grid', t('Griglia di sei'), 'recensioni reviews testimonials'],
+  ['testimonial', 'logo', t('Con logo del cliente'), 'recensione azienda review testimonial company'],
+  ['awards', 'grid', t('Griglia'), 'premi riconoscimenti awards'],
+  ['awards', 'press', t('Rassegna stampa'), 'pubblicazioni giornali publications press newspapers'],
+  ['pricing', 'one', t('Formula unica'), 'prezzo piano price plan'],
+  ['pricing', 'list', t('Listino'), 'prezzi tariffe prices pricing rates'],
+  ['team', 'cards', t('Schede con biografia'), 'persone people'],
+  ['team', 'founder', t('Fondatrice'), 'persona ritratto person portrait'],
+  ['blog', 'list', t('Elenco'), 'articoli notizie articles news'],
+  ['blog', 'featured', t('In evidenza'), 'articoli notizie copertina articles news cover'],
+  ['faq', 'center', t('Centrate'), 'domande questions'],
+  ['faq', 'split', t('Con contatto'), 'domande aiuto questions help'],
+  ['contact', 'split', t('Con immagine'), 'contatti foto contact photo'],
+  ['contact', 'hours', t('Orari e recapiti'), 'contatti apertura contact hero opening'],
+  ['contact', 'cards', t('Tre modi'), 'contatti telefono email contact phone'],
+  ['cta', 'two', t('Due pulsanti'), 'call to action'],
+  ['cta', 'photo', t('Con foto di sfondo'), 'call to action'],
+  ['cta', 'card', t('Scheda centrale'), 'call to action'],
+  ['divider', 'space', t('Spazio'), 'vuoto respiro empty whitespace'],
+  ['divider', 'quote', t('Citazione'), 'frase autore statement author'],
+  ['footer', 'centered', t('Centrato'), 'piè di pagina footer'],
+  ['footer', 'newsletter', t('Con iscrizione'), 'piè di pagina email footer'],
+  ['events', 'list', t('Elenco di date'), 'eventi calendario incontri events calendar meetups'],
+  ['events', 'cards', t('Schede'), 'eventi workshop events'],
+  ['products', 'grid', t('Griglia'), 'prodotti negozio shop products store'],
+  ['products', 'feature', t('In evidenza'), 'prodotto negozio product shop store'],
+  ['compare', 'table', t('Tabella'), 'confronto formule comparison plans'],
+  ['hours', 'week', t('Settimana'), 'orari apertura hours opening hero'],
 ]
 
-const NEW_CATEGORIES: Record<string, string> = {
-  events: 'Eventi',
-  products: 'Prodotti',
-  compare: 'Confronto',
-  hours: 'Orari',
-}
+const newCategories = (): Record<string, string> => ({
+  events: t('Eventi'),
+  products: t('Prodotti'),
+  compare: t('Confronto'),
+  hours: t('Orari'),
+})
 
-for (const [cat, v, label, keywords] of MORE) {
-  let c = LIBRARY.find((x) => x.key === cat)
-  if (!c) {
-    c = { key: cat, label: NEW_CATEGORIES[cat] ?? cat, variants: [] }
-    // New categories go before the closing ones.
-    const footer = LIBRARY.findIndex((x) => x.key === 'divider')
-    LIBRARY.splice(footer < 0 ? LIBRARY.length : footer, 0, c)
+/** The section library by category, with its labels in the panel's language. */
+export function library(): LibraryCategory[] {
+  const out: LibraryCategory[] = raw().map(([key, label, variants]) => ({
+    key,
+    label,
+    variants: variants.map(([v, l, k]) => ({ key: `${key}.${v}`, label: l, keywords: k })),
+  }))
+  const names = newCategories()
+  for (const [cat, v, label, keywords] of more()) {
+    let c = out.find((x) => x.key === cat)
+    if (!c) {
+      c = { key: cat, label: names[cat] ?? cat, variants: [] }
+      // New categories go before the closing ones.
+      const footer = out.findIndex((x) => x.key === 'divider')
+      out.splice(footer < 0 ? out.length : footer, 0, c)
+    }
+    c.variants.push({ key: `${cat}.${v}`, label, keywords })
   }
-  c.variants.push({ key: `${cat}.${v}`, label, keywords })
+  return out
 }
 
 function buildMore(key: string, brand: string, S: (n: string, p: P, k: PageNode[]) => PageNode): PageNode | null {

@@ -1,3 +1,4 @@
+import './lang.ts'
 import { randomBytes } from 'node:crypto'
 import { watch } from 'node:fs'
 import { copyFile, mkdir, open, readFile, rm, writeFile } from 'node:fs/promises'
@@ -30,6 +31,7 @@ import { listenHost, onlyThisComputer } from './host.ts'
 import { findConfig, loadConfig } from './load-config.ts'
 import { buildSite, exportFonts, exportMedia, type Handler, hasSite, ProductionSite, startDevSite } from './site.ts'
 import { RESTART } from './supervisor.ts'
+import { t } from './t.ts'
 import { createUpdates } from './updates.ts'
 
 const dim = (s: string) => styleText('dim', s)
@@ -37,34 +39,74 @@ const accent = (s: string) => styleText(['bold', 'blue'], s)
 const ok = (s: string) => styleText('green', s)
 const fail = (s: string) => styleText('red', s)
 
-const HELP = `
-${accent('materialize')} ${dim(VERSION)}
+/** Wraps a description at the help's width, aligned under its column. */
+function wrap(text: string, width = 78): string[] {
+  const lines: string[] = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    if (line && line.length + word.length + 1 > width) {
+      lines.push(line)
+      line = word
+    } else line = line ? `${line} ${word}` : word
+  }
+  return [...lines, line]
+}
 
-  materialize dev      Avvia CMS e sito, ricarica lo schema a ogni salvataggio
-  materialize build    Genera il sito statico in dist/client, immagini comprese
-  materialize start    Avvia CMS e sito in produzione (il sito si rigenera a ogni pubblicazione);
-                       un supervisore lo tiene acceso e applica gli aggiornamenti dal pannello
-  materialize mcp      Server MCP su stdio per i client AI locali (serve il CMS avviato)
-  materialize restore <file>
-                       Rimette un backup (content-….db, o l'archivio completo materialize-….tar.gz);
-                       il server va fermato
-  materialize reset-password <email>
-                       Un link per una nuova password, valido un'ora: per chi non può riceverlo per email
-                       (per esempio l'unico amministratore, senza email configurata)
-  materialize decrypt <cartella o file> [--key <chiave>]
-                       Decifra i backup scaricati dallo spazio esterno (S3, WebDAV); la chiave di
-                       ripristino si può dare anche con MATERIALIZE_BACKUP_KEY
-  materialize --help   Mostra questo aiuto
+/** One entry of the help: the command (on its own line when long), then its description. */
+function row(command: string, text: string): string {
+  const pad = ' '.repeat(23)
+  const [first = '', ...rest] = wrap(text)
+  const head = command.length > 19 ? `  ${command}\n${pad}${first}` : `  ${command.padEnd(21)}${first}`
+  return [head, ...rest.map((l) => pad + l)].join('\n')
+}
 
-Opzioni
-  --port <numero>      Porta del server (predefinita: quella del config, 4321)
-  --host <indirizzo>   Indirizzo su cui ascoltare. Con dev: solo questo computer (0.0.0.0 per provarlo dal
-                       telefono sulla stessa rete). Con start: tutti (127.0.0.1 dietro un proxy)
-  --url <indirizzo>    Con mcp: il CMS a cui collegarsi (predefinito: http://localhost:<porta>)
-  --no-supervisor      Con start: senza supervisore (se il server lo tiene acceso un altro programma)
-
-Il server MCP usa un token personale (Impostazioni → AI e MCP) in MATERIALIZE_TOKEN.
-`
+function help(): string {
+  return [
+    '',
+    `${accent('materialize')} ${dim(VERSION)}`,
+    '',
+    row('materialize dev', t('Avvia CMS e sito, ricarica lo schema a ogni salvataggio')),
+    row('materialize build', t('Genera il sito statico in dist/client, immagini comprese')),
+    row(
+      'materialize start',
+      t(
+        'Avvia CMS e sito in produzione (il sito si rigenera a ogni pubblicazione); un supervisore lo tiene acceso e applica gli aggiornamenti dal pannello',
+      ),
+    ),
+    row('materialize mcp', t('Server MCP su stdio per i client AI locali (serve il CMS avviato)')),
+    row(
+      'materialize restore <file>',
+      t('Rimette un backup (content-….db, o l’archivio completo materialize-….tar.gz); il server va fermato'),
+    ),
+    row(
+      'materialize reset-password <email>',
+      t(
+        'Un link per una nuova password, valido un’ora: per chi non può riceverlo per email (per esempio l’unico amministratore, senza email configurata)',
+      ),
+    ),
+    row(
+      `materialize decrypt <${t('cartella o file')}> [--key <${t('chiave')}>]`,
+      t(
+        'Decifra i backup scaricati dallo spazio esterno (S3, WebDAV); la chiave di ripristino si può dare anche con MATERIALIZE_BACKUP_KEY',
+      ),
+    ),
+    row('materialize --help', t('Mostra questo aiuto')),
+    '',
+    t('Opzioni'),
+    row(`--port <${t('numero')}>`, t('Porta del server (predefinita: quella del config, 4321)')),
+    row(
+      `--host <${t('indirizzo')}>`,
+      t(
+        'Indirizzo su cui ascoltare. Con dev: solo questo computer (0.0.0.0 per provarlo dal telefono sulla stessa rete). Con start: tutti (127.0.0.1 dietro un proxy)',
+      ),
+    ),
+    row(`--url <${t('indirizzo')}>`, t('Con mcp: il CMS a cui collegarsi (predefinito: http://localhost:<porta>)')),
+    row('--no-supervisor', t('Con start: senza supervisore (se il server lo tiene acceso un altro programma)')),
+    '',
+    t('Il server MCP usa un token personale (Impostazioni → AI e MCP) in MATERIALIZE_TOKEN.'),
+    '',
+  ].join('\n')
+}
 
 /** Kept until the installation is done, so a restart (or the VPS installer, which reads it) keeps the same link. */
 const INSTALL_CODE = '.materialize/install-code'
@@ -91,8 +133,8 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   const cwd = process.cwd()
   const path = findConfig(cwd)
   if (!path) {
-    console.error(fail('Non trovo materialize.config.ts in questa cartella.'))
-    console.error(dim('Crea un nuovo progetto con: npm create materialize@latest'))
+    console.error(fail(t('Non trovo materialize.config.ts in questa cartella.')))
+    console.error(dim(t('Crea un nuovo progetto con: npm create materialize@latest')))
     process.exit(1)
   }
 
@@ -107,7 +149,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   const withSite = hasSite(cwd)
   if (mode === 'build') {
     if (!withSite) {
-      console.error(fail('Non c’è un sito da generare: manca astro.config.ts in questa cartella.'))
+      console.error(fail(t('Non c’è un sito da generare: manca astro.config.ts in questa cartella.')))
       process.exit(1)
     }
     const started = performance.now()
@@ -115,7 +157,9 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     const images = await exportMedia(`${cwd}/dist/client`, createMediaFiles(config.media.dir))
     await exportFonts(`${cwd}/dist/client`, createFonts(join(dirname(resolve(config.media.dir)), 'fonts')))
     const elapsed = Math.round(performance.now() - started)
-    console.log(`  ${ok('✓')} Sito generato in dist/client ${dim(`(${images} immagini, ${elapsed} ms)`)}`)
+    console.log(
+      `  ${ok('✓')} ${t('Sito generato in dist/client')} ${dim(`(${t.n(images, 'un’immagine', '{n} immagini')}, ${elapsed} ms)`)}`,
+    )
     process.exit(0)
   }
 
@@ -209,14 +253,18 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   console.log()
   console.log(`  ${accent('Materialize')} ${dim(VERSION)}  ${config.site.name}`)
   console.log()
-  console.log(`  ${dim((withSite ? 'Sito' : 'Locale').padEnd(12))}${server.url}`)
-  console.log(`  ${dim('Pannello')}    ${server.url}/admin`)
-  console.log(`  ${dim('API')}         ${server.url}/api/schema`)
-  console.log(`  ${dim('Database')}    ${config.database.url}`)
-  console.log(`  ${dim('Collezioni')}  ${summary(config)}`)
+  const rows: [string, string][] = [
+    [withSite ? t('Sito') : t('Locale'), server.url],
+    [t('Pannello'), `${server.url}/admin`],
+    ['API', `${server.url}/api/schema`],
+    ['Database', config.database.url],
+    [t('Collezioni'), summary(config)],
+  ]
+  const width = Math.max(12, ...rows.map(([label]) => label.length + 2))
+  for (const [label, value] of rows) console.log(`  ${dim(label.padEnd(width))}${value}`)
   console.log()
   if (mode === 'dev' && onlyThisComputer(host)) {
-    console.log(dim('  Raggiungibile solo da questo computer. Per provarlo dal telefono: --host 0.0.0.0'))
+    console.log(dim(`  ${t('Raggiungibile solo da questo computer. Per provarlo dal telefono: --host 0.0.0.0')}`))
     console.log()
   }
   if ((await createAuthStore(server.database.db).countUsers()) > 0) {
@@ -225,15 +273,20 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     const path = `/admin/${setupToken ? `?installa=${setupToken}` : ''}`
     // The public address when the site knows it (MATERIALIZE_SITE_URL in Docker or on a VPS).
     const site = mode === 'start' ? config.site.url?.replace(/\/+$/, '') : undefined
-    console.log(`  ${accent('Installazione')}  apri ${site ?? server.url}${path}`)
+    const label = t('Installazione')
+    console.log(`  ${accent(label)}  ${t('apri {url}', { url: `${site ?? server.url}${path}` })}`)
     if (setupToken && !site)
-      console.log(dim(`                  (online: lo stesso indirizzo dal tuo dominio, https://…${path})`))
+      console.log(
+        dim(
+          `${' '.repeat(label.length + 5)}(${t('online: lo stesso indirizzo dal tuo dominio, {url}', { url: `https://…${path}` })})`,
+        ),
+      )
     console.log()
   }
 
   if (mode === 'dev') {
     let timer: NodeJS.Timeout | undefined
-    console.log(dim(`  In ascolto delle modifiche a ${relative(cwd, path)}…`))
+    console.log(dim(`  ${t('In ascolto delle modifiche a {file}…', { file: relative(cwd, path) })}`))
     watch(path, () => {
       clearTimeout(timer)
       timer = setTimeout(async () => {
@@ -241,9 +294,9 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
           const next = await loadConfig(path)
           server.reload(next)
           current = next
-          console.log(`  ${ok('✓')} Schema ricaricato ${dim(`(${summary(next)})`)}`)
+          console.log(`  ${ok('✓')} ${t('Schema ricaricato')} ${dim(`(${summary(next)})`)}`)
         } catch (error) {
-          console.log(`  ${fail('✗')} Lo schema ha un problema, resto sulla versione precedente:`)
+          console.log(`  ${fail('✗')} ${t('Lo schema ha un problema, resto sulla versione precedente:')}`)
           console.log(dim(describeError(error).replace(/^/gm, '    ')))
         }
       }, 120)
@@ -266,7 +319,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
 async function mcp(args: string[]): Promise<void> {
   const token = process.env.MATERIALIZE_TOKEN?.trim()
   if (!token) {
-    console.error('Manca MATERIALIZE_TOKEN: crea un token in Impostazioni → AI e MCP e passalo al client.')
+    console.error(t('Manca MATERIALIZE_TOKEN: crea un token in Impostazioni → AI e MCP e passalo al client.'))
     process.exit(1)
   }
   const flag = args.indexOf('--url')
@@ -279,7 +332,9 @@ async function mcp(args: string[]): Promise<void> {
   const base = url.replace(/\/+$/, '')
   const health = await fetch(`${base}/api/health`).catch(() => null)
   if (!health?.ok) {
-    console.error(`Il CMS non risponde su ${base}: avvialo con materialize dev (o start), oppure indica --url.`)
+    console.error(
+      t('Il CMS non risponde su {url}: avvialo con materialize dev (o start), oppure indica --url.', { url: base }),
+    )
     process.exit(1)
   }
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
@@ -300,8 +355,8 @@ async function restore(args: string[]): Promise<void> {
     console.error(
       fail(
         !file
-          ? 'Indica il file del backup: materialize restore <file>'
-          : 'Non trovo materialize.config.ts in questa cartella.',
+          ? t('Indica il file del backup: materialize restore <file>')
+          : t('Non trovo materialize.config.ts in questa cartella.'),
       ),
     )
     process.exit(1)
@@ -313,25 +368,27 @@ async function restore(args: string[]): Promise<void> {
     await handle.read(head, 0, 16, 0)
     await handle.close()
   } catch {
-    console.error(fail(`Non trovo il file ${file}`))
+    console.error(fail(t('Non trovo il file {file}', { file })))
     process.exit(1)
   }
   // A SQLite file starts with "SQLite format 3", a .tar.gz with the gzip signature.
   const archive = head[0] === 0x1f && head[1] === 0x8b
   if (!archive && head.toString('latin1') !== 'SQLite format 3\0') {
-    console.error(fail(`${file} non è un backup: serve un content-….db o un materialize-….tar.gz.`))
+    console.error(fail(t('{file} non è un backup: serve un content-….db o un materialize-….tar.gz.', { file })))
     process.exit(1)
   }
   const local = config.database.url.startsWith('file:')
   if (!local && !archive) {
-    console.error(fail('Il database è ospitato da un fornitore: ripristina il backup dal suo pannello.'))
+    console.error(fail(t('Il database è ospitato da un fornitore: ripristina il backup dal suo pannello.')))
     process.exit(1)
   }
   const running = await fetch(`http://localhost:${config.server.port}/api/setup`, { signal: AbortSignal.timeout(1500) })
     .then(() => true)
     .catch(() => false)
   if (running) {
-    console.error(fail(`Il server è acceso sulla porta ${config.server.port}: fermalo, poi ripeti il comando.`))
+    console.error(
+      fail(t('Il server è acceso sulla porta {port}: fermalo, poi ripeti il comando.', { port: config.server.port })),
+    )
     process.exit(1)
   }
 
@@ -381,22 +438,34 @@ async function restore(args: string[]): Promise<void> {
     })
     const media = written.filter((n) => n.startsWith('media/')).length
     const uploads = written.filter((n) => n.startsWith('uploads/')).length
-    console.log(`  ${ok('✓')} Archivio ripristinato: ${relative(process.cwd(), resolve(file))}`)
-    console.log(
-      dim(
-        `  ${written.includes('content.db') ? 'Database, ' : ''}${media} file dei media, ${written.length - media - uploads - (written.includes('content.db') ? 1 : 0)} file dei caratteri, ${uploads} allegati dei moduli.`,
-      ),
-    )
+    const withDb = written.includes('content.db')
+    const fonts = written.length - media - uploads - (withDb ? 1 : 0)
+    console.log(`  ${ok('✓')} ${t('Archivio ripristinato: {file}', { file: relative(process.cwd(), resolve(file)) })}`)
+    const parts = [
+      ...(withDb ? ['Database'] : []),
+      t.n(media, 'un file dei media', '{n} file dei media'),
+      t.n(fonts, 'un file dei caratteri', '{n} file dei caratteri'),
+      t.n(uploads, 'un allegato dei moduli', '{n} allegati dei moduli'),
+    ]
+    console.log(dim(`  ${parts.join(', ')}.`))
   } else if (db) {
     await copyFile(resolve(file), db)
     // The images this database uses that are no longer in the library come back from the media copy.
     const back = await restoreMedia(db, mediaDir, keys)
-    console.log(`  ${ok('✓')} Backup ripristinato: ${relative(process.cwd(), resolve(file))}`)
+    console.log(`  ${ok('✓')} ${t('Backup ripristinato: {file}', { file: relative(process.cwd(), resolve(file)) })}`)
     if (back)
-      console.log(dim(`  ${back} ${back === 1 ? 'immagine tornata' : 'immagini tornate'} dalla copia dei media.`))
+      console.log(
+        dim(
+          `  ${t.n(back, 'Un’immagine è tornata dalla copia dei media.', '{n} immagini sono tornate dalla copia dei media.')}`,
+        ),
+      )
   }
   if (kept)
-    console.log(dim(`  Il database di prima è in ${relative(process.cwd(), kept)}, se servisse tornare indietro.`))
+    console.log(
+      dim(
+        `  ${t('Il database di prima è in {file}, se servisse tornare indietro.', { file: relative(process.cwd(), kept) })}`,
+      ),
+    )
 }
 
 /**
@@ -414,8 +483,8 @@ async function resetPassword(args: string[]): Promise<void> {
     console.error(
       fail(
         !email
-          ? 'Indica l’email: materialize reset-password <email>'
-          : 'Non trovo materialize.config.ts in questa cartella: lancia il comando dalla cartella del sito.',
+          ? t('Indica l’email: materialize reset-password <email>')
+          : t('Non trovo materialize.config.ts in questa cartella: lancia il comando dalla cartella del sito.'),
       ),
     )
     process.exit(1)
@@ -426,7 +495,7 @@ async function resetPassword(args: string[]): Promise<void> {
     const auth = createAuthStore(database.db)
     const user = await auth.findForLogin(email)
     if (!user) {
-      console.error(fail(`Nessun account con l’email ${email}.`))
+      console.error(fail(t('Nessun account con l’email {email}.', { email })))
       process.exitCode = 1
       return
     }
@@ -447,11 +516,13 @@ async function resetPassword(args: string[]): Promise<void> {
       ip: 'server',
     })
     const base = config.site.url?.replace(/\/+$/, '') ?? `http://localhost:${config.server.port}`
-    console.log(`  ${ok('✓')} Link per una nuova password di ${user.name} (${user.email}), valido un’ora:`)
+    console.log(
+      `  ${ok('✓')} ${t('Link per una nuova password di {name} ({email}), valido un’ora:', { name: user.name, email: user.email })}`,
+    )
     console.log()
     console.log(`    ${accent(`${base}/admin/_invite/${token}`)}`)
     console.log()
-    console.log(dim('  Chi lo apre sceglie la password. La verifica in due passaggi, se attiva, resta.'))
+    console.log(dim(`  ${t('Chi lo apre sceglie la password. La verifica in due passaggi, se attiva, resta.')}`))
   } finally {
     database.close()
   }
@@ -466,7 +537,7 @@ async function decrypt(args: string[]): Promise<void> {
   const flag = args.indexOf('--key')
   const source = args.find((a, i) => !a.startsWith('--') && (flag < 0 || i !== flag + 1))
   if (!source) {
-    console.error(fail('Indica la cartella (o il file) da decifrare: materialize decrypt <cartella> --key <chiave>'))
+    console.error(fail(t('Indica la cartella (o il file) da decifrare: materialize decrypt <cartella> --key <chiave>')))
     process.exit(1)
   }
   let text = flag >= 0 ? args[flag + 1] : process.env.MATERIALIZE_BACKUP_KEY
@@ -481,7 +552,7 @@ async function decrypt(args: string[]): Promise<void> {
     }
   }
   if (!text) {
-    console.error(fail('Manca la chiave di ripristino: --key mzk1-… oppure MATERIALIZE_BACKUP_KEY.'))
+    console.error(fail(t('Manca la chiave di ripristino: --key mzk1-… oppure MATERIALIZE_BACKUP_KEY.')))
     process.exit(1)
   }
   let key: Buffer
@@ -494,7 +565,7 @@ async function decrypt(args: string[]): Promise<void> {
   try {
     const done = await decryptTree(resolve(source), key)
     console.log(
-      `  ${ok('✓')} ${done.length} ${done.length === 1 ? 'file decifrato' : 'file decifrati'}, accanto agli originali.`,
+      `  ${ok('✓')} ${t.n(done.length, 'Un file decifrato, accanto all’originale.', '{n} file decifrati, accanto agli originali.')}`,
     )
     const db = done
       .filter((f) => /content-[^/\\]+\.db$/.test(f))
@@ -504,7 +575,7 @@ async function decrypt(args: string[]): Promise<void> {
       // The shorter of the two ways to write the path.
       console.log(
         dim(
-          `  Per rimettere il database (a server fermo): npx materialize restore ${[relative(process.cwd(), db), db].sort((x, y) => x.length - y.length)[0]}`,
+          `  ${t('Per rimettere il database (a server fermo): {command}', { command: `npx materialize restore ${[relative(process.cwd(), db), db].sort((x, y) => x.length - y.length)[0]}` })}`,
         ),
       )
   } catch (error) {
@@ -527,6 +598,6 @@ if (command === 'dev' || command === 'start' || command === 'build') {
 } else if (command === '--version' || command === '-v') {
   console.log(VERSION)
 } else {
-  console.log(HELP)
+  console.log(help())
   if (command !== 'help' && command !== '--help' && command !== '-h') process.exitCode = 1
 }

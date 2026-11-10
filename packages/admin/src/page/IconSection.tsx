@@ -1,4 +1,4 @@
-import { ICONS, iconSvg } from '@materializecms/core/icons'
+import { iconSvg, icons } from '@materializecms/core/icons'
 import type { NodeProps, PageNode } from '@materializecms/core/page'
 import { useEffect, useMemo, useState } from 'react'
 import { cx, Textarea } from '../components/ui.tsx'
@@ -62,11 +62,11 @@ export function IconSection({
   }, [set])
 
   const basePreviews = useMemo(
-    () => Object.fromEntries(ICONS.map((i) => [i.name, iconSvg({ icon: i.name, strokeW: 1.75 })])),
+    () => Object.fromEntries(icons().map((i) => [i.name, iconSvg({ icon: i.name, strokeW: 1.75 })])),
     [],
   )
   const q = query.trim().toLowerCase()
-  const baseShown = ICONS.filter((i) => !q || i.label.toLowerCase().includes(q) || i.name.toLowerCase().includes(q))
+  const baseShown = icons().filter((i) => !q || i.label.toLowerCase().includes(q) || i.name.toLowerCase().includes(q))
   const found = useMemo(() => {
     if (!set || !loaded) return []
     const inStyle = set.styles ? loaded.names.filter((n) => styleOf(set, n) === style) : loaded.names

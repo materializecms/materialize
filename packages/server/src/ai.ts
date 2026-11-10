@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
+import { t } from './t.ts'
 import { type SiteTool, ToolError } from './tools.ts'
 
 /**
@@ -117,7 +118,7 @@ export async function complete(
       },
     ],
   })
-  if (message.stop_reason === 'refusal') throw new AiError('La richiesta è stata rifiutata dal modello.')
+  if (message.stop_reason === 'refusal') throw new AiError(t('La richiesta è stata rifiutata dal modello.'))
   return textOf(message).trim()
 }
 
@@ -141,7 +142,7 @@ export async function runTurn(
   },
 ): Promise<string> {
   const stopped = () => {
-    if (input.signal?.aborted) throw new AiError('Interrotto.')
+    if (input.signal?.aborted) throw new AiError(t('Interrotto.'))
   }
   const images = input.images ?? []
   const byName = new Map(input.tools.map((t) => [t.name, t]))
@@ -196,7 +197,7 @@ export async function runTurn(
         messages.push({ role: 'tool', tool_call_id: call.id, content: result.text })
       }
     }
-    return 'Mi sono fermato: servivano troppi passaggi. Dimmi se continuare.'
+    return t('Mi sono fermato: servivano troppi passaggi. Dimmi se continuare.')
   }
 
   const tools = input.tools.map((t) => ({
@@ -239,7 +240,7 @@ export async function runTurn(
     for (const block of message.content)
       if (block.type === 'thinking' && block.thinking.trim())
         input.onEvent({ type: 'status', text: block.thinking.trim() })
-    if (message.stop_reason === 'refusal') throw new AiError('La richiesta è stata rifiutata dal modello.')
+    if (message.stop_reason === 'refusal') throw new AiError(t('La richiesta è stata rifiutata dal modello.'))
     if (message.stop_reason !== 'tool_use') return textOf(message).trim()
     const calls = message.content.filter((b) => b.type === 'tool_use')
     const results = await Promise.all(
@@ -251,7 +252,7 @@ export async function runTurn(
     // All results in one message, as the API expects for parallel calls.
     messages.push({ role: 'user', content: results })
   }
-  return 'Mi sono fermato: servivano troppi passaggi. Dimmi se continuare.'
+  return t('Mi sono fermato: servivano troppi passaggi. Dimmi se continuare.')
 }
 
 // ---------- Claude ----------
@@ -292,16 +293,19 @@ async function claude(
     })
     return message
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new AiError('La chiave API di Anthropic non è valida.')
+    if (error instanceof Anthropic.AuthenticationError) throw new AiError(t('La chiave API di Anthropic non è valida.'))
     if (error instanceof Anthropic.PermissionDeniedError)
-      throw new AiError('La chiave non ha accesso a questo modello.')
-    if (error instanceof Anthropic.NotFoundError) throw new AiError(`Il modello “${model}” non esiste.`)
-    if (error instanceof Anthropic.RateLimitError) throw new AiError('Troppe richieste ad Anthropic: riprova tra poco.')
+      throw new AiError(t('La chiave non ha accesso a questo modello.'))
+    if (error instanceof Anthropic.NotFoundError) throw new AiError(t('Il modello “{model}” non esiste.', { model }))
+    if (error instanceof Anthropic.RateLimitError)
+      throw new AiError(t('Troppe richieste ad Anthropic: riprova tra poco.'))
     // The reasoning of earlier turns no longer fits the conversation (it was changed underneath).
     if (error instanceof Anthropic.BadRequestError && /thinking/i.test(error.message))
-      throw new AiError('Questa conversazione non può continuare: iniziane una nuova con ↺ in alto.')
-    if (error instanceof Anthropic.BadRequestError) throw new AiError(`Richiesta non valida: ${error.message}`)
-    if (error instanceof Anthropic.APIError) throw new AiError(`Anthropic non risponde (${error.status ?? 'rete'}).`)
+      throw new AiError(t('Questa conversazione non può continuare: iniziane una nuova con ↺ in alto.'))
+    if (error instanceof Anthropic.BadRequestError)
+      throw new AiError(t('Richiesta non valida: {detail}', { detail: error.message }))
+    if (error instanceof Anthropic.APIError)
+      throw new AiError(t('Anthropic non risponde ({status}).', { status: error.status ?? t('rete') }))
     throw error
   }
 }
@@ -342,14 +346,15 @@ async function openaiChat(s: AiSettings, body: { messages: unknown[]; tools?: un
       signal: AbortSignal.timeout(300_000),
     })
   } catch {
-    throw new AiError(`Il server AI non risponde su ${base}.`)
+    throw new AiError(t('Il server AI non risponde su {base}.', { base }))
   }
   const json = (await res.json().catch(() => null)) as {
     choices?: { message?: OpenAiReply }[]
     usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
     error?: { message?: string }
   } | null
-  if (!res.ok) throw new AiError(json?.error?.message ?? `Il server AI ha risposto ${res.status}.`)
+  if (!res.ok)
+    throw new AiError(json?.error?.message ?? t('Il server AI ha risposto {status}.', { status: res.status }))
   if (json?.usage) {
     // Cached tokens are part of the prompt tokens here: the rest is the full-price part.
     const cached = json.usage.prompt_tokens_details?.cached_tokens ?? 0
@@ -362,7 +367,7 @@ async function openaiChat(s: AiSettings, body: { messages: unknown[]; tools?: un
     })
   }
   const message = json?.choices?.[0]?.message
-  if (!message) throw new AiError('Il server AI ha dato una risposta vuota.')
+  if (!message) throw new AiError(t('Il server AI ha dato una risposta vuota.'))
   return { role: 'assistant', content: message.content ?? null, tool_calls: message.tool_calls }
 }
 
@@ -399,7 +404,7 @@ export async function translateTexts(
       const reply = await complete(s, { system, prompt: JSON.stringify(batch) })
       result = parseList(reply, batch.length)
     }
-    if (!result) throw new AiError('Il modello non ha restituito la traduzione completa: riprova.')
+    if (!result) throw new AiError(t('Il modello non ha restituito la traduzione completa: riprova.'))
     out.push(...result)
     onProgress?.(out.length)
   }

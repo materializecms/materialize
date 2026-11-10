@@ -7,6 +7,7 @@
  */
 
 import { iconRatio, iconSvg } from './icons.ts'
+import { t } from './t.ts'
 
 export type Breakpoint = 'desktop' | 'tablet' | 'mobile'
 export type ColorToken =
@@ -622,29 +623,166 @@ export const TEXT_STYLES: Record<
   { label: string; f: 'd' | 'b' | 'mono'; d: number; m: number; w: number; lh: number; ls: string; tt: string }
 > = {
   display: { label: 'Display', f: 'd', d: 92, m: 48, w: 400, lh: 0.98, ls: '-0.025em', tt: 'none' },
-  h1: { label: 'Titolo 1', f: 'd', d: 64, m: 40, w: 400, lh: 1.02, ls: '-0.02em', tt: 'none' },
-  h2: { label: 'Titolo 2', f: 'd', d: 46, m: 32, w: 400, lh: 1.08, ls: '-0.015em', tt: 'none' },
-  h3: { label: 'Titolo 3', f: 'b', d: 19, m: 18, w: 600, lh: 1.3, ls: '-0.005em', tt: 'none' },
-  body: { label: 'Testo', f: 'b', d: 17, m: 16, w: 400, lh: 1.6, ls: '0em', tt: 'none' },
-  small: { label: 'Piccolo', f: 'b', d: 14.5, m: 14, w: 400, lh: 1.5, ls: '0em', tt: 'none' },
-  eyebrow: { label: 'Etichetta', f: 'mono', d: 12, m: 11, w: 500, lh: 1.3, ls: '0.08em', tt: 'uppercase' },
+  h1: {
+    get label() {
+      return t('Titolo 1')
+    },
+    f: 'd',
+    d: 64,
+    m: 40,
+    w: 400,
+    lh: 1.02,
+    ls: '-0.02em',
+    tt: 'none',
+  },
+  h2: {
+    get label() {
+      return t('Titolo 2')
+    },
+    f: 'd',
+    d: 46,
+    m: 32,
+    w: 400,
+    lh: 1.08,
+    ls: '-0.015em',
+    tt: 'none',
+  },
+  h3: {
+    get label() {
+      return t('Titolo 3')
+    },
+    f: 'b',
+    d: 19,
+    m: 18,
+    w: 600,
+    lh: 1.3,
+    ls: '-0.005em',
+    tt: 'none',
+  },
+  body: {
+    get label() {
+      return t('Testo')
+    },
+    f: 'b',
+    d: 17,
+    m: 16,
+    w: 400,
+    lh: 1.6,
+    ls: '0em',
+    tt: 'none',
+  },
+  small: {
+    get label() {
+      return t('Piccolo')
+    },
+    f: 'b',
+    d: 14.5,
+    m: 14,
+    w: 400,
+    lh: 1.5,
+    ls: '0em',
+    tt: 'none',
+  },
+  eyebrow: {
+    get label() {
+      return t('Etichetta')
+    },
+    f: 'mono',
+    d: 12,
+    m: 11,
+    w: 500,
+    lh: 1.3,
+    ls: '0.08em',
+    tt: 'uppercase',
+  },
   logo: { label: 'Logo', f: 'd', d: 26, m: 22, w: 400, lh: 1, ls: '-0.01em', tt: 'none' },
-  button: { label: 'Pulsante', f: 'b', d: 15, m: 15, w: 500, lh: 1, ls: '0em', tt: 'none' },
+  button: {
+    get label() {
+      return t('Pulsante')
+    },
+    f: 'b',
+    d: 15,
+    m: 15,
+    w: 500,
+    lh: 1,
+    ls: '0em',
+    tt: 'none',
+  },
 }
 
 export const ANIMATIONS: { value: Animation; label: string }[] = [
-  { value: 'none', label: 'Nessuna' },
-  { value: 'fade', label: 'Dissolvi' },
-  { value: 'up', label: 'Dal basso' },
-  { value: 'down', label: 'Dall’alto' },
-  { value: 'left', label: 'Da sinistra' },
-  { value: 'right', label: 'Da destra' },
-  { value: 'zoom', label: 'Ingrandisci' },
-  { value: 'zoomout', label: 'Riduci' },
-  { value: 'blur', label: 'Sfocatura' },
-  { value: 'reveal', label: 'Svela' },
-  { value: 'tilt', label: 'Prospettiva' },
-  { value: 'pop', label: 'Rimbalzo' },
+  {
+    value: 'none',
+    get label() {
+      return t('Nessuna')
+    },
+  },
+  {
+    value: 'fade',
+    get label() {
+      return t('Dissolvi')
+    },
+  },
+  {
+    value: 'up',
+    get label() {
+      return t('Dal basso')
+    },
+  },
+  {
+    value: 'down',
+    get label() {
+      return t('Dall’alto')
+    },
+  },
+  {
+    value: 'left',
+    get label() {
+      return t('Da sinistra')
+    },
+  },
+  {
+    value: 'right',
+    get label() {
+      return t('Da destra')
+    },
+  },
+  {
+    value: 'zoom',
+    get label() {
+      return t('Ingrandisci')
+    },
+  },
+  {
+    value: 'zoomout',
+    get label() {
+      return t('Riduci')
+    },
+  },
+  {
+    value: 'blur',
+    get label() {
+      return t('Sfocatura')
+    },
+  },
+  {
+    value: 'reveal',
+    get label() {
+      return t('Svela')
+    },
+  },
+  {
+    value: 'tilt',
+    get label() {
+      return t('Prospettiva')
+    },
+  },
+  {
+    value: 'pop',
+    get label() {
+      return t('Rimbalzo')
+    },
+  },
 ]
 
 /** Container widths: tablet up to 1023 px, mobile up to 639 px (the theme can move them). */
@@ -1232,7 +1370,7 @@ export function collapseComponents(
 /** Turns an element into a component; the page keeps a copy of it. */
 export function makeComponent(node: PageNode, name: string): { component: Component; ref: PageNode } {
   const id = newId()
-  const variant = { id: newId(), name: 'Predefinita', node: { ...structuredClone(node), id: newId() } }
+  const variant = { id: newId(), name: t('Predefinita'), node: { ...structuredClone(node), id: newId() } }
   for (const k of PLACEMENT_KEYS) if (k !== 'name') delete variant.node[k]
   const ref: PageNode = { id: node.id, type: 'frame', component: id, componentVariant: variant.id, name }
   for (const k of PLACEMENT_KEYS)
@@ -1675,10 +1813,30 @@ function nodeStyle(
 
 /** The shapes a menu section can take: a full bar, a floating card, a centered island, or nothing. */
 export const NAV_SHAPES = [
-  { value: 'bar', label: 'Barra' },
-  { value: 'floating', label: 'Sospesa' },
-  { value: 'island', label: 'Isola' },
-  { value: 'transparent', label: 'Trasparente' },
+  {
+    value: 'bar',
+    get label() {
+      return t('Barra')
+    },
+  },
+  {
+    value: 'floating',
+    get label() {
+      return t('Sospesa')
+    },
+  },
+  {
+    value: 'island',
+    get label() {
+      return t('Isola')
+    },
+  },
+  {
+    value: 'transparent',
+    get label() {
+      return t('Trasparente')
+    },
+  },
 ] as const
 
 function navShapeStyle(

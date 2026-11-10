@@ -1,4 +1,4 @@
-import { type BrandVoice, VOICE_TONES, type VoiceAddress } from '@materializecms/core/voice'
+import { type BrandVoice, VOICE_TONES, type VoiceAddress, voiceToneLabel } from '@materializecms/core/voice'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
@@ -118,7 +118,7 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
                     on ? 'border-accent bg-accent/12 text-fg' : 'border-line2 text-fg2 hover:text-fg',
                   )}
                 >
-                  {tone}
+                  {voiceToneLabel(tone)}
                 </button>
               )
             })}

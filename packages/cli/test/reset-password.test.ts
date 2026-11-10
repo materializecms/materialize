@@ -30,7 +30,12 @@ export default defineConfig({ site: { name: 'Prova', url: 'https://www.example.c
 afterEach(() => rm(site, { recursive: true, force: true }))
 
 const run = (...args: string[]) =>
-  spawnSync(process.execPath, [CLI, 'reset-password', ...args], { cwd: site, encoding: 'utf8' })
+  spawnSync(process.execPath, [CLI, 'reset-password', ...args], {
+    cwd: site,
+    encoding: 'utf8',
+    // The messages checked below are the Italian ones, whatever the language of this computer.
+    env: { ...process.env, MATERIALIZE_LANG: 'it' },
+  })
 
 describe('materialize reset-password', () => {
   it('prints a one-time link on the site’s own address', async () => {

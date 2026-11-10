@@ -2,8 +2,13 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createProject } from '../src/index.ts'
+
+// The messages checked below are the Italian ones, whatever the language of this computer.
+vi.hoisted(() => {
+  process.env.MATERIALIZE_LANG = 'it'
+})
 
 let root: string
 

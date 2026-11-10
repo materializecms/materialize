@@ -3,6 +3,7 @@ import { createReadStream, createWriteStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { t } from './t.ts'
 
 /**
  * Storage outside the server for the backups: any S3-compatible service (Amazon S3, Cloudflare
@@ -54,14 +55,14 @@ export class RemoteError extends Error {
 function failure(what: string, status: number, detail = ''): RemoteError {
   const why =
     status === 401 || status === 403
-      ? 'accesso rifiutato: controlla le credenziali e i permessi'
+      ? t('accesso rifiutato: controlla le credenziali e i permessi')
       : status === 404
-        ? 'non trovato: controlla l’indirizzo, il bucket o la cartella'
+        ? t('non trovato: controlla l’indirizzo, il bucket o la cartella')
         : status === 409
-          ? 'una cartella del percorso non esiste: crea almeno quella che contiene la cartella dei backup'
+          ? t('una cartella del percorso non esiste: crea almeno quella che contiene la cartella dei backup')
           : status === 507 || /QuotaExceeded|InsufficientStorage/i.test(detail)
-            ? 'spazio esaurito'
-            : `il servizio ha risposto ${status}`
+            ? t('spazio esaurito')
+            : t('il servizio ha risposto {status}', { status })
   const code = /<Code>([^<]+)<\/Code>/.exec(detail)?.[1]
   return new RemoteError(`${what}: ${why}${code ? ` (${code})` : ''}`, status)
 }
@@ -73,8 +74,8 @@ async function reach(url: string, init: RequestInit & { duplex?: 'half' }): Prom
     const cause = (error as { cause?: { code?: string } }).cause?.code
     throw new RemoteError(
       cause === 'ENOTFOUND'
-        ? `Il servizio ${new URL(url).host} non si trova: controlla l’indirizzo`
-        : `Il servizio non risponde (${cause ?? (error as Error).message})`,
+        ? t('Il servizio {host} non si trova: controlla l’indirizzo', { host: new URL(url).host })
+        : t('Il servizio non risponde ({cause})', { cause: cause ?? (error as Error).message }),
     )
   }
 }
@@ -82,11 +83,11 @@ async function reach(url: string, init: RequestInit & { duplex?: 'half' }): Prom
 const fileBody = (file: string) => Readable.toWeb(createReadStream(file)) as ReadableStream
 
 async function saveBody(res: Response, file: string) {
-  if (!res.body) throw new RemoteError('Risposta vuota')
+  if (!res.body) throw new RemoteError(t('Risposta vuota'))
   try {
     await pipeline(Readable.fromWeb(res.body as never), createWriteStream(file))
   } catch (error) {
-    throw new RemoteError(`Il download si è interrotto (${(error as Error).message}): riprova`)
+    throw new RemoteError(t('Il download si è interrotto ({cause}): riprova', { cause: (error as Error).message }))
   }
 }
 
@@ -184,24 +185,24 @@ export function createS3Storage(target: S3Target, prefix = ''): RemoteStorage {
   return {
     async put(key, file) {
       const { size } = await stat(file)
-      await call(`Caricamento di ${key}`, 'PUT', full(key), {
+      await call(t('Caricamento di {key}', { key }), 'PUT', full(key), {
         headers: { 'content-length': String(size), 'content-type': 'application/octet-stream' },
         body: fileBody(file),
       })
     },
     async putText(key, text) {
       const body = Buffer.from(text)
-      await call(`Caricamento di ${key}`, 'PUT', full(key), {
+      await call(t('Caricamento di {key}', { key }), 'PUT', full(key), {
         headers: { 'content-length': String(body.length), 'content-type': 'text/plain; charset=utf-8' },
         body,
         payload: sha256(body),
       })
     },
     async get(key, file) {
-      await saveBody(await call(`Download di ${key}`, 'GET', full(key), { payload: EMPTY_HASH }), file)
+      await saveBody(await call(t('Download di {key}', { key }), 'GET', full(key), { payload: EMPTY_HASH }), file)
     },
     async getText(key) {
-      return (await call(`Download di ${key}`, 'GET', full(key), { payload: EMPTY_HASH })).text()
+      return (await call(t('Download di {key}', { key }), 'GET', full(key), { payload: EMPTY_HASH })).text()
     },
     async list(folder) {
       const items: RemoteItem[] = []
@@ -210,7 +211,7 @@ export function createS3Storage(target: S3Target, prefix = ''): RemoteStorage {
       do {
         const query: Record<string, string> = { 'list-type': '2', prefix: full(folder) }
         if (token) query['continuation-token'] = token
-        const xml = await (await call('Elenco dei file', 'GET', '', { query, payload: EMPTY_HASH })).text()
+        const xml = await (await call(t('Elenco dei file'), 'GET', '', { query, payload: EMPTY_HASH })).text()
         for (const block of xml.match(/<Contents>[\s\S]*?<\/Contents>/g) ?? [])
           items.push({
             key: unescapeXml(xmlValue(block, 'Key')).slice(strip),
@@ -222,7 +223,7 @@ export function createS3Storage(target: S3Target, prefix = ''): RemoteStorage {
       return items
     },
     async delete(key) {
-      await call(`Eliminazione di ${key}`, 'DELETE', full(key), { payload: EMPTY_HASH })
+      await call(t('Eliminazione di {key}', { key }), 'DELETE', full(key), { payload: EMPTY_HASH })
     },
   }
 }
@@ -244,7 +245,7 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
     if (!made.has('')) {
       const res = await reach(root, { method: 'MKCOL', headers: { authorization: auth } })
       if (!res.ok && res.status !== 405)
-        throw failure('Creazione della cartella dei backup', res.status, await res.text())
+        throw failure(t('Creazione della cartella dei backup'), res.status, await res.text())
       made.add('')
     }
     const parts = key.split('/').slice(0, -1)
@@ -253,7 +254,8 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
       if (made.has(dir)) continue
       const res = await reach(url(dir), { method: 'MKCOL', headers: { authorization: auth } })
       // 405: it exists already.
-      if (!res.ok && res.status !== 405) throw failure(`Creazione della cartella ${dir}`, res.status, await res.text())
+      if (!res.ok && res.status !== 405)
+        throw failure(t('Creazione della cartella {dir}', { dir }), res.status, await res.text())
       made.add(dir)
     }
   }
@@ -261,7 +263,7 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
     async put(key, file) {
       await folders(key)
       const { size } = await stat(file)
-      await call(`Caricamento di ${key}`, 'PUT', key, {
+      await call(t('Caricamento di {key}', { key }), 'PUT', key, {
         headers: { 'content-length': String(size), 'content-type': 'application/octet-stream' },
         body: fileBody(file),
         duplex: 'half',
@@ -269,16 +271,16 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
     },
     async putText(key, text) {
       await folders(key)
-      await call(`Caricamento di ${key}`, 'PUT', key, {
+      await call(t('Caricamento di {key}', { key }), 'PUT', key, {
         headers: { 'content-type': 'text/plain; charset=utf-8' },
         body: text,
       })
     },
     async get(key, file) {
-      await saveBody(await call(`Download di ${key}`, 'GET', key), file)
+      await saveBody(await call(t('Download di {key}', { key }), 'GET', key), file)
     },
     async getText(key) {
-      return (await call(`Download di ${key}`, 'GET', key)).text()
+      return (await call(t('Download di {key}', { key }), 'GET', key)).text()
     },
     async list(folder) {
       const items: RemoteItem[] = []
@@ -290,7 +292,7 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
           body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getcontentlength/><d:getlastmodified/><d:resourcetype/></d:prop></d:propfind>',
         })
         if (res.status === 404) return
-        if (!res.ok) throw failure('Elenco dei file', res.status, await res.text())
+        if (!res.ok) throw failure(t('Elenco dei file'), res.status, await res.text())
         const xml = await res.text()
         // Namespaces differ between servers (d:, D:, none): matched by local name.
         for (const block of xml.match(/<(?:\w+:)?response[\s>][\s\S]*?<\/(?:\w+:)?response>/g) ?? []) {
@@ -315,7 +317,7 @@ export function createWebDavStorage(target: WebDavTarget): RemoteStorage {
       return items
     },
     async delete(key) {
-      await call(`Eliminazione di ${key}`, 'DELETE', key)
+      await call(t('Eliminazione di {key}', { key }), 'DELETE', key)
     },
   }
 }

@@ -3,7 +3,9 @@
  * every text it writes or changes (quick actions, the editor's assistant, translations, MCP).
  */
 
-/** Tones to choose from, at most three. */
+import { t } from './t.ts'
+
+/** Tones to choose from, at most three: the values kept in the setting (see voiceToneLabel). */
 export const VOICE_TONES = [
   'Professionale',
   'Amichevole',
@@ -14,6 +16,23 @@ export const VOICE_TONES = [
   'Rassicurante',
   'Ironico',
 ] as const
+
+export type VoiceTone = (typeof VOICE_TONES)[number]
+
+/** A tone as the panel shows it; the value kept in the setting stays the Italian word. */
+export function voiceToneLabel(tone: VoiceTone): string {
+  const labels: Record<VoiceTone, string> = {
+    Professionale: t('Professionale'),
+    Amichevole: t('Amichevole'),
+    Diretto: t('Diretto'),
+    Ispirazionale: t('Ispirazionale'),
+    Tecnico: t('Tecnico'),
+    Elegante: t('Elegante'),
+    Rassicurante: t('Rassicurante'),
+    Ironico: t('Ironico'),
+  }
+  return labels[tone]
+}
 
 export type VoiceAddress = 'tu' | 'voi' | 'lei'
 

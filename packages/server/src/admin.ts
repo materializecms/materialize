@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize, sep } from 'node:path'
 import type { Context } from 'hono'
+import { t } from './t.ts'
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -71,8 +72,8 @@ export async function serveAdmin(c: Context, dir: string | undefined): Promise<R
   if (!dir || !(await isFile(index))) {
     return c.html(
       '<!doctype html><meta charset="utf-8"><title>Materialize</title><body style="font:15px system-ui;padding:40px">' +
-        '<h1 style="font-size:20px">Il pannello non è ancora compilato</h1>' +
-        '<p>Esegui <code>npm run build</code> nella cartella di Materialize, poi ricarica la pagina.</p>',
+        `<h1 style="font-size:20px">${t('Il pannello non è ancora compilato')}</h1>` +
+        `<p>${t('Esegui {command} nella cartella di Materialize, poi ricarica la pagina.', { command: '<code>npm run build</code>' })}</p>`,
       503,
     )
   }

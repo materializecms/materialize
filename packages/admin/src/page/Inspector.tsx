@@ -74,7 +74,8 @@ const RATIOS = ['1/1', '4/3', '3/2', '16/9', '21/9', '3/4', '4/5', '3/1'].map((r
   value: r,
   label: r.replace('/', ':'),
 }))
-const STYLE_OPTIONS = (Object.keys(TEXT_STYLES) as TextStyle[]).map((k) => ({ value: k, label: TEXT_STYLES[k].label }))
+const styleOptions = () =>
+  (Object.keys(TEXT_STYLES) as TextStyle[]).map((k) => ({ value: k, label: TEXT_STYLES[k].label }))
 
 /** Shared text styles and what can be done with them from an element. */
 export interface TextStyleActions {
@@ -834,7 +835,7 @@ export function Inspector({
             <Select
               label={t('Stile del testo')}
               value={p.style ?? (isB ? 'button' : 'body')}
-              options={STYLE_OPTIONS}
+              options={styleOptions()}
               onChange={(v) => onProp('style', v)}
             />
           </Row>

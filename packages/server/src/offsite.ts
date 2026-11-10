@@ -10,6 +10,7 @@ import {
   type S3Target,
   type WebDavTarget,
 } from './remote-storage.ts'
+import { t } from './t.ts'
 
 /**
  * A copy of the backups outside the server, encrypted before it leaves: every night the newest
@@ -56,7 +57,7 @@ export function parseRecoveryKey(text: string): Buffer {
   const clean = text.trim().replace(/\s+/g, '')
   const raw = clean.startsWith(KEY_MARK) ? clean.slice(KEY_MARK.length) : clean
   const key = Buffer.from(raw, 'base64url')
-  if (key.length !== 32) throw new Error('La chiave di ripristino non è valida: deve iniziare con mzk1-')
+  if (key.length !== 32) throw new Error(t('La chiave di ripristino non è valida: deve iniziare con mzk1-'))
   return key
 }
 
@@ -100,17 +101,17 @@ export async function decryptFile(source: string, target: string, key: Buffer): 
   try {
     const head = Buffer.alloc(12)
     await input.read(head, 0, 12, 0)
-    if (!head.subarray(0, 4).equals(MAGIC)) throw new Error('Non è un file di backup cifrato da Materialize')
+    if (!head.subarray(0, 4).equals(MAGIC)) throw new Error(t('Non è un file di backup cifrato da Materialize'))
     const prefix = head.subarray(4, 12)
     let position = 12
     for (let i = 0; ; i++) {
       const length = Buffer.alloc(4)
-      if ((await input.read(length, 0, 4, position)).bytesRead < 4) throw new Error('Il file è incompleto')
+      if ((await input.read(length, 0, 4, position)).bytesRead < 4) throw new Error(t('Il file è incompleto'))
       const size = length.readUInt32BE()
-      if (size > BLOCK) throw new Error('Il file è danneggiato')
+      if (size > BLOCK) throw new Error(t('Il file è danneggiato'))
       const sealed = Buffer.alloc(size + 16)
       if ((await input.read(sealed, 0, size + 16, position + 4)).bytesRead < size + 16)
-        throw new Error('Il file è incompleto')
+        throw new Error(t('Il file è incompleto'))
       position += 4 + size + 16
       const end = position >= (await input.stat()).size
       const decipher = createDecipheriv('aes-256-gcm', key, nonceOf(prefix, i))
@@ -120,7 +121,9 @@ export async function decryptFile(source: string, target: string, key: Buffer): 
         await output.write(Buffer.concat([decipher.update(sealed.subarray(0, size)), decipher.final()]))
       } catch {
         throw new Error(
-          end ? 'Chiave sbagliata, oppure il file è stato modificato' : 'Il file è incompleto o è stato modificato',
+          end
+            ? t('Chiave sbagliata, oppure il file è stato modificato')
+            : t('Il file è incompleto o è stato modificato'),
         )
       }
       if (end) break
@@ -183,7 +186,7 @@ export async function runOffsite(
   /** For tests: a storage in memory. */
   storage: RemoteStorage | null = storageOf(s),
 ): Promise<OffsiteStatus> {
-  if (!storage || !s.key) throw new Error('La copia fuori dal server non è configurata')
+  if (!storage || !s.key) throw new Error(t('La copia fuori dal server non è configurata'))
   const key = parseRecoveryKey(s.key)
   const work = await mkdtemp(join(tmpdir(), 'materialize-offsite-'))
   try {
@@ -238,12 +241,12 @@ export async function runOffsite(
 /** "Prova il collegamento": writes, reads back, lists and deletes a small file. */
 export async function testOffsite(s: OffsiteSettings): Promise<void> {
   const storage = storageOf(s)
-  if (!storage) throw new Error('Scegli S3 o WebDAV e compila i campi')
+  if (!storage) throw new Error(t('Scegli S3 o WebDAV e compila i campi'))
   const key = `.materialize-prova-${randomBytes(4).toString('hex')}.txt`
   const text = `Prova di Materialize, ${new Date().toISOString()}`
   await storage.putText(key, text)
   try {
-    if ((await storage.getText(key)) !== text) throw new Error('Il file di prova è tornato diverso')
+    if ((await storage.getText(key)) !== text) throw new Error(t('Il file di prova è tornato diverso'))
     await storage.list('')
   } finally {
     await storage.delete(key)

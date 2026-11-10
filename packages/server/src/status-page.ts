@@ -1,11 +1,13 @@
 import type { MaterializeConfig } from '@materializecms/core'
+import { currentLang } from '@materializecms/core/lang'
 import { html } from 'hono/html'
+import { t } from './t.ts'
 
 /** Page served at "/" until the site renderer ships: confirms the server works and links to the admin. */
 export function statusPage(config: MaterializeConfig, version: string, needsSetup: boolean) {
   const rows = config.collections.map((c) => html`<li><span>${c.label}</span><code>/api/content/${c.name}</code></li>`)
   return html`<!doctype html>
-    <html lang="it">
+    <html lang="${currentLang()}">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -29,12 +31,15 @@ export function statusPage(config: MaterializeConfig, version: string, needsSetu
       <body>
         <main>
           <div class="mark" aria-hidden="true">M</div>
-          <h1>${config.site.name} è online</h1>
-          <p>Materialize ${version} · ${config.collections.length} collezioni · lingue: ${config.locales.available.join(', ')}</p>
+          <h1>${t('{site} è online', { site: config.site.name })}</h1>
+          <p>
+            Materialize ${version} · ${t.n(config.collections.length, '{n} collezione', '{n} collezioni')} ·
+            ${t('lingue: {list}', { list: config.locales.available.join(', ') })}
+          </p>
           <ul>
             ${rows}
           </ul>
-          <a class="button" href="/admin/">${needsSetup ? 'Configura il pannello' : 'Apri il pannello'}</a>
+          <a class="button" href="/admin/">${needsSetup ? t('Configura il pannello') : t('Apri il pannello')}</a>
         </main>
       </body>
     </html>`

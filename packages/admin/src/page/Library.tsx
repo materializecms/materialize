@@ -1,4 +1,4 @@
-import { buildSection, LIBRARY } from '@materializecms/core/library'
+import { buildSection, library } from '@materializecms/core/library'
 import { type Component, type PageNode, pageRootStyle, renderSections, type Theme } from '@materializecms/core/page'
 import {
   Code,
@@ -90,7 +90,8 @@ export function Library({
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
   const q = fold(query.trim())
-  const groups = LIBRARY.filter((c) => q || cat === 'all' || c.key === cat)
+  const groups = library()
+    .filter((c) => q || cat === 'all' || c.key === cat)
     .map((c) => ({
       ...c,
       variants: c.variants.filter(
@@ -102,7 +103,7 @@ export function Library({
   // One render of every section, shared by all the tiles.
   const previews = useMemo(() => {
     const out: Record<string, { html: string; css: string }> = {}
-    for (const c of LIBRARY)
+    for (const c of library())
       for (const v of c.variants)
         out[v.key] = renderSections([buildSection(v.key, brand)], theme, {
           animations: 'none',
@@ -180,7 +181,7 @@ export function Library({
         </div>
         {/* One scrolling row of categories instead of seven wrapped lines. */}
         <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:thin]">
-          {[{ key: 'all', label: t('Tutte') }, ...LIBRARY].map((c) => (
+          {[{ key: 'all', label: t('Tutte') }, ...library()].map((c) => (
             <button
               key={c.key}
               type="button"

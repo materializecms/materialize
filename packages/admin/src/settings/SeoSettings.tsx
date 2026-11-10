@@ -1,4 +1,4 @@
-import { BUSINESS_TYPES, feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
+import { businessTypes, feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
@@ -137,7 +137,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                   onChange={(e) => setBusiness({ type: e.target.value as NonNullable<SiteSeo['business']>['type'] })}
                   className="h-9 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
                 >
-                  {BUSINESS_TYPES.map((b) => (
+                  {businessTypes().map((b) => (
                     <option key={b.value} value={b.value}>
                       {b.label}
                     </option>

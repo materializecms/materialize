@@ -26,6 +26,7 @@ import {
   untranslatedIds,
   withLocales,
 } from '@materializecms/core/i18n'
+import { currentLang, intlLocaleOf, isLang, type Lang } from '@materializecms/core/lang'
 import { senderDomain } from '@materializecms/core/mail'
 import {
   type Component,
@@ -109,6 +110,7 @@ import {
   sendWebhook,
   spamReason,
 } from './forms.ts'
+import { requestLang, useProfileLang, withLang } from './lang.ts'
 import {
   checkSenderDomain,
   explainMailError,
@@ -142,6 +144,7 @@ import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
 import { statusPage } from './status-page.ts'
 import { studioSystem, studioTools } from './studio.ts'
+import { t } from './t.ts'
 import { apiCaller, assistantTools, contentTools, pageTools, type SiteSchema } from './tools.ts'
 import { newSecret, otpauthUri, recoveryCodes, verifyCode } from './totp.ts'
 import { type Fetcher, readRest, readWxr, WordPressError, type WpSite } from './wordpress.ts'
@@ -213,6 +216,13 @@ class ApiError extends HTTPException {
   }
 }
 
+/** The language of an email to someone with an account: their profile's, else the current one. */
+/**
+ * The language of an email to someone with an account: their profile's, else Italian, the panel's
+ * default — never the language of whoever made the request (a stranger trying to sign in).
+ */
+const langFor = (locale: string | null | undefined): Lang => (isLang(locale) ? locale : 'it')
+
 const credentials = z.object({ email: z.email(), password: z.string().min(1) })
 const setupBody = z.object({
   email: z.email(),
@@ -223,7 +233,10 @@ const setupBody = z.object({
   site: z
     .object({
       name: z.string().trim().min(1).max(120).optional(),
-      locale: z.string().refine(isLocaleCode, 'Codice lingua non valido').optional(),
+      locale: z
+        .string()
+        .refine(isLocaleCode, { error: () => t('Codice lingua non valido') })
+        .optional(),
     })
     .optional(),
 })
@@ -389,10 +402,17 @@ export function createApp(base: ServerContext) {
       status = { at: new Date().toISOString(), ok: false, message: (error as Error).message }
       if (before?.ok !== false)
         for (const admin of (await auth.listUsers()).filter((u) => u.role === 'admin'))
-          await mailNotice(admin.email, 'Backup fuori dal server non riuscito', [
-            `La copia dei backup di ${ctx.config().site.name} fuori dal server non è riuscita: ${status.message}`,
-            'Controlla in Impostazioni → Sicurezza → Backup. Ti scriviamo di nuovo solo quando torna a funzionare e si ferma di nuovo.',
-          ])
+          await withLang(langFor(admin.locale), () =>
+            mailNotice(admin.email, t('Backup fuori dal server non riuscito'), [
+              t('La copia dei backup di {site} fuori dal server non è riuscita: {message}', {
+                site: ctx.config().site.name,
+                message: status.message,
+              }),
+              t(
+                'Controlla in Impostazioni → Sicurezza → Backup. Ti scriviamo di nuovo solo quando torna a funzionare e si ferma di nuovo.',
+              ),
+            ]),
+          )
     } finally {
       offsiteRunning = false
     }
@@ -481,7 +501,7 @@ export function createApp(base: ServerContext) {
       throw new ApiError(
         403,
         'embed_admin_only',
-        'Solo un amministratore può modificare il codice personalizzato e dove arrivano i messaggi dei moduli',
+        t('Solo un amministratore può modificare il codice personalizzato e dove arrivano i messaggi dei moduli'),
       )
   }
 
@@ -489,7 +509,7 @@ export function createApp(base: ServerContext) {
   const contentOnly = async (user: User) =>
     user.role !== 'admin' && !!(await settings.get<{ editorsContentOnly?: boolean }>('editorial'))?.editorsContentOnly
   const designLocked = () =>
-    new ApiError(403, 'content_only', 'Puoi modificare testi, collegamenti e immagini, non il layout della pagina')
+    new ApiError(403, 'content_only', t('Puoi modificare testi, collegamenti e immagini, non il layout della pagina'))
   const guardDesign = async (user: User, before: unknown, after: unknown) => {
     const pages = (v: unknown) => (Array.isArray(v) ? (v as PageNode[]) : [])
     if (!sameDesign(pages(before), pages(after)) && (await contentOnly(user))) throw designLocked()
@@ -577,12 +597,14 @@ export function createApp(base: ServerContext) {
         throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
       c.set('user', user)
       c.set('viaToken', true)
+      useProfileLang(user.locale)
       return next()
     }
     const token = getCookie(c, SESSION_COOKIE)
     const user = token ? await auth.userForSession(token, SESSION_IDLE) : null
     if (!user) throw new ApiError(401, 'unauthenticated', 'Sign in to continue')
     c.set('user', user)
+    useProfileLang(user.locale)
     // When the site requires two-step verification, someone without it can only set it up.
     if (!user.twoFactor && !c.req.path.startsWith('/api/auth/') && (await twoFactorRequired()))
       throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
@@ -667,6 +689,9 @@ export function createApp(base: ServerContext) {
     // Leaving the newsletter with one click from the email app comes with no Origin: the token is the proof.
     bearerOf(c) || c.req.path.startsWith('/api/newsletter/unsubscribe/') ? next() : checkOrigin(c, next),
   )
+  // Every request in the language of whoever makes it (see lang.ts).
+  app.use('*', requestLang)
+
   // Answers change with every edit: browsers must not reuse them.
   app.use('/api/*', async (c, next) => {
     await next()
@@ -712,7 +737,7 @@ export function createApp(base: ServerContext) {
       id: 'node',
       label: `Node.js ${process.versions.node}`,
       state: node >= 24 ? 'ok' : 'error',
-      detail: node >= 24 ? 'Versione adatta.' : 'Serve Node 24 o più recente.',
+      detail: node >= 24 ? t('Versione adatta.') : t('Serve Node 24 o più recente.'),
     })
     const mediaDir = resolve(ctx.config().media.dir)
     let writable = true
@@ -724,42 +749,44 @@ export function createApp(base: ServerContext) {
     }
     checks.push({
       id: 'files',
-      label: 'Cartella dei file',
+      label: t('Cartella dei file'),
       state: writable ? 'ok' : 'error',
       detail: writable
-        ? 'Database e immagini si possono salvare.'
-        : `Il programma non può scrivere in ${mediaDir}: dagli i permessi su quella cartella.`,
+        ? t('Database e immagini si possono salvare.')
+        : t('Il programma non può scrivere in {dir}: dagli i permessi su quella cartella.', { dir: mediaDir }),
     })
     checks.push({
       id: 'site',
-      label: 'Sito',
+      label: t('Sito'),
       state: ctx.preview ? 'ok' : 'warn',
       detail: ctx.preview
-        ? 'Il sito si genera da solo a ogni pubblicazione.'
-        : 'Solo il CMS: in questa cartella non c’è un sito Astro.',
+        ? t('Il sito si genera da solo a ogni pubblicazione.')
+        : t('Solo il CMS: in questa cartella non c’è un sito Astro.'),
     })
     const url = new URL(c.req.url)
     const local = /^(localhost|127\.|\[::1\])/.test(url.hostname)
     const https = url.protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https'
     checks.push({
       id: 'https',
-      label: 'Connessione sicura',
+      label: t('Connessione sicura'),
       state: https || local ? 'ok' : 'warn',
       detail: https
-        ? 'HTTPS attivo.'
+        ? t('HTTPS attivo.')
         : local
-          ? 'In locale non serve HTTPS.'
-          : 'Senza HTTPS la password viaggia in chiaro: attivalo prima di metterlo online (guida in docs/sicurezza.md).',
+          ? t('In locale non serve HTTPS.')
+          : t(
+              'Senza HTTPS la password viaggia in chiaro: attivalo prima di metterlo online (guida in docs/sicurezza.md).',
+            ),
     })
     const updates = await ctx.updates?.status()
     checks.push({
       id: 'updates',
-      label: 'Aggiornamenti',
+      label: t('Aggiornamenti'),
       state: updates && !updates.unavailable ? 'ok' : 'warn',
       detail:
         updates && !updates.unavailable
-          ? 'Si installano dal pannello, con un clic.'
-          : (updates?.unavailable ?? 'Si installano da terminale.'),
+          ? t('Si installano dal pannello, con un clic.')
+          : (updates?.unavailable ?? t('Si installano da terminale.')),
     })
     return checks
   }
@@ -792,7 +819,7 @@ export function createApp(base: ServerContext) {
       throw new ApiError(
         403,
         'setup_token',
-        'Per installare serve il link stampato all’avvio del server (materialize start), con il suo codice',
+        t('Per installare serve il link stampato all’avvio del server (materialize start), con il suo codice'),
       )
     // The site's language and name, before anything else is written in them.
     if (input.site?.locale && input.site.locale !== ctx.config().locales.default) {
@@ -849,21 +876,28 @@ export function createApp(base: ServerContext) {
         throw new ApiError(
           429,
           'too_many_attempts',
-          `Troppi tentativi: riprova tra ${minutes === 1 ? 'un minuto' : `${minutes} minuti`}`,
+          t.n(minutes, 'Troppi tentativi: riprova tra un minuto', 'Troppi tentativi: riprova tra {n} minuti'),
         )
       }
     }
   }
 
   /** A failed sign-in: counted for the email and the address; the owner hears when their account pauses. */
-  const signInFailed = async (email: string, ip: string, hasAccount: boolean) => {
+  const signInFailed = async (email: string, ip: string, hasAccount: boolean, locale?: string | null) => {
     const byEmail = await auth.recordFailure(`email:${email}`, EMAIL_THRESHOLD)
     await auth.recordFailure(`ip:${ip}`, IP_THRESHOLD)
     if (hasAccount && byEmail.failures === EMAIL_THRESHOLD)
-      await mailNotice(email, 'Tentativi di accesso non riusciti', [
-        `Qualcuno ha provato ${EMAIL_THRESHOLD} volte di fila a entrare nel pannello del sito con il tuo indirizzo, senza la password giusta. Per sicurezza gli accessi con il tuo indirizzo sono in pausa per qualche minuto.`,
-        'Se eri tu, aspetta e riprova. Se non eri tu, la tua password è ancora al sicuro: per più protezione attiva la verifica in due passaggi dal tuo profilo.',
-      ])
+      await withLang(langFor(locale), () =>
+        mailNotice(email, t('Tentativi di accesso non riusciti'), [
+          t(
+            'Qualcuno ha provato {n} volte di fila a entrare nel pannello del sito con il tuo indirizzo, senza la password giusta. Per sicurezza gli accessi con il tuo indirizzo sono in pausa per qualche minuto.',
+            { n: EMAIL_THRESHOLD },
+          ),
+          t(
+            'Se eri tu, aspetta e riprova. Se non eri tu, la tua password è ancora al sicuro: per più protezione attiva la verifica in due passaggi dal tuo profilo.',
+          ),
+        ]),
+      )
   }
 
   /** Passwords accepted, codes still due: by ticket, in memory for a few minutes. */
@@ -898,7 +932,7 @@ export function createApp(base: ServerContext) {
     // A password is checked even for an unknown email: the answer takes as long either way.
     const ok = await verifyPassword(input.password, found?.passwordHash ?? (await dummyHash))
     if (!found || !ok) {
-      await signInFailed(email, ip, !!found)
+      await signInFailed(email, ip, !!found, found?.locale)
       await record(c, 'login.failed', email, { known: !!found }, found ? { id: found.id, name: found.name } : null)
       throw new ApiError(401, 'invalid_credentials', 'Email or password is not correct')
     }
@@ -933,16 +967,18 @@ export function createApp(base: ServerContext) {
         userId: found.id,
         ttlMs: FORGOT_TTL,
       })
-      await mailLink(
-        c,
-        found.email,
-        'Nuova password',
-        [
-          `Qualcuno ha chiesto una nuova password per il tuo account su ${ctx.config().site.name}.`,
-          'Se non sei stato tu, ignora questa email: la password resta quella di prima.',
-          'Per sceglierne una nuova, apri questo link entro un’ora:',
-        ],
-        linkPath(token),
+      await withLang(langFor(found.locale), () =>
+        mailLink(
+          c,
+          found.email,
+          t('Nuova password'),
+          [
+            t('Qualcuno ha chiesto una nuova password per il tuo account su {site}.', { site: ctx.config().site.name }),
+            t('Se non sei stato tu, ignora questa email: la password resta quella di prima.'),
+            t('Per sceglierne una nuova, apri questo link entro un’ora:'),
+          ],
+          linkPath(token),
+        ),
       )
       await record(c, 'password.forgot', found.email, null, { id: found.id, name: found.name })
     }
@@ -1008,7 +1044,7 @@ export function createApp(base: ServerContext) {
     const hash = await auth.getPasswordHash(userId)
     if (!hash || !(await verifyPassword(password, hash)))
       throw new ApiError(422, 'wrong_password', 'The password is not correct', [
-        { path, message: 'La password non è corretta' },
+        { path, message: t('La password non è corretta') },
       ])
   }
 
@@ -1041,7 +1077,7 @@ export function createApp(base: ServerContext) {
     const step = verifyCode(state.pending, input.code)
     if (step === null)
       throw new ApiError(422, 'invalid_code', 'The code is not correct', [
-        { path: 'code', message: 'Il codice non è corretto' },
+        { path: 'code', message: t('Il codice non è corretto') },
       ])
     const codes = recoveryCodes()
     await auth.enableTwoFactor(user.id, step, codes)
@@ -1119,6 +1155,11 @@ export function createApp(base: ServerContext) {
       action?: 'people' | 'profile' | 'mail' | 'backups'
     }
     const checks: Check[] = []
+    const hoursAgo = (ms: number) =>
+      new Intl.RelativeTimeFormat(intlLocaleOf(currentLang()), { numeric: 'auto' }).format(
+        -Math.round(ms / 3_600_000),
+        'hour',
+      )
     const people = await auth.listUsers()
     const required = await twoFactorRequired()
     const admins = people.filter((p) => p.role === 'admin')
@@ -1129,18 +1170,22 @@ export function createApp(base: ServerContext) {
         ? {
             id: 'admins-2fa',
             status: 'bad',
-            title:
-              adminsWithout.length === 1
-                ? 'Un amministratore entra con la sola password'
-                : `${adminsWithout.length} amministratori entrano con la sola password`,
-            detail: `${adminsWithout.map((p) => p.name).join(', ')}: chi ruba quella password controlla tutto il sito. Attivate la verifica in due passaggi dal profilo → Sicurezza.`,
+            title: t.n(
+              adminsWithout.length,
+              'Un amministratore entra con la sola password',
+              '{n} amministratori entrano con la sola password',
+            ),
+            detail: t(
+              '{names}: chi ruba quella password controlla tutto il sito. Attivate la verifica in due passaggi dal profilo → Sicurezza.',
+              { names: adminsWithout.map((p) => p.name).join(', ') },
+            ),
             action: adminsWithout.some((p) => p.id === c.get('user').id) ? 'profile' : 'people',
           }
         : {
             id: 'admins-2fa',
             status: 'ok',
-            title: 'Gli amministratori usano la verifica in due passaggi',
-            detail: 'Per entrare servono password e codice dal telefono.',
+            title: t('Gli amministratori usano la verifica in due passaggi'),
+            detail: t('Per entrare servono password e codice dal telefono.'),
           },
     )
     checks.push(
@@ -1148,20 +1193,28 @@ export function createApp(base: ServerContext) {
         ? {
             id: 'everyone-2fa',
             status: 'ok',
-            title: 'Verifica in due passaggi richiesta a tutti',
+            title: t('Verifica in due passaggi richiesta a tutti'),
             detail: without.length
-              ? `${without.length === 1 ? 'Una persona la attiverà' : `${without.length} persone la attiveranno`} al prossimo accesso.`
-              : 'Tutti l’hanno attivata.',
+              ? t.n(
+                  without.length,
+                  'Una persona la attiverà al prossimo accesso.',
+                  '{n} persone la attiveranno al prossimo accesso.',
+                )
+              : t('Tutti l’hanno attivata.'),
           }
         : {
             id: 'everyone-2fa',
             status: without.length ? 'warn' : 'ok',
             title: without.length
-              ? `${without.length === 1 ? 'Una persona entra' : `${without.length} persone entrano`} con la sola password`
-              : 'Tutti usano la verifica in due passaggi',
+              ? t.n(
+                  without.length,
+                  'Una persona entra con la sola password',
+                  '{n} persone entrano con la sola password',
+                )
+              : t('Tutti usano la verifica in due passaggi'),
             detail: without.length
-              ? 'Potete richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.'
-              : 'Potete anche richiederla a tutti da Persone, per chi entrerà in futuro.',
+              ? t('Potete richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.')
+              : t('Potete anche richiederla a tutti da Persone, per chi entrerà in futuro.'),
             action: without.length ? 'people' : undefined,
           },
     )
@@ -1171,16 +1224,18 @@ export function createApp(base: ServerContext) {
         ? {
             id: 'mail',
             status: 'ok',
-            title: 'Gli avvisi arrivano per email',
-            detail:
+            title: t('Gli avvisi arrivano per email'),
+            detail: t(
               'Tentativi di accesso falliti, cambi di indirizzo e di verifica vengono segnalati a chi riguardano.',
+            ),
           }
         : {
             id: 'mail',
             status: 'warn',
-            title: 'L’invio delle email non è configurato',
-            detail:
+            title: t('L’invio delle email non è configurato'),
+            detail: t(
               'Nessuno viene avvisato di tentativi di accesso falliti o di un indirizzo cambiato, e i link per una nuova password vanno mandati a mano.',
+            ),
             action: 'mail',
           },
     )
@@ -1195,22 +1250,23 @@ export function createApp(base: ServerContext) {
         ? {
             id: 'https',
             status: 'info',
-            title: 'Pannello aperto in locale',
-            detail: 'Online, il sito va servito in HTTPS: password e sessioni viaggiano cifrate.',
+            title: t('Pannello aperto in locale'),
+            detail: t('Online, il sito va servito in HTTPS: password e sessioni viaggiano cifrate.'),
           }
         : secure
           ? {
               id: 'https',
               status: 'ok',
-              title: 'Connessione cifrata (HTTPS)',
-              detail: 'Password e sessioni viaggiano cifrate.',
+              title: t('Connessione cifrata (HTTPS)'),
+              detail: t('Password e sessioni viaggiano cifrate.'),
             }
           : {
               id: 'https',
               status: 'bad',
-              title: 'Il pannello non usa HTTPS',
-              detail:
+              title: t('Il pannello non usa HTTPS'),
+              detail: t(
                 'Password e sessioni viaggiano in chiaro: attiva HTTPS sull’hosting (Let’s Encrypt è gratuito) o metti il sito dietro Cloudflare.',
+              ),
             },
     )
     const forwarded = !!c.req.header('x-forwarded-for')
@@ -1219,17 +1275,20 @@ export function createApp(base: ServerContext) {
       checks.push({
         id: 'proxy',
         status: 'warn',
-        title: 'Il sito è dietro un proxy, ma non lo sa',
-        detail:
-          'Tutte le richieste sembrano arrivare dallo stesso indirizzo, quindi i limiti agli accessi per indirizzo non funzionano. Imposta server: { trustProxy: true } in materialize.config.ts.',
+        title: t('Il sito è dietro un proxy, ma non lo sa'),
+        detail: t(
+          'Tutte le richieste sembrano arrivare dallo stesso indirizzo, quindi i limiti agli accessi per indirizzo non funzionano. Imposta server: {code} in materialize.config.ts.',
+          { code: '{ trustProxy: true }' },
+        ),
       })
     else if (trust && !forwarded && !local)
       checks.push({
         id: 'proxy',
         status: 'warn',
-        title: 'trustProxy è acceso, ma non arriva nessun proxy',
-        detail:
+        title: t('trustProxy è acceso, ma non arriva nessun proxy'),
+        detail: t(
           'Senza un proxy davanti, chiunque può dichiarare un indirizzo falso e aggirare i limiti agli accessi. Se il sito non è dietro un proxy, spegnilo in materialize.config.ts.',
+        ),
       })
     const day = new Date(Date.now() - 24 * 60 * 60_000)
     const failed =
@@ -1239,57 +1298,71 @@ export function createApp(base: ServerContext) {
       id: 'failed',
       status: failed >= 20 || locked.length ? 'warn' : 'ok',
       title: failed
-        ? `${failed === 1 ? 'Un accesso fallito' : `${failed} accessi falliti`} nelle ultime 24 ore`
-        : 'Nessun accesso fallito nelle ultime 24 ore',
+        ? t.n(failed, 'Un accesso fallito nelle ultime 24 ore', '{n} accessi falliti nelle ultime 24 ore')
+        : t('Nessun accesso fallito nelle ultime 24 ore'),
       detail: locked.length
-        ? `In pausa adesso: ${locked
-            .map((k) =>
-              k
-                .replace(/^email:/, '')
-                .replace(/^ip:/, 'indirizzo ')
-                .replace(/^2fa:.*/, 'un codice di verifica'),
-            )
-            .join(', ')}. Le pause finiscono da sole.`
-        : 'Dopo 5 errori un’email va in pausa, dopo 20 un indirizzo: la pausa raddoppia a ogni nuovo errore.',
+        ? t('In pausa adesso: {list}. Le pause finiscono da sole.', {
+            list: locked
+              .map((k) =>
+                k.startsWith('ip:')
+                  ? t('indirizzo {ip}', { ip: k.slice(3) })
+                  : k.startsWith('2fa:')
+                    ? t('un codice di verifica')
+                    : k.replace(/^email:/, ''),
+              )
+              .join(', '),
+          })
+        : t('Dopo 5 errori un’email va in pausa, dopo 20 un indirizzo: la pausa raddoppia a ogni nuovo errore.'),
     })
     if (!backups.available())
       checks.push({
         id: 'backups',
         status: 'info',
-        title: 'Database ospitato da un fornitore',
-        detail:
+        title: t('Database ospitato da un fornitore'),
+        detail: t(
           'I backup del database li fa il fornitore (Turso, libSQL): controlla che siano attivi nel suo pannello.',
+        ),
       })
     else {
       const b = await backupSettings()
       const last = (await backups.list())[0]
       const age = last ? Date.now() - last.createdAt.getTime() : Number.POSITIVE_INFINITY
+      const days = Math.round(age / 86_400_000)
       checks.push(
         !b.enabled
           ? {
               id: 'backups',
               status: 'warn',
-              title: 'Backup automatici spenti',
+              title: t('Backup automatici spenti'),
               detail: last
-                ? `L’ultima copia è di ${Math.round(age / 86_400_000)} giorni fa. Riaccendili qui sotto.`
-                : 'Non c’è nessuna copia del database. Riaccendili qui sotto.',
+                ? t.n(
+                    days,
+                    'L’ultima copia è di un giorno fa. Riaccendili qui sotto.',
+                    'L’ultima copia è di {n} giorni fa. Riaccendili qui sotto.',
+                  )
+                : t('Non c’è nessuna copia del database. Riaccendili qui sotto.'),
               action: 'backups',
             }
           : age > 2 * 86_400_000
             ? {
                 id: 'backups',
                 status: last ? 'warn' : 'info',
-                title: last ? 'L’ultimo backup è vecchio' : 'Il primo backup arriva a breve',
+                title: last ? t('L’ultimo backup è vecchio') : t('Il primo backup arriva a breve'),
                 detail: last
-                  ? 'Il server fa una copia al giorno mentre è acceso: se resta spento a lungo, scaricane una a mano.'
-                  : 'Il server fa una copia del database poco dopo l’avvio, poi una al giorno.',
+                  ? t(
+                      'Il server fa una copia al giorno mentre è acceso: se resta spento a lungo, scaricane una a mano.',
+                    )
+                  : t('Il server fa una copia del database poco dopo l’avvio, poi una al giorno.'),
                 action: 'backups',
               }
             : {
                 id: 'backups',
                 status: 'ok',
-                title: 'Backup del database ogni giorno',
-                detail: `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round(age / 3_600_000), 'hour')}, immagini comprese; ne restano ${b.keep}.`,
+                title: t('Backup del database ogni giorno'),
+                detail: t('Ultima copia {when}, immagini comprese; ne restano {keep}.', {
+                  when: hoursAgo(age),
+                  keep: b.keep,
+                }),
               },
       )
     }
@@ -1301,26 +1374,30 @@ export function createApp(base: ServerContext) {
           ? {
               id: 'offsite',
               status: 'warn',
-              title: 'I backup restano sul server',
-              detail:
+              title: t('I backup restano sul server'),
+              detail: t(
                 'Se il server si rompe, si perdono anche le copie. Attiva la copia fuori dal server (S3 o WebDAV), oppure scarica ogni tanto l’archivio completo.',
+              ),
               action: 'backups',
             }
           : status && !status.ok
             ? {
                 id: 'offsite',
                 status: 'bad',
-                title: 'La copia fuori dal server non riesce',
-                detail: status.message ?? 'Controlla il collegamento.',
+                title: t('La copia fuori dal server non riesce'),
+                detail: status.message ?? t('Controlla il collegamento.'),
                 action: 'backups',
               }
             : {
                 id: 'offsite',
                 status: 'ok',
-                title: 'Copia cifrata fuori dal server',
+                title: t('Copia cifrata fuori dal server'),
                 detail: status
-                  ? `Ultima copia ${new Intl.RelativeTimeFormat('it', { numeric: 'auto' }).format(-Math.round((Date.now() - new Date(status.at).getTime()) / 3_600_000), 'hour')}, su ${o.kind === 's3' ? 'S3' : 'WebDAV'}.`
-                  : 'La prima copia parte entro un’ora.',
+                  ? t('Ultima copia {when}, su {where}.', {
+                      when: hoursAgo(Date.now() - new Date(status.at).getTime()),
+                      where: o.kind === 's3' ? 'S3' : 'WebDAV',
+                    })
+                  : t('La prima copia parte entro un’ora.'),
               },
       )
     }
@@ -1330,10 +1407,14 @@ export function createApp(base: ServerContext) {
       checks.push({
         id: 'tokens',
         status: stale.length ? 'warn' : 'ok',
-        title: `${tokens.length === 1 ? 'Un token di accesso' : `${tokens.length} token di accesso`} per i client AI`,
+        title: t.n(tokens.length, 'Un token di accesso per i client AI', '{n} token di accesso per i client AI'),
         detail: stale.length
-          ? `${stale.length === 1 ? 'Uno non è usato' : `${stale.length} non sono usati`} da più di 90 giorni: chi li ha creati può revocarli da Impostazioni → AI e MCP.`
-          : 'Tutti usati di recente. Ognuno può revocare i propri da Impostazioni → AI e MCP.',
+          ? t.n(
+              stale.length,
+              'Uno non è usato da più di 90 giorni: chi li ha creati può revocarli da Impostazioni → AI e MCP.',
+              '{n} non sono usati da più di 90 giorni: chi li ha creati può revocarli da Impostazioni → AI e MCP.',
+            )
+          : t('Tutti usati di recente. Ognuno può revocare i propri da Impostazioni → AI e MCP.'),
       })
     return c.json({ checks })
   })
@@ -1531,7 +1612,7 @@ export function createApp(base: ServerContext) {
           latest: null,
           notes: [],
           checkedAt: null,
-          unavailable: 'Questo server non è avviato da materialize start: aggiorna da terminale.',
+          unavailable: t('Questo server non è avviato da materialize start: aggiorna da terminale.'),
           previous: null,
           job: { state: 'idle' },
           last: null,
@@ -1549,7 +1630,7 @@ export function createApp(base: ServerContext) {
   app.post('/api/updates/install', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(c, z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/) }))
     if (!ctx.updates)
-      throw new ApiError(409, 'updates_unavailable', 'Gli aggiornamenti dal pannello non sono disponibili qui')
+      throw new ApiError(409, 'updates_unavailable', t('Gli aggiornamenti dal pannello non sono disponibili qui'))
     try {
       await ctx.updates.install(input.version, backupBeforeUpdate)
     } catch (error) {
@@ -1561,7 +1642,7 @@ export function createApp(base: ServerContext) {
 
   app.post('/api/updates/rollback', requireUser, requireSession, requireAdmin, async (c) => {
     if (!ctx.updates)
-      throw new ApiError(409, 'updates_unavailable', 'Gli aggiornamenti dal pannello non sono disponibili qui')
+      throw new ApiError(409, 'updates_unavailable', t('Gli aggiornamenti dal pannello non sono disponibili qui'))
     try {
       await ctx.updates.rollback()
     } catch (error) {
@@ -1620,11 +1701,19 @@ export function createApp(base: ServerContext) {
   })
 
   /** A changed sign-in address: the old one is told, in case it was not its owner who changed it. */
-  const emailChanged = async (before: string, after: string, by: string) => {
-    await mailNotice(before, 'Il tuo indirizzo email è cambiato', [
-      `${by === 'self' ? 'Hai cambiato' : `${by} ha cambiato`} l’indirizzo con cui entri nel pannello del sito: da ${before} a ${after}.`,
-      'Se non te lo aspettavi, rispondi a questa email o avvisa un amministratore del sito.',
-    ])
+  const emailChanged = async (before: string, after: string, by: string, locale: string | null) => {
+    await withLang(langFor(locale), () =>
+      mailNotice(before, t('Il tuo indirizzo email è cambiato'), [
+        by === 'self'
+          ? t('Hai cambiato l’indirizzo con cui entri nel pannello del sito: da {before} a {after}.', { before, after })
+          : t('{by} ha cambiato l’indirizzo con cui entri nel pannello del sito: da {before} a {after}.', {
+              by,
+              before,
+              after,
+            }),
+        t('Se non te lo aspettavi, rispondi a questa email o avvisa un amministratore del sito.'),
+      ]),
+    )
   }
 
   // Changing one's own email needs the password: a session left open is not enough.
@@ -1634,13 +1723,13 @@ export function createApp(base: ServerContext) {
     const hash = await auth.getPasswordHash(user.id)
     if (!hash || !(await verifyPassword(input.password, hash))) {
       throw new ApiError(422, 'wrong_password', 'The password is not correct', [
-        { path: 'password', message: 'La password non è corretta' },
+        { path: 'password', message: t('La password non è corretta') },
       ])
     }
     try {
       const updated = await auth.updateUser(user.id, { email: input.email })
       if (updated && updated.email !== user.email) {
-        await emailChanged(user.email, updated.email, 'self')
+        await emailChanged(user.email, updated.email, 'self', user.locale)
         await record(c, 'user.email', updated.email, { from: user.email })
       }
       return c.json({ user: updated })
@@ -1656,7 +1745,7 @@ export function createApp(base: ServerContext) {
     const hash = await auth.getPasswordHash(user.id)
     if (!hash || !(await verifyPassword(input.current, hash))) {
       throw new ApiError(422, 'wrong_password', 'The current password is not correct', [
-        { path: 'current', message: 'La password attuale non è corretta' },
+        { path: 'current', message: t('La password attuale non è corretta') },
       ])
     }
     // Other devices are signed out; this one stays in.
@@ -1693,10 +1782,10 @@ export function createApp(base: ServerContext) {
       const mailed = await mailLink(
         c,
         input.email,
-        'Il tuo invito',
+        t('Il tuo invito'),
         [
-          `${c.get('user').name} ti ha invitato a lavorare sul sito con Materialize.`,
-          'Apri questo link per scegliere la tua password ed entrare:',
+          t('{name} ti ha invitato a lavorare sul sito con Materialize.', { name: c.get('user').name }),
+          t('Apri questo link per scegliere la tua password ed entrare:'),
         ],
         link,
       )
@@ -1730,7 +1819,7 @@ export function createApp(base: ServerContext) {
     try {
       const updated = await auth.updateUser(target.id, input)
       if (updated && updated.email !== target.email) {
-        await emailChanged(target.email, updated.email, c.get('user').name)
+        await emailChanged(target.email, updated.email, c.get('user').name, target.locale)
         await record(c, 'user.email', updated.email, { from: target.email })
       }
       if (updated && updated.role !== target.role) await record(c, 'user.role', updated.email, { role: updated.role })
@@ -1756,10 +1845,15 @@ export function createApp(base: ServerContext) {
   app.delete('/api/users/:id/two-factor', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     await auth.disableTwoFactor(target.id)
-    await mailNotice(target.email, 'Verifica in due passaggi disattivata', [
-      `${c.get('user').name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.`,
-      'Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.',
-    ])
+    await withLang(langFor(target.locale), () =>
+      mailNotice(target.email, t('Verifica in due passaggi disattivata'), [
+        t(
+          '{name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.',
+          { name: c.get('user').name },
+        ),
+        t('Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.'),
+      ]),
+    )
     await record(c, 'twofactor.reset', target.email)
     return c.json({ user: await auth.getUser(target.id) })
   })
@@ -1776,12 +1870,14 @@ export function createApp(base: ServerContext) {
       ttlMs: RESET_TTL,
     })
     const link = linkPath(token)
-    const mailed = await mailLink(
-      c,
-      target.email,
-      'Nuova password',
-      ['È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:'],
-      link,
+    const mailed = await withLang(langFor(target.locale), () =>
+      mailLink(
+        c,
+        target.email,
+        t('Nuova password'),
+        [t('È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:')],
+        link,
+      ),
     )
     await record(c, 'user.reset_link', target.email)
     return c.json({ invite, link, mailed }, 201)
@@ -1929,7 +2025,9 @@ export function createApp(base: ServerContext) {
         throw new ApiError(
           409,
           'global_in_use',
-          `La sezione è ancora in ${usage[inUse]?.map((t) => `“${t}”`).join(', ')}: toglila prima dalle pagine`,
+          t('La sezione è ancora in {pages}: toglila prima dalle pagine', {
+            pages: usage[inUse]?.map((title) => `“${title}”`).join(', '),
+          }),
         )
     }
     const ids = [...new Set([...Object.keys(before), ...Object.keys(input.globals)])].sort()
@@ -2046,13 +2144,13 @@ export function createApp(base: ServerContext) {
       throw new ApiError(
         409,
         'not_your_turn',
-        `${turn.name} sta modificando questo documento: le tue modifiche non sono state salvate`,
+        t('{name} sta modificando questo documento: le tue modifiche non sono state salvate', { name: turn.name }),
       )
     if (tab && tab !== turn.tab)
       throw new ApiError(
         409,
         'not_your_turn',
-        'Questo documento è aperto in un’altra scheda: le modifiche di qui non sono state salvate',
+        t('Questo documento è aperto in un’altra scheda: le modifiche di qui non sono state salvate'),
       )
   }
 
@@ -2146,8 +2244,8 @@ export function createApp(base: ServerContext) {
     try {
       await sendMail(mail, {
         to,
-        subject: 'Prova di invio da Materialize',
-        text: 'Se leggi questo messaggio, l’invio delle email dal sito funziona.',
+        subject: t('Prova di invio da Materialize'),
+        text: t('Se leggi questo messaggio, l’invio delle email dal sito funziona.'),
       })
     } catch (error) {
       // What went wrong and what to do, in words: a blocked port, a wrong password, an unverified sender…
@@ -2191,7 +2289,7 @@ export function createApp(base: ServerContext) {
 
   const readyAi = async () => {
     const ai = await aiSettings()
-    if (!isReady(ai)) throw new ApiError(400, 'ai_not_configured', 'L’AI non è configurata: Impostazioni → AI e MCP')
+    if (!isReady(ai)) throw new ApiError(400, 'ai_not_configured', t('L’AI non è configurata: Impostazioni → AI e MCP'))
     return { ...ai, onUsage: countUsage }
   }
   const aiFailed = (error: unknown): never => {
@@ -2266,7 +2364,8 @@ export function createApp(base: ServerContext) {
    * panel puts it in the form to check.
    */
   app.post('/api/voice/suggest', requireUser, requireAdmin, async (c) => {
-    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(c.get('user').id))
+      throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const config = ctx.config()
     const texts: string[] = []
@@ -2282,7 +2381,7 @@ export function createApp(base: ServerContext) {
       }
     }
     if (size < 300)
-      throw new ApiError(400, 'too_little_text', 'Il sito ha ancora pochi testi pubblicati: scrivi la voce a mano')
+      throw new ApiError(400, 'too_little_text', t('Il sito ha ancora pochi testi pubblicati: scrivi la voce a mano'))
     const reply = await complete(ai, {
       system:
         'You describe the voice of a brand from the texts of its website, for a style guide the brand will reuse. Reply with JSON only, no code fences.',
@@ -2313,7 +2412,7 @@ ${texts.join('\n---\n')}
         address: ['tu', 'voi', 'lei'].includes(raw.address as string) ? raw.address : null,
       },
     )
-    if (!parsed.success) throw new ApiError(422, 'ai_failed', 'L’AI non ha risposto come doveva: riprova')
+    if (!parsed.success) throw new ApiError(422, 'ai_failed', t('L’AI non ha risposto come doveva: riprova'))
     return c.json({ voice: parsed.data, texts: texts.length })
   })
 
@@ -2344,11 +2443,12 @@ ${texts.join('\n---\n')}
   app.post('/api/documents/:id/review', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     const input = await body(c, z.object({ data: z.record(z.string(), z.unknown()).optional() }))
-    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(c.get('user').id))
+      throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const def = collection(existing.collection)
     const slots = documentSlots(def.fields, structuredClone(input.data ?? existing.data))
-    if (!slots.length) throw new ApiError(400, 'empty_text', 'Non c’è testo da rivedere')
+    if (!slots.length) throw new ApiError(400, 'empty_text', t('Non c’è testo da rivedere'))
     const titles = await pageTitles()
     const linkTo = (href: string) => {
       const path = href.split('#')[0] || href
@@ -2386,7 +2486,7 @@ ${listed.join('\n')}
     try {
       raw = JSON.parse(reply.replace(/^\s*```(?:json)?|```\s*$/g, '').trim())
     } catch {
-      throw new ApiError(422, 'ai_failed', 'L’AI non ha risposto come doveva: riprova')
+      throw new ApiError(422, 'ai_failed', t('L’AI non ha risposto come doveva: riprova'))
     }
     const issue = z.object({
       slot: z.number().int().min(0),
@@ -2433,7 +2533,7 @@ ${listed.join('\n')}
     const slot = slots[input.slot]?.text.includes(input.find)
       ? slots[input.slot]
       : slots.find((s) => s.text.includes(input.find))
-    if (!slot) throw new ApiError(409, 'changed', 'Quel testo è cambiato: rifai la revisione')
+    if (!slot) throw new ApiError(409, 'changed', t('Quel testo è cambiato: rifai la revisione'))
     slot.set(slot.text.replace(input.find, input.replace))
     return c.json({ data })
   })
@@ -2468,7 +2568,8 @@ ${listed.join('\n')}
         max: z.number().int().positive().max(100_000).optional(),
       }),
     )
-    if (!allowAi(c.get('user').id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(c.get('user').id))
+      throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     // Writing from scratch takes the whole voice; changing a text, only its style.
     const voice = await voiceText(['seo_title', 'seo_description', 'custom'].includes(input.action) ? 'full' : 'style')
@@ -2482,7 +2583,7 @@ ${listed.join('\n')}
     if (input.action === 'alt') {
       const key = /^\/media\/([^/?#@]+)/.exec(input.src ?? '')?.[1]
       const file = key ? await files.open(decodeURIComponent(key), { width: 1024, format: 'jpg' }) : null
-      if (!file) throw new ApiError(400, 'no_image', 'Scegli prima un’immagine della libreria')
+      if (!file) throw new ApiError(400, 'no_image', t('Scegli prima un’immagine della libreria'))
       const data = (await readFile(file.path)).toString('base64')
       // The text already there may credit the photographer or the source: that part stays.
       const current = input.text.trim()
@@ -2496,7 +2597,7 @@ ${listed.join('\n')}
       }).catch(aiFailed)
       return c.json({ text })
     }
-    if (!input.text.trim()) throw new ApiError(400, 'empty_text', 'Non c’è testo su cui lavorare')
+    if (!input.text.trim()) throw new ApiError(400, 'empty_text', t('Non c’è testo su cui lavorare'))
     const task =
       input.action === 'translate'
         ? `Translate it into ${input.instruction || 'English'}, naturally, as a native writer would.`
@@ -2566,7 +2667,7 @@ ${listed.join('\n')}
       }),
     )
     const user = c.get('user')
-    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const now = Date.now()
     for (const [k, v] of chats) if (now - v.at > 2 * 60 * 60 * 1000) chats.delete(k)
@@ -2618,7 +2719,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           if (limited && !sameDesign(before, page.nodes))
             await send({
               type: 'error',
-              message: 'Puoi cambiare solo i contenuti: le modifiche al layout non sono state applicate.',
+              message: t('Puoi cambiare solo i contenuti: le modifiche al layout non sono state applicate.'),
             })
           else await send({ type: 'page', nodes: page.nodes })
         }
@@ -2628,7 +2729,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         if (!(error instanceof AiError)) console.error(error)
         // A failed turn leaves the conversation as it was before it.
         chats.delete(key)
-        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'error', message: error instanceof Error ? error.message : t('Errore') })
         await send({ type: 'done', chatId })
       }
     })
@@ -2647,7 +2748,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       c,
       z
         .object({
-          brief: z.string().trim().min(20, 'Scrivi qualche riga in più sull’attività').max(6000).optional(),
+          brief: z.string().trim().min(20, t('Scrivi qualche riga in più sull’attività')).max(6000).optional(),
           /** A reply in a run already started, with its id. */
           runId: z.string().max(64).optional(),
           message: z.string().trim().min(1).max(4000).optional(),
@@ -2662,10 +2763,10 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             .max(2)
             .default([]),
         })
-        .refine((v) => (v.runId ? !!v.message : !!v.brief), { message: 'Scrivi il brief' }),
+        .refine((v) => (v.runId ? !!v.message : !!v.brief), { message: t('Scrivi il brief') }),
     )
     const user = c.get('user')
-    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const now = Date.now()
     for (const [k, v] of briefRuns) if (now - v.at > 2 * 60 * 60 * 1000) briefRuns.delete(k)
@@ -2673,7 +2774,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const key = `${user.id}:${runId}`
     let run = input.runId ? briefRuns.get(key) : undefined
     if (input.runId && (!run || run.conv.provider !== ai.provider))
-      throw new ApiError(409, 'run_expired', 'Questa conversazione non c’è più: parti da un nuovo brief')
+      throw new ApiError(409, 'run_expired', t('Questa conversazione non c’è più: parti da un nuovo brief'))
 
     if (!run) {
       const config = ctx.config()
@@ -2681,7 +2782,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         (d) => !d.singleton && Object.values(d.fields).some((f) => f.kind === 'page'),
       )
       if (!pageCollections.length)
-        throw new ApiError(400, 'no_pages', 'Il sito non ha una raccolta di pagine costruite sulla tela')
+        throw new ApiError(400, 'no_pages', t('Il sito non ha una raccolta di pagine costruite sulla tela'))
       const locale = config.locales.default
       const existing: string[] = []
       for (const d of config.collections.filter((x) => !x.singleton)) {
@@ -2748,7 +2849,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         // What was made before the failure stays, as drafts: the panel lists it. The run ends.
         briefRuns.delete(key)
         await send({ type: 'result', ...result })
-        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'error', message: error instanceof Error ? error.message : t('Errore') })
         await send({ type: 'done' })
       }
     })
@@ -2775,7 +2876,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       }),
     )
     const user = c.get('user')
-    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const now = Date.now()
     for (const [k, v] of studioRuns) if (now - v.at > 2 * 60 * 60 * 1000) studioRuns.delete(k)
@@ -2826,7 +2927,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       } catch (error) {
         if (!(error instanceof AiError)) console.error(error)
         studioRuns.delete(key)
-        await send({ type: 'error', message: error instanceof Error ? error.message : 'Errore' })
+        await send({ type: 'error', message: error instanceof Error ? error.message : t('Errore') })
         await send({ type: 'done' })
       }
     })
@@ -2912,7 +3013,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       const fingerprint = fingerprintOf(form, data)
       const spam =
         spamReason(data, elapsed) ??
-        ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? 'Messaggio ripetuto' : null)
+        ((await submissions.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? t('Messaggio ripetuto') : null)
       // A signup form: no message, a subscriber waiting to confirm. Spam gets the same answer.
       if (def?.newsletter) {
         if (!spam) await signUp(c, def, data, page)
@@ -2933,11 +3034,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         if (isConfigured(mail) && to) {
           const subject = def?.subject || (typeof raw._subject === 'string' ? raw._subject.slice(0, 120) : '')
           const attached = files.length
-            ? `\n\nAllegati (${files.map((f) => f.name).join(', ')}): li trovi in Impostazioni → Messaggi.`
+            ? `\n\n${t('Allegati ({files}): li trovi in Impostazioni → Messaggi.', { files: files.map((f) => f.name).join(', ') })}`
             : ''
           sendMail(mail, {
             to,
-            subject: `Nuovo messaggio dal sito${subject ? `: ${subject}` : ''}`,
+            subject: subject ? t('Nuovo messaggio dal sito: {subject}', { subject }) : t('Nuovo messaggio dal sito'),
             text: submissionText(page, data) + attached,
             replyTo: sender,
           })
@@ -2997,7 +3098,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       return /[",\n;]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
     }
     const rows = [
-      ['Data', 'Modulo', 'Pagina', ...fields],
+      [t('Data'), t('Modulo'), t('Pagina'), ...fields],
       ...items.map((m) => [
         m.createdAt.toISOString(),
         m.formName || m.form,
@@ -3020,7 +3121,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const input = await body(c, z.object({ read: z.boolean().optional(), spam: z.boolean().optional() }))
     const id = c.req.param('id')
     if (input.read !== undefined) await submissions.markRead(id, input.read)
-    if (input.spam !== undefined) await submissions.markSpam(id, input.spam ? 'Segnato a mano' : null)
+    if (input.spam !== undefined) await submissions.markSpam(id, input.spam ? t('Segnato a mano') : null)
     return c.json({ ok: true })
   })
 
@@ -3028,9 +3129,9 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.get('/api/submissions/:id/files/:n', requireUser, async (c) => {
     const message = await submissions.get(c.req.param('id'))
     const file = message?.files[Number(c.req.param('n'))]
-    if (!message || !file) throw new ApiError(404, 'not_found', 'File non trovato')
+    if (!message || !file) throw new ApiError(404, 'not_found', t('File non trovato'))
     const bytes = await readFile(join(uploadsDir, file.path)).catch(() => null)
-    if (!bytes) throw new ApiError(404, 'not_found', 'Il file non c’è più')
+    if (!bytes) throw new ApiError(404, 'not_found', t('Il file non c’è più'))
     return new Response(bytes, {
       headers: {
         'content-type': 'application/octet-stream',
@@ -3112,14 +3213,14 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       c,
       z.object({
         tracking: z.object({
-          ga4: id(TRACKING_PATTERNS.ga4, 'Un ID di Google Analytics 4 inizia con G-'),
-          gtm: id(TRACKING_PATTERNS.gtm, 'Un ID di Tag Manager inizia con GTM-'),
+          ga4: id(TRACKING_PATTERNS.ga4, t('Un ID di Google Analytics 4 inizia con G-')),
+          gtm: id(TRACKING_PATTERNS.gtm, t('Un ID di Tag Manager inizia con GTM-')),
           gtmCategory: category.optional(),
-          metaPixel: id(TRACKING_PATTERNS.metaPixel, 'L’ID del Pixel è fatto di sole cifre'),
-          plausible: id(TRACKING_PATTERNS.plausible, 'Scrivi il dominio come su Plausible, per esempio example.com'),
-          plausibleSrc: id(/^https:\/\/[^"<>\s]+$/, 'Un indirizzo https://'),
-          matomoUrl: id(/^https:\/\/[^"'<>\s]+$/, 'L’indirizzo di Matomo, con https://'),
-          matomoSiteId: id(TRACKING_PATTERNS.matomoSiteId, 'Il numero del sito su Matomo'),
+          metaPixel: id(TRACKING_PATTERNS.metaPixel, t('L’ID del Pixel è fatto di sole cifre')),
+          plausible: id(TRACKING_PATTERNS.plausible, t('Scrivi il dominio come su Plausible, per esempio example.com')),
+          plausibleSrc: id(/^https:\/\/[^"<>\s]+$/, t('Un indirizzo https://')),
+          matomoUrl: id(/^https:\/\/[^"'<>\s]+$/, t('L’indirizzo di Matomo, con https://')),
+          matomoSiteId: id(TRACKING_PATTERNS.matomoSiteId, t('Il numero del sito su Matomo')),
           custom: z
             .array(
               z.object({
@@ -3130,7 +3231,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
                 code: z
                   .string()
                   .max(20_000)
-                  .refine((v) => !/<\/template/i.test(v), 'Il codice non può contenere </template>'),
+                  .refine((v) => !/<\/template/i.test(v), t('Il codice non può contenere </template>')),
               }),
             )
             .max(30)
@@ -3139,7 +3240,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             .object({
               title: z.string().trim().max(120).optional(),
               text: z.string().trim().max(600).optional(),
-              policyUrl: id(/^(https?:\/\/|\/)[^"<>\s]*$/, 'Un indirizzo che inizia con / o https://'),
+              policyUrl: id(/^(https?:\/\/|\/)[^"<>\s]*$/, t('Un indirizzo che inizia con / o https://')),
               position: z.enum(['bottom', 'corner']).optional(),
               reopenButton: z.boolean().optional(),
             })
@@ -3425,17 +3526,21 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     }
     const at = new Date(input.at)
     if (at.getTime() <= Date.now() + 30_000)
-      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
+      throw new ApiError(400, 'past_time', t('Scegli un momento nel futuro, almeno tra un minuto'))
     const current = await schedules.forDocument(existing.id)
     if (input.action === 'publish') publishableData(collection(existing.collection), existing.data)
     else {
       if (!existing.publishedAt && !current.publish)
-        throw new ApiError(409, 'not_published', 'La pagina non è sul sito: programma prima la pubblicazione')
+        throw new ApiError(409, 'not_published', t('La pagina non è sul sito: programma prima la pubblicazione'))
       if (current.publish && current.publish.runAt >= at)
-        throw new ApiError(400, 'before_publish', 'La pagina verrebbe tolta prima di essere pubblicata')
+        throw new ApiError(400, 'before_publish', t('La pagina verrebbe tolta prima di essere pubblicata'))
     }
     if (input.action === 'publish' && current.unpublish && current.unpublish.runAt <= at)
-      throw new ApiError(400, 'after_unpublish', 'La pubblicazione verrebbe dopo il momento in cui la pagina va tolta')
+      throw new ApiError(
+        400,
+        'after_unpublish',
+        t('La pubblicazione verrebbe dopo il momento in cui la pagina va tolta'),
+      )
     await schedules.set({ documentId: existing.id, action: input.action, runAt: at, user })
     await record(c, 'document.scheduled', existing.title, {
       collection: existing.collection,
@@ -3449,11 +3554,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   /** Why a document's draft cannot go on the site now, in words; null when it can. */
   const publishProblem = (doc: StoredDocument): string | null => {
     const def = ctx.config().collections.find((x) => x.name === doc.collection)
-    if (!def) return 'La raccolta non esiste più'
+    if (!def) return t('La raccolta non esiste più')
     const check = validate(def, prepare(def, doc.data))
     if (check.ok) return null
     const fields = [...new Set(check.issues.map((i) => def.fields[i.path.split('.')[0] ?? '']?.label ?? i.path))]
-    return `Alcuni campi vanno completati${fields.length ? `: ${fields.join(', ')}` : ''}`
+    return fields.length
+      ? t('Alcuni campi vanno completati: {fields}', { fields: fields.join(', ') })
+      : t('Alcuni campi vanno completati')
   }
 
   /**
@@ -3481,7 +3588,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             .catch((error) => console.error('Materialize: activity not recorded', error))
         const existing = await content.get(item.documentId)
         if (!existing) {
-          await schedules.finish(item.id, 'failed', 'La pagina non esiste più')
+          await schedules.finish(item.id, 'failed', t('La pagina non esiste più'))
           continue
         }
         try {
@@ -3498,7 +3605,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           }
           ran++
         } catch (error) {
-          const message = error instanceof Error && error.message ? error.message : 'Errore imprevisto'
+          const message = error instanceof Error && error.message ? error.message : t('Errore imprevisto')
           await schedules.finish(item.id, 'failed', message)
           await note('document.schedule_failed', existing.title, {
             collection: existing.collection,
@@ -3544,13 +3651,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const out: ReleaseProblem[] = []
     for (const item of release.items) {
       const doc = await content.get(item.documentId)
-      if (!doc) out.push({ documentId: item.documentId, title: '', message: 'La pagina non esiste più' })
+      if (!doc) out.push({ documentId: item.documentId, title: '', message: t('La pagina non esiste più') })
       else if (item.action === 'publish') {
         const message = publishProblem(doc)
         if (message) out.push({ documentId: doc.id, title: doc.title, message })
       }
     }
-    if (!release.items.length) out.push({ documentId: '', title: '', message: 'Il rilascio è vuoto' })
+    if (!release.items.length) out.push({ documentId: '', title: '', message: t('Il rilascio è vuoto') })
     return out
   }
 
@@ -3585,8 +3692,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         done.push(doc.title)
       }
     } catch (error) {
-      const why = error instanceof Error && error.message ? error.message : 'Errore imprevisto'
-      const message = `${why}${done.length ? ` (già uscite: ${done.join(', ')})` : ''}`
+      const why = error instanceof Error && error.message ? error.message : t('Errore imprevisto')
+      const message = done.length ? t('{why} (già uscite: {done})', { why, done: done.join(', ') }) : why
       await releases.finish(release.id, 'failed', message)
       await note('release.failed', release.name, { id: release.id, message })
       return false
@@ -3617,13 +3724,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   const loadRelease = async (id: string) => {
     const release = await releases.get(id)
-    if (!release) throw new ApiError(404, 'not_found', 'Questo rilascio non esiste')
+    if (!release) throw new ApiError(404, 'not_found', t('Questo rilascio non esiste'))
     return release
   }
   const openRelease = async (id: string) => {
     const release = await loadRelease(id)
     if (release.status === 'published' || release.status === 'cancelled')
-      throw new ApiError(409, 'release_closed', 'Questo rilascio è già uscito o è stato annullato')
+      throw new ApiError(409, 'release_closed', t('Questo rilascio è già uscito o è stato annullato'))
     return release
   }
 
@@ -3667,7 +3774,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const doc = await loadDocument(c.req.param('documentId'))
     const input = await body(c, z.object({ action: z.enum(['publish', 'unpublish']).default('publish') }))
     if (input.action === 'unpublish' && !doc.publishedAt)
-      throw new ApiError(409, 'not_published', 'La pagina non è sul sito: non c’è niente da togliere')
+      throw new ApiError(409, 'not_published', t('La pagina non è sul sito: non c’è niente da togliere'))
     await releases.put(release.id, doc.id, input.action)
     await record(c, 'release.item_added', doc.title, { id: release.id, release: release.name, action: input.action })
     return c.json(await releaseJson(await loadRelease(release.id)))
@@ -3688,7 +3795,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         {
           error: {
             code: 'release_not_ready',
-            message: 'Alcune pagine non sono pronte: non è uscito niente',
+            message: t('Alcune pagine non sono pronte: non è uscito niente'),
             problems,
           },
         },
@@ -3697,7 +3804,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const user = c.get('user')
     const ok = await releaseOut(release, user)
     const after = await loadRelease(release.id)
-    if (!ok) throw new ApiError(422, 'release_failed', after.error ?? 'Il rilascio non è uscito')
+    if (!ok) throw new ApiError(422, 'release_failed', after.error ?? t('Il rilascio non è uscito'))
     return c.json(await releaseJson(after))
   })
 
@@ -3713,8 +3820,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     }
     const at = new Date(input.at)
     if (at.getTime() <= Date.now() + 30_000)
-      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
-    if (!release.items.length) throw new ApiError(400, 'empty_release', 'Aggiungi prima qualcosa al rilascio')
+      throw new ApiError(400, 'past_time', t('Scegli un momento nel futuro, almeno tra un minuto'))
+    if (!release.items.length) throw new ApiError(400, 'empty_release', t('Aggiungi prima qualcosa al rilascio'))
     await releases.schedule(release.id, at, user)
     await record(c, 'release.scheduled', release.name, { id: release.id, at: at.toISOString() })
     return c.json(await releaseJson(await loadRelease(release.id)))
@@ -3927,7 +4034,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   app.delete('/api/subscribers/:id', requireUser, requireAdmin, async (c) => {
     const found = await newsletter.subscriber(c.req.param('id'))
-    if (!found) throw new ApiError(404, 'not_found', 'Questo iscritto non esiste')
+    if (!found) throw new ApiError(404, 'not_found', t('Questo iscritto non esiste'))
     await newsletter.removeSubscriber(found.id)
     await record(c, 'newsletter.subscriber_removed', found.email)
     return c.body(null, 204)
@@ -3936,7 +4043,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.post('/api/subscribers/import', requireUser, requireAdmin, async (c) => {
     const input = await body(c, z.object({ csv: z.string().max(5_000_000) }))
     const rows = parseSubscribersCsv(input.csv)
-    if (!rows.length) throw new ApiError(422, 'no_addresses', 'Nel file non ho trovato indirizzi email')
+    if (!rows.length) throw new ApiError(422, 'no_addresses', t('Nel file non ho trovato indirizzi email'))
     const result = await newsletter.importMany(rows)
     await record(c, 'newsletter.imported', '', result)
     return c.json({ found: rows.length, ...result })
@@ -3985,12 +4092,12 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   const newsletterJson = async (n: Newsletter) => ({ ...n, stats: await newsletter.stats(n.id) })
   const loadNewsletter = async (id: string) => {
     const found = await newsletter.get(id)
-    if (!found) throw new ApiError(404, 'not_found', 'Questa newsletter non esiste')
+    if (!found) throw new ApiError(404, 'not_found', t('Questa newsletter non esiste'))
     return found
   }
   const editable = (n: Newsletter) => {
     if (n.status === 'sending' || n.status === 'sent')
-      throw new ApiError(409, 'newsletter_sent', 'Questa newsletter è già partita: non si può più cambiare')
+      throw new ApiError(409, 'newsletter_sent', t('Questa newsletter è già partita: non si può più cambiare'))
   }
   const newsletterBody = z.object({
     subject: z.string().trim().min(1).max(200),
@@ -4024,7 +4131,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.delete('/api/newsletters/:id', requireUser, async (c) => {
     const found = await loadNewsletter(c.req.param('id'))
     if (found.status === 'sending')
-      throw new ApiError(409, 'newsletter_sending', 'La newsletter sta partendo: aspetta che finisca')
+      throw new ApiError(409, 'newsletter_sending', t('La newsletter sta partendo: aspetta che finisca'))
     await newsletter.remove(found.id)
     await record(c, 'newsletter.deleted', found.subject)
     return c.body(null, 204)
@@ -4073,7 +4180,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   const readyMail = async () => {
     const mail = await settings.get<MailSettings>('mail')
     if (!isConfigured(mail))
-      throw new ApiError(400, 'mail_not_configured', 'Per inviare la newsletter serve l’email: Impostazioni → Email')
+      throw new ApiError(400, 'mail_not_configured', t('Per inviare la newsletter serve l’email: Impostazioni → Email'))
     return mail
   }
 
@@ -4084,7 +4191,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const mail = await readyMail()
     await newsletterOrigin(c)
     const message = await composeNewsletter(found, null)
-    await sendMail(mail, { to: input.to ?? c.get('user').email, ...message, subject: `[Prova] ${message.subject}` })
+    await sendMail(mail, {
+      to: input.to ?? c.get('user').email,
+      ...message,
+      subject: t('[Prova] {subject}', { subject: message.subject }),
+    })
     return c.json({ ok: true })
   })
 
@@ -4094,7 +4205,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     await readyMail()
     await newsletterOrigin(c)
     const { counts } = await newsletter.subscribers({ limit: 1 })
-    if (!counts.active) throw new ApiError(400, 'no_subscribers', 'Non ci sono ancora iscritti attivi')
+    if (!counts.active) throw new ApiError(400, 'no_subscribers', t('Non ci sono ancora iscritti attivi'))
     await newsletter.setStatus(found.id, 'sending', { runAt: new Date(), error: null })
     await record(c, 'newsletter.sent', found.subject, { subscribers: counts.active })
     void runNewsletters()
@@ -4111,7 +4222,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     }
     const at = new Date(input.at)
     if (at.getTime() <= Date.now() + 30_000)
-      throw new ApiError(400, 'past_time', 'Scegli un momento nel futuro, almeno tra un minuto')
+      throw new ApiError(400, 'past_time', t('Scegli un momento nel futuro, almeno tra un minuto'))
     await readyMail()
     await newsletterOrigin(c)
     await newsletter.setStatus(found.id, 'scheduled', { runAt: at, error: null })
@@ -4165,7 +4276,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       z.object({ count: z.number().int().min(1).max(10).default(3), note: z.string().max(1000).optional() }),
     )
     const user = c.get('user')
-    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+    if (!allowAi(user.id)) throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const ai = await readyAi()
     const config = ctx.config()
     const lang = config.locales.default
@@ -4195,7 +4306,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     }
     items.sort((a, b) => b.date - a.date)
     const latest = items.slice(0, input.count)
-    if (!latest.length) throw new ApiError(400, 'no_articles', 'Non ci sono ancora articoli pubblicati da raccontare')
+    if (!latest.length)
+      throw new ApiError(400, 'no_articles', t('Non ci sono ancora articoli pubblicati da raccontare'))
     const voice = await voiceText()
     const system = `${voice ? `${voice}\n\n` : ''}You write the email newsletter of the website "${config.site.name}", in ${languageName(lang)}. You get its latest articles; write a short newsletter that makes people want to read them: a subject (at most 70 characters), a preheader (one sentence, at most 120 characters), an opening of one or two sentences, then for each article a heading with its title and two or three sentences on why it is worth reading, ending with a link to it. Use only facts from the articles. Reply with JSON only: {"subject": "...", "preheader": "...", "blocks": [{"type": "paragraph"|"heading", "text": "...", "link": {"text": "...", "href": "..."}?}]}.`
     const prompt = `${input.note ? `<note>${input.note}</note>\n` : ''}${latest.map((a) => `<article title="${a.title.replace(/"/g, "'")}" url="${a.url}">\n${a.text}\n</article>`).join('\n')}`
@@ -4208,7 +4320,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     try {
       parsed = JSON.parse(reply.replace(/^```(?:json)?\s*|\s*```$/g, ''))
     } catch {
-      throw new ApiError(422, 'ai_failed', 'La risposta dell’AI non era leggibile: riprova')
+      throw new ApiError(422, 'ai_failed', t('La risposta dell’AI non era leggibile: riprova'))
     }
     const known = new Set(latest.map((a) => a.url))
     const blocks: unknown[] = []
@@ -4243,7 +4355,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       for (const n of await newsletter.due(now)) {
         const mail = await settings.get<MailSettings>('mail')
         if (!isConfigured(mail)) {
-          await newsletter.setStatus(n.id, 'failed', { error: 'L’email non è configurata' })
+          await newsletter.setStatus(n.id, 'failed', { error: t('L’email non è configurata') })
           continue
         }
         if (n.status === 'scheduled') await newsletter.setStatus(n.id, 'sending')
@@ -4254,7 +4366,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
           for (const item of batch) {
             const who = await newsletter.subscriber(item.subscriberId)
             if (!who || who.status !== 'active') {
-              await newsletter.markSend(item.id, 'failed', 'Non più iscritto')
+              await newsletter.markSend(item.id, 'failed', t('Non più iscritto'))
               continue
             }
             try {
@@ -4266,7 +4378,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
               await newsletter.markSend(
                 item.id,
                 'failed',
-                error instanceof Error ? error.message.slice(0, 300) : 'Errore',
+                error instanceof Error ? error.message.slice(0, 300) : t('Errore'),
               )
             }
             if (pause) await new Promise((r) => setTimeout(r, pause))
@@ -4276,7 +4388,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         const allFailed = stats.total > 0 && stats.sent === 0
         await newsletter.setStatus(n.id, allFailed ? 'failed' : 'sent', {
           sentAt: new Date(),
-          error: allFailed ? 'Nessun invio riuscito: controlla Impostazioni → Email' : null,
+          error: allFailed ? t('Nessun invio riuscito: controlla Impostazioni → Email') : null,
         })
       }
       // Signups never confirmed are dropped after a week.
@@ -4310,9 +4422,9 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.post('/api/documents/:id/previews', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     const input = await body(c, z.object({ days: z.number().int().min(1).max(365).nullable() }))
-    if (!ctx.preview) throw new ApiError(409, 'no_site', 'Questo sito non ha pagine da mostrare in anteprima')
+    if (!ctx.preview) throw new ApiError(409, 'no_site', t('Questo sito non ha pagine da mostrare in anteprima'))
     if (!collection(existing.collection).url)
-      throw new ApiError(400, 'no_page', 'Questo contenuto non ha una pagina sul sito')
+      throw new ApiError(400, 'no_page', t('Questo contenuto non ha una pagina sul sito'))
     const expiresAt = input.days === null ? null : new Date(Date.now() + input.days * 86_400_000)
     const link = await previewLinks.create({ documentId: existing.id, expiresAt, user: c.get('user') })
     await record(c, 'document.preview_shared', existing.title, {
@@ -4325,7 +4437,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
 
   app.delete('/api/previews/:id', requireUser, async (c) => {
     const link = await previewLinks.get(c.req.param('id'))
-    if (!link) throw new ApiError(404, 'not_found', 'Link non trovato')
+    if (!link) throw new ApiError(404, 'not_found', t('Link non trovato'))
     const doc = await content.get(link.documentId)
     await previewLinks.revoke(link.id)
     await record(c, 'document.preview_revoked', doc?.title ?? '', { id: link.documentId })
@@ -4384,12 +4496,15 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const input = await body(
       c,
       z.object({
-        default: z.string().refine(isLocaleCode, 'Codice lingua non valido'),
-        available: z.array(z.string().refine(isLocaleCode, 'Codice lingua non valido')).min(1).max(30),
+        default: z.string().refine(isLocaleCode, t('Codice lingua non valido')),
+        available: z
+          .array(z.string().refine(isLocaleCode, t('Codice lingua non valido')))
+          .min(1)
+          .max(30),
       }),
     )
     if (!input.available.includes(input.default))
-      throw new ApiError(400, 'invalid_locales', 'La lingua principale deve essere tra quelle del sito')
+      throw new ApiError(400, 'invalid_locales', t('La lingua principale deve essere tra quelle del sito'))
     const value = { default: input.default, available: [...new Set(input.available)] }
     await settings.set('locales', value, c.get('user').id)
     languages = value
@@ -4440,11 +4555,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const lang = locale(input.locale)
     const group = await content.translations(doc.id)
     if (group.some((t) => t.locale === lang))
-      throw new ApiError(409, 'translation_exists', 'Questa lingua esiste già: aprila dall’elenco delle lingue')
+      throw new ApiError(409, 'translation_exists', t('Questa lingua esiste già: aprila dall’elenco delle lingue'))
     if (def.singleton && (await content.list(def.name, { locale: lang, limit: 1 })).total > 0)
-      throw new ApiError(409, 'singleton_exists', `"${def.label}" esiste già in questa lingua`)
+      throw new ApiError(409, 'singleton_exists', t('"{label}" esiste già in questa lingua', { label: def.label }))
     if (input.translate && !allowAi(c.get('user').id))
-      throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+      throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
     const data = structuredClone(doc.data)
     if (input.translate) {
       // The address is translated too ("chi-siamo" → "about-us"), the home page keeps its own.
@@ -4482,7 +4597,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.post('/api/documents/:id/sync', requireUser, async (c) => {
     const input = await body(c, z.object({ translate: z.boolean().default(false) }))
     const doc = await loadDocument(c.req.param('id'))
-    if (!doc.sourceId) throw new ApiError(400, 'not_a_translation', 'Questa è la versione originale')
+    if (!doc.sourceId) throw new ApiError(400, 'not_a_translation', t('Questa è la versione originale'))
     const original = await loadDocument(doc.sourceId)
     const def = collection(doc.collection)
     const data = structuredClone(doc.data)
@@ -4496,7 +4611,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     }
     if (input.translate && fresh.size) {
       if (!allowAi(c.get('user').id))
-        throw new ApiError(429, 'too_many_requests', 'Troppe richieste: aspetta un minuto')
+        throw new ApiError(429, 'too_many_requests', t('Troppe richieste: aspetta un minuto'))
       const ai = await readyAi()
       for (const [name, f] of Object.entries(def.fields)) {
         if (f.kind !== 'page' || !Array.isArray(data[name])) continue
@@ -4570,7 +4685,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     } catch (error) {
       if (error instanceof WordPressError) throw new ApiError(422, 'wordpress_unreadable', error.message)
       if (error instanceof RemoteError)
-        throw new ApiError(422, 'wordpress_unreadable', `Il sito non risponde: ${error.message}`)
+        throw new ApiError(
+          422,
+          'wordpress_unreadable',
+          t('Il sito non risponde: {message}', { message: error.message }),
+        )
       throw error
     }
     const token = randomBytes(16).toString('hex')
@@ -4637,11 +4756,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     credentials: Record<string, string>,
   ): Promise<string | null> => {
     const doc = await content.get(id)
-    if (!doc) return 'la pagina non c’è più'
+    if (!doc) return t('la pagina non c’è più')
     const def = collection(doc.collection)
     const field = Object.entries(def.fields).find(([, f]) => f.kind === 'page')?.[0]
     const before = field && Array.isArray(doc.data[field]) ? (doc.data[field] as PageNode[]) : null
-    if (!field || !before?.length) return 'la pagina è vuota'
+    if (!field || !before?.length) return t('la pagina è vuota')
     const page = { nodes: before }
     const call = apiCaller(app.fetch, credentials)
     const getSchema = () => call<SiteSchema>('GET', '/api/schema')
@@ -4736,14 +4855,14 @@ When done, reply with one short sentence.`
         } catch (error) {
           return {
             error:
-              error instanceof RemoteError && /too large/.test(error.message)
-                ? 'troppo grandi (oltre 25 MB)'
-                : 'non raggiungibili',
+              error instanceof RemoteError && error.reason === 'too_large'
+                ? t('troppo grandi (oltre 25 MB)')
+                : t('non raggiungibili'),
           }
         }
-        if (res.status !== 200) return { error: `non trovate sul sito (${res.status})` }
+        if (res.status !== 200) return { error: t('non trovate sul sito ({status})', { status: res.status }) }
         if (/svg/.test(res.type) || /\.svg$/i.test(res.name))
-          return { error: 'SVG: la libreria non li accetta, perché possono contenere codice' }
+          return { error: t('SVG: la libreria non li accetta, perché possono contenere codice') }
         try {
           const saved = await files.save(res.name, res.bytes)
           const asset = await mediaStore.create({ ...saved, filename: res.name.slice(0, 200), alt, createdBy: user.id })
@@ -4756,7 +4875,7 @@ When done, reply with one short sentence.`
           known[url] = media
           return media
         } catch {
-          return { error: 'in un formato che la libreria non legge' }
+          return { error: t('in un formato che la libreria non legge') }
         }
       },
       fetchPage: async (url) => {

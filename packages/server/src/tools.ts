@@ -1,4 +1,4 @@
-import { buildSection, LIBRARY } from '@materializecms/core/library'
+import { buildSection, library } from '@materializecms/core/library'
 import {
   type Component,
   cloneNode,
@@ -16,6 +16,7 @@ import {
 } from '@materializecms/core/page'
 import { type BrandVoice, voicePrompt } from '@materializecms/core/voice'
 import { z } from 'zod'
+import { t } from './t.ts'
 
 /**
  * What an AI can do with the site, shared by the MCP server and the editor's assistant. Every tool
@@ -161,7 +162,7 @@ export function applyOperations(nodes: PageNode[], ops: PageOperation[], brand: 
     const need = (id: string) => findNode(tree, id) ?? fail(`there is no node "${id}"`)
     switch (op.op) {
       case 'add_section': {
-        if (!LIBRARY.some((c) => c.variants.some((v) => v.key === op.key))) fail(`no library section "${op.key}"`)
+        if (!library().some((c) => c.variants.some((v) => v.key === op.key))) fail(`no library section "${op.key}"`)
         tree = insertNode(tree, null, op.index ?? tree.length, buildSection(op.key, brand))
         break
       }
@@ -228,7 +229,7 @@ export function pageTools(options: {
   return [
     tool({
       name: 'get_page',
-      title: 'Leggo la pagina',
+      title: t('Leggo la pagina'),
       description:
         'The page as an outline: one line per node with its id, type, name and text. Read it before editing, and again after big changes.',
       input: z.object({ ...id }),
@@ -237,7 +238,7 @@ export function pageTools(options: {
     }),
     tool({
       name: 'get_node',
-      title: 'Leggo un elemento',
+      title: t('Leggo un elemento'),
       description:
         'One node with all its properties and children, as JSON: to see its exact design before changing it.',
       input: z.object({ ...id, nodeId: z.string() }),
@@ -250,7 +251,7 @@ export function pageTools(options: {
     }),
     tool({
       name: 'edit_page',
-      title: 'Modifico la pagina',
+      title: t('Modifico la pagina'),
       description: `Changes the page with a list of operations, applied in order and saved together (all or nothing): add_section from the library, insert a node, update properties, replace, remove, move, duplicate. Returns the new outline.\n\n${PAGE_GUIDE}`,
       input: z.object({ ...id, operations: z.array(operation).min(1).max(60) }),
       run: async (input) => {
@@ -341,7 +342,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
   return [
     tool({
       name: 'get_site',
-      title: 'Guardo il sito',
+      title: t('Guardo il sito'),
       description:
         'The site: its name, languages, collections (pages, articles, projects…) with their fields, and its brand voice: follow it in every text you write. Start here.',
       input: z.object({}),
@@ -364,7 +365,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'list_entries',
-      title: 'Elenco i contenuti',
+      title: t('Elenco i contenuti'),
       description: 'Entries of a collection (newest changes first), with id, title, address and whether published.',
       input: z.object({
         collection: z.string(),
@@ -383,7 +384,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'get_entry',
-      title: 'Leggo un contenuto',
+      title: t('Leggo un contenuto'),
       description:
         'An entry with all its fields. For pages built on the canvas the page field is long: use get_page to read it as an outline.',
       input: z.object({ id: z.string() }),
@@ -401,7 +402,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'create_entry',
-      title: 'Creo un contenuto',
+      title: t('Creo un contenuto'),
       description:
         'A new draft in a collection, with the fields given (see get_site for their names). The address (slug) follows the title when left out. Publish it with publish_entry.',
       input: z.object({
@@ -420,7 +421,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'update_entry',
-      title: 'Modifico un contenuto',
+      title: t('Modifico un contenuto'),
       description:
         'Changes some fields of an entry (the others stay as they are) and saves the draft. Use edit_page for the design of a page.',
       input: z.object({ id: z.string(), data: z.record(z.string(), z.unknown()) }),
@@ -434,7 +435,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'publish_entry',
-      title: 'Pubblico',
+      title: t('Pubblico'),
       description: 'Puts the current draft of an entry on the public site.',
       input: z.object({ id: z.string() }),
       run: async (input) => {
@@ -444,7 +445,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'unpublish_entry',
-      title: 'Tolgo dal sito',
+      title: t('Tolgo dal sito'),
       description: 'Takes an entry off the public site; it stays as a draft.',
       input: z.object({ id: z.string() }),
       run: async (input) => {
@@ -454,7 +455,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'schedule_entry',
-      title: 'Programmo',
+      title: t('Programmo'),
       description:
         'Sets when an entry goes on the public site (publish) or comes off it (unpublish) by itself, as an ISO date with time zone, e.g. 2026-11-10T09:00:00+01:00. at null cancels. The draft as it is at that moment is what gets published.',
       input: z.object({
@@ -476,7 +477,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'share_preview',
-      title: 'Creo un link di anteprima',
+      title: t('Creo un link di anteprima'),
       description:
         'A secret link that shows an entry’s latest saved draft with the site’s design to someone without an account (a client, a colleague). It follows later edits. days: how long it works (default 7), null until revoked.',
       input: z.object({
@@ -494,7 +495,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'list_releases',
-      title: 'Guardo i rilasci',
+      title: t('Guardo i rilasci'),
       description:
         'Releases: groups of entries that go on (or off) the site together, all or nothing, by hand or at a set time. Each with its entries, whether it is ready and what stops it.',
       input: z.object({}),
@@ -503,14 +504,14 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'create_release',
-      title: 'Creo un rilascio',
+      title: t('Creo un rilascio'),
       description: 'A new, empty release with a name (e.g. "Collezione inverno"). Add entries with add_to_release.',
       input: z.object({ name: z.string().min(1).max(120) }),
       run: (input) => call('POST', '/api/releases', input),
     }),
     tool({
       name: 'add_to_release',
-      title: 'Aggiungo al rilascio',
+      title: t('Aggiungo al rilascio'),
       description:
         'Puts an entry in a release: its draft is published when the release goes out (action "publish"), or it is taken off the site (action "unpublish"). An entry is in one release at a time. remove: true takes it out of the release.',
       input: z.object({
@@ -528,7 +529,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'publish_release',
-      title: 'Pubblico il rilascio',
+      title: t('Pubblico il rilascio'),
       description:
         'Puts everything in a release on the public site now. All entries must be ready, or nothing goes out and the reasons come back.',
       input: z.object({ release: z.string() }),
@@ -536,7 +537,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'schedule_release',
-      title: 'Programmo il rilascio',
+      title: t('Programmo il rilascio'),
       description:
         'Sets when a release goes out by itself, as an ISO date with time zone, e.g. 2026-11-10T09:00:00+01:00; at null: only by hand. The drafts as they are at that moment go out.',
       input: z.object({ release: z.string(), at: z.string().nullable() }),
@@ -544,7 +545,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'list_translations',
-      title: 'Guardo le lingue',
+      title: t('Guardo le lingue'),
       description:
         'The language versions of an entry (its original and translations, with id and status) and the site languages it is still missing.',
       input: z.object({ id: z.string() }),
@@ -553,7 +554,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'translate_entry',
-      title: 'Traduco',
+      title: t('Traduco'),
       description:
         'Creates the version of an entry in another site language, as a draft linked to the original. With translate: true the site AI translates every text (and the address); otherwise it is a copy to translate, e.g. with update_entry or edit_page. Menus and footers shared by pages are translated once per language in the editor.',
       input: z.object({
@@ -571,16 +572,16 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'list_library',
-      title: 'Guardo la libreria di sezioni',
+      title: t('Guardo la libreria di sezioni'),
       description: 'Ready-made sections that can be added to a page (edit_page → add_section), by category.',
       input: z.object({}),
       readOnly: true,
       run: async () =>
-        LIBRARY.map((c) => ({ category: c.label, sections: c.variants.map((v) => `${v.key} (${v.label})`) })),
+        library().map((c) => ({ category: c.label, sections: c.variants.map((v) => `${v.key} (${v.label})`) })),
     }),
     tool({
       name: 'get_theme',
-      title: 'Leggo il tema',
+      title: t('Leggo il tema'),
       description: 'The design theme: colors (light and dark), fonts, roundness, text styles.',
       input: z.object({}),
       readOnly: true,
@@ -588,7 +589,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'update_theme',
-      title: 'Modifico il tema',
+      title: t('Modifico il tema'),
       description:
         'Changes the theme: give only what changes, e.g. {"display": "Fraunces", "colors": {"light": {"accent": "#e94f37"}}}. Fonts are Google Fonts names. Applies to the whole site at once.',
       input: z.object({ patch: z.record(z.string(), z.unknown()) }),
@@ -599,7 +600,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'list_media',
-      title: 'Guardo la libreria media',
+      title: t('Guardo la libreria media'),
       description: 'Images and files already uploaded, with their address (src) to use in pages and fields.',
       input: z.object({ search: z.string().optional(), limit: z.number().int().min(1).max(100).optional() }),
       readOnly: true,
@@ -611,7 +612,7 @@ export function contentTools(call: ApiCall, getSchema: () => Promise<Schema>): S
     }),
     tool({
       name: 'upload_media_from_url',
-      title: 'Aggiungo un’immagine dal web',
+      title: t('Aggiungo un’immagine dal web'),
       description:
         'Downloads an image from a public https address into the media library and returns its src. Only use images the site may publish.',
       input: z.object({ url: z.url(), alt: z.string().max(500).optional() }),
