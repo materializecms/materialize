@@ -18,7 +18,7 @@ Select the form's container. In the inspector, under **Contact form**, you find:
 - **Automatic reply to the sender**: an email with your own subject and text, sent to the address written in the form. It never repeats what was sent.
 - **Webhook**: every message also goes to this address, as JSON, so you can connect it to Zapier, Make, n8n, or a CRM.
 
-Only an administrator can change **Send to** and **Webhook**, because they decide where the senders' data ends up.
+Only an administrator can change **Send to**, **Webhook** and the **automatic reply**, because they decide where the senders' data ends up and what goes out in the site's name. The webhook must be a public address: Materialize refuses addresses of the internal network (for example `127.0.0.1` or `192.168.…`). For n8n or another service on the same server, start it with `MATERIALIZE_PRIVATE_WEBHOOKS=1`.
 
 ### File attachments
 

@@ -53,7 +53,7 @@ In **Persone**, la colonna della verifica dice per ognuno **Due passaggi** oppur
 
 ## Se dimentichi la password
 
-Nella pagina di accesso premi **Password dimenticata?** e scrivi la tua email: arriva un link per sceglierne una nuova, valido **un'ora**. Se non arriva, guarda nello spam. Per sicurezza la pagina risponde allo stesso modo per qualsiasi indirizzo, e dopo alcune richieste si ferma per un po'.
+Nella pagina di accesso premi **Password dimenticata?** e scrivi la tua email: arriva un link per sceglierne una nuova, valido **un'ora**. Se non arriva, guarda nello spam. Per sicurezza la pagina risponde allo stesso modo per qualsiasi indirizzo, e dopo alcune richieste si ferma per un po'. Online il link parte solo se il sito conosce il proprio indirizzo (`site.url` o `MATERIALIZE_SITE_URL`): senza, Impostazioni → Sicurezza lo segnala. Una password cambiata con il link chiude tutte le sessioni aperte e revoca i token personali.
 
 Serve l'email configurata (vedi [Moduli di contatto ed email](07-moduli-ed-email.md)). Senza:
 

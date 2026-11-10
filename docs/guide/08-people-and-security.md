@@ -53,7 +53,7 @@ In **People**, the verification column shows **Two-step** or **Password only** f
 
 ## If you forget your password
 
-On the sign-in page, click **Forgot your password?** and type your email. You get a link to choose a new one, valid for **one hour**. If it doesn't arrive, check your spam folder. For security, the page gives the same answer for any address, and after a few requests it pauses for a while.
+On the sign-in page, click **Forgot your password?** and type your email. You get a link to choose a new one, valid for **one hour**. If it doesn't arrive, check your spam folder. For security, the page gives the same answer for any address, and after a few requests it pauses for a while. Online, the link is sent only if the site knows its own address (`site.url` or `MATERIALIZE_SITE_URL`); without it, Settings → Security points it out. A password changed with the link ends every open session and revokes the personal access tokens.
 
 This needs email to be set up (see [Contact forms and email](07-forms-and-email.md)). Without it:
 

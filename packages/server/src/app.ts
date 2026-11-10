@@ -35,6 +35,7 @@ import {
   type FormDefinition,
   formDefinition,
   normalizeTheme,
+  OVERRIDE_KEYS,
   type PageNode,
   richTextHtml,
   sameDesign,
@@ -196,11 +197,47 @@ function embedsOf(value: unknown, out: string[] = []): string[] {
   else if (value && typeof value === 'object') {
     const node = value as Record<string, unknown>
     if (node.type === 'embed' && typeof node.id === 'string') out.push(`${node.id}:${String(node.html ?? '')}`)
-    // Where a form's messages go: someone who only edits pages must not divert them.
-    const form = node.form as { to?: string; webhook?: string } | null | undefined
-    if (form && typeof node.id === 'string' && (form.to || form.webhook))
-      out.push(`form:${node.id}:${form.to ?? ''}:${form.webhook ?? ''}`)
+    // Where a form's messages go, and the email it sends back to whoever writes (to any address a
+    // visitor types): someone who only edits pages must not divert them or write that email.
+    const form = node.form as { to?: string; webhook?: string; autoReply?: unknown } | null | undefined
+    if (form && typeof node.id === 'string' && (form.to || form.webhook || form.autoReply))
+      out.push(`form:${node.id}:${form.to ?? ''}:${form.webhook ?? ''}:${JSON.stringify(form.autoReply ?? null)}`)
+    // A component's copy keeps only its own words, links and images; anything else in its overrides
+    // (a type, custom code, a form) would turn an element of the component into something the
+    // checks above never see by its id.
+    const overrides = node.overrides
+    if (overrides && typeof overrides === 'object' && typeof node.id === 'string')
+      for (const [child, own] of Object.entries(overrides as Record<string, unknown>)) {
+        const extra =
+          own && typeof own === 'object'
+            ? Object.keys(own).filter((k) => !(OVERRIDE_KEYS as readonly string[]).includes(k))
+            : []
+        if (extra.length)
+          out.push(
+            `override:${node.id}:${child}:${JSON.stringify(Object.fromEntries(extra.map((k) => [k, (own as Record<string, unknown>)[k]])))}`,
+          )
+      }
     for (const v of Object.values(node)) if (v && typeof v === 'object') embedsOf(v, out)
+  }
+  return out
+}
+
+/** What a form shows to visitors: the rest (who receives it, the webhook, the automatic reply) is the site's own. */
+const PUBLIC_FORM_KEYS = ['name', 'success', 'newsletter']
+
+/**
+ * A published document as anyone may read it: page elements (and component copies' overrides)
+ * keep only the public part of their forms. The site itself reads the database, not this.
+ */
+function withoutFormSettings(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutFormSettings)
+  if (!value || typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value)) {
+    out[k] =
+      k === 'form' && v && typeof v === 'object' && !Array.isArray(v)
+        ? Object.fromEntries(Object.entries(v).filter(([key]) => PUBLIC_FORM_KEYS.includes(key)))
+        : withoutFormSettings(v)
   }
   return out
 }
@@ -229,11 +266,13 @@ const readSchedule = <S extends { failed: { error: string | null } | null }>(sch
     ? { ...schedule, failed: { ...schedule.failed, error: t.read(schedule.failed.error) } }
     : schedule
 
-const credentials = z.object({ email: z.email(), password: z.string().min(1) })
+/** Longer than any real password: hashing a huge one would only cost the server time. */
+const MAX_PASSWORD = 1000
+const credentials = z.object({ email: z.email(), password: z.string().min(1).max(MAX_PASSWORD) })
 const setupBody = z.object({
   email: z.email(),
   name: z.string().trim().min(1),
-  password: z.string().min(10),
+  password: z.string().min(10).max(MAX_PASSWORD),
   /** From the link `materialize start` prints, when it set one. */
   token: z.string().optional(),
   site: z
@@ -315,8 +354,15 @@ async function body<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
 /** Naive in-memory limiter: enough to slow down password guessing on a single instance. */
 function createLimiter(max: number, windowMs: number) {
   const hits = new Map<string, { n: number; until: number }>()
+  let swept = Date.now()
   return (key: string): boolean => {
     const now = Date.now()
+    // Keys come from whoever asks (an address, a form's name): the expired ones go, or the map
+    // would only grow.
+    if (now - swept > windowMs) {
+      swept = now
+      for (const [k, v] of hits) if (v.until < now) hits.delete(k)
+    }
     const entry = hits.get(key)
     if (!entry || entry.until < now) {
       hits.set(key, { n: 1, until: now + windowMs })
@@ -344,7 +390,36 @@ export interface ServerContext {
    * fresh server first cannot claim it: `materialize start` prints the link that carries it.
    */
   setupToken?: string
+  /**
+   * Lets form webhooks post to this machine or its network (an n8n beside the site). Off by
+   * default, since what visitors write is sent there; MATERIALIZE_PRIVATE_WEBHOOKS=1 turns it on.
+   */
+  privateWebhooks?: boolean
 }
+
+/** Request bodies, at most: anyone may send one, and it is read into memory. */
+const BODY_MAX = 2 * 1024 * 1024
+/** For the panel and its tokens: a page built on the canvas, with its components, can weigh a few MB. */
+const SIGNED_IN_BODY_MAX = 10 * 1024 * 1024
+/** A WordPress export file (WXR): only text, but a large blog's can be big. */
+const WXR_MAX = 200 * 1024 * 1024
+
+/** Two addresses of the same server (scheme, host and port), or both empty (the provider's own). */
+const sameServer = (a: string | undefined, b: string | undefined) => {
+  if (!a || !b) return !a && !b
+  try {
+    return new URL(a).origin === new URL(b).origin
+  } catch {
+    return false
+  }
+}
+
+/** This computer: a Host header that can only bring a link back here, never to someone else's server. */
+const isLocalHost = (hostname: string) =>
+  hostname === 'localhost' ||
+  hostname.endsWith('.localhost') ||
+  /^127\.\d+\.\d+\.\d+$/.test(hostname) ||
+  hostname === '[::1]'
 
 export function createApp(base: ServerContext) {
   // The languages chosen in Impostazioni → Lingue win over the config's; read once, then kept current.
@@ -488,6 +563,12 @@ export function createApp(base: ServerContext) {
   const presence = new Map<string, Map<string, { id: string; name: string; selected: string | null; at: number }>>()
   // A form can be sent a few times a minute from one address: enough for people, not for spam.
   const allowForm = createLimiter(5, 60_000)
+  // And from one address across every form: form names are whatever the sender writes.
+  const allowFormIp = createLimiter(10, 60_000)
+  const allowFormIpHour = createLimiter(60, 60 * 60_000)
+  // Forms the site built by hand (no form on a published page): any name goes, so fewer of them.
+  const allowHandForm = createLimiter(3, 60_000)
+  const privateWebhooks = base.privateWebhooks ?? process.env.MATERIALIZE_PRIVATE_WEBHOOKS === '1'
   const files = createMediaFiles(ctx.config().media.dir)
   // Fonts are cached next to the media library (.materialize/fonts by default).
   const fonts = createFonts(join(dirname(resolve(ctx.config().media.dir)), 'fonts'))
@@ -577,6 +658,19 @@ export function createApp(base: ServerContext) {
     }
   }
 
+  /**
+   * Whether the browser reached the site over HTTPS: directly, through a proxy the config trusts,
+   * or at a site whose address is https (not on this computer, where browsers may refuse a secure
+   * cookie over plain http). The session cookie then never travels in clear.
+   */
+  const secureRequest = (c: Context) => {
+    const url = new URL(c.req.url)
+    if (url.protocol === 'https:') return true
+    if (ctx.config().server.trustProxy && c.req.header('x-forwarded-proto')?.split(',')[0]?.trim() === 'https')
+      return true
+    return !isLocalHost(url.hostname) && !!ctx.config().site.url?.startsWith('https:')
+  }
+
   const startSession = async (c: Context, userId: string) => {
     const { token, expiresAt } = await auth.createSession(userId, SESSION_TTL, {
       userAgent: c.req.header('user-agent'),
@@ -585,7 +679,7 @@ export function createApp(base: ServerContext) {
     setCookie(c, SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: 'Lax',
-      secure: new URL(c.req.url).protocol === 'https:',
+      secure: secureRequest(c),
       path: '/',
       expires: expiresAt,
     })
@@ -689,6 +783,25 @@ export function createApp(base: ServerContext) {
   }
 
   app.use('*', secureHeaders())
+  // Every body is limited before anything reads it: the sign-in, setup and form routes are open to
+  // anyone. Uploads and the WordPress export set their own limits (larger, after the sign-in check).
+  const ownLimit = /^\/api\/(media|forms\/[^/]+|import\/wordpress\/analyze)$/
+  const limitBody = (max: number) =>
+    bodyLimit({
+      maxSize: max,
+      onError: () => {
+        throw new ApiError(413, 'body_too_large', t('La richiesta è troppo grande'))
+      },
+    })
+  const smallBody = limitBody(BODY_MAX)
+  const signedInBody = limitBody(SIGNED_IN_BODY_MAX)
+  const limitRequest: MiddlewareHandler = (c, next) => {
+    if (c.req.method === 'POST' && ownLimit.test(c.req.path)) return next()
+    // Only the larger size for a request that says who sends it; the sign-in check comes after.
+    return (bearerOf(c) || getCookie(c, SESSION_COOKIE) ? signedInBody : smallBody)(c, next)
+  }
+  app.use('/api/*', limitRequest)
+  app.use('/mcp', limitRequest)
   // Requests with a bearer token carry no cookie, so a forged form cannot ride on them.
   const checkOrigin = csrf()
   app.use('/api/*', (c, next) =>
@@ -963,31 +1076,39 @@ export function createApp(base: ServerContext) {
     await auth.recordFailure(`forgot:${email}`, FORGOT_THRESHOLD)
     await auth.recordFailure(`forgot-ip:${ip}`, FORGOT_IP_THRESHOLD)
     const mail = isConfigured(await settings.get<MailSettings>('mail'))
-    const found = mail ? await auth.findForLogin(email) : null
-    if (found) {
-      const { token } = await auth.createInvite({
-        kind: 'reset',
-        email: found.email,
-        name: found.name,
-        role: found.role,
-        userId: found.id,
-        ttlMs: FORGOT_TTL,
-      })
-      await withLang(langFor(found.locale), () =>
-        mailLink(
-          c,
-          found.email,
-          t('Nuova password'),
-          [
-            t('Qualcuno ha chiesto una nuova password per il tuo account su {site}.', { site: ctx.config().site.name }),
-            t('Se non sei stato tu, ignora questa email: la password resta quella di prima.'),
-            t('Per sceglierne una nuova, apri questo link entro un’ora:'),
-          ],
-          linkPath(token),
-        ),
-      )
-      await record(c, 'password.forgot', found.email, null, { id: found.id, name: found.name })
-    }
+    const origin = strangerOrigin(c)
+    if (mail && !origin)
+      console.warn('Materialize: no password link sent, because the site address (MATERIALIZE_SITE_URL) is not set')
+    // After the answer: how long it takes must not tell whether the email has an account.
+    if (mail && origin)
+      void (async () => {
+        const found = await auth.findForLogin(email)
+        if (!found) return
+        const { token } = await auth.createInvite({
+          kind: 'reset',
+          email: found.email,
+          name: found.name,
+          role: found.role,
+          userId: found.id,
+          ttlMs: FORGOT_TTL,
+        })
+        await withLang(langFor(found.locale), () =>
+          mailLink(
+            origin,
+            found.email,
+            t('Nuova password'),
+            [
+              t('Qualcuno ha chiesto una nuova password per il tuo account su {site}.', {
+                site: ctx.config().site.name,
+              }),
+              t('Se non sei stato tu, ignora questa email: la password resta quella di prima.'),
+              t('Per sceglierne una nuova, apri questo link entro un’ora:'),
+            ],
+            linkPath(token),
+          ),
+        )
+        await record(c, 'password.forgot', found.email, null, { id: found.id, name: found.name })
+      })().catch((error) => console.error('Materialize: password link not sent', error))
     return c.json({ ok: true, mail })
   })
 
@@ -1282,6 +1403,17 @@ export function createApp(base: ServerContext) {
               ),
             },
     )
+    // Without it, links in emails asked for from the sign-in page cannot be trusted, so none is sent.
+    if (!siteOrigin() && !local)
+      checks.push({
+        id: 'site-url',
+        status: 'warn',
+        title: t('L’indirizzo del sito non è impostato'),
+        detail: t(
+          'Senza, “Password dimenticata?” non manda il link: la richiesta può dichiarare un indirizzo falso. Imposta {env} nell’ambiente del server, o site.url in materialize.config.ts.',
+          { env: 'MATERIALIZE_SITE_URL' },
+        ),
+      })
     const forwarded = !!c.req.header('x-forwarded-for')
     const trust = ctx.config().server.trustProxy
     if (forwarded && !trust)
@@ -1529,20 +1661,29 @@ export function createApp(base: ServerContext) {
     s3: s3Input.optional(),
     webdav: webdavInput.optional(),
   })
-  /** The settings as sent, with the saved secrets where the panel left them empty. */
+  /**
+   * The settings as sent, with the saved secrets where the panel left them empty — only for the
+   * same server: a secret is never sent to an address it was not given for (a stolen session
+   * could otherwise point the saved key to its own server and read it there).
+   */
   const withSecrets = (input: z.infer<typeof offsiteInput>, saved: OffsiteSettings): OffsiteSettings => {
     if (input.kind === 's3' && !input.s3) throw new ApiError(400, 'missing_s3', 'S3 settings are missing')
     if (input.kind === 'webdav' && !input.webdav)
       throw new ApiError(400, 'missing_webdav', 'WebDAV settings are missing')
+    const sameS3 = !!input.s3 && sameServer(input.s3.endpoint, saved.s3?.endpoint)
+    const sameDav = !!input.webdav && sameServer(input.webdav.url, saved.webdav?.url)
     return {
       kind: input.kind,
       keep: input.keep,
       key: saved.key,
       s3: input.s3
-        ? { ...input.s3, secretAccessKey: input.s3.secretAccessKey || saved.s3?.secretAccessKey || '' }
+        ? {
+            ...input.s3,
+            secretAccessKey: input.s3.secretAccessKey || (sameS3 ? saved.s3?.secretAccessKey : '') || '',
+          }
         : saved.s3,
       webdav: input.webdav
-        ? { ...input.webdav, password: input.webdav.password || saved.webdav?.password || '' }
+        ? { ...input.webdav, password: input.webdav.password || (sameDav ? saved.webdav?.password : '') || '' }
         : saved.webdav,
     }
   }
@@ -1753,7 +1894,10 @@ export function createApp(base: ServerContext) {
   })
 
   app.post('/api/auth/password', requireUser, requireSession, async (c) => {
-    const input = await body(c, z.object({ current: z.string().min(1), next: z.string().min(10) }))
+    const input = await body(
+      c,
+      z.object({ current: z.string().min(1).max(MAX_PASSWORD), next: z.string().min(10).max(MAX_PASSWORD) }),
+    )
     const user = c.get('user')
     const hash = await auth.getPasswordHash(user.id)
     if (!hash || !(await verifyPassword(input.current, hash))) {
@@ -1793,7 +1937,7 @@ export function createApp(base: ServerContext) {
       })
       const link = linkPath(token)
       const mailed = await mailLink(
-        c,
+        publicOrigin(c),
         input.email,
         t('Il tuo invito'),
         [
@@ -1885,7 +2029,7 @@ export function createApp(base: ServerContext) {
     const link = linkPath(token)
     const mailed = await withLang(langFor(target.locale), () =>
       mailLink(
-        c,
+        publicOrigin(c),
         target.email,
         t('Nuova password'),
         [t('È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:')],
@@ -1914,12 +2058,15 @@ export function createApp(base: ServerContext) {
     const invite = await loadInvite(token)
     const input = await body(
       c,
-      z.object({ name: z.string().trim().min(1).max(80).optional(), password: z.string().min(10) }),
+      z.object({ name: z.string().trim().min(1).max(80).optional(), password: z.string().min(10).max(MAX_PASSWORD) }),
     )
     const passwordHash = await hashPassword(input.password)
     let user: User | null
     if (invite.kind === 'reset' && invite.userId) {
+      // Signed out everywhere (setPassword) and its tokens revoked: a reset is how an account
+      // someone else got into is won back, and what they made with it must stop working too.
       await auth.setPassword(invite.userId, passwordHash)
+      await auth.revokeAllTokens(invite.userId)
       user = await auth.getUser(invite.userId)
     } else {
       if (await auth.emailTaken(invite.email))
@@ -2195,24 +2342,37 @@ export function createApp(base: ServerContext) {
     }
   }
 
+  /** The site's own address (MATERIALIZE_SITE_URL, site.url), when it is set. */
+  const siteOrigin = () => {
+    const site = ctx.config().site.url
+    try {
+      if (site) return new URL(site).origin
+    } catch {}
+    return null
+  }
+
   /**
    * The address links in emails point to: the site's own (MATERIALIZE_SITE_URL, site.url) when it
    * is known. The request's Host header is used only without it, as in local development: anyone
    * can send a request with a false Host, and a link to their server would carry the token there.
    */
-  const publicOrigin = (c: Context) => {
-    const site = ctx.config().site.url
-    try {
-      if (site) return new URL(site).origin
-    } catch {}
-    return new URL(c.req.url).origin
+  const publicOrigin = (c: Context) => siteOrigin() ?? new URL(c.req.url).origin
+
+  /**
+   * The address for links in emails asked for by someone not signed in (a forgotten password):
+   * never the Host header, which they choose, except on this computer during development. Null
+   * when the site's address is not set: then no link is sent (Impostazioni → Sicurezza says so).
+   */
+  const strangerOrigin = (c: Context) => {
+    const url = new URL(c.req.url)
+    return siteOrigin() ?? (isLocalHost(url.hostname) ? url.origin : null)
   }
 
-  const mailLink = async (c: Context, to: string, subject: string, lines: string[], path: string) => {
+  const mailLink = async (origin: string, to: string, subject: string, lines: string[], path: string) => {
     const mail = await settings.get<MailSettings>('mail')
     if (!isConfigured(mail)) return false
     try {
-      const url = new URL(path, publicOrigin(c)).toString()
+      const url = new URL(path, origin).toString()
       await sendMail(mail, { to, subject, text: `${lines.join('\n')}\n\n${url}\n` })
       return true
     } catch (error) {
@@ -2243,7 +2403,9 @@ export function createApp(base: ServerContext) {
       }),
     )
     const before = await settings.get<MailSettings>('mail')
-    const pass = input.mail.pass === null ? '' : input.mail.pass || before?.pass || ''
+    // The saved password goes only to the server it was given for (see withSecrets).
+    const sameHost = !!before && before.host.trim().toLowerCase() === input.mail.host.trim().toLowerCase()
+    const pass = input.mail.pass === null ? '' : input.mail.pass || (sameHost ? before?.pass : '') || ''
     const mail: MailSettings = { ...input.mail, pass }
     await settings.set('mail', mail, c.get('user').id)
     await record(c, 'settings.mail')
@@ -2333,7 +2495,9 @@ export function createApp(base: ServerContext) {
       }),
     )
     const before = await aiSettings()
-    const apiKey = input.ai.apiKey === null ? '' : input.ai.apiKey?.trim() || before.apiKey
+    // The saved key goes only to the service it was given for (see withSecrets).
+    const sameService = before.provider === input.ai.provider && sameServer(before.baseUrl, input.ai.baseUrl)
+    const apiKey = input.ai.apiKey === null ? '' : input.ai.apiKey?.trim() || (sameService ? before.apiKey : '')
     const ai: AiSettings = { ...input.ai, apiKey }
     await settings.set('ai', ai, c.get('user').id)
     await record(c, 'settings.ai', ai.provider)
@@ -3000,8 +3164,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     async (c) => {
       const form = c.req.param('form').slice(0, 80)
       const ip = clientIp(c)
-      if (!allowForm(`${ip}:${form}`))
-        throw new ApiError(429, 'too_many_attempts', 'Troppi messaggi: riprova tra un minuto')
+      const tooMany = () => new ApiError(429, 'too_many_attempts', 'Troppi messaggi: riprova tra un minuto')
+      if (!allowFormIp(ip) || !allowFormIpHour(ip) || !allowForm(`${ip}:${form}`)) throw tooMany()
       const type = c.req.header('content-type') ?? ''
       const isJson = type.includes('application/json')
       const wantsJson = isJson || (c.req.header('accept') ?? '').includes('application/json')
@@ -3014,6 +3178,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         return wantsJson ? c.json({ ok: true }) : c.redirect(`${back}#inviato`, 303)
 
       const def = (await publishedForms()).get(form) ?? null
+      if (!def && !allowHandForm(ip)) throw tooMany()
       const { data, files, issues } = await readSubmission(raw, def)
       if (issues.length) {
         if (!wantsJson) return c.redirect(`${back}#non-inviato`, 303)
@@ -3034,7 +3199,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       }
       const formName = def?.name?.trim() || def?.subject?.trim() || ''
       const saved = await submissions.add({ form, formName, page, data, spam, fingerprint })
-      if (files.length) await submissions.setFiles(saved.id, await saveFiles(uploadsDir, saved.id, files))
+      // Spam keeps its words, for a check, but not its files: they would only fill the disk.
+      if (files.length && !spam) await submissions.setFiles(saved.id, await saveFiles(uploadsDir, saved.id, files))
 
       // Spam stays in the panel, recoverable, but nobody is notified.
       if (!spam) {
@@ -3076,7 +3242,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
             createdAt: saved.createdAt.toISOString(),
           }
           void webhookSecret()
-            .then((secret) => sendWebhook(def.webhook as string, payload, secret))
+            .then((secret) => sendWebhook(def.webhook as string, payload, secret, undefined, privateWebhooks))
             .then((ok) => submissions.setWebhook(saved.id, ok ? 'ok' : 'failed'))
             .catch((error) => console.error('Materialize: webhook not sent', error))
         }
@@ -4209,7 +4375,11 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   }
 
   /** A try, to the person writing it (or another address): nothing is counted. */
+  // Each try is an email to any address: a few an hour are plenty to check one.
+  const allowNewsletterTest = createLimiter(10, 60 * 60_000)
   app.post('/api/newsletters/:id/test', requireUser, async (c) => {
+    if (!allowNewsletterTest(c.get('user').id))
+      throw new ApiError(429, 'too_many_attempts', t('Troppe prove: riprova tra un’ora'))
     const found = await loadNewsletter(c.req.param('id'))
     const input = await body(c, z.object({ to: z.email().optional() }))
     const mail = await readyMail()
@@ -4494,6 +4664,13 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.post('/api/documents/:id/revisions/:revision/restore', requireUser, async (c) => {
     const existing = await loadDocument(c.req.param('id'))
     guardTurn(c, existing.id)
+    // An old version is a save like any other: it may hold code or a form's address an editor
+    // could not write today (an admin's version, or one from before the rules changed).
+    const revision = await content.revision(existing.id, c.req.param('revision'))
+    if (!revision) throw new ApiError(404, 'not_found', 'This version does not exist')
+    guardEmbeds(c.get('user'), existing.data, revision.data)
+    for (const [name, f] of Object.entries(collection(existing.collection).fields))
+      if (f.kind === 'page') await guardDesign(c.get('user'), existing.data[name], revision.data[name])
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)
     if (!doc) throw new ApiError(404, 'not_found', 'This version does not exist')
     await record(c, 'document.restored', doc.title, { collection: doc.collection, id: doc.id })
@@ -4676,91 +4853,104 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   }
 
   /** A WordPress site is read from its address (REST API) or from its export file. */
-  app.post('/api/import/wordpress/analyze', requireUser, requireSession, requireAdmin, async (c) => {
-    forget()
-    const isForm = (c.req.header('content-type') ?? '').includes('multipart/form-data')
-    let site: WpSite
-    try {
-      if (isForm) {
-        const form = await c.req.parseBody()
-        const file = form.file
-        if (!(file instanceof File)) throw new ApiError(400, 'missing_file', 'Send the export file in the "file" field')
-        site = readWxr(await file.text())
-      } else {
-        const input = await body(
-          c,
-          z.object({
-            url: z.url(),
-            user: z.string().trim().max(200).optional(),
-            password: z.string().trim().max(200).optional(),
-            limit: z.number().int().min(1).max(10_000).optional(),
-          }),
-        )
-        // An application password (WordPress → Utenti → Profilo): drafts and private pages too.
-        const headers: Record<string, string> = { accept: 'application/json', 'user-agent': IMPORT_AGENT }
-        if (input.user && input.password)
-          headers.authorization = `Basic ${Buffer.from(`${input.user}:${input.password.replace(/\s+/g, '')}`).toString('base64')}`
-        const fetcher: Fetcher = async (url) => {
-          const res = await remoteFetch(url, { max: 50 * 1024 * 1024, headers, allowPrivate: true, timeout: 30_000 })
-          return { status: res.status, headers: res.headers, text: res.bytes.toString('utf8') }
+  app.post(
+    '/api/import/wordpress/analyze',
+    requireUser,
+    requireSession,
+    requireAdmin,
+    bodyLimit({
+      maxSize: WXR_MAX,
+      onError: () => {
+        throw new ApiError(413, 'file_too_large', t('Il file è troppo grande'))
+      },
+    }),
+    async (c) => {
+      forget()
+      const isForm = (c.req.header('content-type') ?? '').includes('multipart/form-data')
+      let site: WpSite
+      try {
+        if (isForm) {
+          const form = await c.req.parseBody()
+          const file = form.file
+          if (!(file instanceof File))
+            throw new ApiError(400, 'missing_file', 'Send the export file in the "file" field')
+          site = readWxr(await file.text())
+        } else {
+          const input = await body(
+            c,
+            z.object({
+              url: z.url(),
+              user: z.string().trim().max(200).optional(),
+              password: z.string().trim().max(200).optional(),
+              limit: z.number().int().min(1).max(10_000).optional(),
+            }),
+          )
+          // An application password (WordPress → Utenti → Profilo): drafts and private pages too.
+          const headers: Record<string, string> = { accept: 'application/json', 'user-agent': IMPORT_AGENT }
+          if (input.user && input.password)
+            headers.authorization = `Basic ${Buffer.from(`${input.user}:${input.password.replace(/\s+/g, '')}`).toString('base64')}`
+          const fetcher: Fetcher = async (url) => {
+            const res = await remoteFetch(url, { max: 50 * 1024 * 1024, headers, allowPrivate: true, timeout: 30_000 })
+            return { status: res.status, headers: res.headers, text: res.bytes.toString('utf8') }
+          }
+          site = await readRest(input.url, fetcher, { limit: input.limit })
         }
-        site = await readRest(input.url, fetcher, { limit: input.limit })
+      } catch (error) {
+        if (error instanceof WordPressError) throw new ApiError(422, 'wordpress_unreadable', error.message)
+        if (error instanceof RemoteError)
+          throw new ApiError(
+            422,
+            'wordpress_unreadable',
+            t('Il sito non risponde: {message}', { message: error.message }),
+          )
+        throw error
       }
-    } catch (error) {
-      if (error instanceof WordPressError) throw new ApiError(422, 'wordpress_unreadable', error.message)
-      if (error instanceof RemoteError)
-        throw new ApiError(
-          422,
-          'wordpress_unreadable',
-          t('Il sito non risponde: {message}', { message: error.message }),
-        )
-      throw error
-    }
-    const token = randomBytes(16).toString('hex')
-    wpSites.set(token, { site, at: Date.now() })
-    const collections = ctx.config().collections
-    const count = (kind: 'post' | 'page') => site.items.filter((i) => i.kind === kind)
-    return c.json({
-      token,
-      site: { name: site.name, url: site.url },
-      counts: {
-        posts: count('post').length,
-        pages: count('page').length,
-        drafts: site.items.filter((i) => i.status !== 'publish').length,
-      },
-      samples: {
-        posts: count('post')
-          .slice(0, 5)
-          .map((i) => i.title),
-        pages: count('page')
-          .slice(0, 5)
-          .map((i) => i.title),
-      },
-      categories: [...new Set(site.items.flatMap((i) => i.categories))].sort(),
-      suggestions: { posts: suggest(collections, 'post'), pages: suggest(collections, 'page') },
-      // For each collection, which sources each field can take, and the choices of choice fields.
-      fields: Object.fromEntries(
-        collections
-          .filter((def) => !def.singleton)
-          .map((def) => [
-            def.name,
-            Object.fromEntries(
-              Object.entries(def.fields)
-                .filter(([, f]) => sourcesFor(f).length)
-                .map(([name, f]) => [
-                  name,
-                  {
-                    label: f.label ?? name,
-                    kind: f.kind,
-                    sources: sourcesFor(f),
-                    options: f.kind === 'select' ? optionsOf(f) : undefined,
-                  },
-                ]),
-            ),
-          ]),
-      ),
-    })
-  })
+      const token = randomBytes(16).toString('hex')
+      wpSites.set(token, { site, at: Date.now() })
+      const collections = ctx.config().collections
+      const count = (kind: 'post' | 'page') => site.items.filter((i) => i.kind === kind)
+      return c.json({
+        token,
+        site: { name: site.name, url: site.url },
+        counts: {
+          posts: count('post').length,
+          pages: count('page').length,
+          drafts: site.items.filter((i) => i.status !== 'publish').length,
+        },
+        samples: {
+          posts: count('post')
+            .slice(0, 5)
+            .map((i) => i.title),
+          pages: count('page')
+            .slice(0, 5)
+            .map((i) => i.title),
+        },
+        categories: [...new Set(site.items.flatMap((i) => i.categories))].sort(),
+        suggestions: { posts: suggest(collections, 'post'), pages: suggest(collections, 'page') },
+        // For each collection, which sources each field can take, and the choices of choice fields.
+        fields: Object.fromEntries(
+          collections
+            .filter((def) => !def.singleton)
+            .map((def) => [
+              def.name,
+              Object.fromEntries(
+                Object.entries(def.fields)
+                  .filter(([, f]) => sourcesFor(f).length)
+                  .map(([name, f]) => [
+                    name,
+                    {
+                      label: f.label ?? name,
+                      kind: f.kind,
+                      sources: sourcesFor(f),
+                      options: f.kind === 'select' ? optionsOf(f) : undefined,
+                    },
+                  ]),
+              ),
+            ]),
+        ),
+      })
+    },
+  )
 
   /** The caller's credentials, for tools that go through the API as them. */
   const credentialsOf = (c: Context): Record<string, string> => {
@@ -5123,7 +5313,7 @@ When done, reply with one short sentence.`
 
   const publicDocument = (doc: StoredDocument) => {
     const def = ctx.config().collections.find((x) => x.name === doc.collection)
-    const data = doc.publishedData ?? {}
+    const data = withoutFormSettings(doc.publishedData ?? {}) as Record<string, unknown>
     return {
       id: doc.id,
       slug: doc.slug,

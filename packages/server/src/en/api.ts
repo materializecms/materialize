@@ -242,6 +242,11 @@ export const api: Record<string, string> = {
   'SVG: la libreria non li accetta, perché possono contenere codice':
     'SVG: the library does not accept them, since they can contain code',
   'in un formato che la libreria non legge': 'in a format the library cannot read',
+  'La richiesta è troppo grande': 'The request is too large',
+  'Troppe prove: riprova tra un’ora': 'Too many tries: try again in an hour',
+  'L’indirizzo del sito non è impostato': 'The site address is not set',
+  'Senza, “Password dimenticata?” non manda il link: la richiesta può dichiarare un indirizzo falso. Imposta {env} nell’ambiente del server, o site.url in materialize.config.ts.':
+    'Without it, “Forgot password?” sends no link: the request could claim a false address. Set {env} in the server’s environment, or site.url in materialize.config.ts.',
   // Pieces of saved messages (a release that did not go out)
   '{list}': '{list}',
   '{title}: {message}': '{title}: {message}',

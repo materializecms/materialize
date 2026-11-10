@@ -301,6 +301,15 @@ export function createAuthStore(db: Db) {
       return res.rowsAffected > 0
     },
 
+    /**
+     * Every token of someone, after a password reset: a reset is how a taken account is won back,
+     * and a token made by whoever took it must stop working with the old password.
+     */
+    async revokeAllTokens(userId: string): Promise<number> {
+      const res = await db.delete(apiTokens).where(eq(apiTokens.userId, userId))
+      return res.rowsAffected
+    },
+
     /** Who a token belongs to; notes when it was last used (at most once a minute). */
     async userForToken(token: string): Promise<User | null> {
       if (!token.startsWith(TOKEN_PREFIX)) return null

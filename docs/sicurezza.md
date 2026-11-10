@@ -153,17 +153,20 @@ Con un database ospitato (Turso, libSQL), i backup del database li fa il fornito
 
 ## Cosa fa già Materialize
 
-| Protezione                                                                                             | Dove                         |
-| ------------------------------------------------------------------------------------------------------ | ---------------------------- |
-| Password cifrate con scrypt                                                                            | sempre                       |
-| Pausa dopo 5 errori per email e 20 per indirizzo, che raddoppia fino a un'ora                          | sempre, salvata nel database |
-| Verifica in due passaggi (app di autenticazione) e codici di riserva                                   | Il tuo profilo → Sicurezza   |
-| Sessioni che scadono dopo 14 giorni di inattività, elenco dei dispositivi                              | Il tuo profilo → Sicurezza   |
-| Avvisi per email: tentativi falliti, cambi di indirizzo, verifica disattivata                          | con l'email configurata      |
-| Regole del browser (CSP) sul pannello: niente script estranei, dati inviati solo al proprio server     | sempre                       |
-| Protezione CSRF, cookie di sessione `HttpOnly` e `SameSite`                                            | sempre                       |
-| Codice personalizzato solo dagli amministratori, in anteprima isolata                                  | sempre                       |
-| Script di statistica e marketing fermi fino al consenso del visitatore                                 | Impostazioni → Tracciamento  |
-| Immagini ricaricate e riconvertite; indirizzi interni bloccati quando si importa un'immagine da un URL | sempre                       |
-| Registro delle attività, conservato un anno                                                            | Impostazioni → Sicurezza     |
-| Backup giornalieri del database                                                                        | Impostazioni → Sicurezza     |
+| Protezione                                                                                                 | Dove                         |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Password cifrate con scrypt                                                                                | sempre                       |
+| Pausa dopo 5 errori per email e 20 per indirizzo, che raddoppia fino a un'ora                              | sempre, salvata nel database |
+| Verifica in due passaggi (app di autenticazione) e codici di riserva                                       | Il tuo profilo → Sicurezza   |
+| Sessioni che scadono dopo 14 giorni di inattività, elenco dei dispositivi                                  | Il tuo profilo → Sicurezza   |
+| Avvisi per email: tentativi falliti, cambi di indirizzo, verifica disattivata                              | con l'email configurata      |
+| Regole del browser (CSP) sul pannello: niente script estranei, dati inviati solo al proprio server         | sempre                       |
+| Protezione CSRF, cookie di sessione `HttpOnly` e `SameSite`                                                | sempre                       |
+| Codice personalizzato solo dagli amministratori, in anteprima isolata                                      | sempre                       |
+| Script di statistica e marketing fermi fino al consenso del visitatore                                     | Impostazioni → Tracciamento  |
+| Immagini ricaricate e riconvertite; indirizzi interni bloccati quando si importa un'immagine da un URL     | sempre                       |
+| Pagine salvate ripulite prima di diventare HTML: niente script da tag, CSS, componenti o SVG               | sempre                       |
+| Webhook dei moduli solo verso indirizzi pubblici (`MATERIALIZE_PRIVATE_WEBHOOKS=1` per un servizio locale) | sempre                       |
+| Limite di dimensione delle richieste e dei messaggi dei moduli per indirizzo                               | sempre                       |
+| Registro delle attività, conservato un anno                                                                | Impostazioni → Sicurezza     |
+| Backup giornalieri del database                                                                            | Impostazioni → Sicurezza     |

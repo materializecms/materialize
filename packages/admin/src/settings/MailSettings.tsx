@@ -168,7 +168,10 @@ export function MailForm() {
         </Field>
         <Field
           label={t('Password')}
-          hint={[provider?.passHint, mail.hasPassword ? t('Salvata: lascia vuoto per non cambiarla.') : '']
+          hint={[
+            provider?.passHint,
+            mail.hasPassword ? t('Salvata: lascia vuoto per non cambiarla. Se cambi server, va scritta di nuovo.') : '',
+          ]
             .filter(Boolean)
             .join(' ')}
         >

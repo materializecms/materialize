@@ -108,7 +108,12 @@ export function FormSection({
             />
           </Row>
           {!f.newsletter && (
-            <>
+            // Like the recipients: the email that goes out in the site's name is an administrator's choice.
+            <fieldset
+              disabled={!admin}
+              title={admin ? undefined : t('Solo un amministratore può cambiarlo')}
+              className="contents"
+            >
               <Toggle
                 label={t('Risposta automatica a chi scrive')}
                 checked={!!f.autoReply}
@@ -164,7 +169,7 @@ export function FormSection({
                   'Aggiungi dentro i campi (Campo · K) e un pulsante con “Invia il modulo”. I messaggi arrivano in Impostazioni → Messaggi e, se l’email è configurata, nella tua casella. Lo spam si ferma da solo, senza CAPTCHA.',
                 )}
               </p>
-            </>
+            </fieldset>
           )}
         </>
       ) : (

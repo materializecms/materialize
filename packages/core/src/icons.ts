@@ -214,20 +214,129 @@ export function iconRatio(name: string | null | undefined): string {
 
 const escAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
+/** What a drawing may contain: shapes, groups, gradients, clipping. No scripts, links, animation or foreign content. */
+const SVG_TAGS = new Set([
+  'svg',
+  'g',
+  'path',
+  'circle',
+  'ellipse',
+  'rect',
+  'line',
+  'polyline',
+  'polygon',
+  'defs',
+  'lineargradient',
+  'radialgradient',
+  'stop',
+  'clippath',
+  'mask',
+])
+const SVG_ATTRS = new Set([
+  'viewbox',
+  'xmlns',
+  'width',
+  'height',
+  'x',
+  'y',
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'cx',
+  'cy',
+  'r',
+  'rx',
+  'ry',
+  'd',
+  'points',
+  'fill',
+  'fill-rule',
+  'fill-opacity',
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'stroke-miterlimit',
+  'stroke-dasharray',
+  'stroke-dashoffset',
+  'stroke-opacity',
+  'opacity',
+  'clip-rule',
+  'clip-path',
+  'mask',
+  'transform',
+  'id',
+  'offset',
+  'stop-color',
+  'stop-opacity',
+  'gradientunits',
+  'gradienttransform',
+  'preserveaspectratio',
+  'vector-effect',
+])
+/** Attribute names as SVG writes them (the parser below lowercases). */
+const CASED: Record<string, string> = {
+  viewbox: 'viewBox',
+  lineargradient: 'linearGradient',
+  radialgradient: 'radialGradient',
+  clippath: 'clipPath',
+  gradientunits: 'gradientUnits',
+  gradienttransform: 'gradientTransform',
+  preserveaspectratio: 'preserveAspectRatio',
+}
+
 /**
- * Custom SVG, kept to drawing: no scripts, event handlers, foreign content or external links.
- * Returns '' when what was pasted is not an SVG.
+ * Custom SVG, kept to drawing. The drawing is rebuilt from scratch: only the elements and attributes
+ * above survive, with their values escaped, and a reference may only point inside the drawing
+ * (url(#id)). Text, comments, scripts, styles, links and anything unknown are dropped, so tricks in
+ * the markup (odd spacing, entities, unclosed tags) have nothing to slip through. Returns '' when
+ * what was pasted is not an SVG.
  */
 export function sanitizeSvg(svg: string): string {
-  const m = /<svg[\s\S]*<\/svg>/i.exec(svg)
-  if (!m) return ''
-  return m[0]
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
-    .replace(/<(iframe|object|embed|style|use)[\s\S]*?(<\/\1>|\/>)/gi, '')
-    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/\s(href|xlink:href)\s*=\s*("[^"#][^"]*"|'[^'#][^']*')/gi, '')
-    .replace(/javascript:/gi, '')
+  const source = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '')
+  if (!/<svg[\s>]/i.test(source)) return ''
+  const out: string[] = []
+  const open: string[] = []
+  // Content of these is never kept, even when an allowed element hides inside.
+  let skip = 0
+  const SKIPPED = /^(script|style|foreignobject|title|desc|metadata|a|iframe|object|embed)$/
+  for (const m of source.matchAll(/<\s*(\/?)\s*([a-zA-Z][\w:.-]*)([^>]*?)(\/?)\s*>/g)) {
+    const closing = m[1] === '/'
+    const name = (m[2] ?? '').toLowerCase()
+    const selfClosing = m[4] === '/' || /\/\s*$/.test(m[3] ?? '')
+    if (SKIPPED.test(name)) {
+      if (!selfClosing) skip += closing ? -1 : 1
+      if (skip < 0) skip = 0
+      continue
+    }
+    if (skip || !SVG_TAGS.has(name)) continue
+    const tag = CASED[name] ?? name
+    if (closing) {
+      const at = open.lastIndexOf(tag)
+      if (at === -1) continue
+      while (open.length > at) out.push(`</${open.pop()}>`)
+      continue
+    }
+    const attrs: string[] = []
+    for (const a of (m[3] ?? '').matchAll(/([^\s=/]+)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) {
+      const key = (a[1] ?? '').toLowerCase()
+      if (!SVG_ATTRS.has(key)) continue
+      const value = (a[2] ?? a[3] ?? a[4] ?? '').trim()
+      // References stay inside the drawing; nothing can point to a script or another page.
+      if (/url\s*\(/i.test(value) && !/^url\(\s*#[\w-]+\s*\)$/i.test(value)) continue
+      if (/(javascript|data|vbscript)\s*:/i.test(value) || /&#|\\/.test(value)) continue
+      attrs.push(` ${CASED[key] ?? key}="${escAttr(value)}"`)
+    }
+    if (selfClosing) out.push(`<${tag}${attrs.join('')}/>`)
+    else {
+      out.push(`<${tag}${attrs.join('')}>`)
+      open.push(tag)
+    }
+  }
+  while (open.length) out.push(`</${open.pop()}>`)
+  const result = out.join('')
+  return result.startsWith('<svg') ? result : ''
 }
 
 /** The SVG for an icon element: a Lucide icon, a shape, or the custom SVG, sized to fill the element. */
@@ -238,7 +347,10 @@ export function iconSvg(p: { icon?: string | null; svg?: string | null; strokeW?
     // Line icons from a library: their stroke follows the element's weight.
     if (p.strokeW) clean = clean.replace(/stroke-width="[^"]*"/g, `stroke-width="${Number(p.strokeW)}"`)
     // Custom drawings take the element's size; their own colors stay unless they use currentColor.
-    return clean.replace(/<svg\b/i, `<svg ${fill}`).replace(/\s(width|height)="[^"]*"(?=[^>]*>)/, '')
+    return clean.replace(
+      /^<svg\b([^>]*)>/i,
+      (_, attrs: string) => `<svg ${fill}${attrs.replace(/\s(width|height)="[^"]*"/g, '')}>`,
+    )
   }
   const name = p.icon ?? 'ArrowRight'
   if (name.startsWith('shape:')) {

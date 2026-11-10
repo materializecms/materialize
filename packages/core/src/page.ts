@@ -1280,7 +1280,10 @@ export function expandComponents(nodes: PageNode[], components: Record<string, C
         const prefix = `${n.id}${SEP}`
         const tree = mapTree(structuredClone(variant.node), (c) => {
           const own = n.overrides?.[c.id]
-          return { ...c, ...own, id: c.id === variant.node.id ? n.id : prefix + c.id }
+          // A copy changes its content only (OVERRIDE_KEYS): never code, forms, styles or the element itself.
+          const kept: Partial<PageNode> = {}
+          if (own) for (const k of OVERRIDE_KEYS) if (k in own) (kept as Record<string, unknown>)[k] = own[k]
+          return { ...c, ...kept, id: c.id === variant.node.id ? n.id : prefix + c.id }
         })
         const placement: Partial<PageNode> = {}
         for (const k of PLACEMENT_KEYS)
@@ -1503,9 +1506,16 @@ function safeHref(href: string | undefined): string {
 }
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+/**
+ * A CSS value can't leave its declaration: braces would open other rules and `<` could close the
+ * page's <style> element. Values come from saved pages, which editors (or an AI on their behalf)
+ * write, so they are cleaned here whatever the panel allowed.
+ */
+const cssValue = (v: unknown) => String(v).replace(/[<>{}]/g, '')
+
 const decl = (s: Style) =>
   Object.entries(s)
-    .map(([k, v]) => `${kebab(k)}:${v}`)
+    .map(([k, v]) => `${kebab(k)}:${cssValue(v)}`)
     .join(';')
 
 function textStyle(theme: Theme, style: TextStyle, bp: Breakpoint) {
@@ -1697,7 +1707,7 @@ function nodeStyle(
     s.display = 'block'
     s.aspectRatio = p.h ? 'auto' : (p.ratio ?? (isV ? '16/9' : '4/3')).replace('/', ' / ')
     s.objectFit = p.fit ?? 'cover'
-    s.objectPosition = p.focal ? `${p.focal.x}% ${p.focal.y}%` : '50% 50%'
+    s.objectPosition = p.focal ? `${Number(p.focal.x) || 0}% ${Number(p.focal.y) || 0}%` : '50% 50%'
     s.overflow = 'hidden'
     s.height = 'auto'
   } else if (isB) {
@@ -1880,6 +1890,35 @@ function diff(base: Style, next: Style): Style {
   return out
 }
 
+const SAFE_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'p'])
+const HOVERS = new Set(['none', 'lift', 'grow', 'dim', 'zoomimg'])
+
+function cleanProps<P extends Partial<NodeProps>>(p: P): P {
+  const out: P = { ...p }
+  // Rich text comes only from a bound field while rendering (bindTo): never from what was saved.
+  delete out.rich
+  if (out.tag != null && !SAFE_TAGS.has(out.tag)) delete out.tag
+  if (out.hover != null && !HOVERS.has(out.hover)) delete out.hover
+  if (out.focal) out.focal = { x: Number(out.focal.x) || 0, y: Number(out.focal.y) || 0 }
+  return out
+}
+
+/**
+ * Saved pages are data that people (editors, an AI, an import) wrote: before rendering, the props
+ * that become HTML element names or raw markup are held to what the editor itself can produce.
+ */
+export function cleanNodes(nodes: PageNode[]): PageNode[] {
+  return nodes.map((n) => {
+    const out = cleanProps(n)
+    if (n.over)
+      out.over = Object.fromEntries(
+        Object.entries(n.over).map(([bp, o]) => [bp, o && typeof o === 'object' ? cleanProps(o) : o]),
+      ) as PageNode['over']
+    if (n.children) out.children = cleanNodes(n.children)
+    return out
+  })
+}
+
 const TAGS: Record<string, string> = { display: 'h1', h1: 'h1', h2: 'h2', h3: 'h3' }
 
 /** The HTML element of a text: its own choice, else the one its style suggests. */
@@ -1899,7 +1938,7 @@ export function renderSections(
   theme: Theme = DEFAULT_THEME,
   options: RenderOptions = {},
 ): { html: string; css: string } {
-  sections = applyTextStyles(sections, theme)
+  sections = applyTextStyles(cleanNodes(sections), theme)
   const limits = breakpointsOf(theme)
   if (options.entry) {
     const entry = options.entry
@@ -1937,7 +1976,7 @@ export function renderSections(
 
     const p = n
     const attrs = [`class="mz-n ${cls}"`]
-    if (options.editor && !c.ghost) attrs.push(`data-mz-id="${esc(n.id)}"`, `data-mz-type="${n.type}"`)
+    if (options.editor && !c.ghost) attrs.push(`data-mz-id="${esc(n.id)}"`, `data-mz-type="${esc(n.type)}"`)
     if (c.depth === 0 && p.sticky)
       attrs.push(
         `data-mz-sticky="${[p.stickyHide && 'hide', p.stickyGlass && 'glass', p.stickyOverlay && 'overlay'].filter(Boolean).join(' ')}"`,
@@ -1945,7 +1984,7 @@ export function renderSections(
     if (c.depth === 0 && p.anchor && /^[a-z][a-z0-9-]*$/.test(p.anchor)) attrs.push(`id="${p.anchor}"`)
     if (c.menu && n.over?.mobile?.hidden && !n.hidden) attrs.push('data-mz-menu')
     if (p.interactions?.length) attrs.push(`data-mz-motion="${esc(JSON.stringify(p.interactions))}"`)
-    if (p.hover && p.hover !== 'none') attrs.push(`data-hover="${p.hover}"`)
+    if (p.hover && p.hover !== 'none') attrs.push(`data-hover="${esc(p.hover)}"`)
     // A container that reacts to the pointer is a "card": elements inside can change with it.
     if (n.type === 'frame' && (p.href || p.hoverStyle || (p.hover && p.hover !== 'none'))) attrs.push('data-mz-group')
     if (p.hoverStyle) {
@@ -2217,7 +2256,8 @@ export function renderSections(
     reduced(motion),
     scroll.length ? reduced([`@supports (animation-timeline:view()){${scroll.join('')}}`]) : '',
   ].join('\n')
-  return { html, css }
+  // Whatever slipped into a value, the CSS can't close the <style> element it goes into.
+  return { html, css: css.replace(/</g, '\\3c ') }
 }
 
 /** A copy of a list's template filled with one entry; ids stay, so every copy shares the template's styles. */

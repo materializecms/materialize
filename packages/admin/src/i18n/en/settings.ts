@@ -285,4 +285,9 @@ export const settings: Record<string, string> = {
   'Un paragrafo scritto bene, vostro: l’AI ne prende lo stile, mai il contenuto.':
     'A well-written paragraph of your own: the AI takes its style, never its content.',
   'La voce del brand la cambia un amministratore.': 'An administrator changes the brand voice.',
+  // a saved key does not follow the service to a new address
+  'Salvata: lascia vuoto per non cambiarla. Se cambi server, va scritta di nuovo.':
+    'Saved: leave empty to keep it. If you change the server, enter it again.',
+  'Salvata: lascia vuoto per non cambiarla. Se cambi fornitore o indirizzo, va scritta di nuovo.':
+    'Saved: leave empty to keep it. If you change the provider or the address, enter it again.',
 }

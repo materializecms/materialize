@@ -407,6 +407,14 @@ export function createContentStore(db: Db) {
       return rows.map((r) => ({ id: r.id, kind: r.kind, data: r.data, createdAt: r.createdAt, authorId: r.authorId }))
     },
 
+    /** One version of a document, to check before it is copied back. */
+    async revision(documentId: string, revisionId: string): Promise<Revision | null> {
+      const r = await db.query.revisions.findFirst({
+        where: and(eq(revisions.id, revisionId), eq(revisions.documentId, documentId)),
+      })
+      return r ? { id: r.id, kind: r.kind, data: r.data, createdAt: r.createdAt, authorId: r.authorId } : null
+    },
+
     /** Copies an old version back into the draft, recorded as a new revision. */
     async restore(documentId: string, revisionId: string, userId?: string): Promise<StoredDocument | null> {
       const revision = await db.query.revisions.findFirst({

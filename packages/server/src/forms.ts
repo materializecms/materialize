@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { FILE_TYPES, FORM_FILE_MAX, type FormDefinition } from '@materializecms/core/page'
 import type { SubmissionFile } from '@materializecms/db'
+import { RemoteError, remoteFetch } from './remote.ts'
 import { t } from './t.ts'
 
 /** Settings for every form, kept in the "forms" setting. */
@@ -160,19 +161,22 @@ export const webhookSignature = (secret: string, body: string) =>
 
 /**
  * Posts a message to a webhook (Zapier, Make, n8n…), signed; tries three times, waiting a little
- * longer each time. Resolves with whether it was taken.
+ * longer each time. Resolves with whether it was taken. What visitors wrote goes there, so an
+ * address on this machine or its network is refused (a stolen admin session could otherwise reach
+ * services that trust the local network), unless `allowPrivate` (an n8n beside the site, on purpose).
  */
 export async function sendWebhook(
   url: string,
   payload: unknown,
   secret: string,
   wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  allowPrivate = false,
 ): Promise<boolean> {
   const body = JSON.stringify(payload)
   for (const delay of [0, 20_000, 120_000]) {
     if (delay) await wait(delay)
     try {
-      const res = await fetch(url, {
+      const res = await remoteFetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -180,13 +184,18 @@ export async function sendWebhook(
           'x-materialize-signature': webhookSignature(secret, body),
         },
         body,
-        redirect: 'error',
-        signal: AbortSignal.timeout(10_000),
+        max: 1024 * 1024,
+        maxRedirects: 0,
+        timeout: 10_000,
+        allowPrivate,
       })
-      if (res.ok) return true
+      if (res.status >= 200 && res.status < 300) return true
       // The receiver refused it on purpose: trying again would not help.
       if (res.status >= 400 && res.status < 500 && res.status !== 429) return false
-    } catch {}
+    } catch (error) {
+      // An address that is not public stays so: no point waiting to try again.
+      if (error instanceof RemoteError && error.reason === 'private') return false
+    }
   }
   return false
 }

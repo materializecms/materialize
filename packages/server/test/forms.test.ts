@@ -243,6 +243,8 @@ describe('forms', () => {
     })
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
     const port = (server.address() as { port: number }).port
+    // A receiver on this machine only when the site allows it (an n8n beside the site).
+    app = createApp({ config: () => configFor(join(dir, 'media')), database, privateWebhooks: true })
     try {
       await publish(formPage({ webhook: `http://127.0.0.1:${port}/hook` }))
       await send({ nome: 'Luca', email: 'luca@example.com', privacy: 'on' })
@@ -264,6 +266,57 @@ describe('forms', () => {
     } finally {
       server.close()
     }
+  })
+
+  it('does not post visitors’ messages to an address on this machine or its network', async () => {
+    let hits = 0
+    const server: Server = createServer((_req, res) => {
+      hits++
+      res.end('ok')
+    })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    const port = (server.address() as { port: number }).port
+    try {
+      // Written as an IPv4-mapped IPv6 address, which the old check let through.
+      await publish(formPage({ webhook: `http://[::ffff:127.0.0.1]:${port}/hook` }))
+      await send({ nome: 'Luca', email: 'luca@example.com', privacy: 'on' })
+      let state = null
+      for (let i = 0; i < 50 && !state; i++) {
+        state = (await admin('GET', '/api/submissions')).body.items[0]?.webhook ?? null
+        if (!state) await new Promise((r) => setTimeout(r, 20))
+      }
+      expect(state).toBe('failed')
+      expect(hits).toBe(0)
+    } finally {
+      server.close()
+    }
+  })
+
+  it('limits forms built by hand by address, whatever name each message gives', async () => {
+    // Each message to a different made-up form: the per-form limit alone would never stop them.
+    const statuses: number[] = []
+    for (let i = 0; i < 6; i++) statuses.push((await send({ nome: 'Luca' }, `modulo-${i}`)).status)
+    expect(statuses.slice(0, 3)).toEqual([200, 200, 200])
+    expect(statuses.at(-1)).toBe(429)
+  })
+
+  it('keeps the words of a message flagged as spam, not its files', async () => {
+    await publish(formPage())
+    const form = new FormData()
+    form.set('_t', '100')
+    form.set('email', 'luca@example.com')
+    form.set('privacy', 'on')
+    form.set('allegato', new File(['ciao'], 'cv.pdf', { type: 'application/pdf' }))
+    const res = await app.request('/api/forms/contatti', {
+      method: 'POST',
+      headers: { origin: 'http://localhost', accept: 'application/json' },
+      body: form,
+    })
+    expect(res.status).toBe(200)
+    const item = (await admin('GET', '/api/submissions?status=spam')).body.items[0]
+    expect(item.spam).toBeTruthy()
+    expect(item.files ?? []).toEqual([])
+    expect(await readdir(join(dir, 'uploads')).catch(() => [])).toEqual([])
   })
 
   it('lets only admins change where the messages go', async () => {

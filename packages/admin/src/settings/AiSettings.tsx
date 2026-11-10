@@ -145,7 +145,7 @@ function ModelForm() {
           label={t('Chiave API')}
           hint={
             ai.hasKey
-              ? t('Salvata: lascia vuoto per non cambiarla.')
+              ? t('Salvata: lascia vuoto per non cambiarla. Se cambi fornitore o indirizzo, va scritta di nuovo.')
               : claude && ai.envKey
                 ? t('Il server ha già ANTHROPIC_API_KEY: puoi lasciare vuoto.')
                 : claude

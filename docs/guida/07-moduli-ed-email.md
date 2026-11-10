@@ -18,7 +18,7 @@ Seleziona il contenitore del modulo: nell'inspector, sotto **Modulo di contatto*
 - **Risposta automatica a chi scrive**: un'email con oggetto e testo tuoi, mandata all'indirizzo scritto nel modulo. Non ripete mai ciò che è stato inviato.
 - **Webhook**: ogni messaggio arriva anche a questo indirizzo, in JSON, per collegarlo a Zapier, Make, n8n o a un CRM.
 
-**Invia a** e **Webhook** li cambia solo un amministratore, perché decidono dove finiscono i dati di chi scrive.
+**Invia a**, **Webhook** e la **risposta automatica** li cambia solo un amministratore, perché decidono dove finiscono i dati di chi scrive e cosa parte a nome del sito. Il webhook deve essere un indirizzo pubblico: Materialize rifiuta gli indirizzi della rete interna (per esempio `127.0.0.1` o `192.168.…`). Per un n8n o un altro servizio sullo stesso server, avvialo con `MATERIALIZE_PRIVATE_WEBHOOKS=1`.
 
 ### File allegati
 
