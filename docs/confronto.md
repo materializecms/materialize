@@ -6,9 +6,9 @@ Un confronto onesto, per capire se Materialize fa al caso tuo o se ti serve altr
 
 ## In breve
 
-Materialize è un CMS **open source (MIT)** per agenzie e freelance che fanno siti per i clienti:
+Materialize è un CMS **open source (MIT)** per agenzie, web designer e freelance che fanno siti per i clienti:
 
-- **Lo sviluppatore definisce lo schema dei contenuti in codice** (TypeScript) e i componenti del sito in Astro.
+- **Il sito si compone sulla tela**, con oltre 100 sezioni pronte e i colori e i caratteri del brand: **non serve scrivere codice**. Chi programma può aggiungere sezioni e tipi di contenuto propri in TypeScript, perché il sito è un progetto Astro.
 - **Il cliente modifica la pagina vera sulla tela**, con i componenti e lo stile del sito, senza poter rompere il design.
 - **Il sito pubblicato è statico**: file HTML veloci, sicuri e facili da servire.
 - **Tutto in un solo programma** sul tuo server: pannello, database (SQLite incluso), immagini, backup, aggiornamenti.
@@ -24,7 +24,7 @@ Materialize è un CMS **open source (MIT)** per agenzie e freelance che fanno si
 | Per chi pubblica                   | Ghost                                          | Articoli, newsletter e abbonamenti a pagamento.                                                    |
 | CMS a file                         | Statamic, Craft CMS, Decap                     | Contenuti in file o in un pannello PHP, spesso con Git.                                            |
 
-Materialize sta in mezzo: come un headless, lo schema è codice e il sito è un progetto Astro; come un costruttore di siti, il cliente modifica visivamente la pagina vera; come un CMS tradizionale, è un solo programma che fa tutto.
+Materialize sta in mezzo: come un costruttore di siti, la pagina si compone sulla tela e il cliente la modifica visivamente; come un CMS tradizionale, è un solo programma che fa tutto, sul tuo server; come un headless, chi programma può definire sezioni e contenuti in codice, perché il sito è un progetto Astro.
 
 ## Confronto per funzione
 
@@ -36,7 +36,8 @@ Legenda: **Sì** di serie · **Plugin** con estensioni o servizi aggiuntivi · *
 | Ospitato da te                              | Sì                                    | Sì                                                | No                                                              | No                                                | Sì                                       | No                                    | Sì, o il loro servizio |
 | Hosting condiviso economico                 | No, serve un VPS o Docker             | Sì                                                | Incluso nel prezzo                                              | Incluso nel prezzo                                | No                                       | Incluso nel prezzo                    | No                     |
 | Editor visuale sulla pagina vera            | Sì                                    | Parziale (blocchi, o page builder come Elementor) | Sì                                                              | Sì                                                | No                                       | Storyblok sì, gli altri con anteprima | Parziale               |
-| Schema dei contenuti in codice              | Sì                                    | Parziale (codice o plugin)                        | No                                                              | No                                                | Sì                                       | Sì                                    | No                     |
+| Costruire il sito senza codice              | Sì, con sezioni pronte sulla tela     | Sì (temi e page builder)                          | Sì                                                              | Sì                                                | No                                       | No                                    | Parziale (temi)        |
+| Schema dei contenuti anche in codice        | Sì                                    | Parziale (codice o plugin)                        | No                                                              | No                                                | Sì                                       | Sì                                    | No                     |
 | Il cliente non può rompere il design        | Sì (solo i nomi del tema)             | Dipende dal tema                                  | Parziale (ruoli)                                                | Parziale                                          | Dipende dal sito                         | Dipende dal sito                      | Sì                     |
 | Sito statico                                | Sì                                    | Plugin                                            | No                                                              | No                                                | Dipende dal sito                         | Dipende dal sito                      | No                     |
 | Lingue                                      | Sì, con traduzione AI                 | Plugin                                            | Sì, a pagamento                                                 | Sì                                                | Sì                                       | Sì                                    | Parziale               |
@@ -65,7 +66,8 @@ Le celle «Dipende dal sito» indicano che, nei CMS headless, quella parte la co
 
 - Fai siti per clienti e vuoi che **modifichino da soli** testi, immagini e sezioni, senza poter rompere il design che hai fatto.
 - Vuoi **un sito statico veloce** e un solo programma da tenere aggiornato, **senza abbonamenti** per sito.
-- Vuoi lavorare con **Astro e TypeScript**, con lo schema dei contenuti nel repository come il resto del codice.
+- Vuoi **costruire il sito sulla tela**, con sezioni pronte e il tuo stile, **senza scrivere codice**.
+- Oppure programmi e vuoi lavorare con **Astro e TypeScript**, con lo schema dei contenuti nel repository come il resto del codice.
 - Vuoi usare **l'AI sui contenuti** (scrittura, traduzioni, SEO, pagine da un'immagine di riferimento) pagando solo quello che usi, o con un modello locale.
 - Hai un sito WordPress da **migrare** e vuoi portare articoli, immagini, SEO e reindirizzamenti.
 - Vuoi **effetti WebGL e 3D** (sfondi animati, il logo del cliente in cromo o vetro, modelli `.glb`) senza servizi esterni né codice: ci sono già come sezioni pronte, leggere e con una versione ferma per chi riduce il movimento.

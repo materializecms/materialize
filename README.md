@@ -7,7 +7,7 @@
   </picture>
 </h1>
 
-CMS open source per agenzie e freelance: schema dei contenuti in codice, editor visuale sulla tela, siti statici velocissimi.
+CMS open source per agenzie, web designer e freelance: il sito si compone sulla tela con oltre 100 sezioni pronte, senza scrivere codice; il cliente lo aggiorna sulla pagina vera; il sito pubblicato è statico e velocissimo. Chi programma può aggiungere sezioni e contenuti in codice.
 
 > Stato: **Alpha**. Le novità di ogni versione sono in [CHANGELOG.md](CHANGELOG.md).
 

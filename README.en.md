@@ -7,7 +7,7 @@
   </picture>
 </h1>
 
-An open source CMS for agencies and freelancers: content schema in code, a visual editor on the canvas, and very fast static sites.
+An open source CMS for agencies, web designers and freelancers: you build the site on a canvas with over 100 ready sections, no code required; clients update it on the real page; the published site is static and very fast. Developers can add their own sections and content types in code.
 
 > Status: **Alpha**. What's new in each version is in [CHANGELOG.md](CHANGELOG.md) (in Italian).
 
