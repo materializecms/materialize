@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, KeyRound, Plug, Sparkles, Trash2 } from 'lucide-react'
+import { Check, Copy, Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { Button, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { type AiSettings, type AiUsage, api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
 import { intlLocale, t, tn } from '../lib/i18n.ts'
+import { SettingsPage, SettingsSection } from './SettingsPage.tsx'
 
 /**
  * Impostazioni → AI e MCP: the model behind the assistant (admins), each person's access tokens,
@@ -15,23 +16,27 @@ export function AiScreen() {
   const { user } = useSession()
   const [fresh, setFresh] = useState<string | null>(null)
   return (
-    <div className="mx-auto max-w-2xl space-y-10 px-5 py-8">
+    <SettingsPage>
       {user.role === 'admin' ? <ModelForm /> : <ModelStatus />}
       <Tokens onCreated={setFresh} fresh={fresh} />
       <Connect token={fresh} />
-    </div>
+    </SettingsPage>
   )
 }
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
-    <section className="space-y-4">
-      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        {icon}
-        {title}
-      </h2>
+    <SettingsSection title={title} description={description}>
       {children}
-    </section>
+    </SettingsSection>
   )
 }
 
@@ -63,7 +68,7 @@ function Ready({ ready }: { ready: boolean }) {
 function ModelStatus() {
   const ai = useQuery({ queryKey: ['ai'], queryFn: api.ai }).data?.ai
   return (
-    <Section icon={<Sparkles />} title={t('Assistente AI')}>
+    <Section title={t('Assistente AI')}>
       <p className="flex items-center gap-2 text-[14px] text-fg2">
         {t('Il modello lo sceglie un amministratore.')} {ai && <Ready ready={ai.ready} />}
       </p>
@@ -125,7 +130,7 @@ function ModelForm() {
 
   if (saved.isLoading) return <Spinner />
   return (
-    <Section icon={<Sparkles />} title={t('Modello AI')}>
+    <Section title={t('Modello AI')}>
       <form onSubmit={save} className="space-y-5">
         <p className="flex flex-wrap items-center gap-2 text-[14px] leading-relaxed text-fg2">
           {t('Scrive e modifica pagine con l’assistente dell’editor, e riscrive, traduce e descrive testi e immagini.')}
@@ -223,7 +228,7 @@ function Usage({ usage }: { usage: AiUsage }) {
   const read = usage.input + usage.cacheRead + usage.cacheWrite
   const cached = read ? Math.round((usage.cacheRead / read) * 100) : 0
   return (
-    <div className="rounded-lg border border-line bg-panel2 px-3 py-2.5 text-[13px] text-fg2">
+    <div className="rounded-2xl bg-panel2 px-3 py-2.5 text-[13px] text-fg2">
       <div className="font-medium text-fg">{t('Uso di questo mese')}</div>
       {usage.requests ? (
         <p className="mt-0.5">
@@ -289,7 +294,7 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
   }
 
   return (
-    <Section icon={<KeyRound />} title={t('Token di accesso')}>
+    <Section title={t('Token di accesso')}>
       <p className="text-[14px] leading-relaxed text-fg2">
         {t(
           'Un client AI collegato con un tuo token agisce come te: può fare quello che puoi fare tu nel pannello, nulla di più. Creane uno per ogni client, così puoi revocarlo da solo.',
@@ -307,7 +312,7 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
         </Button>
       </form>
       {fresh && (
-        <div className="space-y-2 rounded-lg border border-accent/40 bg-accent/6 p-3">
+        <div className="space-y-2 rounded-2xl bg-accent/8 p-3">
           <p className="text-[13px] font-medium">{t('Copialo ora: non lo vedrai più.')}</p>
           <div className="flex items-center gap-1">
             <code className="min-w-0 flex-1 truncate rounded-md bg-input px-2 py-1.5 font-mono text-[13px]">
@@ -318,7 +323,7 @@ function Tokens({ fresh, onCreated }: { fresh: string | null; onCreated: (token:
         </div>
       )}
       {list.data && list.data.tokens.length > 0 && (
-        <ul className="divide-y divide-line rounded-lg border border-line">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {list.data.tokens.map((tok) => (
             <li key={tok.id} className="flex items-center gap-3 px-3 py-2">
               <div className="min-w-0 flex-1">
@@ -376,7 +381,7 @@ function Connect({ token }: { token: string | null }) {
     2,
   )
   return (
-    <Section icon={<Plug />} title={t('Collegare un client AI (MCP)')}>
+    <Section title={t('Collegare un client AI (MCP)')}>
       <p className="text-[14px] leading-relaxed text-fg2">
         {t(
           'Con il protocollo MCP, Claude e altri assistenti leggono e modificano il sito: contenuti, pagine, tema e immagini. Le modifiche restano bozze finché non chiedi di pubblicarle.',

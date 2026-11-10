@@ -68,6 +68,8 @@ export function Overview() {
     release ? (release.status === 'failed' ? t('un rilascio non uscito') : t('un rilascio in preparazione')) : '',
     unread ? tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi') : '',
   ].filter(Boolean)
+  // "Ti aspetta un documento", "Ti aspettano 3 documenti": the verb follows what is waiting.
+  const waitsOne = summary.length === 1 && (toPublish ? toPublish === 1 : unread ? unread === 1 : true)
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -82,7 +84,7 @@ export function Overview() {
               {overview.isPending
                 ? t('Un attimo…')
                 : summary.length
-                  ? t('Ti aspettano {list}.', {
+                  ? tn(waitsOne ? 1 : 2, 'Ti aspetta {list}.', 'Ti aspettano {list}.', {
                       list: new Intl.ListFormat(intlLocale(), { type: 'conjunction' }).format(summary),
                     })
                   : t('Tutto il sito è pubblicato e aggiornato.')}

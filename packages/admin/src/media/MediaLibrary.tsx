@@ -143,7 +143,7 @@ export function MediaLibrary() {
           title={t('Azioni')}
           onClick={toggle}
           className={cx(
-            'flex size-7 items-center justify-center rounded-md bg-panel/90 text-fg2 shadow-sm backdrop-blur transition-opacity hover:text-fg [&_svg]:size-4',
+            'flex size-7 items-center justify-center rounded-full bg-panel/90 text-fg2 shadow-sm backdrop-blur transition-opacity hover:text-fg [&_svg]:size-4',
             open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
           )}
         >
@@ -207,7 +207,7 @@ export function MediaLibrary() {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         {checked.size > 0 ? (
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line bg-panel px-5">
+          <header className="mt-6 flex h-12 shrink-0 items-center gap-2 px-4 sm:mt-8 sm:px-8">
             <SelectBox checked label={t('Deseleziona tutti')} onToggle={() => setChecked(new Map())} />
             <span className="ml-1 text-[14px] font-medium">
               {tn(checked.size, '1 file selezionato', '{n} file selezionati')}
@@ -240,7 +240,7 @@ export function MediaLibrary() {
               </Button>
             }
           >
-            <div className="mt-6 flex items-center border-b border-line pb-3">
+            <div className="mt-6 flex items-center">
               <div className="relative w-full sm:w-80">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
                 <Input
@@ -257,6 +257,7 @@ export function MediaLibrary() {
         {picker.element}
         <DropZone onFiles={start} className="min-h-0 flex-1 overflow-y-auto">
           <MediaGrid
+            className="px-4 pt-4 pb-8 sm:px-8"
             search={debounced}
             uploads={uploads}
             selected={selected?.id}
@@ -333,79 +334,93 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
   const row = 'flex justify-between gap-3 py-1'
 
   return (
-    <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-line bg-panel">
-      <div className="bg-panel2 p-4">
-        <img src={thumb(asset.url, 640)} alt={asset.alt} className="mx-auto max-h-64 rounded-md object-contain" />
-      </div>
-      <div className="space-y-4 p-4">
-        <div>
-          <div className="truncate text-[14px] font-semibold" title={asset.filename}>
-            {asset.filename}
-          </div>
-          <div className="mt-2 text-[13px]">
-            {asset.width && (
+    // A card of its own beside the grid, lined up with the header; on phones a sheet over the grid.
+    <aside className="flex w-[320px] shrink-0 flex-col pt-6 pr-4 pb-4 sm:pt-8 sm:pr-8 max-md:fixed max-md:inset-x-2 max-md:bottom-2 max-md:z-30 max-md:max-h-[75dvh] max-md:w-auto max-md:p-0">
+      <div className="min-h-0 overflow-y-auto rounded-2xl bg-panel2 max-md:shadow-pop">
+        <div className="relative p-3">
+          <img
+            src={thumb(asset.url, 640)}
+            alt={asset.alt}
+            className="mx-auto max-h-64 rounded-xl object-contain max-md:max-h-40"
+          />
+          <IconButton
+            label={t('Chiudi')}
+            onClick={onClose}
+            className="absolute top-2 right-2 bg-panel/90 shadow-sm backdrop-blur"
+          >
+            <X />
+          </IconButton>
+        </div>
+        <div className="space-y-4 px-4 pt-1 pb-4">
+          <div>
+            <div className="truncate text-[14px] font-semibold" title={asset.filename}>
+              {asset.filename}
+            </div>
+            <div className="mt-2 text-[13px]">
+              {asset.width && (
+                <div className={row}>
+                  <span className="text-fg2">{t('Dimensioni in pixel')}</span>
+                  <span className="tabular-nums">
+                    {asset.width} × {asset.height}
+                  </span>
+                </div>
+              )}
               <div className={row}>
-                <span className="text-fg2">{t('Dimensioni in pixel')}</span>
-                <span className="tabular-nums">
-                  {asset.width} × {asset.height}
+                <span className="text-fg2">{t('Peso del file')}</span>
+                <span>{formatSize(asset.size)}</span>
+              </div>
+              <div className={row}>
+                <span className="text-fg2">{t('Caricata')}</span>
+                <span title={fullDate(asset.createdAt)}>{relativeTime(asset.createdAt)}</span>
+              </div>
+              <div className={row}>
+                <span className="text-fg2">{t('Usata in')}</span>
+                <span>
+                  {usage === undefined ? <Spinner className="size-3" /> : tn(usage, '1 documento', '{n} documenti')}
                 </span>
               </div>
-            )}
-            <div className={row}>
-              <span className="text-fg2">{t('Peso del file')}</span>
-              <span>{formatSize(asset.size)}</span>
-            </div>
-            <div className={row}>
-              <span className="text-fg2">{t('Caricata')}</span>
-              <span title={fullDate(asset.createdAt)}>{relativeTime(asset.createdAt)}</span>
-            </div>
-            <div className={row}>
-              <span className="text-fg2">{t('Usata in')}</span>
-              <span>
-                {usage === undefined ? <Spinner className="size-3" /> : tn(usage, '1 documento', '{n} documenti')}
-              </span>
             </div>
           </div>
-        </div>
-        <label className="block">
-          <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-fg2">
-            {t('Testo alternativo')}
-            {saved && <Check className="size-3.5 text-ok" />}
-            {asset.mime.startsWith('image/') && (
-              <span className="ml-auto">
-                <AiButton
-                  action="alt"
-                  src={asset.url}
-                  text={alt}
-                  label={t('Descrivi con l’AI')}
-                  onResult={(text) => {
-                    setAlt(text)
-                    void saveAlt(text)
-                  }}
-                />
-              </span>
+          <label className="block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-fg2">
+              {t('Testo alternativo')}
+              {saved && <Check className="size-3.5 text-ok" />}
+              {asset.mime.startsWith('image/') && (
+                <span className="ml-auto">
+                  <AiButton
+                    action="alt"
+                    src={asset.url}
+                    text={alt}
+                    label={t('Descrivi con l’AI')}
+                    onResult={(text) => {
+                      setAlt(text)
+                      void saveAlt(text)
+                    }}
+                  />
+                </span>
+              )}
+            </span>
+            <Textarea
+              value={alt}
+              onChange={(e) => setAlt(e.target.value)}
+              onBlur={() => saveAlt()}
+              placeholder={t('Descrivi l’immagine a chi non può vederla')}
+            />
+            <span className="mt-1 block text-[13px] text-fg3">
+              {t('Proposto quando scegli l’immagine in un documento.')}
+            </span>
+          </label>
+          <div className="flex gap-1.5">
+            <Button size="sm" icon={<Copy className="size-3.5" />} onClick={() => void copyUrl(asset)}>
+              {t('Copia indirizzo')}
+            </Button>
+            <div className="flex-1" />
+            {user.role === 'admin' && (
+              <IconButton label={t('Elimina')} onClick={() => setConfirm(true)} className="hover:text-danger">
+                <Trash2 />
+              </IconButton>
             )}
-          </span>
-          <Textarea
-            value={alt}
-            onChange={(e) => setAlt(e.target.value)}
-            onBlur={() => saveAlt()}
-            placeholder={t('Descrivi l’immagine a chi non può vederla')}
-          />
-          <span className="mt-1 block text-[13px] text-fg3">
-            {t('Proposto quando scegli l’immagine in un documento.')}
-          </span>
-        </label>
-        <div className="flex gap-1.5">
-          <Button size="sm" icon={<Copy className="size-3.5" />} onClick={() => void copyUrl(asset)}>
-            {t('Copia indirizzo')}
-          </Button>
-          <div className="flex-1" />
-          {user.role === 'admin' && (
-            <IconButton label={t('Elimina')} onClick={() => setConfirm(true)} className="hover:text-danger">
-              <Trash2 />
-            </IconButton>
-          )}
+          </div>
         </div>
       </div>
       <Dialog

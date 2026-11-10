@@ -3,10 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, IconButton, Input, Spinner, Switch, Textarea, toast } from '../components/ui.tsx'
+import { Button, cx, IconButton, Input, inputClass, Spinner, Switch, Textarea, toast } from '../components/ui.tsx'
 import { MediaInput } from '../fields/MediaInput.tsx'
 import { api } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
+import { SettingsPage, SettingsSection } from './SettingsPage.tsx'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -21,13 +22,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function Group({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
-        {text && <p className="mt-1 text-[14px] leading-relaxed text-fg2">{text}</p>}
-      </div>
+    <SettingsSection title={title} description={text}>
       {children}
-    </section>
+    </SettingsSection>
   )
 }
 
@@ -77,7 +74,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
 
   if (saved.isLoading) return <Spinner />
   return (
-    <div className="mx-auto max-w-xl space-y-10 px-5 py-8">
+    <SettingsPage>
       <form onSubmit={save} className="space-y-10">
         <fieldset disabled={!editable} className="min-w-0 space-y-10">
           <Group
@@ -135,7 +132,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                 <select
                   value={business.type ?? 'Organization'}
                   onChange={(e) => setBusiness({ type: e.target.value as NonNullable<SiteSeo['business']>['type'] })}
-                  className="h-9 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
+                  className={cx(inputClass, 'h-8')}
                 >
                   {businessTypes().map((b) => (
                     <option key={b.value} value={b.value}>
@@ -317,7 +314,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
         </fieldset>
       </form>
       <Redirects editable={editable} />
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -387,7 +384,7 @@ function Redirects({ editable }: { editable: boolean }) {
       ) : list.length === 0 ? (
         <p className="text-[13px] text-fg3">{t('Nessun reindirizzamento.')}</p>
       ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {list.map((r) => (
             <li key={r.from} className="flex items-center gap-2 px-3 py-2 font-mono text-[13px]">
               <span className="min-w-0 flex-1 truncate">{r.from}</span>

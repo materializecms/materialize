@@ -92,8 +92,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       ref={active === it.value ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
       onClick={() => navigate({ name: 'settings', tab: it.value })}
       className={cx(
-        'flex h-8 shrink-0 items-center gap-2 rounded-lg px-2.5 text-left text-[14px] transition-colors max-md:border max-md:border-line',
-        active === it.value ? 'bg-hover font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+        'flex h-8 shrink-0 items-center gap-2 rounded-full px-3 text-left text-[14px] transition-colors',
+        active === it.value ? 'bg-seg font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
       )}
     >
       <span className="flex-1 whitespace-nowrap">{it.label}</span>
@@ -117,17 +117,16 @@ export function SettingsScreen({ tab }: { tab?: string }) {
         color="#64748b"
         title={t('Impostazioni')}
         subtitle={t('Il sito, la posta, la sicurezza e gli strumenti.')}
-      >
-        <div className="mt-5 border-b border-line" />
-      </ScreenHeader>
+      />
       <div className="flex min-h-0 flex-1 max-md:flex-col">
+        {/* A pill list on its own; it scrolls (faded at the edges) when the window is short or narrow. */}
         <nav
           aria-label={t('Sezioni delle impostazioni')}
-          className="shrink-0 border-line md:w-52 md:overflow-y-auto md:border-r md:p-3 max-md:flex max-md:gap-1.5 max-md:overflow-x-auto max-md:border-b max-md:px-4 max-md:py-2.5 max-md:[scrollbar-width:none]"
+          className="shrink-0 md:w-56 md:overflow-y-auto md:px-4 md:pt-4 md:pb-10 md:pl-5 md:[mask-image:linear-gradient(to_bottom,transparent,#000_1rem,#000_calc(100%-2.5rem),transparent)] md:scroll-pt-6 md:scroll-pb-12 md:[scrollbar-width:thin] max-md:flex max-md:gap-1 max-md:overflow-x-auto max-md:py-3 max-md:pr-10 max-md:pl-4 max-md:[mask-image:linear-gradient(to_right,#000_calc(100%-2.5rem),transparent)] max-md:scroll-px-12 max-md:[scrollbar-width:none]"
         >
           {groups.map((g) => (
             <div key={g.title} className="md:mb-5 max-md:contents">
-              <div className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg uppercase max-md:hidden">
+              <div className="px-3 pb-1.5 text-[11px] font-semibold tracking-[0.07em] text-fg3 uppercase max-md:hidden">
                 {g.title}
               </div>
               <div className="flex flex-col gap-0.5 max-md:contents">{g.items.map(item)}</div>

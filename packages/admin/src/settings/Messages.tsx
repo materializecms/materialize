@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Download, Inbox, Paperclip, Search, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react'
+import { Copy, Download, Eye, EyeOff, Inbox, Paperclip, Search, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { Button, cx, EmptyState, IconButton, Input, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { api, type Submission, type SubmissionQuery } from '../lib/api.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { t, tx } from '../lib/i18n.ts'
+import { linkButton, SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 type View = 'all' | 'unread' | 'spam'
 
@@ -42,7 +43,13 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
   const filtered = !!(form || search || view !== 'all')
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 px-5 py-4">
+    <SettingsPage className="space-y-4">
+      <SettingsHeading
+        title={t('Messaggi')}
+        description={t(
+          'Quello che arriva dai moduli del sito: si filtra, si cerca e si scarica come foglio di calcolo.',
+        )}
+      />
       {(forms.length > 0 || filtered) && (
         <div className="flex flex-wrap items-center gap-2">
           <Segmented
@@ -60,7 +67,7 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
               aria-label={t('Modulo')}
               value={form}
               onChange={(e) => setForm(e.target.value)}
-              className="h-7 rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
+              className="h-7 rounded-[10px] border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent"
             >
               <option value="">{t('Tutti i moduli')}</option>
               {forms.map((f) => (
@@ -80,11 +87,7 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
               className="h-7 pl-7 text-[13px]"
             />
           </div>
-          <a
-            href={api.submissionsCsv({ ...query, limit: undefined })}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line2 px-2 text-[13px] text-fg2 hover:text-fg [&_svg]:size-3.5"
-            download
-          >
+          <a href={api.submissionsCsv({ ...query, limit: undefined })} className={linkButton} download>
             <Download /> CSV
           </a>
         </div>
@@ -118,7 +121,7 @@ export function Messages({ canDelete }: { canDelete: boolean }) {
         </ul>
       )}
       <FormsSettings />
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -187,7 +190,7 @@ function Message({
         )}
       </div>
       {expanded && (
-        <dl className="mt-2 ml-5 space-y-2 rounded-lg border border-line bg-panel2 p-3 text-[14px]">
+        <dl className="mt-2 ml-5 space-y-2 rounded-2xl bg-panel2 p-3 text-[14px]">
           {Object.entries(m.data).map(([k, v]) => {
             const n = m.files.findIndex((f) => f.field === k)
             const file = m.files[n]
@@ -232,8 +235,8 @@ function FormsSettings() {
   if (!current.data) return null
   const admin = user.role === 'admin'
   return (
-    <section className="mt-6 space-y-3 border-t border-line pt-5">
-      <h2 className="text-[15px] font-semibold">{t('Conservazione e collegamenti')}</h2>
+    <section className="space-y-3 pt-8">
+      <SettingsHeading title={t('Conservazione e collegamenti')} />
       <label className="flex flex-wrap items-center gap-2 text-[14px]">
         {t('Cancella da soli i messaggi più vecchi di')}
         <select
@@ -247,7 +250,7 @@ function FormsSettings() {
             queryClient.invalidateQueries({ queryKey: ['submissions'] })
             toast(months ? t('Salvato: i messaggi più vecchi verranno cancellati') : t('Salvato: i messaggi restano'))
           }}
-          className="h-7 rounded-md border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent disabled:opacity-60"
+          className="h-7 rounded-[10px] border border-line2 bg-input px-2 text-[13px] outline-none focus:border-accent disabled:opacity-60"
         >
           {KEEP().map((k) => (
             <option key={k.value} value={k.value}>
@@ -264,20 +267,7 @@ function FormsSettings() {
       {current.data.webhookSecret && (
         <div className="space-y-1">
           <p className="text-[13px] font-medium">{t('Chiave dei webhook')}</p>
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-md border border-line bg-panel2 px-2 py-1 text-[12px]">
-              {current.data.webhookSecret}
-            </code>
-            <Button
-              size="sm"
-              onClick={() =>
-                navigator.clipboard?.writeText(current.data.webhookSecret ?? '').then(() => toast(t('Chiave copiata')))
-              }
-              icon={<Copy className="size-3.5" />}
-            >
-              {t('Copia')}
-            </Button>
-          </div>
+          <Secret value={current.data.webhookSecret} />
           <p className="text-[13px] leading-relaxed text-fg3">
             {tx(
               'Ogni chiamata porta l’intestazione {header}, l’HMAC del corpo con questa chiave: chi la riceve può verificare che arrivi dal tuo sito.',
@@ -287,5 +277,36 @@ function FormsSettings() {
         </div>
       )}
     </section>
+  )
+}
+
+/** A key shown hidden: dots until asked, with a button to show it and one to copy it. */
+function Secret({ value }: { value: string }) {
+  const [shown, setShown] = useState(false)
+  return (
+    <div className="flex items-center gap-1.5">
+      <code
+        className={cx(
+          'min-w-0 flex-1 truncate rounded-[10px] bg-panel2 px-2.5 py-1.5 font-mono text-[12px]',
+          !shown && 'tracking-[0.15em] text-fg3 select-none',
+        )}
+      >
+        {shown ? value : '•'.repeat(Math.min(32, value.length))}
+      </code>
+      <IconButton
+        label={shown ? t('Nascondi la chiave') : t('Mostra la chiave')}
+        active={shown}
+        onClick={() => setShown(!shown)}
+      >
+        {shown ? <EyeOff /> : <Eye />}
+      </IconButton>
+      <Button
+        size="sm"
+        onClick={() => navigator.clipboard?.writeText(value).then(() => toast(t('Chiave copiata')))}
+        icon={<Copy className="size-3.5" />}
+      >
+        {t('Copia')}
+      </Button>
+    </div>
   )
 }

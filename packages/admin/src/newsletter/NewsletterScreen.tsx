@@ -1,10 +1,12 @@
 import type { RichText } from '@materializecms/core'
+import { library } from '@materializecms/core/library'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarClock,
   Download,
   FileText,
+  Info,
   Mail,
   Plus,
   Search,
@@ -40,6 +42,7 @@ import { api, type DocumentSummary, type Newsletter, type Subscriber } from '../
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
+import { linkButton } from '../settings/SettingsPage.tsx'
 
 const STATUS = (): Record<Newsletter['status'], { label: string; tone: string }> => ({
   draft: { label: t('Bozza'), tone: 'bg-seg text-fg2' },
@@ -51,13 +54,29 @@ const STATUS = (): Record<Newsletter['status'], { label: string; tone: string }>
 
 const percent = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : '–')
 
+/** The library's sections with a signup form, named as the section library shows them. */
+const signupSections = () => {
+  const categories = library()
+  return ['cta.newsletter', 'footer.newsletter']
+    .map((key) => {
+      const category = categories.find((c) => c.key === key.split('.')[0])
+      const variant = category?.variants.find((v) => v.key === key)
+      return category && variant ? `${category.label} → ${variant.label}` : null
+    })
+    .filter(Boolean)
+    .join(', ')
+}
+
 const fail = (error: unknown) => toast(error instanceof Error ? error.message : t('Errore'), 'error')
 
 /** The newsletter: what was sent and is being written, who receives it, and one newsletter open. */
 export function NewsletterScreen({ view }: { view?: string }) {
+  const { user } = useSession()
   const counts = useQuery({ queryKey: ['subscribers', 'counts'], queryFn: () => api.subscribers({ limit: 1 }) })
   const active = counts.data?.counts.active ?? 0
-  if (view && view !== 'subscribers') return <Editor id={view} active={active} />
+  const admin = user.role === 'admin'
+  const tab = view === 'subscribers' ? 'subscribers' : view === 'settings' && admin ? 'settings' : 'letters'
+  if (view && view !== 'subscribers' && view !== 'settings') return <Editor id={view} active={active} />
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <ScreenHeader
@@ -65,22 +84,23 @@ export function NewsletterScreen({ view }: { view?: string }) {
         color="#ec4899"
         title="Newsletter"
         subtitle={counts.isPending ? '' : tn(active, 'Un iscritto attivo', '{n} iscritti attivi')}
-        actions={view === 'subscribers' ? null : <NewMenu />}
+        actions={tab === 'letters' ? <NewMenu /> : null}
       >
-        <div className="mt-5 max-w-xs">
+        <div className="mt-5 max-w-full overflow-x-auto [scrollbar-width:none]">
           <Segmented
-            className="flex w-full"
-            value={view === 'subscribers' ? 'subscribers' : 'letters'}
-            onChange={(v) => navigate({ name: 'newsletter', view: v === 'subscribers' ? 'subscribers' : undefined })}
+            value={tab}
+            onChange={(v) => navigate({ name: 'newsletter', view: v === 'letters' ? undefined : v })}
             options={[
               { value: 'letters', label: 'Newsletter' },
               { value: 'subscribers', label: `${t('Iscritti')}${counts.data ? ` · ${active}` : ''}` },
+              // The sender's details and the statistics: their own tab, not buried under the list.
+              ...(admin ? [{ value: 'settings' as const, label: t('Impostazioni') }] : []),
             ]}
           />
         </div>
       </ScreenHeader>
-      <div className="mx-auto w-full max-w-[920px] px-4 pt-6 pb-20 sm:px-8">
-        {view === 'subscribers' ? <Subscribers /> : <Letters />}
+      <div className="w-full max-w-[920px] px-4 pt-6 pb-20 sm:px-8">
+        {tab === 'subscribers' ? <Subscribers /> : tab === 'settings' ? <NewsletterSettings /> : <Letters />}
       </div>
     </div>
   )
@@ -207,7 +227,7 @@ function ArticlePicker({ onClose, onPick }: { onClose: () => void; onPick: (id: 
               <button
                 type="button"
                 onClick={() => onPick(d.id)}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13.5px] hover:bg-hover"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[13.5px] hover:bg-hover"
               >
                 <span className="min-w-0 flex-1 truncate font-medium text-fg">{d.title}</span>
                 <span className="shrink-0 text-[12px] text-fg3">{d.label}</span>
@@ -240,15 +260,13 @@ function Letters() {
         <p className="mt-2">
           {t(
             'Per raccogliere iscritti, aggiungi a una pagina una sezione con l’iscrizione dalla libreria ({sections}).',
-            {
-              sections: 'Invito → Newsletter, Footer → Con iscrizione',
-            },
+            { sections: signupSections() },
           )}
         </p>
       </EmptyState>
     )
   return (
-    <ul className="divide-y divide-line rounded-xl border border-line bg-panel">
+    <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
       {list.map((n) => (
         <li key={n.id}>
           <button
@@ -305,6 +323,18 @@ function Editor({ id, active }: { id: string; active: number }) {
   const [confirm, setConfirm] = useState(false)
   const [testTo, setTestTo] = useState(user.email)
   const loaded = useRef<string | null>(null)
+  const admin = user.role === 'admin'
+  // Whether email can go out at all (the same answer the sign-in page uses).
+  const mailReady = useQuery({ queryKey: ['mail-ready'], queryFn: api.recovery }).data?.mail
+  // Why "Invia ora" can't be used yet, in words; null when it can.
+  const blocked =
+    mailReady === false
+      ? t('Prima configura l’invio delle email: server e mittente')
+      : !active
+        ? t('Non ci sono ancora iscritti attivi')
+        : !subject.trim()
+          ? t('Scrivi prima l’oggetto.')
+          : null
 
   useEffect(() => {
     if (!n || loaded.current === n.id) return
@@ -362,7 +392,7 @@ function Editor({ id, active }: { id: string; active: number }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 sm:px-6">
+      <header className="flex flex-wrap items-center gap-2 px-4 pt-4 pb-2 sm:px-6">
         <IconButton
           label={t('Torna alle newsletter')}
           onClick={() => void save().then(() => navigate({ name: 'newsletter' }))}
@@ -443,23 +473,45 @@ function Editor({ id, active }: { id: string; active: number }) {
                 </div>
               )}
             </Popover>
-            <Button
-              size="sm"
-              variant="primary"
-              icon={<Send className="size-3.5" />}
-              disabled={!active}
-              title={active ? undefined : t('Non ci sono ancora iscritti attivi')}
-              onClick={() => setConfirm(true)}
-            >
-              {t('Invia ora')}
-            </Button>
+            {/* A disabled button gets no hover: the wrapper carries the reason as its tooltip. */}
+            <span title={blocked ?? undefined} className="inline-flex">
+              <Button
+                size="sm"
+                variant="primary"
+                icon={<Send className="size-3.5" />}
+                disabled={!!blocked}
+                onClick={() => setConfirm(true)}
+              >
+                {t('Invia ora')}
+              </Button>
+            </span>
           </>
         )}
       </header>
 
       <div className="mx-auto w-full max-w-[720px] space-y-4 px-4 py-6 sm:px-6">
+        {!locked && blocked && (
+          <p className="flex items-start gap-2 rounded-2xl bg-panel2 px-4 py-3 text-[13px] leading-relaxed text-fg2 [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg3">
+            <Info />
+            <span>
+              {blocked}
+              {mailReady === false && admin && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="font-medium text-accent hover:underline"
+                    onClick={() => navigate({ name: 'settings', tab: 'mail' })}
+                  >
+                    {t('Configura')}
+                  </button>
+                </>
+              )}
+            </span>
+          </p>
+        )}
         {n.status === 'failed' && n.error && (
-          <p className="rounded-lg bg-danger/10 px-3 py-2 text-[13px] text-danger">{n.error}</p>
+          <p className="rounded-2xl bg-danger/10 px-4 py-3 text-[13px] text-danger">{n.error}</p>
         )}
         {(n.status === 'sent' || n.status === 'sending') && <Numbers n={n} />}
         <label className="block">
@@ -521,7 +573,7 @@ function Editor({ id, active }: { id: string; active: number }) {
               {t('Elimina')}
             </Button>
             <p className="self-center text-[12px] text-fg3">
-              {t('In fondo a ogni email: il link per disiscriversi e i dati del mittente (Iscritti → Impostazioni).')}
+              {t('In fondo a ogni email: il link per disiscriversi e i dati del mittente (Newsletter → Impostazioni).')}
             </p>
           </div>
         )}
@@ -575,7 +627,7 @@ function Numbers({ n }: { n: Newsletter }) {
     <section className="space-y-2">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {cells.map((c) => (
-          <div key={c.label} className="rounded-xl border border-line bg-panel p-3">
+          <div key={c.label} className="rounded-2xl bg-panel2 p-3.5">
             <span className="block text-[12.5px] text-fg2">{c.label}</span>
             <span className="block text-[22px] font-semibold tracking-[-0.03em] tabular-nums">{c.value}</span>
             <span className="block text-[12px] text-fg3">{c.hint}</span>
@@ -667,12 +719,15 @@ function Subscribers() {
                 e.target.value = ''
               }}
             />
-            <a
-              href={api.subscribersCsv()}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line2 bg-panel px-2.5 text-[13px] font-medium hover:bg-hover [&_svg]:size-3.5"
-            >
-              <Download /> {t('Esporta')}
-            </a>
+            {counts && counts.active + counts.pending + counts.unsubscribed > 0 ? (
+              <a href={api.subscribersCsv()} className={linkButton}>
+                <Download /> {t('Esporta')}
+              </a>
+            ) : (
+              <Button size="sm" icon={<Download className="size-3.5" />} disabled title={t('Ancora nessun iscritto')}>
+                {t('Esporta')}
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -689,12 +744,12 @@ function Subscribers() {
           <p>
             {t(
               'Le persone si iscrivono dal modulo di una sezione con l’iscrizione ({sections}) e confermano dal link che ricevono per email. Puoi anche importare un CSV da Mailchimp, Brevo o un foglio di calcolo.',
-              { sections: 'Invito → Newsletter, Footer → Con iscrizione' },
+              { sections: signupSections() },
             )}
           </p>
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line rounded-xl border border-line bg-panel">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {query.data.items.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
               <span className="min-w-48 flex-1">
@@ -748,8 +803,6 @@ function Subscribers() {
           ))}
         </ul>
       )}
-
-      {admin && <NewsletterSettings />}
 
       <Dialog
         open={adding}
@@ -806,31 +859,37 @@ function NewsletterSettings() {
   const value = { footer: footer ?? query.data?.footer ?? '', tracking: tracking ?? query.data?.tracking ?? true }
   const changed = footer !== null || tracking !== null
   return (
-    <section className="space-y-3 rounded-xl border border-line bg-panel p-4">
-      <h2 className="text-[14px] font-semibold">{t('Impostazioni')}</h2>
-      <label className="block">
-        <span className="mb-1.5 block text-[13px] font-medium text-fg2">{t('Mittente, in fondo a ogni email')}</span>
-        <Textarea
-          rows={2}
-          value={value.footer}
-          placeholder={t('Studio Rossi · via Roma 1, 20100 Milano · P. IVA 01234567890')}
-          onChange={(e) => setFooter(e.target.value)}
-        />
-        <span className="mt-1 block text-[12px] text-fg3">
-          {t('Nome e indirizzo di chi invia: in molti paesi la legge li chiede in ogni newsletter.')}
-        </span>
-      </label>
-      <label className="flex items-start gap-3">
-        <Switch checked={value.tracking} onChange={setTracking} label={t('Statistiche')} />
-        <span className="text-[13px] leading-relaxed">
-          <span className="block font-medium">{t('Aperture e clic')}</span>
-          <span className="text-fg3">
-            {t(
-              'Un’immagine invisibile e i link che passano dal sito dicono chi apre e chi clicca. Va scritto nell’informativa privacy.',
-            )}
+    <div className="max-w-2xl space-y-4">
+      <section className="space-y-3 rounded-2xl bg-panel2 p-4 sm:p-5">
+        <div>
+          <h2 className="text-[15px] font-semibold">{t('Mittente')}</h2>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
+            {t('Nome e indirizzo di chi invia: in molti paesi la legge li chiede in ogni newsletter.')}
+          </p>
+        </div>
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-medium text-fg2">{t('Mittente, in fondo a ogni email')}</span>
+          <Textarea
+            rows={2}
+            value={value.footer}
+            placeholder={t('Nome dell’attività · Via Esempio 1, 00000 Città · P. IVA 00000000000')}
+            onChange={(e) => setFooter(e.target.value)}
+          />
+        </label>
+      </section>
+      <section className="space-y-3 rounded-2xl bg-panel2 p-4 sm:p-5">
+        <label className="flex items-start gap-3">
+          <Switch checked={value.tracking} onChange={setTracking} label={t('Statistiche')} />
+          <span className="text-[13px] leading-relaxed">
+            <span className="block font-medium">{t('Aperture e clic')}</span>
+            <span className="text-fg3">
+              {t(
+                'Un’immagine invisibile e i link che passano dal sito dicono chi apre e chi clicca. Va scritto nell’informativa privacy.',
+              )}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      </section>
       {changed && (
         <Button
           size="sm"
@@ -850,6 +909,6 @@ function NewsletterSettings() {
           {t('Salva')}
         </Button>
       )}
-    </section>
+    </div>
   )
 }

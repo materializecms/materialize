@@ -290,4 +290,5 @@ export const settings: Record<string, string> = {
     'Saved: leave empty to keep it. If you change the server, enter it again.',
   'Salvata: lascia vuoto per non cambiarla. Se cambi fornitore o indirizzo, va scritta di nuovo.':
     'Saved: leave empty to keep it. If you change the provider or the address, enter it again.',
+  'Fino a tre: un altro prende il posto del primo scelto.': 'Up to three: another one replaces the first you picked.',
 }

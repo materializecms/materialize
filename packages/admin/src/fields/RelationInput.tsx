@@ -49,7 +49,7 @@ export function RelationInput({
   return (
     <div
       className={cx(
-        'flex min-h-8 flex-wrap items-center gap-1 rounded-md border bg-input p-1',
+        'flex min-h-8 flex-wrap items-center gap-1 rounded-[10px] border bg-input p-1',
         invalid ? 'border-danger' : 'border-line2',
       )}
     >

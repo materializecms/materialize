@@ -78,7 +78,10 @@ export function MediaGrid({
   checked,
   onCheck,
   menu,
+  className = 'p-4',
 }: {
+  /** The grid's padding: the media library lines it up with its header. */
+  className?: string
   search: string
   uploads: Upload[]
   selected?: string | null
@@ -120,14 +123,14 @@ export function MediaGrid({
   }
 
   return (
-    <div className="p-4">
+    <div className={className}>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
         {uploads.map((u) => (
-          <figure key={u.id} className="relative overflow-hidden rounded-lg border border-line bg-panel2">
+          <figure key={u.id} className="relative overflow-hidden rounded-xl bg-panel2">
             <img src={u.preview} alt="" className="aspect-square w-full object-cover opacity-50" />
             <figcaption className="absolute inset-x-2 bottom-2">
               {u.error ? (
-                <span className="flex items-start gap-1 rounded-md bg-panel/95 p-1.5 text-[12px] leading-snug text-danger">
+                <span className="flex items-start gap-1 rounded-lg bg-panel/95 p-1.5 text-[12px] leading-snug text-danger">
                   <CircleAlert className="mt-px size-3.5 shrink-0" />
                   <span className="flex-1">{u.error}</span>
                   <button type="button" aria-label={t('Chiudi')} onClick={() => onDismiss(u.id)}>
@@ -155,7 +158,7 @@ export function MediaGrid({
                 onClick={(e) => (selecting && onCheck ? onCheck(asset, e, items) : onSelect(asset))}
                 onDoubleClick={() => onOpen?.(asset)}
                 className={cx(
-                  'w-full overflow-hidden rounded-lg border bg-panel2 text-left transition-shadow',
+                  'w-full overflow-hidden rounded-xl border bg-panel2 text-left transition-shadow',
                   selected === asset.id || ticked
                     ? 'border-accent ring-3 ring-accent/25'
                     : 'border-line hover:border-line2',

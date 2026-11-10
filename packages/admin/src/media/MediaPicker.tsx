@@ -66,7 +66,7 @@ export function MediaPicker({
         </>
       }
     >
-      <DropZone onFiles={start} className="-mx-5 -mb-4 h-[56vh] overflow-y-auto border-t border-line">
+      <DropZone onFiles={start} className="-mx-5 -mb-4 h-[56vh] overflow-y-auto">
         <MediaGrid
           search={debounced}
           uploads={uploads}

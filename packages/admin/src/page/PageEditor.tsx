@@ -30,9 +30,9 @@ import {
 } from '@materializecms/core/page'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  CirclePlus,
   Code,
   Columns3,
-  Ellipsis,
   Eye,
   FileDown,
   Image as ImageIcon,
@@ -51,6 +51,7 @@ import {
   Rows3,
   Ruler,
   Shapes,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Tablet,
@@ -1582,7 +1583,7 @@ export function PageEditor({
                     width={240}
                     trigger={({ toggle, ref, open }) => (
                       <IconButton ref={ref} label={t('Altri elementi')} active={open} onClick={toggle}>
-                        <Ellipsis />
+                        <CirclePlus />
                       </IconButton>
                     )}
                   >
@@ -1749,7 +1750,7 @@ export function PageEditor({
                       onClick={toggle}
                       className="@min-[58rem]/center:hidden"
                     >
-                      <Ellipsis />
+                      <SlidersHorizontal />
                     </IconButton>
                   )}
                 >

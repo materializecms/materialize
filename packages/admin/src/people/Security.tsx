@@ -44,7 +44,7 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
           { never: <strong className="font-medium text-fg">{t('Non li vedrai più.')}</strong> },
         )}
       </p>
-      <ol className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-line bg-panel2 px-4 py-3 font-mono text-[14px]">
+      <ol className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-2xl bg-panel2 px-4 py-3 font-mono text-[14px]">
         {codes.map((c) => (
           <li key={c}>{c}</li>
         ))}
@@ -254,7 +254,7 @@ export function SecurityPanel() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-lg border border-line p-3.5">
+      <section className="rounded-2xl bg-panel2 p-3.5">
         <div className="flex items-center gap-2.5">
           <ShieldCheck className={cx('size-4.5 shrink-0', data.twoFactor.enabled ? 'text-ok' : 'text-fg3')} />
           <div className="min-w-0 flex-1">
@@ -347,7 +347,7 @@ export function SecurityPanel() {
             </button>
           )}
         </div>
-        <ul className="divide-y divide-line rounded-lg border border-line">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {data.sessions.map((s) => {
             const device = deviceName(s.userAgent)
             return (

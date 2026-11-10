@@ -278,4 +278,9 @@ export const people: Record<string, string> = {
   'Un accesso inutilizzato per 14 giorni si chiude da solo.': 'A sign-in unused for 14 days ends on its own.',
   // default subject of a new newsletter, in the language of whoever creates it
   'Senza oggetto': 'No subject',
+  'Scrivi prima l’oggetto.': 'Write the subject first.',
+  'In fondo a ogni email: il link per disiscriversi e i dati del mittente (Newsletter → Impostazioni).':
+    'At the bottom of every email: the unsubscribe link and the sender’s details (Newsletter → Settings).',
+  'Nome dell’attività · Via Esempio 1, 00000 Città · P. IVA 00000000000':
+    'Business name · 1 Example Street, City 00000 · VAT no. 00000000000',
 }

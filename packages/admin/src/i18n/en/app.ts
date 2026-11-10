@@ -173,4 +173,8 @@ export const app: Record<string, string> = {
   'Vedi le novità →': 'See what’s new →',
   'Materialize {version}': 'Materialize {version}',
   'Nascondi fino alla prossima versione': 'Hide until the next version',
+  'Ti aspetta {list}.': 'Waiting for you: {list}.',
+  'Vai al contenuto': 'Skip to content',
+  'Lingua dei contenuti': 'Content language',
+  'Lingua dei contenuti: {language}': 'Content language: {language}',
 }

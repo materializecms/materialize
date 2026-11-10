@@ -49,6 +49,7 @@ export function ThemePanel({
       <fieldset disabled={!canEdit} className="min-w-0 disabled:opacity-60">
         <Section title={t('Tema')}>
           <Seg
+            label={t('Tema')}
             value={theme.mode}
             onChange={(mode) => set({ mode })}
             options={[
@@ -56,7 +57,8 @@ export function ThemePanel({
                 value: 'light',
                 label: (
                   <>
-                    <Sun /> {t('Chiaro')}
+                    <Sun />
+                    {t('Chiaro')}
                   </>
                 ),
               },
@@ -64,7 +66,8 @@ export function ThemePanel({
                 value: 'dark',
                 label: (
                   <>
-                    <Moon /> {t('Scuro')}
+                    <Moon />
+                    {t('Scuro')}
                   </>
                 ),
               },

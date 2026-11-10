@@ -89,7 +89,7 @@ export function WorkspaceTools({ compact }: { compact?: boolean }) {
                   startPanelTour()
                 }}
               >
-                Tour del pannello
+                {t('Tour del pannello')}
               </MenuItem>
               <MenuSeparator />
               <MenuItem icon={<LogOut />} onClick={logout}>

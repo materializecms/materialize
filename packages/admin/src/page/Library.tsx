@@ -148,8 +148,8 @@ export function Library({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="space-y-3 border-b border-line p-3">
-        {/* Elements as a compact row of icons: the sections below get the room. */}
-        <div className="grid grid-cols-5 gap-1">
+        {/* Elements as two columns of icon + name: every name reads whole in either language. */}
+        <div className="grid grid-cols-2 gap-1">
           {elements().map((e) => (
             <button
               key={e.kind}
@@ -162,10 +162,10 @@ export function Library({
               }}
               onClick={() => onAddElement(e.kind)}
               aria-label={t('Aggiungi {name}', { name: e.label })}
-              className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-line bg-panel text-[10.5px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-4 [&_svg]:shrink-0"
+              className="flex h-8 min-w-0 items-center gap-2 rounded-full border border-line bg-panel pr-2.5 pl-2.5 text-[12px] font-medium text-fg2 transition-colors hover:border-line2 hover:text-fg [&_svg]:size-3.5 [&_svg]:shrink-0"
             >
               {e.icon}
-              <span className="max-w-full truncate px-0.5">{e.label}</span>
+              <span className="min-w-0 flex-1 truncate text-left">{e.label}</span>
             </button>
           ))}
         </div>
@@ -176,11 +176,12 @@ export function Library({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('Cerca sezioni')}
             aria-label={t('Cerca sezioni')}
-            className="h-8 w-full rounded-md border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
+            className="h-8 w-full rounded-[10px] border border-line2 bg-input pr-2 pl-8 text-[13px] outline-none focus:border-accent"
           />
         </div>
         {/* One scrolling row of categories instead of seven wrapped lines. */}
-        <div className="-mx-3 flex gap-1 overflow-x-auto px-3 pb-1 [scrollbar-width:thin]">
+        {/* Faded edges say the row goes on sideways. */}
+        <div className="-mx-3 flex gap-1 overflow-x-auto pr-6 pb-1 pl-3 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-24px),transparent)] [scrollbar-width:thin]">
           {[{ key: 'all', label: t('Tutte') }, ...library()].map((c) => (
             <button
               key={c.key}

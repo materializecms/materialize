@@ -851,7 +851,8 @@ export const api = {
   markSpam: (id: string, spam: boolean) => request<{ ok: true }>('PATCH', `/submissions/${id}`, { spam }),
   /** Address of a file sent with a message (downloaded, never opened in the panel). */
   submissionFile: (id: string, n: number) => `/api/submissions/${id}/files/${n}`,
-  submissionsCsv: (params: SubmissionQuery = {}) => `/api/submissions/export.csv${q(params)}`,
+  // A plain link sends no headers: the panel's language travels in the address.
+  submissionsCsv: (params: SubmissionQuery = {}) => `/api/submissions/export.csv${q({ ...params, lang: lang() })}`,
   formsSettings: () => request<{ keepMonths: number | null; webhookSecret: string | null }>('GET', '/forms/settings'),
   saveFormsSettings: (keepMonths: number | null) =>
     request<{ keepMonths: number | null }>('PUT', '/forms/settings', { keepMonths }),
@@ -908,7 +909,7 @@ export const api = {
     request<{ found: number; added: number; skipped: number; unsubscribed: number }>('POST', '/subscribers/import', {
       csv,
     }),
-  subscribersCsv: () => '/api/subscribers/export.csv',
+  subscribersCsv: () => `/api/subscribers/export.csv${q({ lang: lang() })}`,
   newsletterSettings: () => request<{ footer: string; tracking: boolean }>('GET', '/newsletter/settings'),
   saveNewsletterSettings: (input: { footer: string; tracking: boolean }) =>
     request<{ footer: string; tracking: boolean }>('PUT', '/newsletter/settings', input),
@@ -978,6 +979,7 @@ export const api = {
       const xhr = new XMLHttpRequest()
       xhr.open('POST', '/api/media')
       xhr.responseType = 'json'
+      xhr.setRequestHeader('x-mz-lang', lang())
       xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total)
       xhr.onload = () => (xhr.status < 300 ? resolve(xhr.response) : reject(errorFrom(xhr.status, xhr.response)))
       xhr.onerror = () => reject(new ApiError(0, 'offline', t('Caricamento interrotto: controlla la connessione')))

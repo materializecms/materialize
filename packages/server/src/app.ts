@@ -470,6 +470,16 @@ export function createApp(base: ServerContext) {
     ...DEFAULT_OFFSITE,
     ...(await settings.get<Partial<OffsiteSettings>>('offsite')),
   })
+  /**
+   * The language of the people who get the site's notices (a form's messages): the account with
+   * that address, else the first administrator's, else Italian.
+   */
+  const ownerLang = async (address: string): Promise<Lang> => {
+    const users = await auth.listUsers()
+    const owner =
+      users.find((u) => u.email.toLowerCase() === address.toLowerCase()) ?? users.find((u) => u.role === 'admin')
+    return langFor(owner?.locale)
+  }
   let offsiteRunning = false
   /** One run; the outcome is kept, and administrators hear by email the first time it fails. */
   const offsiteRun = async (fresh: boolean): Promise<OffsiteStatus> => {
@@ -1316,7 +1326,7 @@ export function createApp(base: ServerContext) {
               '{n} amministratori entrano con la sola password',
             ),
             detail: t(
-              '{names}: chi ruba quella password controlla tutto il sito. Attivate la verifica in due passaggi dal profilo → Sicurezza.',
+              '{names}: chi ruba quella password controlla tutto il sito. Attiva la verifica in due passaggi dal profilo → Sicurezza.',
               { names: adminsWithout.map((p) => p.name).join(', ') },
             ),
             action: adminsWithout.some((p) => p.id === c.get('user').id) ? 'profile' : 'people',
@@ -1353,8 +1363,8 @@ export function createApp(base: ServerContext) {
                 )
               : t('Tutti usano la verifica in due passaggi'),
             detail: without.length
-              ? t('Potete richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.')
-              : t('Potete anche richiederla a tutti da Persone, per chi entrerà in futuro.'),
+              ? t('Puoi richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.')
+              : t('Puoi anche richiederla a tutti da Persone, per chi entrerà in futuro.'),
             action: without.length ? 'people' : undefined,
           },
     )
@@ -1447,7 +1457,8 @@ export function createApp(base: ServerContext) {
     const locked = await activityLog.lockedKeys()
     checks.push({
       id: 'failed',
-      status: failed >= 20 || locked.length ? 'warn' : 'ok',
+      // Some failures are people mistyping; many, or a paused account, are someone trying.
+      status: failed >= 20 || locked.length ? 'warn' : failed ? 'info' : 'ok',
       title: failed
         ? t.n(failed, 'Un accesso fallito nelle ultime 24 ore', '{n} accessi falliti nelle ultime 24 ore')
         : t('Nessun accesso fallito nelle ultime 24 ore'),
@@ -2278,7 +2289,8 @@ export function createApp(base: ServerContext) {
       if (input.take && turn && turn.tab !== input.tab) {
         // The one who had it learns who took it, at their next beat.
         turns.set(`lost:${docId}:${turn.tab}`, { ...turn, takenBy: user.name, at: now })
-        await record(c, 'document.turn_taken', '', { id: docId, from: turn.name })
+        const doc = await content.get(docId)
+        await record(c, 'document.turn_taken', doc?.title ?? '', { id: docId, from: turn.name })
       }
       const keep = turn && turn.userId === user.id && turn.tab === input.tab
       turns.set(docId, { userId: user.id, name: user.name, tab: input.tab, since: keep ? turn.since : now, at: now })
@@ -3218,13 +3230,18 @@ When done, say in one or two short sentences what you changed. Reply in the pers
         )?.[1]
         if (isConfigured(mail) && to) {
           const subject = def?.subject || (typeof raw._subject === 'string' ? raw._subject.slice(0, 120) : '')
-          const attached = files.length
-            ? `\n\n${t('Allegati ({files}): li trovi in Impostazioni → Messaggi.', { files: files.map((f) => f.name).join(', ') })}`
-            : ''
+          // The visitor's request says nothing about who reads this: it goes in the owner's language.
+          const notice = withLang(await ownerLang(to), () => ({
+            subject: subject ? t('Nuovo messaggio dal sito: {subject}', { subject }) : t('Nuovo messaggio dal sito'),
+            text:
+              submissionText(page, data) +
+              (files.length
+                ? `\n\n${t('Allegati ({files}): li trovi in Impostazioni → Messaggi.', { files: files.map((f) => f.name).join(', ') })}`
+                : ''),
+          }))
           sendMail(mail, {
             to,
-            subject: subject ? t('Nuovo messaggio dal sito: {subject}', { subject }) : t('Nuovo messaggio dal sito'),
-            text: submissionText(page, data) + attached,
+            ...notice,
             replyTo: sender,
           })
             .then(() => submissions.markMailed(saved.id))
@@ -3996,7 +4013,8 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const user = c.get('user')
     const ok = await releaseOut(release, user)
     const after = await loadRelease(release.id)
-    if (!ok) throw new ApiError(422, 'release_failed', after.error ?? t('Il rilascio non è uscito'))
+    if (!ok)
+      throw new ApiError(422, 'release_failed', after.error ? t.read(after.error) : t('Il rilascio non è uscito'))
     return c.json(await releaseJson(after))
   })
 

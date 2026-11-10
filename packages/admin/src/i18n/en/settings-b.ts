@@ -424,4 +424,11 @@ export const settingsB: Record<string, string> = {
     'First a backup is made, then the new version downloads while the site stays online. At the end the server restarts: a few seconds. If the new version does not start, the current one comes back by itself.',
   'Il server si riavvia con la versione precedente: pochi secondi. I contenuti restano come sono.':
     'The server restarts with the previous version: a few seconds. Content stays as it is.',
+  'Quello che arriva dai moduli del sito: si filtra, si cerca e si scarica come foglio di calcolo.':
+    'What the site’s forms send: filter it, search it and download it as a spreadsheet.',
+  'Nascondi la chiave': 'Hide the key',
+  'Mostra la chiave': 'Show the key',
+  'ha preso il controllo di {name}, che stava modificando {from}': 'took over {name}, which {from} was editing',
+  'ha preso il controllo di {name}, che stava modificando un’altra persona':
+    'took over {name}, which someone else was editing',
 }

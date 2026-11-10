@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Compass, Menu } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { ApiError, api, type User } from '../lib/api.ts'
 import { setLang, t, useLang } from '../lib/i18n.ts'
@@ -27,6 +27,14 @@ import { WorkspaceTools } from './WorkspaceTools.tsx'
 export function App() {
   // The whole panel is drawn again in the new language when it changes.
   const lang = useLang()
+  // Texts the server writes (checks, messages, labels) come back in the new language too.
+  const queryClient = useQueryClient()
+  const shown = useRef(lang)
+  useEffect(() => {
+    if (shown.current === lang) return
+    shown.current = lang
+    void queryClient.invalidateQueries()
+  }, [lang, queryClient])
   return <Routed key={lang} />
 }
 
@@ -73,10 +81,13 @@ function SignedIn() {
   )
 }
 
-/** The language the person chose for the panel, once they are signed in. */
+/**
+ * The language the person chose for the panel, once they are signed in. No choice in the profile
+ * keeps the one made on the sign-in page (or the browser's).
+ */
 function WithLanguage({ locale }: { locale: User['locale'] }) {
   useEffect(() => {
-    if (locale !== undefined) setLang(locale)
+    if (locale) setLang(locale)
   }, [locale])
   return null
 }
@@ -134,6 +145,14 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
 
   return (
     <SessionContext.Provider value={session}>
+      {/* Keyboard users jump past the sidebar straight to the work area. */}
+      <button
+        type="button"
+        onClick={() => document.getElementById('mz-main')?.focus()}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-full focus:bg-accent focus:px-4 focus:py-2 focus:text-[14px] focus:font-medium focus:text-accent-fg focus:shadow-pop"
+      >
+        {t('Vai al contenuto')}
+      </button>
       <div className="flex h-full min-h-0 flex-col bg-shell md:flex-row">
         {!fullscreen && (
           <>
@@ -172,7 +191,10 @@ function Workspace({ user, schema }: Pick<Session, 'user' | 'schema'>) {
           </>
         )}
         <main
+          id="mz-main"
+          tabIndex={-1}
           className={cx(
+            'focus:outline-none',
             'relative flex min-h-0 min-w-0 flex-1 flex-col',
             !fullscreen &&
               'overflow-hidden bg-panel max-md:mx-2 max-md:mb-2 max-md:rounded-[20px] md:my-2.5 md:mr-2.5 md:rounded-[24px] md:pt-12',

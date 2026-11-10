@@ -26,6 +26,8 @@ export interface FieldProps {
   path: Path
   /** The object holding this field: lets a slug read its source field. */
   siblings?: Record<string, unknown>
+  /** A ✨ of its own next to the counter, in place of the general one (the page's SEO title). */
+  ai?: ReactNode
 }
 
 /** Renders every field of an object. */
@@ -73,10 +75,19 @@ export function Field(props: FieldProps) {
   const id = `f-${pathKey(path)}`
 
   if (field.kind === 'group' || field.kind === 'seo') {
+    // A block with a heading, as in the panel's other blocks: SEO stands on its own, a group of
+    // fields sits on a rounded card. No bordered fieldset inside another surface.
+    const heading = `h-${pathKey(path)}`
     return (
-      <fieldset data-path={pathKey(path)} className="min-w-0 rounded-lg border border-line p-4">
-        <legend className="-ml-1 px-1 text-[13px] font-medium text-fg2">{field.label}</legend>
-        {field.description && <p className="-mt-1 mb-3 text-[13px] text-fg3">{field.description}</p>}
+      <fieldset
+        aria-labelledby={heading}
+        data-path={pathKey(path)}
+        className={cx('min-w-0', field.kind === 'group' && 'rounded-2xl bg-panel2 p-4')}
+      >
+        <div id={heading} className="mb-3 text-[11.5px] font-semibold tracking-wide text-fg3 uppercase">
+          {field.label}
+        </div>
+        {field.description && <p className="-mt-1.5 mb-3 text-[13px] text-fg3">{field.description}</p>}
         <FieldControl {...props} />
       </fieldset>
     )
@@ -85,13 +96,18 @@ export function Field(props: FieldProps) {
   return (
     <div data-path={pathKey(path)} className={cx(inline && 'flex items-center justify-between gap-4')}>
       <div className={cx('flex items-baseline gap-2', !inline && 'mb-1.5')}>
-        <label htmlFor={id} className="text-[13px] font-medium text-fg2">
+        <label htmlFor={id} className="min-w-0 text-[13px] font-medium text-fg2">
           {field.label}
           {field.required && <span className="ml-0.5 text-fg3">*</span>}
         </label>
         <Counter field={field} value={props.value} />
-        {field.kind === 'text' && (
-          <span className={cx('self-center', typeof field.options.max !== 'number' && 'ml-auto')}>
+        {field.kind === 'text' && props.ai && (
+          <span className={cx('shrink-0 self-center', typeof field.options.max !== 'number' && 'ml-auto')}>
+            {props.ai}
+          </span>
+        )}
+        {field.kind === 'text' && !props.ai && (
+          <span className={cx('shrink-0 self-center', typeof field.options.max !== 'number' && 'ml-auto')}>
             <AiTextMenu
               text={typeof props.value === 'string' ? props.value : ''}
               max={typeof field.options.max === 'number' ? field.options.max : undefined}
@@ -198,7 +214,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
           value={current}
           onChange={(e) => onChange(e.target.value || undefined)}
           aria-invalid={invalid || undefined}
-          className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] focus:border-accent focus:outline-none"
+          className="h-8 w-full rounded-[10px] border border-line2 bg-input px-2 text-[14px] focus:border-accent focus:outline-none"
         >
           {!field.required || !current ? <option value="">—</option> : null}
           {options.map((o) => (
@@ -452,8 +468,8 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
   const description = value.description || site.description
   const host = siteUrl ? siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'example.com'
   const image = value.image ?? site.image
-  const field = (key: keyof Seo, desc: FieldDescription) => (
-    <Field field={desc} value={value[key]} path={[...path, key]} onChange={(v, g) => set(key, v, g)} />
+  const field = (key: keyof Seo, desc: FieldDescription, ai?: ReactNode) => (
+    <Field field={desc} value={value[key]} path={[...path, key]} onChange={(v, g) => set(key, v, g)} ai={ai} />
   )
 
   return (
@@ -471,7 +487,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
         />
       </div>
       {preview === 'google' ? (
-        <div className="rounded-md bg-panel2 px-3.5 py-3">
+        <div className="rounded-2xl bg-panel2 px-3.5 py-3">
           <div className="truncate text-[13px] text-fg3">
             {host}
             {docUrl && docUrl !== '/'
@@ -492,7 +508,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-line bg-panel2">
+        <div className="overflow-hidden rounded-2xl bg-panel2">
           <div className="flex aspect-[1.91/1] items-center justify-center bg-line/40 text-[12px] text-fg3">
             {image?.src ? (
               <img src={image.src} alt="" className="size-full object-cover" />
@@ -509,26 +525,20 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
           </div>
         </div>
       )}
-      {docText && (
-        // On a narrow panel the two buttons go on two lines instead of out of its edge.
-        <div className="-mb-1 flex min-w-0 flex-wrap justify-end gap-x-1 gap-y-0.5">
+      {/* The ✨ that writes it from the page sits next to each counter, like on any other field. */}
+      {field(
+        'title',
+        seoField('title', 'text', t('Titolo per i motori di ricerca'), { max: 70, placeholder: title }),
+        docText && (
           <AiButton
             action="seo_title"
             text={docText()}
-            label={t('Scrivi il titolo')}
+            label=""
             title={t('Il titolo per Google, scritto dall’AI dal contenuto della pagina')}
             onResult={(text) => set('title', text, 'ai:seo')}
           />
-          <AiButton
-            action="seo_description"
-            text={docText()}
-            label={t('Scrivi la descrizione')}
-            title={t('La descrizione per Google, scritta dall’AI dal contenuto della pagina')}
-            onResult={(text) => set('description', text, 'ai:seo')}
-          />
-        </div>
+        ),
       )}
-      {field('title', seoField('title', 'text', t('Titolo per i motori di ricerca'), { max: 70, placeholder: title }))}
       {field(
         'description',
         seoField('description', 'text', t('Descrizione'), {
@@ -536,6 +546,15 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
           multiline: true,
           placeholder: site.description || t('Una o due frasi che invoglino a cliccare.'),
         }),
+        docText && (
+          <AiButton
+            action="seo_description"
+            text={docText()}
+            label=""
+            title={t('La descrizione per Google, scritta dall’AI dal contenuto della pagina')}
+            onResult={(text) => set('description', text, 'ai:seo')}
+          />
+        ),
       )}
       {field('image', seoField('image', 'media', t('Immagine per la condivisione'), { focalPoint: false }, false))}
       {!value.image && (
@@ -590,7 +609,7 @@ function SeoInput({ value, onChange, path }: { value: Seo; onChange: Change; pat
               aria-label={t('Tipo di pagina')}
               value={value.schema ?? ''}
               onChange={(e) => set('schema', e.target.value || undefined)}
-              className="h-8 w-full rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
+              className="h-8 w-full rounded-[10px] border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
             >
               {schemaTypes().map((type) => (
                 <option key={type.value} value={type.value}>
@@ -667,7 +686,7 @@ function FaqFields({
     <div className="space-y-2">
       {value.map((f, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: questions have no id; order is their identity
-        <div key={i} className="space-y-1.5 rounded-md border border-line p-2">
+        <div key={i} className="space-y-1.5 rounded-xl bg-panel2 p-2">
           <div className="flex gap-1.5">
             <Input
               aria-label={t('Domanda {n}', { n: i + 1 })}

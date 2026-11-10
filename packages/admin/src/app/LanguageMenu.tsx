@@ -101,7 +101,7 @@ export function LanguageMenu({
           type="button"
           onClick={toggle}
           title={t('Lingue')}
-          className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-line px-1.5 font-mono text-[12px] font-medium text-fg2 uppercase hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+          className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-line px-1.5 font-mono text-[12px] font-medium text-fg2 uppercase hover:bg-hover hover:text-fg [&_svg]:size-3.5"
         >
           {busy ? <Loader2 className="animate-spin" /> : <Languages />}
           {doc.locale}
@@ -146,7 +146,7 @@ export function LanguageMenu({
                         close()
                         void create(l, true)
                       }}
-                      className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-accent hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3"
+                      className="flex h-6 items-center gap-1 rounded-full px-1.5 text-[12px] font-medium text-accent hover:bg-accent/10 disabled:opacity-50 [&_svg]:size-3"
                     >
                       <Sparkles /> AI
                     </button>
@@ -159,7 +159,7 @@ export function LanguageMenu({
                       close()
                       void create(l, false)
                     }}
-                    className="flex h-6 items-center gap-1 rounded-md px-1.5 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg disabled:opacity-50 [&_svg]:size-3"
+                    className="flex h-6 items-center gap-1 rounded-full px-1.5 text-[12px] font-medium text-fg2 hover:bg-hover hover:text-fg disabled:opacity-50 [&_svg]:size-3"
                   >
                     <Copy /> {t('Copia')}
                   </button>

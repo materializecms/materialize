@@ -19,7 +19,7 @@ import {
 import type { ReactNode } from 'react'
 import { cx, MenuItem, Popover, TintIcon, tintOf } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
-import { intlLocale, t } from '../lib/i18n.ts'
+import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
@@ -72,6 +72,13 @@ export function Sidebar() {
   const releases = useReleases()
   const overview = useOverview()
   const current = 'collection' in route ? route.collection : null
+  // Messages from the site's forms not read yet: the same query as the home's.
+  const unread =
+    useQuery({
+      queryKey: ['submissions', { status: 'unread', limit: 1 }],
+      queryFn: () => api.submissions({ status: 'unread', limit: 1 }),
+      staleTime: 30_000,
+    }).data?.unread ?? 0
   const countOf = (name: string) => overview.data?.counts.find((c) => c.collection === name)?.total
 
   return (
@@ -152,9 +159,17 @@ export function Sidebar() {
         <div data-tour="nav-manage">
           <div className={sectionLabel}>{t('Gestione')}</div>
           <NavItem
-            route={update ? { name: 'settings', tab: 'updates' } : { name: 'settings' }}
+            route={
+              update
+                ? { name: 'settings', tab: 'updates' }
+                : unread
+                  ? { name: 'settings', tab: 'messages' }
+                  : { name: 'settings' }
+            }
             active={route.name === 'settings'}
             label={t('Impostazioni')}
+            badge={unread || undefined}
+            badgeLabel={tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi')}
             note={update ? t('È disponibile Materialize {version}', { version: update }) : undefined}
           >
             <TintIcon color="#64748b" size="sm">
@@ -173,6 +188,9 @@ export function Sidebar() {
 
       <div className="space-y-1 px-3 pb-3">
         {schema.locales.available.length > 1 && (
+          <div className="px-3 pt-1 text-[11px] font-medium text-fg3">{t('Lingua dei contenuti')}</div>
+        )}
+        {schema.locales.available.length > 1 && (
           <Popover
             side="top"
             width={200}
@@ -181,6 +199,8 @@ export function Sidebar() {
                 ref={ref}
                 type="button"
                 onClick={toggle}
+                title={t('Lingua dei contenuti')}
+                aria-label={t('Lingua dei contenuti: {language}', { language: localeName(locale) })}
                 className="flex h-9 w-full items-center gap-2.5 rounded-full bg-panel/60 px-3 text-fg2 hover:bg-panel hover:text-fg [&_svg]:size-4"
               >
                 <Globe />
@@ -219,6 +239,8 @@ function NavItem({
   label,
   count,
   note,
+  badge,
+  badgeLabel,
   children,
 }: {
   route: Route
@@ -227,6 +249,9 @@ function NavItem({
   count?: number
   /** Something waiting there, shown as a dot (the text is its tooltip and accessible name). */
   note?: string
+  /** Something to read there (unread messages), as an accent count. */
+  badge?: number
+  badgeLabel?: string
   children: ReactNode
 }) {
   return (
@@ -246,6 +271,15 @@ function NavItem({
       {children}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count !== undefined && count > 0 && <span className="text-[12px] text-fg3 tabular-nums">{count}</span>}
+      {!!badge && (
+        <span
+          title={badgeLabel}
+          className="rounded-full bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-accent-fg tabular-nums"
+        >
+          {badge}
+          {badgeLabel && <span className="sr-only"> · {badgeLabel}</span>}
+        </span>
+      )}
       {note && (
         <span title={note} className="mr-1 size-2 shrink-0 rounded-full bg-accent">
           <span className="sr-only">{note}</span>

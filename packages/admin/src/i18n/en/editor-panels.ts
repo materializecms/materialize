@@ -136,6 +136,7 @@ export const editorPanels: Record<string, string> = {
   'dal campo “{field}”': 'from the field “{field}”',
   'da una raccolta': 'from a collection',
   'Contenuti della pagina': 'Page content',
+  'Voce del menu': 'Menu item',
   'In ordine di lettura. Il layout resta com’è.': 'In reading order. The layout stays as it is.',
   'su tutte le pagine': 'on every page',
   'Campo del modulo': 'Form field',

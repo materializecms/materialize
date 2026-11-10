@@ -1,6 +1,6 @@
 import type { ConsentCategory, CustomCode, TrackingSettings as Tracking } from '@materializecms/core/tracking'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChartNoAxesColumn, Cookie, Plus, Trash2 } from 'lucide-react'
+import { ChartNoAxesColumn, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import {
@@ -16,6 +16,7 @@ import {
 } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
+import { SettingsPage, SettingsSection } from './SettingsPage.tsx'
 
 const CATEGORIES = (): { value: ConsentCategory; label: string }[] => [
   { value: 'necessary', label: t('Necessario') },
@@ -23,15 +24,19 @@ const CATEGORIES = (): { value: ConsentCategory; label: string }[] => [
   { value: 'marketing', label: t('Marketing') },
 ]
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: React.ReactNode
+  children: React.ReactNode
+}) {
   return (
-    <section className="space-y-4">
-      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        {icon}
-        {title}
-      </h2>
+    <SettingsSection title={title} description={description}>
       {children}
-    </section>
+    </SettingsSection>
   )
 }
 
@@ -114,8 +119,8 @@ export function TrackingSettings() {
   const error = (key: string) => errors[key] && <span className="block text-[12px] text-danger">{errors[key]}</span>
 
   return (
-    <form onSubmit={save} className="mx-auto max-w-2xl space-y-10 px-5 py-8">
-      <Section icon={<ChartNoAxesColumn />} title={t('Statistiche e marketing')}>
+    <SettingsPage onSubmit={save}>
+      <Section title={t('Statistiche e marketing')}>
         <p className="text-[14px] leading-relaxed text-fg2">
           {t(
             'Basta l’ID: Materialize aggiunge il codice a tutte le pagine pubblicate e lo fa partire solo dopo il consenso del visitatore, quando serve.',
@@ -158,14 +163,14 @@ export function TrackingSettings() {
         </div>
       </Section>
 
-      <Section icon={<Plus />} title={t('Codice personalizzato')}>
+      <Section title={t('Codice personalizzato')}>
         <p className="text-[14px] leading-relaxed text-fg2">
           {t(
             'Per gli altri servizi (chat, mappe di calore, verifiche di proprietà…): incolla il codice che ti danno e scegli dove va e a cosa serve. Quello di statistica o marketing parte solo dopo il consenso.',
           )}
         </p>
         {custom.map((c, i) => (
-          <div key={c.id} className="space-y-3 rounded-lg border border-line bg-panel p-4">
+          <div key={c.id} className="space-y-3 rounded-2xl bg-panel2 p-4">
             <div className="flex items-center gap-2">
               <Input
                 value={c.name}
@@ -224,7 +229,7 @@ export function TrackingSettings() {
         </Button>
       </Section>
 
-      <Section icon={<Cookie />} title={t('Banner dei cookie')}>
+      <Section title={t('Banner dei cookie')}>
         <p className="text-[14px] leading-relaxed text-fg2">
           {gated
             ? t(
@@ -289,6 +294,6 @@ export function TrackingSettings() {
           {t('Salva')}
         </Button>
       </div>
-    </form>
+    </SettingsPage>
   )
 }

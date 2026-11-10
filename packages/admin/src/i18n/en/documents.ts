@@ -228,4 +228,6 @@ export const documents: Record<string, string> = {
   'È passato troppo tempo: leggi di nuovo il sito': 'Too much time has passed: read the site again',
   'Qualcosa è andato storto': 'Something went wrong',
   'Caricamento interrotto: controlla la connessione': 'Upload interrupted: check your connection',
+  'Torna alle impostazioni': 'Back to settings',
+  'Il sito mostra già questa versione': 'The site already shows this version',
 }

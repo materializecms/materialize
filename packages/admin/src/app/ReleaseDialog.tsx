@@ -17,7 +17,7 @@ export function ReleaseChip({ release, onClick }: { release: NonNullable<DocRele
       type="button"
       onClick={onClick}
       title={t('Nel rilascio «{name}»', { name: release.name })}
-      className="inline-flex h-7 max-w-48 items-center gap-1.5 rounded-md bg-[#f97316]/10 px-2 text-[12px] font-medium text-[#c2410c] hover:bg-[#f97316]/15 dark:text-[#fdba74] [&_svg]:size-3.5 [&_svg]:shrink-0"
+      className="inline-flex h-7 max-w-48 items-center gap-1.5 rounded-full bg-[#f97316]/10 px-2 text-[12px] font-medium text-[#c2410c] hover:bg-[#f97316]/15 dark:text-[#fdba74] [&_svg]:size-3.5 [&_svg]:shrink-0"
     >
       <Rocket />
       <span className="truncate max-md:hidden">
@@ -134,7 +134,7 @@ export function ReleaseDialog({
             <label
               key={r.id}
               className={cx(
-                'flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2',
+                'flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2',
                 choice === r.id ? 'border-accent bg-accent/5' : 'border-line hover:bg-hover',
               )}
             >
@@ -147,7 +147,7 @@ export function ReleaseDialog({
           ))}
           <label
             className={cx(
-              'flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2',
+              'flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2',
               choice === 'new' ? 'border-accent bg-accent/5' : 'border-line hover:bg-hover',
             )}
           >

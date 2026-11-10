@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Languages, Plus, Star, Trash2 } from 'lucide-react'
+import { Plus, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { localeName } from '../app/Sidebar.tsx'
-import { Button, IconButton, Spinner, toast } from '../components/ui.tsx'
+import { Button, cx, IconButton, inputClass, Spinner, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
 import { t, tn, tx } from '../lib/i18n.ts'
+import { SettingsPage, SettingsSection } from './SettingsPage.tsx'
 
 /** Languages offered when adding one; any other code works through the API. */
 const COMMON = [
@@ -91,22 +92,18 @@ export function LanguagesSettings() {
   const choices = COMMON.filter((c) => !locales.available.includes(c))
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-5 py-8">
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-          <Languages />
-          {t('Lingue del sito')}
-        </h2>
-        <p className="text-[14px] leading-relaxed text-fg2">
-          {tx(
-            'La lingua principale ha gli indirizzi senza prefisso; le altre stanno sotto {en}, {fr}… Ogni pagina si traduce dall’editor, dal menu della lingua in alto: menu e piè di pagina condivisi si traducono una volta per tutte le pagine.',
-            {
-              en: <span className="font-mono text-[13px]">/en/</span>,
-              fr: <span className="font-mono text-[13px]">/fr/</span>,
-            },
-          )}
-        </p>
-        <ul className="divide-y divide-line rounded-lg border border-line">
+    <SettingsPage>
+      <SettingsSection
+        title={t('Lingue del sito')}
+        description={tx(
+          'La lingua principale ha gli indirizzi senza prefisso; le altre stanno sotto {en}, {fr}… Ogni pagina si traduce dall’editor, dal menu della lingua in alto: menu e piè di pagina condivisi si traducono una volta per tutte le pagine.',
+          {
+            en: <span className="font-mono text-[13px]">/en/</span>,
+            fr: <span className="font-mono text-[13px]">/fr/</span>,
+          },
+        )}
+      >
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {locales.available.map((code) => {
             const main = code === locales.default
             const count = documents[code] ?? 0
@@ -172,7 +169,7 @@ export function LanguagesSettings() {
             <select
               value={adding}
               onChange={(e) => setAdding(e.target.value)}
-              className="h-8 min-w-0 flex-1 rounded-md border border-line2 bg-input px-2 text-[14px] outline-none focus:border-accent"
+              className={cx(inputClass, 'h-8 min-w-0 flex-1')}
             >
               <option value="">{t('Scegli una lingua da aggiungere…')}</option>
               {choices.map((c) => (
@@ -194,7 +191,7 @@ export function LanguagesSettings() {
         ) : (
           <p className="text-[13px] text-fg3">{t('Le lingue le sceglie un amministratore.')}</p>
         )}
-      </section>
-    </div>
+      </SettingsSection>
+    </SettingsPage>
   )
 }

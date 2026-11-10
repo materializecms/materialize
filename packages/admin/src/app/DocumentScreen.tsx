@@ -12,15 +12,19 @@ import {
   History as HistoryIcon,
   LayoutTemplate,
   Link2,
+  Monitor,
+  Moon,
   MoreHorizontal,
   PanelRight,
   Redo2,
   Rocket,
+  Save,
   Sparkles,
+  Sun,
   Trash2,
   Undo2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useAiReady } from '../components/AiMenu.tsx'
 import {
   Button,
@@ -53,7 +57,7 @@ import { clean, emptyValue } from '../lib/doc.ts'
 import { fullDate, relativeTime } from '../lib/format.ts'
 import { useHistory } from '../lib/history.ts'
 import { t, tn } from '../lib/i18n.ts'
-import { usePref } from '../lib/prefs.ts'
+import { usePref, useTheme } from '../lib/prefs.ts'
 import { navigate, setNavigationGuard } from '../lib/router.ts'
 import { PageEditor } from '../page/PageEditor.tsx'
 import { qualityOf } from '../page/quality.ts'
@@ -72,6 +76,18 @@ import { TurnGate, useTurn } from './TurnGate.tsx'
  * first save changes the address without remounting the editor (selection and undo survive).
  */
 export const openedAsNew = new Set<string>()
+
+/** Whether a media query matches, kept in step with the window. */
+function useMedia(query: string): boolean {
+  return useSyncExternalStore(
+    (fn) => {
+      const m = matchMedia(query)
+      m.addEventListener('change', fn)
+      return () => m.removeEventListener('change', fn)
+    },
+    () => matchMedia(query).matches,
+  )
+}
 
 /** The work surface below the top bar: a rounded card on the shell, like the rest of the panel. */
 const SURFACE = 'mx-2.5 mb-2.5 overflow-hidden rounded-[22px] bg-panel'
@@ -218,7 +234,14 @@ function Editor({
       .editorsContentOnly === true && user.role !== 'admin'
   // A new page is empty: there is nothing to write yet, so it opens in design.
   const [fresh, setFresh] = useState(!initial && !!pageField)
-  const mode: Mode = (blocksField || pageField) && !contentOnly ? (fresh ? 'design' : modePref) : 'content'
+  // Phones and small tablets: the canvas does not fit, so a page opens in Contenuto (the saved choice stays).
+  const narrow = useMedia('(max-width: 767.98px)')
+  const phone = useMedia('(max-width: 639.98px)')
+  const canvasTooSmall = !!pageField && narrow
+  const mode: Mode =
+    (blocksField || pageField) && !contentOnly && !canvasTooSmall ? (fresh ? 'design' : modePref) : 'content'
+  const [theme, setTheme] = useTheme()
+  const [historyDialog, setHistoryDialog] = useState(false)
   const chooseMode = (m: Mode) => {
     setFresh(false)
     setMode(m)
@@ -500,21 +523,37 @@ function Editor({
             collection.singleton ? 'border-b border-line bg-panel' : 'bg-shell',
           )}
         >
-          {/* A singleton has no list to go back to: it stays in the sidebar like any section. */}
-          {!collection.singleton && (
+          {/* A singleton has no list to go back to: inside Impostazioni its sections stay in view. */}
+          {!collection.singleton ? (
             <button
               type="button"
               title={t('Torna a {name}', { name: collection.label })}
               aria-label={t('Torna a {name}', { name: collection.label })}
               onClick={() => navigate({ name: 'collection', collection: collection.name })}
-              className="group relative flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-hover"
+              className="group relative flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-hover"
             >
-              <Logo className="size-6 transition-opacity group-hover:opacity-0" />
-              <ArrowLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+              {/* On a phone there is no hover: the arrow shows from the start. */}
+              <Logo className="size-6 transition-opacity group-hover:opacity-0 max-sm:hidden" />
+              <ArrowLeft className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100 max-sm:opacity-100" />
             </button>
+          ) : (
+            !embedded && (
+              <IconButton
+                label={t('Torna alle impostazioni')}
+                className="size-8 sm:hidden"
+                onClick={() => navigate({ name: 'settings' })}
+              >
+                <ArrowLeft />
+              </IconButton>
+            )
           )}
           {/* On a phone the buttons would squeeze the title to nothing: it keeps room for a few words. */}
-          <div className={cx('flex min-w-[6rem] shrink items-center gap-1.5 text-[14px]', embedded && 'hidden')}>
+          <div
+            className={cx(
+              'flex min-w-[4.5rem] shrink items-center gap-1.5 text-[14px] sm:min-w-[6rem]',
+              embedded && 'hidden',
+            )}
+          >
             {!collection.singleton && (
               <>
                 <span className="hidden shrink-0 font-semibold xl:inline">{schema.site.name}</span>
@@ -555,7 +594,7 @@ function Editor({
             onIssues={() => showIssues()}
           />
 
-          {(blocksField || pageField) && !contentOnly && (
+          {(blocksField || pageField) && !contentOnly && !canvasTooSmall && (
             <div
               data-tour="mode"
               className="lg:absolute lg:left-1/2 lg:-translate-x-1/2 max-lg:ml-auto max-lg:shrink-0"
@@ -588,20 +627,25 @@ function Editor({
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <div className="mz-pill max-sm:hidden">
-              <IconButton label={t('Annulla (⌘Z)')} disabled={!history.canUndo} onClick={history.undo}>
-                <Undo2 />
-              </IconButton>
-              <IconButton label={t('Ripristina (⇧⌘Z)')} disabled={!history.canRedo} onClick={history.redo}>
-                <Redo2 />
-              </IconButton>
-              <ThemeSwitch compact />
-            </div>
+            {/* Undo, redo and the theme: in the bar on larger screens, in the menu on a phone. A
+                single document (Impostazioni) keeps undo and redo in the menu and the theme in the panel. */}
+            {!collection.singleton && (
+              <div className="mz-pill max-sm:hidden">
+                <IconButton label={t('Annulla (⌘Z)')} disabled={!history.canUndo} onClick={history.undo}>
+                  <Undo2 />
+                </IconButton>
+                <IconButton label={t('Ripristina (⇧⌘Z)')} disabled={!history.canRedo} onClick={history.redo}>
+                  <Redo2 />
+                </IconButton>
+                <ThemeSwitch compact />
+              </div>
+            )}
             {pageField && doc && (
               <IconButton
                 label={t('Cronologia')}
                 data-tour="history"
                 active={historyOpen}
+                className="max-md:hidden"
                 onClick={() => {
                   setHistoryOpen(!historyOpen)
                   setPreviewing(null)
@@ -610,10 +654,12 @@ function Editor({
                 <HistoryIcon />
               </IconButton>
             )}
-            {mode === 'content' && !pageField && (
+            {/* The panel beside the form: larger screens only, and not for a single document. */}
+            {mode === 'content' && !pageField && !collection.singleton && (
               <IconButton
                 label={t('Pannello documento')}
                 active={panel === 'on'}
+                className="max-md:hidden"
                 onClick={() => setPanel(panel === 'on' ? 'off' : 'on')}
               >
                 <PanelRight />
@@ -630,6 +676,60 @@ function Editor({
             >
               {(close) => (
                 <div className="p-1">
+                  {(narrow || collection.singleton) && (
+                    <>
+                      {!doc && phone && (
+                        <MenuItem
+                          icon={<Save />}
+                          disabled={saving}
+                          onClick={() => {
+                            close()
+                            void save()
+                          }}
+                        >
+                          {t('Salva bozza')}
+                        </MenuItem>
+                      )}
+                      {(phone || collection.singleton) && (
+                        <>
+                          <MenuItem icon={<Undo2 />} disabled={!history.canUndo} onClick={history.undo}>
+                            {t('Annulla')}
+                          </MenuItem>
+                          <MenuItem icon={<Redo2 />} disabled={!history.canRedo} onClick={history.redo}>
+                            {t('Ripristina')}
+                          </MenuItem>
+                        </>
+                      )}
+                      {phone && !collection.singleton && (
+                        <MenuItem
+                          icon={theme === 'dark' ? <Moon /> : theme === 'light' ? <Sun /> : <Monitor />}
+                          onClick={() => setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')}
+                        >
+                          <span className="block">{t('Tema')}</span>
+                          <span className="block text-[12px] font-normal text-fg3">
+                            {theme === 'light'
+                              ? t('Tema chiaro')
+                              : theme === 'dark'
+                                ? t('Tema scuro')
+                                : t('Tema come il sistema')}
+                          </span>
+                        </MenuItem>
+                      )}
+                      {/* The info panel's history, where the panel is not shown. */}
+                      {doc && (collection.singleton || narrow) && (
+                        <MenuItem
+                          icon={<HistoryIcon />}
+                          onClick={() => {
+                            close()
+                            setHistoryDialog(true)
+                          }}
+                        >
+                          {t('Cronologia')}
+                        </MenuItem>
+                      )}
+                      <MenuSeparator />
+                    </>
+                  )}
                   <MenuItem
                     icon={<EyeOff />}
                     disabled={!doc?.publishedAt}
@@ -744,24 +844,42 @@ function Editor({
             )}
             {!doc ? (
               <>
-                <Button onClick={() => void save()} loading={saving} className="ml-1">
+                {/* On a phone "Salva bozza" is in the menu: Pubblica keeps its room. */}
+                <Button onClick={() => void save()} loading={saving} className="ml-1 max-sm:hidden">
                   {t('Salva bozza')}
                 </Button>
                 <Button variant="primary" onClick={() => void publish()} loading={publishing}>
                   {t('Pubblica')}
                 </Button>
               </>
+            ) : upToDate ? (
+              // Nothing to publish: a calm state, readable in both themes, not a faded button.
+              <span
+                role="status"
+                data-tour="publish"
+                title={t('Il sito mostra già questa versione')}
+                className="ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-line2 px-3 text-[14px] font-medium text-fg2 select-none"
+              >
+                <Check className="size-4 text-ok" />
+                {t('Pubblicato')}
+              </span>
             ) : (
               <Button
                 variant="primary"
                 data-tour="publish"
-                className="ml-1 min-w-24"
+                className="ml-1 sm:min-w-24"
                 onClick={() => void publish()}
                 loading={publishing}
-                disabled={upToDate}
-                icon={upToDate ? <Check className="size-4" /> : undefined}
+                aria-label={status === 'draft' ? t('Pubblica') : t('Pubblica modifiche')}
               >
-                {upToDate ? t('Pubblicato') : status === 'draft' ? t('Pubblica') : t('Pubblica modifiche')}
+                {status === 'draft' ? (
+                  t('Pubblica')
+                ) : (
+                  <>
+                    <span className="max-sm:hidden">{t('Pubblica modifiche')}</span>
+                    <span className="sm:hidden">{t('Pubblica')}</span>
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -849,7 +967,9 @@ function Editor({
                 />
               </div>
             </div>
-            {panel === 'on' && doc && <InfoPanel doc={doc} dirty={dirty} onRestore={restore} />}
+            {panel === 'on' && doc && !collection.singleton && (
+              <InfoPanel doc={doc} dirty={dirty} onRestore={restore} />
+            )}
           </div>
         )}
       </div>
@@ -885,6 +1005,27 @@ function Editor({
           ))}
           {(problems?.length ?? 0) > 5 && <li>{t('e altri {n}', { n: (problems?.length ?? 0) - 5 })}</li>}
         </ul>
+      </Dialog>
+
+      {/* Where the history beside the editor is not shown (a phone, a single document). */}
+      <Dialog
+        open={historyDialog && !!doc}
+        onClose={() => setHistoryDialog(false)}
+        title={t('Cronologia')}
+        width={420}
+        footer={<Button onClick={() => setHistoryDialog(false)}>{t('Chiudi')}</Button>}
+      >
+        <div className="max-h-[60vh] overflow-y-auto">
+          {doc && (
+            <RevisionList
+              docId={doc.id}
+              onRestore={(rev) => {
+                setHistoryDialog(false)
+                void restore(rev)
+              }}
+            />
+          )}
+        </div>
       </Dialog>
 
       <Dialog
@@ -1123,7 +1264,10 @@ function RevisionList({
               <Button
                 size="sm"
                 variant="ghost"
-                className={cx('group-hover:opacity-100', selected === r.id ? 'opacity-100' : 'opacity-0')}
+                className={cx(
+                  'group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+                  selected === r.id ? 'opacity-100' : 'opacity-0',
+                )}
                 onClick={() => onRestore(r.id)}
               >
                 {t('Ripristina')}

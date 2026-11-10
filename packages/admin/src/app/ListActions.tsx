@@ -162,8 +162,11 @@ export function RowMenu({
             toggle()
           }}
           className={cx(
-            'flex size-7 shrink-0 items-center justify-center rounded-md text-fg2 transition-[opacity,background] hover:bg-hover hover:text-fg [&_svg]:size-4',
-            open ? 'bg-hover opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+            'flex size-7 shrink-0 items-center justify-center rounded-full text-fg2 transition-[opacity,background] hover:bg-hover hover:text-fg [&_svg]:size-4',
+            // Hidden until hover, but always there on touch screens and while the row has the keyboard.
+            open
+              ? 'bg-hover opacity-100'
+              : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
             className,
           )}
         >

@@ -266,8 +266,8 @@ export function PeopleScreen() {
             {people.error.message}
           </EmptyState>
         ) : (
-          <div className="mx-auto max-w-[880px] px-6 py-8">
-            <section className="overflow-hidden rounded-lg border border-line bg-panel">
+          <div className="max-w-[880px] px-4 pt-6 pb-8 sm:px-8">
+            <section className="overflow-hidden rounded-2xl bg-panel2">
               {people.data.users.map((person) => (
                 <div key={person.id} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0">
                   <Avatar name={person.name} size={32} />
@@ -279,6 +279,11 @@ export function PeopleScreen() {
                       )}
                     </div>
                     <div className="truncate text-[13px] text-fg3">{person.email}</div>
+                    {/* On phones the role goes under the email: the name keeps the whole width. */}
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-fg2 sm:hidden">
+                      {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
+                      {ROLES[person.role].label}
+                    </div>
                   </div>
                   <span
                     className="hidden w-36 text-[13px] text-fg3 sm:block"
@@ -301,7 +306,7 @@ export function PeopleScreen() {
                     {person.twoFactor ? <ShieldCheck /> : <ShieldAlert />}
                     {person.twoFactor ? t('Due passaggi') : t('Solo password')}
                   </span>
-                  <span className="inline-flex w-36 items-center gap-1.5 text-[13px]">
+                  <span className="hidden w-36 items-center gap-1.5 text-[13px] sm:inline-flex">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
                     {ROLES[person.role].label}
                   </span>
@@ -396,7 +401,7 @@ export function PeopleScreen() {
             {people.data.invites.length > 0 && (
               <section className="mt-8">
                 <h2 className="mb-2 text-[13px] font-medium text-fg3">{t('Inviti in attesa')}</h2>
-                <div className="overflow-hidden rounded-lg border border-line bg-panel">
+                <div className="overflow-hidden rounded-2xl bg-panel2">
                   {people.data.invites.map((invite) => (
                     <div
                       key={invite.id}
@@ -529,7 +534,7 @@ function TwoFactorSetting({ everyone, missing, mine }: { everyone: boolean; miss
   const security = useQuery({ queryKey: ['site-security'], queryFn: api.siteSecurity }).data
   if (!security) return null
   return (
-    <section className="mt-3 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+    <section className="mt-3 flex items-start gap-3 rounded-2xl bg-panel2 px-4 py-3.5">
       <Switch
         checked={security.requireTwoFactor}
         label={t('Richiedi la verifica in due passaggi a tutti')}
@@ -579,7 +584,7 @@ function EditorialSetting() {
   if (!editorial) return null
   const on = !!editorial.editorsContentOnly
   return (
-    <section className="mt-6 flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+    <section className="mt-6 flex items-start gap-3 rounded-2xl bg-panel2 px-4 py-3.5">
       <Switch
         checked={on}
         label={t('I redattori modificano solo i contenuti')}

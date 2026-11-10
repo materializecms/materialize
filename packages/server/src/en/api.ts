@@ -46,7 +46,7 @@ export const api: Record<string, string> = {
   'Il codice non è corretto': 'The code is wrong',
   'Un amministratore entra con la sola password': 'One administrator signs in with a password only',
   '{n} amministratori entrano con la sola password': '{n} administrators sign in with a password only',
-  '{names}: chi ruba quella password controlla tutto il sito. Attivate la verifica in due passaggi dal profilo → Sicurezza.':
+  '{names}: chi ruba quella password controlla tutto il sito. Attiva la verifica in due passaggi dal profilo → Sicurezza.':
     '{names}: whoever steals that password controls the whole site. Turn on two-step verification in your profile → Security.',
   'Gli amministratori usano la verifica in due passaggi': 'Administrators use two-step verification',
   'Per entrare servono password e codice dal telefono.': 'Signing in takes a password and a code from the phone.',
@@ -57,9 +57,9 @@ export const api: Record<string, string> = {
   'Una persona entra con la sola password': 'One person signs in with a password only',
   '{n} persone entrano con la sola password': '{n} people sign in with a password only',
   'Tutti usano la verifica in due passaggi': 'Everyone uses two-step verification',
-  'Potete richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.':
+  'Puoi richiederla a tutti da Persone: chi non l’ha la attiverà al prossimo accesso.':
     'You can require it for everyone in People: whoever does not have it will turn it on at their next sign-in.',
-  'Potete anche richiederla a tutti da Persone, per chi entrerà in futuro.':
+  'Puoi anche richiederla a tutti da Persone, per chi entrerà in futuro.':
     'You can also require it for everyone in People, for whoever joins later.',
   'Gli avvisi arrivano per email': 'Alerts arrive by email',
   'Tentativi di accesso falliti, cambi di indirizzo e di verifica vengono segnalati a chi riguardano.':

@@ -54,7 +54,7 @@ Usa il modello principale e ci mette qualche minuto: una prova con due pagine ha
 In **Impostazioni → Voce del brand** scrivi come parla il sito, così l'AI scrive come voi e non come chiunque:
 
 - **Chi siamo e per chi scriviamo**: una o due frasi su cosa fate, per chi e cosa vi distingue.
-- **Tono**: fino a tre tra professionale, amichevole, diretto, ispirazionale, tecnico, elegante, rassicurante, ironico.
+- **Tono**: fino a tre tra professionale, amichevole, diretto, ispirazionale, tecnico, elegante, rassicurante, ironico. Scegliendone un quarto, prende il posto del primo scelto.
 - **Come vi rivolgete a chi legge**: tu, voi o lei.
 - **Parole da usare** e **parole da evitare**, separate da virgole.
 - **Altre regole**, per esempio «Frasi brevi. Niente punti esclamativi».

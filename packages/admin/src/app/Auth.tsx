@@ -101,9 +101,10 @@ export function AuthScreen() {
               autoFocus
             />
           </label>
-          <label className="block">
-            <span className="mb-1.5 flex items-baseline justify-between text-[13px] font-medium text-fg2">
-              {t('Password')}
+          {/* The link sits beside the label, not inside it: a click on "Password" focuses the field. */}
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between text-[13px] font-medium text-fg2">
+              <label htmlFor="mz-signin-password">{t('Password')}</label>
               <button
                 type="button"
                 className="text-[13px] font-normal text-accent hover:underline"
@@ -111,15 +112,16 @@ export function AuthScreen() {
               >
                 {t('Password dimenticata?')}
               </button>
-            </span>
+            </div>
             <Input
+              id="mz-signin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
             />
-          </label>
+          </div>
         </div>
         {error && (
           <p role="alert" className="mt-4 text-[14px] text-danger">

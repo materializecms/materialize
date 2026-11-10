@@ -67,7 +67,7 @@ export function MediaInput({
   return (
     <DropZone
       onFiles={upload}
-      className={cx('overflow-hidden rounded-md border bg-input', invalid ? 'border-danger' : 'border-line2')}
+      className={cx('overflow-hidden rounded-xl border bg-input', invalid ? 'border-danger' : 'border-line2')}
     >
       {v.src && !broken ? (
         <div
@@ -140,41 +140,50 @@ export function MediaInput({
                 <Button size="sm" icon={<Images className="size-3.5" />} onClick={() => setPicking(true)}>
                   {t('Libreria')}
                 </Button>
+                {!byUrl && !external && (
+                  <IconButton label={t('Usa un indirizzo web')} className="size-7" onClick={() => setByUrl(true)}>
+                    <Link2 />
+                  </IconButton>
+                )}
               </div>
               <span className="text-[12px] text-fg3">{t('oppure trascina qui un’immagine')}</span>
             </>
           )}
         </div>
       )}
-      <div className="grid gap-1.5 border-t border-line p-2">
-        {(byUrl || external) && (
-          <Input
-            placeholder={t('https://…/foto.jpg')}
-            className="font-mono text-[13px]"
-            value={v.src}
-            autoFocus={byUrl && !v.src}
-            onChange={(e) => {
-              setBroken(false)
-              const src = e.target.value.trim()
-              chosen.current = src
-              onChange(src ? { src, alt: v.alt } : undefined, 'src')
-            }}
-          />
-        )}
-        <div className="flex items-center gap-1.5">
-          <Input
-            placeholder={t('Testo alternativo: descrivi l’immagine')}
-            value={v.alt}
-            disabled={!v.src}
-            onChange={(e) => onChange({ ...v, alt: e.target.value }, 'alt')}
-          />
-          {!byUrl && !external && (
-            <IconButton label={t('Usa un indirizzo web')} className="size-8" onClick={() => setByUrl(true)}>
-              <Link2 />
-            </IconButton>
+      {/* The alt text only once there is an image to describe. */}
+      {(v.src || byUrl || external) && (
+        <div className="grid gap-1.5 border-t border-line p-2">
+          {(byUrl || external) && (
+            <Input
+              placeholder={t('https://…/foto.jpg')}
+              className="font-mono text-[13px]"
+              value={v.src}
+              autoFocus={byUrl && !v.src}
+              onChange={(e) => {
+                setBroken(false)
+                const src = e.target.value.trim()
+                chosen.current = src
+                onChange(src ? { src, alt: v.alt } : undefined, 'src')
+              }}
+            />
+          )}
+          {v.src && (
+            <div className="flex items-center gap-1.5">
+              <Input
+                placeholder={t('Testo alternativo: descrivi l’immagine')}
+                value={v.alt}
+                onChange={(e) => onChange({ ...v, alt: e.target.value }, 'alt')}
+              />
+              {!byUrl && !external && (
+                <IconButton label={t('Usa un indirizzo web')} className="size-8" onClick={() => setByUrl(true)}>
+                  <Link2 />
+                </IconButton>
+              )}
+            </div>
           )}
         </div>
-      </div>
+      )}
       <input
         ref={file}
         type="file"

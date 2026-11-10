@@ -109,7 +109,7 @@ export function ShareDialog({
         ) : !items.length ? (
           <p className="text-[13px] text-fg3">{t('Nessun link: questa pagina la vede solo chi entra nel pannello.')}</p>
         ) : (
-          <ul className="divide-y divide-line rounded-md border border-line">
+          <ul className="divide-y divide-line rounded-xl border border-line">
             {items.map((link) => (
               <li key={link.id} className="flex items-center gap-2 px-2.5 py-2">
                 <div className="min-w-0 flex-1">

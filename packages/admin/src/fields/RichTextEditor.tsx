@@ -100,7 +100,7 @@ export function RichTextEditor({
   return (
     <div
       className={cx(
-        'rounded-md border bg-input transition-colors focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15',
+        'rounded-[10px] border bg-input transition-colors focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15',
         invalid ? 'border-danger' : 'border-line2 hover:border-fg3/40',
       )}
     >

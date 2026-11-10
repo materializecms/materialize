@@ -54,7 +54,7 @@ It uses the main model and takes a few minutes. A test with two pages took 13 st
 In **Settings → Brand voice**, describe how the site speaks, so the AI writes like you and not like everyone else:
 
 - **Who we are and who we write for**: one or two sentences on what you do, for whom, and what sets you apart.
-- **Tone**: up to three from Professional, Friendly, Direct, Inspirational, Technical, Elegant, Reassuring, Witty.
+- **Tone**: up to three from Professional, Friendly, Direct, Inspirational, Technical, Elegant, Reassuring, Witty. Picking a fourth replaces the first one you chose.
 - **How you address the reader**: informal you (tu), plural you (voi) or formal you (Lei).
 - **Words to use** and **Words to avoid**, separated by commas.
 - **Other rules**, for example "Short sentences. No exclamation marks."

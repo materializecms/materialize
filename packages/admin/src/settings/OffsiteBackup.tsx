@@ -120,7 +120,7 @@ export function OffsiteBackup() {
 
   return (
     <>
-      <form onSubmit={save} className="space-y-4 rounded-lg border border-line bg-panel px-4 py-3.5">
+      <form onSubmit={save} className="space-y-4 rounded-2xl bg-panel2 px-4 py-3.5">
         <div>
           <div className="flex items-center gap-2 text-[14px] font-medium [&_svg]:size-4 [&_svg]:text-fg3">
             <CloudUpload /> {t('Copia fuori dal server')}
@@ -242,7 +242,7 @@ export function OffsiteBackup() {
             <select
               value={form.keep}
               onChange={(e) => setForm({ ...form, keep: Number(e.target.value) })}
-              className="h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
+              className="h-7 rounded-[10px] border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
             >
               {[7, 14, 30, 90, 365].map((n) => (
                 <option key={n} value={n}>
@@ -269,13 +269,15 @@ export function OffsiteBackup() {
             </Button>
           )}
           {data.hasKey && (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => setAskPassword(true)}
-              className="ml-auto flex items-center gap-1.5 text-[13px] text-fg2 hover:text-fg [&_svg]:size-3.5"
+              icon={<KeyRound className="size-3.5" />}
+              className="ml-auto"
             >
-              <KeyRound /> {t('Mostra la chiave di ripristino')}
-            </button>
+              {t('Mostra la chiave di ripristino')}
+            </Button>
           )}
         </div>
 
@@ -351,7 +353,7 @@ function RecoveryKeyDialog({ recoveryKey, onClose }: { recoveryKey: string | nul
           { without: <strong className="text-fg">{t('Senza, non si possono rimettere')}</strong> },
         )}
       </p>
-      <code className="mt-3 block rounded-md bg-panel2 px-3 py-2.5 font-mono text-[13px] break-all select-all">
+      <code className="mt-3 block rounded-xl bg-panel2 px-3 py-2.5 font-mono text-[13px] break-all select-all">
         {recoveryKey}
       </code>
       <div className="mt-3 flex gap-2">

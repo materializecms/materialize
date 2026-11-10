@@ -5,6 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { Button, cx, Input, inputClass, Segmented, Spinner, toast } from '../components/ui.tsx'
 import { api, type DomainCheck, type MailSettings } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
+import { SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 const EMPTY: MailSettings = { host: '', port: 587, security: 'starttls', user: '', from: '', to: '', provider: '' }
 
@@ -106,15 +107,13 @@ export function MailForm() {
 
   if (saved.isLoading) return <Spinner />
   return (
-    <form onSubmit={save} className="mx-auto max-w-xl space-y-6 px-5 py-8">
-      <div>
-        <h2 className="text-[16px] font-semibold">{t('Invio delle email')}</h2>
-        <p className="mt-1 text-[14px] leading-relaxed text-fg2">
-          {t(
-            'Con un server di posta i messaggi dei moduli del sito arrivano anche per email, e così inviti e link per una nuova password. Senza, i messaggi restano comunque in Messaggi.',
-          )}
-        </p>
-      </div>
+    <SettingsPage onSubmit={save} className="space-y-6">
+      <SettingsHeading
+        title={t('Invio delle email')}
+        description={t(
+          'Con un server di posta i messaggi dei moduli del sito arrivano anche per email, e così inviti e link per una nuova password. Senza, i messaggi restano comunque in Messaggi.',
+        )}
+      />
 
       <Field label={t('Il tuo fornitore')}>
         <select value={mail.provider ?? ''} onChange={(e) => choose(e.target.value)} className={inputClass}>
@@ -127,7 +126,7 @@ export function MailForm() {
         </select>
       </Field>
       {provider?.note && (
-        <p className="-mt-3 flex gap-2 rounded-md bg-panel2 px-3 py-2 text-[13px] leading-relaxed text-fg2 [&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
+        <p className="-mt-3 flex gap-2 rounded-xl bg-panel2 px-3 py-2 text-[13px] leading-relaxed text-fg2 [&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
           <Info className="text-fg3" /> {provider.note}
         </p>
       )}
@@ -224,7 +223,7 @@ export function MailForm() {
           <h3 className="text-[14px] font-medium">
             {t('Il dominio {domain}, visto dai server di posta', { domain: domain.domain })}
           </h3>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
             {domain.checks.map((c) => (
               <li key={c.id} className="flex gap-3 px-4 py-3 [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0">
                 {ICON[c.state]}
@@ -242,6 +241,6 @@ export function MailForm() {
           </p>
         </section>
       )}
-    </form>
+    </SettingsPage>
   )
 }

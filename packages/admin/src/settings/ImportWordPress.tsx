@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CircleCheck, FileUp, Globe, Import, Sparkles } from 'lucide-react'
+import { CircleAlert, CircleCheck, FileUp, Globe, Sparkles } from 'lucide-react'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { useAiReady } from '../components/AiMenu.tsx'
@@ -7,6 +7,7 @@ import { Button, cx, Input, Segmented, Switch, toast } from '../components/ui.ts
 import { api, type WpAnalysis, type WpPlan, type WpProgress, type WpSource, type WpTarget } from '../lib/api.ts'
 import { t, tn } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
+import { Disclosure, SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 const SOURCES = (): Record<WpSource, string> => ({
   title: t('Titolo'),
@@ -31,20 +32,18 @@ export function ImportWordPress() {
   const [job, setJob] = useState<string | null>(null)
   if (user.role !== 'admin')
     return (
-      <p className="mx-auto max-w-2xl px-5 py-8 text-[14px] text-fg2">{t('L’importazione la fa un amministratore.')}</p>
+      <SettingsPage>
+        <p className="text-[14px] text-fg2">{t('L’importazione la fa un amministratore.')}</p>
+      </SettingsPage>
     )
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-5 py-8">
-      <header className="space-y-1.5">
-        <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-          <Import /> {t('Importa da WordPress')}
-        </h2>
-        <p className="text-[14px] leading-relaxed text-fg2">
-          {t(
-            'Articoli, pagine, immagini, categorie e SEO di un sito WordPress, qualunque editor lo abbia costruito (Gutenberg, Elementor, WPBakery, Divi…). I vecchi indirizzi portano ai nuovi, così i motori di ricerca non perdono nulla. Le pagine arrivano con i loro contenuti in ordine: l’impaginazione si rifà poi sul canvas.',
-          )}
-        </p>
-      </header>
+    <SettingsPage className="space-y-8">
+      <SettingsHeading
+        title={t('Importa da WordPress')}
+        description={t(
+          'Articoli, pagine, immagini, categorie e SEO di un sito WordPress, qualunque editor lo abbia costruito (Gutenberg, Elementor, WPBakery, Divi…). I vecchi indirizzi portano ai nuovi, così i motori di ricerca non perdono nulla. Le pagine arrivano con i loro contenuti in ordine: l’impaginazione si rifà poi sul canvas.',
+        )}
+      />
       {job ? (
         <Progress
           id={job}
@@ -58,7 +57,7 @@ export function ImportWordPress() {
       ) : (
         <Connect onRead={setAnalysis} />
       )}
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -99,7 +98,7 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
 
   const label = 'mb-1.5 block text-[13px] font-medium text-fg2'
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-lg border border-line bg-panel p-5">
+    <form onSubmit={submit} className="space-y-4 rounded-2xl bg-panel2 p-5">
       <Segmented
         value={mode}
         onChange={setMode}
@@ -119,9 +118,8 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
               required
             />
           </label>
-          <details className="rounded-md border border-line px-3 py-2 text-[13px]">
-            <summary className="cursor-pointer font-medium text-fg2">{t('Anche bozze e pagine private')}</summary>
-            <p className="mt-2 leading-relaxed text-fg3">
+          <Disclosure summary={t('Anche bozze e pagine private')} className="text-[13px]">
+            <p className="leading-relaxed text-fg3">
               {t(
                 'In WordPress, Utenti → Profilo → Password per le applicazioni: crea una password per «Materialize» e scrivila qui con il tuo nome utente. Serve solo per leggere, non viene salvata.',
               )}
@@ -141,13 +139,13 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
                 autoComplete="off"
               />
             </div>
-          </details>
+          </Disclosure>
           <label className="flex items-center gap-2 text-[13px] text-fg2">
             {t('Leggi')}
             <select
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
-              className="h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
+              className="h-7 rounded-[10px] border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none"
             >
               <option value="all">{t('tutto il sito')}</option>
               <option value="10">{t('i primi 10 articoli e 10 pagine, per provare')}</option>
@@ -163,7 +161,7 @@ function Connect({ onRead }: { onRead: (a: WpAnalysis) => void }) {
             accept=".xml,text/xml,application/xml"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             required
-            className="block w-full text-[13px] text-fg2 file:mr-3 file:rounded-md file:border file:border-line2 file:bg-panel file:px-2.5 file:py-1 file:text-[13px] file:font-medium file:text-fg"
+            className="block w-full text-[13px] text-fg2 file:mr-3 file:h-7 file:rounded-full file:border file:border-line2 file:bg-panel file:px-3 file:text-[13px] file:font-medium file:text-fg"
           />
           <span className="mt-1.5 block text-[13px] leading-relaxed text-fg3">
             {t(
@@ -257,7 +255,7 @@ function Plan({
   const collections = schema.collections.filter((c) => !c.singleton && analysis.fields[c.name])
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3">
+      <div className="flex items-center gap-3 rounded-2xl bg-panel2 px-4 py-3">
         <CircleCheck className="size-4.5 shrink-0 text-ok" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-medium">{analysis.site.name}</div>
@@ -295,7 +293,7 @@ function Plan({
       )}
 
       {choice && analysis.categories.length > 0 && (
-        <section className="space-y-2 rounded-lg border border-line bg-panel p-4">
+        <section className="space-y-2 rounded-2xl bg-panel2 p-4">
           <h3 className="text-[14px] font-medium">{t('Categorie → {field}', { field: choice.label })}</h3>
           <div className="grid grid-cols-[1fr_1fr] gap-x-4 gap-y-1.5 text-[13px]">
             {analysis.categories.map((c) => (
@@ -304,7 +302,7 @@ function Plan({
                 <select
                   value={categories[c] ?? autoMatch(c)}
                   onChange={(e) => setCategories({ ...categories, [c]: e.target.value })}
-                  className="h-7 rounded-md border border-line2 bg-input px-1.5 text-fg outline-none"
+                  className="h-7 rounded-[10px] border border-line2 bg-input px-1.5 text-fg outline-none"
                 >
                   <option value="">{t('— la prima che corrisponde, o quella sotto')}</option>
                   {choice.options.map((o) => (
@@ -321,7 +319,7 @@ function Plan({
             <select
               value={fallback}
               onChange={(e) => setFallback(e.target.value)}
-              className="h-7 rounded-md border border-line2 bg-input px-1.5 text-fg outline-none"
+              className="h-7 rounded-[10px] border border-line2 bg-input px-1.5 text-fg outline-none"
             >
               <option value="">{t('{option} (la prima)', { option: choice.options[0]?.label })}</option>
               {choice.options.map((o) => (
@@ -334,7 +332,7 @@ function Plan({
         </section>
       )}
 
-      <section className="space-y-3 rounded-lg border border-line bg-panel p-4">
+      <section className="space-y-3 rounded-2xl bg-panel2 p-4">
         <label className="flex items-start gap-3">
           <Switch checked={publish} label={t('Pubblica')} onChange={setPublish} />
           <span className="text-[13px] leading-relaxed">
@@ -397,7 +395,7 @@ function TargetCard({
   fields: WpAnalysis['fields']
   onChange: (t: WpTarget | null) => void
 }) {
-  const select = 'h-7 rounded-md border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none'
+  const select = 'h-7 rounded-[10px] border border-line2 bg-input px-1.5 text-[13px] text-fg outline-none'
   const pick = (name: string) =>
     onChange(
       !name
@@ -416,7 +414,7 @@ function TargetCard({
     )
   const own = target ? (fields[target.collection] ?? {}) : {}
   return (
-    <section className="space-y-3 rounded-lg border border-line bg-panel p-4">
+    <section className="space-y-3 rounded-2xl bg-panel2 p-4">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h3 className="text-[14px] font-medium">{title}</h3>
@@ -496,7 +494,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
   return (
     <div className="space-y-5">
       {running ? (
-        <section className="space-y-2 rounded-lg border border-line bg-panel p-5">
+        <section className="space-y-2 rounded-2xl bg-panel2 p-5">
           <div className="flex justify-between text-[14px]">
             <span className="font-medium">
               {p.phase === 'media'
@@ -520,7 +518,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
           {t('L’importazione si è fermata: {error}', { error: p.error })}
         </p>
       ) : (
-        <section className="space-y-1 rounded-lg border border-line bg-panel p-5">
+        <section className="space-y-1 rounded-2xl bg-panel2 p-5">
           <div className="flex items-center gap-2 text-[14px] font-medium">
             <CircleCheck className="size-4.5 text-ok" /> {t('Importazione finita')}
           </div>
@@ -539,7 +537,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       {p.created.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-[13px] font-medium text-fg2">{t('Importati')}</h3>
-          <ul className="max-h-72 divide-y divide-line overflow-y-auto rounded-lg border border-line bg-panel">
+          <ul className="max-h-72 divide-y divide-line overflow-y-auto rounded-2xl bg-panel2">
             {p.created.map((d) => (
               <li key={d.id}>
                 <button
@@ -561,7 +559,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       {Object.keys(p.media.reasons ?? {}).length > 0 && (
         <section className="space-y-2">
           <h3 className="text-[13px] font-medium text-fg2">{t('Immagini non importate')}</h3>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2 text-[13px]">
             {Object.entries(p.media.reasons).map(([reason, n]) => (
               <li key={reason} className="flex gap-3 px-4 py-2">
                 <span className="tabular-nums text-fg2">{n}</span>
@@ -577,7 +575,7 @@ function Progress({ id, onAgain }: { id: string; onAgain: () => void }) {
       {[...p.problems, ...p.skipped].length > 0 && (
         <section className="space-y-2">
           <h3 className="text-[13px] font-medium text-fg2">{t('Da guardare')}</h3>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-panel text-[13px]">
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2 text-[13px]">
             {[...p.problems, ...p.skipped].map((x, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list, shown once
               <li key={i} className="flex gap-3 px-4 py-2">

@@ -1342,7 +1342,7 @@ export function Canvas({
                 style={{ left: boxes.hover.x, top: boxes.hover.y, width: boxes.hover.w, height: boxes.hover.h }}
               >
                 <span className="flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-[12.5px] font-medium text-white">
-                  <ImagePlus className="size-3.5" /> Cambia immagine
+                  <ImagePlus className="size-3.5" /> {t('Cambia immagine')}
                 </span>
               </div>
             )}

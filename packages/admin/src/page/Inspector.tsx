@@ -815,16 +815,28 @@ export function Inspector({
               <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
                 {linkedStyle && styleChanged && (
                   <>
-                    <button type="button" onClick={textStyles.update} className="text-accent hover:underline">
+                    <button
+                      type="button"
+                      onClick={textStyles.update}
+                      className="min-h-6 text-left text-accent hover:underline"
+                    >
                       {t('Aggiorna “{name}” con queste modifiche', { name: linkedStyle.name })}
                     </button>
-                    <button type="button" onClick={textStyles.reset} className="text-fg2 hover:underline">
+                    <button
+                      type="button"
+                      onClick={textStyles.reset}
+                      className="min-h-6 text-left text-fg2 hover:underline"
+                    >
                       {t('Torna allo stile')}
                     </button>
                   </>
                 )}
                 {!linkedStyle && (
-                  <button type="button" onClick={() => setNaming('')} className="text-accent hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => setNaming('')}
+                    className="min-h-6 text-left text-accent hover:underline"
+                  >
                     {t('Crea uno stile da questo testo')}
                   </button>
                 )}
@@ -1036,8 +1048,8 @@ export function Inspector({
               onClick={() => onProp(k, !p[k])}
               className={
                 p[k]
-                  ? 'h-7 rounded-md border border-accent bg-accent/10 text-[12px] font-medium text-accent'
-                  : 'h-7 rounded-md border border-line2 text-[12px] font-medium text-fg2 hover:text-fg'
+                  ? 'h-7 rounded-full border border-accent bg-accent/10 text-[12px] font-medium text-accent'
+                  : 'h-7 rounded-full border border-line2 text-[12px] font-medium text-fg2 hover:text-fg'
               }
             >
               {label}
@@ -1294,7 +1306,7 @@ export function Inspector({
                   <button
                     type="button"
                     onClick={() => onProp('layout', 'row')}
-                    className="text-left text-[12px] text-accent hover:underline"
+                    className="min-h-6 text-left text-[12px] text-accent hover:underline"
                   >
                     {t('Il nastro funziona in riga: imposta la direzione in riga')}
                   </button>

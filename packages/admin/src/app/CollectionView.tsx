@@ -224,7 +224,7 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                 key={doc.id}
                 collection={collection}
                 doc={doc}
-                icon={icon}
+                tint={tint}
                 checked={checked.has(doc.id)}
                 selecting={checked.size > 0}
                 onToggle={(e) => toggle(doc, e)}
@@ -238,17 +238,13 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
             {items.map((doc) => (
               <li
                 key={doc.id}
+                // Flush with the toolbar above: the hover tint reaches a little past the edges, the line does not.
                 className={cx(
-                  'group -mx-3 flex min-h-14 items-center gap-3 rounded-lg border-b border-line px-3 transition-colors last:border-0 hover:bg-hover',
-                  checked.has(doc.id) && 'bg-accent/8 hover:bg-accent/12',
+                  'group relative isolate flex min-h-14 items-center gap-3 border-b border-line last:border-0',
+                  'before:absolute before:inset-x-[-8px] before:inset-y-1 before:-z-10 before:rounded-lg before:transition-colors hover:before:bg-hover',
+                  checked.has(doc.id) && 'before:bg-accent/8 hover:before:bg-accent/12',
                 )}
               >
-                <SelectBox
-                  checked={checked.has(doc.id)}
-                  label={t('Seleziona {title}', { title: doc.title })}
-                  onToggle={(e) => toggle(doc, e)}
-                  className={cx(!checked.size && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100')}
-                />
                 <a
                   {...link(collection, doc, checked.size > 0 ? (e) => toggle(doc, e) : undefined)}
                   className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2"
@@ -270,6 +266,16 @@ export function CollectionView({ collection }: { collection: CollectionDescripti
                     {relativeTime(doc.updatedAt)}
                   </span>
                 </a>
+                {/* The tick sits on the picture, so it takes no column of its own. */}
+                <SelectBox
+                  checked={checked.has(doc.id)}
+                  label={t('Seleziona {title}', { title: doc.title })}
+                  onToggle={(e) => toggle(doc, e)}
+                  className={cx(
+                    'absolute top-1/2 left-[11px] -translate-y-1/2 shadow-sm',
+                    !checked.size && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                  )}
+                />
                 <RowMenu collection={collection} doc={doc} actions={actions} onDelete={(d) => setDeleting([d])} />
               </li>
             ))}
@@ -304,7 +310,7 @@ function link(collection: CollectionDescription, doc: DocumentSummary, select?: 
 function Card({
   collection,
   doc,
-  icon,
+  tint,
   checked,
   selecting,
   onToggle,
@@ -313,7 +319,7 @@ function Card({
 }: {
   collection: CollectionDescription
   doc: DocumentSummary
-  icon: React.ReactNode
+  tint: string
   checked: boolean
   selecting: boolean
   onToggle: (e: React.MouseEvent) => void
@@ -337,8 +343,16 @@ function Card({
               className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-[radial-gradient(var(--dot)_1px,transparent_1px)] [background-size:14px_14px]">
-              {icon}
+            // No picture: the title itself, on a card in the collection's hue.
+            <div
+              className="flex size-full items-end p-4 pt-12"
+              style={{
+                background: `linear-gradient(160deg, color-mix(in srgb, ${tint} 16%, var(--panel2)), color-mix(in srgb, ${tint} 5%, var(--panel2)))`,
+              }}
+            >
+              <span className="line-clamp-3 text-[18px] leading-snug font-semibold tracking-[-0.015em] text-fg/85">
+                {doc.title}
+              </span>
             </div>
           )}
           <span className="absolute top-2.5 left-2.5 flex items-center gap-1">
@@ -351,8 +365,9 @@ function Card({
           </span>
         </div>
         <div className="px-3.5 py-3">
-          <div className="truncate font-medium">{doc.title}</div>
-          <div className="mt-0.5 flex justify-between gap-2 text-[13px] text-fg3">
+          {/* Without a picture the title is already on the tile. */}
+          {doc.image && <div className="truncate font-medium">{doc.title}</div>}
+          <div className={cx('flex justify-between gap-2 text-[13px] text-fg3', doc.image && 'mt-0.5')}>
             <span className="truncate font-mono">{doc.url ?? (doc.slug ? `/${doc.slug}` : '')}</span>
             <span className="shrink-0" title={fullDate(doc.updatedAt)}>
               {relativeTime(doc.updatedAt)}

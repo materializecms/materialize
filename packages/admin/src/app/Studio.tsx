@@ -81,7 +81,7 @@ export function Studio() {
   const started = thread.length > 0
 
   return (
-    <section aria-label="Chiedi all’AI" className="space-y-3">
+    <section aria-label={t('Chiedi all’AI')} className="space-y-3">
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -110,7 +110,8 @@ export function Studio() {
               ? t('Rispondi o chiedi altro…')
               : t('Cosa facciamo oggi sul sito? Es. «Scrivi un articolo sul nuovo progetto, con le foto caricate ieri»')
           }
-          className="block w-full resize-none bg-transparent px-3 py-2.5 text-[14.5px] leading-relaxed outline-none placeholder:text-fg3"
+          // On a phone the example takes three lines: the box has room for them.
+          className="block w-full resize-none bg-transparent px-3 py-2.5 text-[14.5px] leading-relaxed outline-none placeholder:text-fg3 max-sm:min-h-[92px]"
         />
         <div className="flex flex-wrap items-center gap-1.5 px-1.5 pb-1">
           {pictures.map((p, i) => (

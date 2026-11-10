@@ -227,6 +227,9 @@ describe('forms', () => {
     const raw = await app.request('/api/submissions/export.csv', { headers: { cookie: csv.cookie } })
     expect([...new Uint8Array(await raw.arrayBuffer()).slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf])
     expect(text).toContain(`"'=HYPERLINK(""x"")"`)
+    // A download link says its language in the address: the columns follow it.
+    const english = await app.request('/api/submissions/export.csv?lang=en', { headers: { cookie: csv.cookie } })
+    expect((await english.text()).split('\r\n')[0]).toContain('Date,Form,Page')
   })
 
   it('posts each message to the webhook, signed with the site key', async () => {

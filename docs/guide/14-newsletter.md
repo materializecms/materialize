@@ -39,7 +39,7 @@ Then write the **subject**, the **preview** (the line many mail apps show after 
 - **Send now**: it goes out to all active subscribers, one email at a time, so the mail service doesn't block it. Once it has started, you can't edit it anymore.
 - **Schedule**: pick a day and time, just like for a page. It goes to whoever is subscribed at that moment. If the server is off at that time, it goes out as soon as the server is back. If it stops halfway through sending, it picks up where it left off.
 
-At the bottom of every email there is a link to **unsubscribe** and the sender's details, which you enter once in **Newsletter → Subscribers → Settings**: in many countries the law requires the sender's name and address. Mail apps like Gmail also show their own "Unsubscribe" button, which works in one click.
+At the bottom of every email there is a link to **unsubscribe** and the sender's details, which an administrator enters once in **Newsletter → Settings** (the **Sender** block): in many countries the law requires the sender's name and address. Mail apps like Gmail also show their own "Unsubscribe" button, which works in one click.
 
 ## Stats
 

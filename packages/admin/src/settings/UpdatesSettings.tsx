@@ -7,6 +7,7 @@ import { Button, Dialog, EmptyState, Spinner, Switch, toast } from '../component
 import { api, type UpdateState } from '../lib/api.ts'
 import { dayDate, relativeTime } from '../lib/format.ts'
 import { t, tx } from '../lib/i18n.ts'
+import { Disclosure, SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 /** The few marks the changelog uses: "- " lists and **bold**. */
 function Notes({ text }: { text: string }) {
@@ -59,7 +60,7 @@ function Release({ release }: { release: ReleaseNotes }) {
   )
 }
 
-const card = 'rounded-xl border border-line bg-panel p-5'
+const card = 'rounded-2xl bg-panel2 p-5'
 
 /** The newer version waiting to be installed, for admins (checked by the server once a day). */
 export function useUpdateAvailable(): string | null {
@@ -188,7 +189,7 @@ export function UpdatesSettings() {
 
   if (restarting || !data)
     return (
-      <div className="mx-auto max-w-2xl px-5 py-8">
+      <SettingsPage>
         <div className={`${card} flex items-center gap-3`}>
           <Loader2 className="size-5 animate-spin text-accent" />
           <div>
@@ -200,7 +201,7 @@ export function UpdatesSettings() {
             </div>
           </div>
         </div>
-      </div>
+      </SettingsPage>
     )
 
   const available = data.latest && data.notes.length > 0 ? data.latest : null
@@ -208,18 +209,20 @@ export function UpdatesSettings() {
   const recent = data.last && Date.now() - new Date(data.last.at).getTime() < 7 * 24 * 60 * 60_000
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-5 py-8">
-      <div>
-        <h2 className="text-[16px] font-semibold">{t('Aggiornamenti')}</h2>
-        <p className="mt-1 text-[14px] text-fg2">
-          {tx('Stai usando {version}.', {
-            version: <strong className="font-semibold text-fg">Materialize {data.current}</strong>,
-          })}
-          {data.checkedAt && (
-            <span className="text-fg3"> {t('Controllato {when}.', { when: relativeTime(data.checkedAt) })}</span>
-          )}
-        </p>
-      </div>
+    <SettingsPage className="space-y-6">
+      <SettingsHeading
+        title={t('Aggiornamenti')}
+        description={
+          <>
+            {tx('Stai usando {version}.', {
+              version: <strong className="font-semibold text-fg">Materialize {data.current}</strong>,
+            })}
+            {data.checkedAt && (
+              <span className="text-fg3"> {t('Controllato {when}.', { when: relativeTime(data.checkedAt) })}</span>
+            )}
+          </>
+        }
+      />
 
       {recent && data.last && (
         <div
@@ -297,12 +300,11 @@ export function UpdatesSettings() {
           <div className="font-medium">{t('L’aggiornamento non è riuscito: non è cambiato niente.')}</div>
           <div className="text-fg2">{data.job.message}</div>
           {data.job.log && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-[13px] text-fg3">{t('Dettagli')}</summary>
-              <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-panel2 p-3 font-mono text-[11px] whitespace-pre-wrap">
+            <Disclosure summary={t('Dettagli')} className="mt-2">
+              <pre className="max-h-60 overflow-auto rounded-md bg-panel2 p-3 font-mono text-[11px] whitespace-pre-wrap">
                 {data.job.log}
               </pre>
-            </details>
+            </Disclosure>
           )}
         </div>
       )}
@@ -387,6 +389,6 @@ export function UpdatesSettings() {
             )
           : t('Il server si riavvia con la versione precedente: pochi secondi. I contenuti restano come sono.')}
       </Dialog>
-    </div>
+    </SettingsPage>
   )
 }

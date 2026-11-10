@@ -3,11 +3,9 @@ import {
   CircleAlert,
   CircleCheck,
   CircleX,
-  DatabaseBackup,
   Download,
   FileText,
   Info,
-  KeyRound,
   LogIn,
   Settings,
   ShieldCheck,
@@ -16,12 +14,13 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, cx, EmptyState, IconButton, Spinner, Switch, toast } from '../components/ui.tsx'
+import { Button, cx, EmptyState, IconButton, Segmented, Spinner, Switch, toast } from '../components/ui.tsx'
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { t, tn, tx } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { OffsiteBackup } from './OffsiteBackup.tsx'
+import { linkButton, SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 const STATUS: Record<SecurityCheck['status'], { icon: ReactNode; tone: string }> = {
   bad: { icon: <CircleX />, tone: 'text-danger' },
@@ -205,10 +204,15 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
     case 'release.cancelled':
       return { text: t('ha annullato il rilascio {name}', { name }), group: 'content' }
     case 'document.turn_taken':
+      // The document's title when the entry has it (as its target); older entries only have the id.
       return {
-        text: d.from
-          ? t('ha preso il controllo di un documento che stava modificando {from}', { from: String(d.from) })
-          : t('ha preso il controllo di un documento che stava modificando un’altra persona'),
+        text: name
+          ? d.from
+            ? t('ha preso il controllo di {name}, che stava modificando {from}', { name, from: String(d.from) })
+            : t('ha preso il controllo di {name}, che stava modificando un’altra persona', { name })
+          : d.from
+            ? t('ha preso il controllo di un documento che stava modificando {from}', { from: String(d.from) })
+            : t('ha preso il controllo di un documento che stava modificando un’altra persona'),
         group: 'content',
       }
     case 'import.wordpress': {
@@ -432,7 +436,7 @@ export function SecuritySettings({
       </EmptyState>
     )
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-5 py-8">
+    <SettingsPage>
       {part === 'backups' ? (
         <BackupsSection />
       ) : part === 'activity' ? (
@@ -440,7 +444,7 @@ export function SecuritySettings({
       ) : (
         <Overview onOpenProfile={onOpenProfile} />
       )}
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -451,16 +455,16 @@ function Overview({ onOpenProfile }: { onOpenProfile: () => void }) {
   const checks = [...query.data.checks].sort((a, b) => order[a.status] - order[b.status])
   const issues = checks.filter((c) => c.status === 'bad' || c.status === 'warn').length
   return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <ShieldCheck /> {t('Stato della sicurezza')}
-      </h2>
-      <p className="text-[14px] text-fg2">
-        {issues
-          ? tn(issues, 'Un punto da sistemare, dal più importante.', '{n} punti da sistemare, dal più importante.')
-          : t('Tutto in ordine.')}
-      </p>
-      <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
+    <section className="space-y-4">
+      <SettingsHeading
+        title={t('Stato della sicurezza')}
+        description={
+          issues
+            ? tn(issues, 'Un punto da sistemare, dal più importante.', '{n} punti da sistemare, dal più importante.')
+            : t('Tutto in ordine.')
+        }
+      />
+      <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
         {checks.map((c) => (
           <li key={c.id} className="flex items-start gap-3 px-4 py-3">
             <span className={cx('mt-px shrink-0 [&_svg]:size-4.5', STATUS[c.status].tone)}>
@@ -522,11 +526,9 @@ function BackupsSection() {
   }
   const restore = <code className="font-mono text-[12px]">npx materialize restore</code>
   return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <DatabaseBackup /> {t('Backup')}
-      </h2>
-      <div className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+    <section className="space-y-4">
+      <SettingsHeading title={t('Backup')} />
+      <div className="flex items-center gap-3 rounded-2xl bg-panel2 px-4 py-3.5">
         <div className="min-w-0 flex-1">
           <div className="text-[14px] font-medium">{t('Scarica tutto')}</div>
           <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
@@ -544,7 +546,7 @@ function BackupsSection() {
         <a
           href="/api/backups/archive"
           download
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line2 px-2.5 text-[13px] font-medium hover:bg-hover [&_svg]:size-3.5"
+          className={linkButton}
           onClick={() => {
             toast(t('L’archivio si sta preparando: il download parte tra poco'))
             setTimeout(refresh, 3000)
@@ -562,7 +564,7 @@ function BackupsSection() {
         </p>
       ) : (
         <>
-          <div className="flex items-start gap-3 rounded-lg border border-line bg-panel px-4 py-3.5">
+          <div className="flex items-start gap-3 rounded-2xl bg-panel2 px-4 py-3.5">
             <Switch
               checked={data.enabled}
               label={t('Backup automatici ogni giorno')}
@@ -579,7 +581,7 @@ function BackupsSection() {
                         value={data.keep}
                         onChange={(e) => void save({ keep: Number(e.target.value) })}
                         aria-label={t('Quante copie tenere')}
-                        className="mx-1.5 h-6 rounded-md border border-line2 bg-input px-1 text-[13px] text-fg outline-none"
+                        className="mx-1.5 h-6 rounded-[10px] border border-line2 bg-input px-1 text-[13px] text-fg outline-none"
                       >
                         {[7, 14, 30, 90].map((n) => (
                           <option key={n} value={n}>
@@ -613,7 +615,7 @@ function BackupsSection() {
             </Button>
           </div>
           {data.items.length > 0 && (
-            <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
+            <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
               {data.items.map((b) => (
                 <li key={b.name} className="flex items-center gap-3 px-4 py-2">
                   <div className="min-w-0 flex-1">
@@ -625,7 +627,7 @@ function BackupsSection() {
                   <a
                     href={`/api/backups/${encodeURIComponent(b.name)}`}
                     download={b.name}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-md px-2 text-[13px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
+                    className="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-fg2 hover:bg-hover hover:text-fg [&_svg]:size-3.5"
                   >
                     <Download /> {t('Scarica')}
                   </a>
@@ -670,31 +672,17 @@ function ActivityLog() {
   })
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
   return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-[16px] font-semibold [&_svg]:size-4 [&_svg]:text-fg3">
-        <KeyRound /> {t('Attività')}
-      </h2>
-      <div className="flex flex-wrap gap-1">
-        {FILTERS().map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setGroup(f.value)}
-            className={cx(
-              'h-7 rounded-full px-3 text-[13px] font-medium transition-colors',
-              group === f.value ? 'bg-fg text-bg' : 'text-fg2 hover:bg-hover hover:text-fg',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+    <section className="space-y-4">
+      <SettingsHeading title={t('Registro attività')} />
+      <div className="max-w-full overflow-x-auto [scrollbar-width:none]">
+        <Segmented size="sm" value={group} onChange={setGroup} options={[...FILTERS()]} />
       </div>
       {list.isPending ? (
         <Spinner />
       ) : !items.length ? (
         <p className="py-6 text-center text-[14px] text-fg3">{t('Ancora niente da mostrare.')}</p>
       ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-panel">
+        <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-panel2">
           {items.map((e) => {
             const { text, group: g } = describe(e)
             const failed = /failed|blocked/.test(e.action)

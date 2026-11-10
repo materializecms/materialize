@@ -57,7 +57,7 @@ export function ScheduleMenu({
             type="button"
             onClick={toggle}
             title={failed.error ?? undefined}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-danger/10 px-2 text-[12px] font-medium text-danger hover:bg-danger/15 [&_svg]:size-3.5"
+            className="inline-flex h-7 items-center gap-1.5 rounded-full bg-danger/10 px-2 text-[12px] font-medium text-danger hover:bg-danger/15 [&_svg]:size-3.5"
           >
             <AlertTriangle /> <span className="max-md:hidden">{t('Programmazione non riuscita')}</span>
           </button>
@@ -66,7 +66,7 @@ export function ScheduleMenu({
             ref={ref}
             type="button"
             onClick={toggle}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-accent/10 px-2 text-[12px] font-medium text-accent hover:bg-accent/15 [&_svg]:size-3.5"
+            className="inline-flex h-7 items-center gap-1.5 rounded-full bg-accent/10 px-2 text-[12px] font-medium text-accent hover:bg-accent/15 [&_svg]:size-3.5"
           >
             <CalendarClock />
             <span className="max-md:hidden">
@@ -85,7 +85,7 @@ export function ScheduleMenu({
       {() => (
         <div className="space-y-4 p-3.5">
           {failed && (
-            <div className="rounded-md bg-danger/10 px-2.5 py-2 text-[12.5px] leading-snug text-danger">
+            <div className="rounded-xl bg-danger/10 px-2.5 py-2 text-[12.5px] leading-snug text-danger">
               <p className="font-medium">
                 {failed.action === 'publish'
                   ? t('La pubblicazione di {when} non è riuscita', { when: whenDate(failed.runAt) })
@@ -197,7 +197,7 @@ export function When({
               key={q.label}
               type="button"
               onClick={() => setValue(toInput(q.at))}
-              className="rounded-md border border-line px-1.5 py-0.5 text-[12px] text-fg2 hover:border-accent hover:text-fg"
+              className="rounded-full border border-line px-1.5 py-0.5 text-[12px] text-fg2 hover:border-accent hover:text-fg"
             >
               {q.label}
             </button>

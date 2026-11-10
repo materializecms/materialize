@@ -17,6 +17,27 @@ const styleLabels = (): Record<string, string> => ({
   logo: t('Logo'),
 })
 
+/** A text that is one link as a whole: a menu item, a footer link. */
+const isLink = (n: PageNode) =>
+  n.type === 'text' &&
+  (n.href !== undefined ||
+    (!!n.runs?.length && n.runs.every((r) => r.href || !r.t.trim()) && n.runs.some((r) => r.href)))
+
+/** A menu section: the bar of links at the top of the page. */
+const isNav = (section: PageNode) =>
+  !!(section.mobileMenu || section.navShape || section.sticky || /^(nav|menu)/i.test(section.name ?? ''))
+
+/**
+ * What a text is called in the panel: a link in the menu is a menu item; otherwise its own name
+ * (the library's names, like "Etichetta", read in the panel's language), else "Link", else its style.
+ */
+function textLabel(n: PageNode, inNav: boolean): string {
+  if (isLink(n) && inNav) return t('Voce del menu')
+  if (n.name?.trim()) return t(n.name.trim())
+  if (isLink(n)) return t('Link')
+  return styleLabels()[n.style ?? ''] ?? t('Testo')
+}
+
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
 /** Formatted text as editable HTML: bold, italic, links and line breaks, as on the canvas. */
@@ -234,7 +255,7 @@ export function ContentPanel({
                             ? t('Icona')
                             : n.type === 'input'
                               ? t('Campo del modulo')
-                              : (styleLabels()[n.style ?? ''] ?? t('Testo'))}
+                              : textLabel(n, isNav(section))}
                       {bound && <span> · {bound}</span>}
                     </span>
                     {!bound && (n.type === 'text' || n.type === 'button') && (
@@ -257,11 +278,7 @@ export function ContentPanel({
                     </p>
                   ) : n.type === 'text' ? (
                     <div className="space-y-1">
-                      <RunsField
-                        node={n}
-                        label={styleLabels()[n.style ?? ''] ?? t('Testo')}
-                        onCommit={(r) => onText(n.id, r)}
-                      />
+                      <RunsField node={n} label={textLabel(n, isNav(section))} onCommit={(r) => onText(n.id, r)} />
                       {n.href !== undefined && (
                         <LinkInput
                           label={t('Collegamento del testo')}

@@ -39,7 +39,7 @@ Poi scrivi l'**oggetto**, l'**anteprima** (la frase che molte app mostrano dopo 
 - **Invia ora**: parte per tutti gli iscritti attivi, una email alla volta, così il servizio di posta non la blocca. Una volta partita non si modifica più.
 - **Programma**: scegli giorno e ora, come per una pagina. Parte per chi è iscritto in quel momento. Se il server è spento a quell'ora, parte appena riparte; se si ferma a metà invio, riprende da dove era.
 
-In fondo a ogni email ci sono il link per **disiscriversi** e i dati del mittente, che scrivi una volta in **Newsletter → Iscritti → Impostazioni**: in molti paesi la legge chiede nome e indirizzo di chi invia. Le app di posta come Gmail mostrano anche il loro pulsante «Annulla iscrizione», che funziona con un clic.
+In fondo a ogni email ci sono il link per **disiscriversi** e i dati del mittente, che un amministratore scrive una volta in **Newsletter → Impostazioni** (blocco **Mittente**): in molti paesi la legge chiede nome e indirizzo di chi invia. Le app di posta come Gmail mostrano anche il loro pulsante «Annulla iscrizione», che funziona con un clic.
 
 ## Le statistiche
 

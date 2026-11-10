@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react'
-import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, type ReactNode, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { cx, Switch } from '../components/ui.tsx'
 import { t } from '../lib/i18n.ts'
 
@@ -34,7 +34,7 @@ export function Section({
               title={t('Torna ai valori del desktop')}
               aria-label={t('Torna ai valori del desktop')}
               onClick={onReset}
-              className="flex size-6 items-center justify-center rounded text-fg3 hover:bg-hover hover:text-fg"
+              className="flex size-6 items-center justify-center rounded-full text-fg3 hover:bg-hover hover:text-fg"
             >
               <RotateCcw className="size-3.5" />
             </button>
@@ -47,45 +47,99 @@ export function Section({
   )
 }
 
+/** The label of the row a control sits in: its accessible name when it has none of its own. */
+const RowContext = createContext<{ label: string; id: string } | null>(null)
+
 export function Row({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+  const id = useId()
   return (
     <div className="grid grid-cols-[84px_minmax(0,1fr)] items-center gap-2" title={hint}>
-      <span className="truncate text-[12px] font-medium text-fg2">{label}</span>
-      <div className="flex min-w-0 items-center gap-1.5">{children}</div>
+      <span id={id} className="truncate text-[12px] font-medium text-fg2">
+        {label}
+      </span>
+      <RowContext.Provider value={{ label, id }}>
+        <div className="flex min-w-0 items-center gap-1.5">{children}</div>
+      </RowContext.Provider>
     </div>
   )
 }
 
-/** Compact segmented control; options may be icons with a title. */
+/**
+ * Compact segmented control; options may be icons with a title. The buttons share the width; when
+ * the labels do not fit on one line they wrap to two rows, and a label still too long ends with "…"
+ * (the whole of it shows on hover).
+ */
 export function Seg<T extends string | number>({
   value,
   options,
   onChange,
+  label,
 }: {
   value: T
   options: { value: T; label: ReactNode; title?: string }[]
   onChange: (value: T) => void
+  /** The group's name; by default the label of its row. */
+  label?: string
 }) {
+  const row = useContext(RowContext)
+  const ref = useRef<HTMLDivElement>(null)
+  const [wrap, setWrap] = useState(false)
+  useLayoutEffect(() => {
+    const box = ref.current
+    if (!box) return
+    // The width the labels need on one line, whatever the current layout: a truncated span still
+    // reports its full width.
+    const measure = () => {
+      const spans = [...box.querySelectorAll<HTMLElement>('[data-seg-label]')]
+      const need = spans.reduce((sum, el) => sum + el.scrollWidth + 12, 0) + (spans.length - 1) * 2 + 4
+      setWrap(spans.length > 2 && need > box.clientWidth + 1)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [])
+  const cols = Math.ceil(options.length / 2)
   return (
-    <div role="radiogroup" className="flex min-w-0 flex-1 gap-0.5 rounded-md bg-seg p-0.5">
-      {options.map((o) => (
-        // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
-        <button
-          key={String(o.value)}
-          type="button"
-          role="radio"
-          aria-checked={value === o.value}
-          title={o.title}
-          aria-label={o.title}
-          onClick={() => onChange(o.value)}
-          className={cx(
-            'inline-flex h-6 min-w-0 flex-1 items-center justify-center rounded-[5px] px-1.5 text-[12px] font-medium whitespace-nowrap transition-colors [&_svg]:size-3.5',
-            value === o.value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div
+      ref={ref}
+      role="radiogroup"
+      aria-label={label}
+      aria-labelledby={label ? undefined : row?.id}
+      style={wrap ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}
+      className={cx('min-w-0 flex-1 gap-0.5 bg-seg p-0.5', wrap ? 'grid rounded-[14px]' : 'flex rounded-full')}
+    >
+      {options.map((o) => {
+        const text = typeof o.label === 'string' || typeof o.label === 'number' ? String(o.label) : undefined
+        return (
+          // biome-ignore lint/a11y/useSemanticElements: segmented control buttons act as radios
+          <button
+            key={String(o.value)}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            title={o.title ?? text}
+            aria-label={o.title}
+            onClick={() => onChange(o.value)}
+            className={cx(
+              'inline-flex h-6 min-w-0 flex-auto items-center justify-center rounded-full px-1.5 text-[12px] font-medium transition-colors [&_svg]:size-3.5',
+              value === o.value ? 'bg-panel text-fg shadow-sm' : 'text-fg2 hover:text-fg',
+            )}
+          >
+            <span
+              data-seg-label
+              className={cx(
+                'min-w-0',
+                text !== undefined
+                  ? 'block truncate'
+                  : 'flex items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap',
+              )}
+            >
+              {o.label}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -101,6 +155,7 @@ export function NumField({
   label,
   placeholder,
   suffix,
+  ariaLabel,
 }: {
   value: number | null | undefined
   onChange: (value: number | null) => void
@@ -112,7 +167,11 @@ export function NumField({
   step?: number
   label?: string
   placeholder?: string
+  /** The field's name for screen readers; by default its row's label (and the field's own label). */
+  ariaLabel?: string
 }) {
+  const row = useContext(RowContext)
+  const name = ariaLabel ?? ([row?.label, label].filter(Boolean).join(' ') || placeholder || undefined)
   const [text, setText] = useState(value == null ? '' : String(value))
   const drag = useRef<{ x: number; start: number } | null>(null)
   useEffect(() => setText(value == null ? '' : String(value)), [value])
@@ -124,7 +183,7 @@ export function NumField({
     else setText(value == null ? '' : String(value))
   }
   return (
-    <div className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-line2 bg-input pr-2 focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15">
+    <div className="flex h-7 min-w-0 flex-1 items-center rounded-[10px] border border-line2 bg-input pr-2 focus-within:border-accent focus-within:ring-3 focus-within:ring-accent/15">
       {label && (
         <span
           className="cursor-ew-resize pl-2 font-mono text-[11px] text-fg3 select-none"
@@ -144,6 +203,7 @@ export function NumField({
         </span>
       )}
       <input
+        aria-label={name}
         value={text}
         placeholder={placeholder}
         inputMode="decimal"
@@ -197,7 +257,7 @@ export function Select<T extends string>({
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value as T)}
-      className="h-7 min-w-0 flex-1 rounded-md border border-line2 bg-input px-1.5 text-[12.5px] text-fg outline-none focus:border-accent"
+      className="h-7 min-w-0 flex-1 rounded-[10px] border border-line2 bg-input px-1.5 text-[12.5px] text-fg outline-none focus:border-accent"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -227,7 +287,7 @@ export function Chips<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'h-[26px] rounded-md border px-2 text-[12px] font-medium transition-colors',
+            'h-[26px] rounded-full border px-2.5 text-[12px] font-medium transition-colors',
             value === o.value
               ? 'border-accent bg-accent/10 text-accent'
               : 'border-line2 text-fg2 hover:border-fg3/50 hover:text-fg',
@@ -340,6 +400,7 @@ export function LenField({
   max = 4000,
   label,
   placeholder,
+  ariaLabel,
 }: {
   value: number | string | null | undefined
   onChange: (value: number | string | null) => void
@@ -347,6 +408,7 @@ export function LenField({
   max?: number
   label?: string
   placeholder?: string
+  ariaLabel?: string
 }) {
   const parsed =
     typeof value === 'number'
@@ -371,6 +433,7 @@ export function LenField({
       step={fine ? 0.05 : 1}
       label={label}
       placeholder={placeholder}
+      ariaLabel={ariaLabel}
       suffix={
         <select
           aria-label={t('Unità di misura')}
@@ -380,7 +443,7 @@ export function LenField({
             setUnit(e.target.value)
             if (parsed.n !== null) emit(parsed.n, e.target.value)
           }}
-          className="-mr-1 shrink-0 cursor-pointer appearance-none bg-transparent font-mono text-[11px] text-fg3 outline-none hover:text-accent"
+          className="-mr-1 h-6 shrink-0 cursor-pointer appearance-none bg-transparent font-mono text-[11px] text-fg3 outline-none hover:text-accent"
         >
           {LEN_UNITS.map((u) => (
             <option key={u} value={u}>

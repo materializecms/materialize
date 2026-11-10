@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Logo } from '../app/Auth.tsx'
 import { api } from '../lib/api.ts'
 import { t, tx } from '../lib/i18n.ts'
+import { SettingsPage, settingsCard } from './SettingsPage.tsx'
 
 const REPO = 'https://github.com/materializecms/materialize'
 
@@ -28,12 +29,12 @@ function Row({ href, icon, title, detail }: { href: string; icon: ReactNode; tit
 export function About() {
   const version = useQuery({ queryKey: ['health'], queryFn: api.health }).data?.version
   return (
-    <div className="mx-auto max-w-xl space-y-6 px-5 py-8">
+    <SettingsPage className="space-y-6">
       <div className="flex items-center gap-4">
         <Logo className="size-12" />
         <div>
-          <h2 className="text-[20px] font-semibold tracking-tight">Materialize</h2>
-          <p className="text-[14px] text-fg2">
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em]">Materialize</h2>
+          <p className="mt-1 text-[13px] text-fg2">
             {version ? t('Versione {version}', { version }) : t('Versione…')} ·{' '}
             {t('CMS open source con editor visuale')}
           </p>
@@ -58,7 +59,7 @@ export function About() {
         )}
       </p>
 
-      <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-panel">
+      <div className={`divide-y divide-line overflow-hidden ${settingsCard}`}>
         <Row
           href={`${REPO}/blob/main/CHANGELOG.md`}
           icon={<Sparkles />}
@@ -91,6 +92,6 @@ export function About() {
           detail={t('Il codice, i caratteri e le icone di altri progetti inclusi nel pannello')}
         />
       </div>
-    </div>
+    </SettingsPage>
   )
 }

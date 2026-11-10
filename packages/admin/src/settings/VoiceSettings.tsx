@@ -5,6 +5,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { Button, cx, Segmented, Spinner, Textarea, toast } from '../components/ui.tsx'
 import { api } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
+import { SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -69,14 +70,14 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
 
   if (saved.isLoading) return <Spinner />
   return (
-    <form onSubmit={save} className="mx-auto max-w-2xl space-y-6 px-5 py-8">
-      <div className="space-y-2">
-        <h2 className="text-[16px] font-semibold">{t('Voce del brand')}</h2>
-        <p className="text-[14px] leading-relaxed text-fg2">
-          {t(
+    <SettingsPage onSubmit={save} className="space-y-6">
+      <div className="space-y-3">
+        <SettingsHeading
+          title={t('Voce del brand')}
+          description={t(
             'Come parla il sito. L’AI la segue in ogni testo che scrive o cambia: il pulsante ✨, l’assistente dell’editor, le traduzioni e i client AI collegati con MCP. Così i testi suonano uguali, chiunque li scriva.',
           )}
-        </p>
+        />
         {editable && (
           <Button
             type="button"
@@ -111,8 +112,13 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
                   key={tone}
                   type="button"
                   aria-pressed={on}
-                  disabled={!editable || (!on && tones.length >= 3)}
-                  onClick={() => set({ tones: on ? tones.filter((x) => x !== tone) : [...tones, tone] })}
+                  disabled={!editable}
+                  // Three at most: a fourth takes the place of the one picked first.
+                  onClick={() =>
+                    set({
+                      tones: on ? tones.filter((x) => x !== tone) : [...tones, tone].slice(-3),
+                    })
+                  }
                   className={cx(
                     'h-7 rounded-full border px-3 text-[13px] transition-colors disabled:opacity-45',
                     on ? 'border-accent bg-accent/12 text-fg' : 'border-line2 text-fg2 hover:text-fg',
@@ -123,7 +129,9 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
               )
             })}
           </div>
-          <p className="text-[13px] text-fg3">{t('Fino a tre.')}</p>
+          <p className="text-[13px] text-fg3">
+            {tones.length >= 3 ? t('Fino a tre: un altro prende il posto del primo scelto.') : t('Fino a tre.')}
+          </p>
         </div>
         <div className="space-y-1.5">
           <p className="text-[13px] font-medium">{t('Come vi rivolgete a chi legge')}</p>
@@ -182,6 +190,6 @@ export function VoiceSettings({ editable }: { editable: boolean }) {
           <p className="text-[13px] text-fg3">{t('La voce del brand la cambia un amministratore.')}</p>
         )}
       </fieldset>
-    </form>
+    </SettingsPage>
   )
 }

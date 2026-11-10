@@ -14,7 +14,8 @@ const store = new AsyncLocalStorage<Store>()
 setScopedLang(() => store.getStore()?.lang)
 
 export const requestLang: MiddlewareHandler = (c, next) => {
-  const header = c.req.header('x-mz-lang')
+  // A download link can't send headers: it says the language in the address (?lang=en).
+  const header = c.req.header('x-mz-lang') ?? c.req.query('lang')
   return store.run(isLang(header) ? { lang: header, chosen: true } : { chosen: false }, next)
 }
 
