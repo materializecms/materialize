@@ -60,6 +60,11 @@ export const checks: Record<string, string> = {
   'Dividila in più pagine, o usa un elenco con «Mostra altri».':
     'Split it into several pages, or use a list with “Show more”.',
   'Nessun peso inutile trovato': 'No unnecessary weight found',
+  // page.ts: the site's details a text can show
+  'Nome del sito': 'Site name',
+  'Descrizione del sito': 'Site description',
+  Email: 'Email',
+  Indirizzo: 'Address',
   // seo.ts: structured data
   Organizzazione: 'Organization',
   'Attività locale': 'Local business',

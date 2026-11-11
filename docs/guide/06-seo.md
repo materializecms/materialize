@@ -16,10 +16,17 @@ The AI assistant can suggest a title and description based on the page's content
 
 ## For the whole site
 
+In **Settings → Site** you write once who the site is and how to reach it:
+
+- **Identity**: name, description (Google uses it for pages without their own), logo, site icon; the site's address, which the server decides.
+- **Contacts and location**: what it is (company, local business, person), email, phone, address, opening hours. Google uses them for business listings.
+- **Social profiles**: one address per line.
+
+Texts and buttons on the pages can show these details: select them on the canvas and choose **Site detail** (name, description, email, phone, address, hours). A button with the email writes to it, one with the phone calls it. Change the detail in Settings → Site and it updates on every page.
+
 In **Settings → SEO**:
 
-- **The site on search engines**: site name, page title pattern (for example `%s · Smith Studio`, where `%s` is the page title), default description and sharing image, site icon, X account.
-- **Who is behind the site**: type (company, local business, person), name, contact details, logo, address, opening hours, social profiles. Google uses it for business listings.
+- **The site on search engines**: page title pattern (for example `%s · Smith Studio`, where `%s` is the page title), default sharing image, X account.
 - **Search engines and AI**: ready for AI search, blocking crawlers that train AI models, RSS feed, paths not to be crawled, verification codes for Google Search Console and Bing Webmaster.
 - **Redirects**: old address → new address.
 

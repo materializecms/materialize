@@ -4,6 +4,12 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Impostazioni → Sito, rifatta.** Una pagina vera con un pulsante Salva: nome, descrizione, logo e icona del sito, il suo indirizzo; contatti, sede, orari e profili social. Erano sparsi tra il documento delle impostazioni e la pagina SEO, con due nomi del sito diversi: ora il nome è uno solo. Sulla tela testi e pulsanti possono mostrare un **Dato del sito** (nome, descrizione, email, telefono, indirizzo, orari), che si aggiorna in ogni pagina; un pulsante con l'email la scrive, uno con il telefono chiama. Il campo Email del sito di partenza, che non serviva a niente, non c'è più. I siti con altri campi nelle impostazioni li trovano in «Altri dati del sito».
+
+- **Sitemap e feed RSS con Docker e sul VPS.** Nei siti che conoscono il proprio indirizzo solo da `MATERIALIZE_SITE_URL` (Docker e l'installazione su VPS) il sito si generava senza `sitemap.xml` e senza `rss.xml`, e senza link canonici completi. Ora l'indirizzo arriva ad Astro da solo: basta aggiornare.
+
+- **Le versioni nuove si vedono prima.** Il server controlla ogni 6 ore invece che una volta al giorno, e aprire Impostazioni → Aggiornamenti controlla subito se l'ultima risposta ha più di un'ora.
+
 ## 0.9.1 — 2026-11-11
 
 - **Da sapere se aggiorni.** Il carattere predefinito dei titoli ora è Geist, lo stesso del testo e di Materialize (prima era Instrument Serif). Cambia solo nei siti che non hanno mai scelto un carattere per i titoli in Stili: chi vuole il precedente lo sceglie lì.

@@ -16,6 +16,7 @@ import { MailForm } from './MailSettings.tsx'
 import { Messages } from './Messages.tsx'
 import { SecuritySettings } from './SecuritySettings.tsx'
 import { SeoSettings } from './SeoSettings.tsx'
+import { SiteSettings } from './SiteSettings.tsx'
 import { TrackingSettings } from './TrackingSettings.tsx'
 import { UpdatesSettings, useUpdateAvailable } from './UpdatesSettings.tsx'
 import { VoiceSettings } from './VoiceSettings.tsx'
@@ -39,7 +40,14 @@ export function SettingsScreen({ tab }: { tab?: string }) {
   const unread = useQuery({ queryKey: ['submissions'], queryFn: () => api.submissions() }).data?.unread ?? 0
   const singletons = schema.collections.filter((c) => c.singleton)
   const active = tab ?? singletons[0]?.name ?? 'mail'
-  const single = singletons.find((c) => c.name === active)
+  // The site settings (the single document with the site's name) open as the Sito page; their
+  // other fields, when a site adds some, as a document under "name:altri".
+  const isSite = (c: CollectionDescription) => c.fields.some((f) => f.name === 'siteName')
+  const extraOf = (c: CollectionDescription) =>
+    c.fields.some((f) => f.name !== 'siteName' && f.name !== 'email') ? c : undefined
+  const others = active.endsWith(':altri') ? singletons.find((c) => `${c.name}:altri` === active) : undefined
+  const single = others ?? singletons.find((c) => c.name === active)
+  const current = others ? others.name : active
   const [profile, setProfile] = useState(false)
   const update = useUpdateAvailable()
   // Grouped, so the list can grow: the site's own data, how it talks to people, safety, tools.
@@ -87,13 +95,13 @@ export function SettingsScreen({ tab }: { tab?: string }) {
     <button
       key={it.value}
       type="button"
-      aria-current={active === it.value ? 'page' : undefined}
+      aria-current={current === it.value ? 'page' : undefined}
       // On phones the list scrolls sideways: the open section stays in view.
-      ref={active === it.value ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
+      ref={current === it.value ? (el) => el?.scrollIntoView({ block: 'nearest', inline: 'center' }) : undefined}
       onClick={() => navigate({ name: 'settings', tab: it.value })}
       className={cx(
         'flex h-8 shrink-0 items-center gap-2 rounded-full px-3 text-left text-[14px] transition-colors',
-        active === it.value ? 'bg-seg font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
+        current === it.value ? 'bg-seg font-medium text-fg' : 'text-fg2 hover:bg-hover hover:text-fg',
       )}
     >
       <span className="flex-1 whitespace-nowrap">{it.label}</span>
@@ -134,7 +142,11 @@ export function SettingsScreen({ tab }: { tab?: string }) {
           ))}
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {single ? (
+          {single && !others && isSite(single) ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <SiteSettings editable={user.role === 'admin'} extra={extraOf(single)} />
+            </div>
+          ) : single ? (
             <SingleDocument collection={single} />
           ) : (
             <div className="min-h-0 flex-1 overflow-y-auto">

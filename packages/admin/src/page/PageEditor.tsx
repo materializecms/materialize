@@ -66,6 +66,7 @@ import { FieldsForm } from '../fields/FieldInput.tsx'
 import { api, type CollectionDescription, type Data, type FieldDescription } from '../lib/api.ts'
 import { t, tn, tx } from '../lib/i18n.ts'
 import { usePref } from '../lib/prefs.ts'
+import { useSiteDetails } from '../lib/site-details.ts'
 import { MediaPicker } from '../media/MediaPicker.tsx'
 import { AssistantPanel } from './Assistant.tsx'
 import { type AlignHow, alignPatches } from './align.ts'
@@ -340,6 +341,7 @@ export function PageEditor({
   preview?: { label: string; data: Data; onRestore: () => void; onClose: () => void }
 }) {
   const { user, schema, locale } = useSession()
+  const site = useSiteDetails()
   const queryClient = useQueryClient()
   // In another language, global sections show that language's words (structure stays the main one's).
   const mainLanguage = locale === schema.locales.default
@@ -2219,6 +2221,7 @@ export function PageEditor({
           options={{
             data: boundData,
             entry: sampleEntry,
+            site,
             locale,
             alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
           }}

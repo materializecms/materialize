@@ -1,15 +1,16 @@
-import { businessTypes, feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
+import { feedCollections, normalizePath, type Redirect, type SiteSeo } from '@materializecms/core/seo'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, cx, IconButton, Input, inputClass, Spinner, Switch, Textarea, toast } from '../components/ui.tsx'
+import { Button, IconButton, Input, Spinner, Switch, Textarea, toast } from '../components/ui.tsx'
 import { MediaInput } from '../fields/MediaInput.tsx'
 import { api } from '../lib/api.ts'
 import { t } from '../lib/i18n.ts'
+import { href, navigate } from '../lib/router.ts'
 import { SettingsPage, SettingsSection } from './SettingsPage.tsx'
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed in as children
     <label className="block space-y-1.5">
@@ -20,7 +21,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-function Group({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
+export function Group({ title, text, children }: { title: string; text?: string; children: ReactNode }) {
   return (
     <SettingsSection title={title} description={text}>
       {children}
@@ -28,13 +29,13 @@ function Group({ title, text, children }: { title: string; text?: string; childr
   )
 }
 
-const lines = (v: string) =>
+export const lines = (v: string) =>
   v
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean)
 
-/** Search engines and sharing for the whole site: name, business data, crawlers, redirects. */
+/** Search engines and sharing for the whole site: page titles, crawlers, feeds, redirects. */
 export function SeoSettings({ editable }: { editable: boolean }) {
   const queryClient = useQueryClient()
   const { schema } = useSession()
@@ -45,9 +46,7 @@ export function SeoSettings({ editable }: { editable: boolean }) {
     if (saved.data) setSeo(saved.data.seo)
   }, [saved.data])
   const set = (patch: Partial<SiteSeo>) => setSeo((s) => ({ ...s, ...patch }))
-  const business = seo.business ?? {}
-  const setBusiness = (patch: Partial<NonNullable<SiteSeo['business']>>) => set({ business: { ...business, ...patch } })
-  const local = business.type && business.type !== 'Organization' && business.type !== 'Person'
+  const siteTab = schema.collections.find((c) => c.singleton)?.name ?? 'settings'
   const siteUrl = schema.site.url
   const shapes = schema.collections.map((c) => ({
     ...c,
@@ -81,14 +80,22 @@ export function SeoSettings({ editable }: { editable: boolean }) {
             title={t('Il sito sui motori di ricerca')}
             text={t('Valori di partenza per tutte le pagine: ognuna può cambiarli nel pannello Motori di ricerca.')}
           >
+            <p className="text-[13px] leading-relaxed text-fg3">
+              {t('Nome, descrizione, logo, icona e contatti del sito si cambiano in')}{' '}
+              <a
+                href={href({ name: 'settings', tab: siteTab })}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey) return
+                  e.preventDefault()
+                  navigate({ name: 'settings', tab: siteTab })
+                }}
+                className="font-medium text-accent hover:underline"
+              >
+                {t('Impostazioni → Sito')}
+              </a>
+              .
+            </p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t('Nome del sito')}>
-                <Input
-                  value={seo.siteName ?? ''}
-                  placeholder={schema.site.name}
-                  onChange={(e) => set({ siteName: e.target.value })}
-                />
-              </Field>
               <Field label={t('Titolo delle pagine')} hint={t('%s è il titolo della pagina.')}>
                 <Input
                   value={seo.titleTemplate ?? ''}
@@ -96,20 +103,8 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                   onChange={(e) => set({ titleTemplate: e.target.value })}
                 />
               </Field>
-            </div>
-            <Field label={t('Descrizione predefinita')} hint={t('Per le pagine che non ne hanno una.')}>
-              <Textarea
-                value={seo.description ?? ''}
-                maxLength={300}
-                onChange={(e) => set({ description: e.target.value })}
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
               <Field label={t('Immagine di condivisione')} hint={t('1200 × 630, per le pagine senza immagine.')}>
                 <MediaInput value={seo.image} focalPoint={false} onChange={(image) => set({ image })} />
-              </Field>
-              <Field label={t('Icona del sito')} hint={t('Quadrata, almeno 512 × 512: scheda del browser e Google.')}>
-                <MediaInput value={seo.favicon} focalPoint={false} onChange={(favicon) => set({ favicon })} />
               </Field>
             </div>
             <Field label={t('Account su X')}>
@@ -117,90 +112,6 @@ export function SeoSettings({ editable }: { editable: boolean }) {
                 value={seo.xHandle ?? ''}
                 placeholder={t('@nome')}
                 onChange={(e) => set({ xHandle: e.target.value })}
-              />
-            </Field>
-          </Group>
-
-          <Group
-            title={t('Chi c’è dietro il sito')}
-            text={t(
-              'Dati strutturati per Google: nome, logo, contatti e, per un’attività con una sede, indirizzo e orari che possono comparire nei risultati e su Maps.',
-            )}
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t('Tipo')}>
-                <select
-                  value={business.type ?? 'Organization'}
-                  onChange={(e) => setBusiness({ type: e.target.value as NonNullable<SiteSeo['business']>['type'] })}
-                  className={cx(inputClass, 'h-8')}
-                >
-                  {businessTypes().map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t('Nome')}>
-                <Input
-                  value={business.name ?? ''}
-                  placeholder={seo.siteName || schema.site.name}
-                  onChange={(e) => setBusiness({ name: e.target.value })}
-                />
-              </Field>
-              <Field label={t('Telefono')}>
-                <Input value={business.phone ?? ''} onChange={(e) => setBusiness({ phone: e.target.value })} />
-              </Field>
-              <Field label={t('Email')}>
-                <Input value={business.email ?? ''} onChange={(e) => setBusiness({ email: e.target.value })} />
-              </Field>
-            </div>
-            {business.type !== 'Person' && (
-              <Field label={t('Logo')}>
-                <MediaInput value={business.logo} focalPoint={false} onChange={(logo) => setBusiness({ logo })} />
-              </Field>
-            )}
-            {local && (
-              <>
-                <Field label={t('Indirizzo')}>
-                  <Input
-                    value={business.street ?? ''}
-                    placeholder={t('Via Roma 1')}
-                    onChange={(e) => setBusiness({ street: e.target.value })}
-                  />
-                </Field>
-                <div className="grid grid-cols-[1fr_110px_90px_70px] gap-3">
-                  <Field label={t('Città')}>
-                    <Input value={business.city ?? ''} onChange={(e) => setBusiness({ city: e.target.value })} />
-                  </Field>
-                  <Field label={t('CAP')}>
-                    <Input
-                      value={business.postalCode ?? ''}
-                      onChange={(e) => setBusiness({ postalCode: e.target.value })}
-                    />
-                  </Field>
-                  <Field label={t('Provincia')}>
-                    <Input value={business.region ?? ''} onChange={(e) => setBusiness({ region: e.target.value })} />
-                  </Field>
-                  <Field label={t('Paese')}>
-                    <Input
-                      value={business.country ?? ''}
-                      placeholder="IT"
-                      onChange={(e) => setBusiness({ country: e.target.value })}
-                    />
-                  </Field>
-                </div>
-                <Field label={t('Orari')} hint={t('Nel formato di schema.org: Mo-Fr 09:00-18:00, Sa 10:00-13:00.')}>
-                  <Input value={business.hours ?? ''} onChange={(e) => setBusiness({ hours: e.target.value })} />
-                </Field>
-              </>
-            )}
-            <Field label={t('Profili su altri siti')} hint={t('Un indirizzo per riga: Instagram, LinkedIn, Facebook…')}>
-              <Textarea
-                value={(business.sameAs ?? []).join('\n')}
-                placeholder="https://instagram.com/…"
-                onChange={(e) => setBusiness({ sameAs: e.target.value.split('\n') })}
-                onBlur={(e) => setBusiness({ sameAs: lines(e.target.value) })}
               />
             </Field>
           </Group>

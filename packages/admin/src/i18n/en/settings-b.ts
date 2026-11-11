@@ -431,4 +431,37 @@ export const settingsB: Record<string, string> = {
   'ha preso il controllo di {name}, che stava modificando {from}': 'took over {name}, which {from} was editing',
   'ha preso il controllo di {name}, che stava modificando un’altra persona':
     'took over {name}, which someone else was editing',
+  'Dato del sito': 'Site detail',
+  'Testo scritto qui': 'Text written here',
+  'Il valore viene da Impostazioni → Sito: cambialo lì e si aggiorna in ogni pagina.':
+    'The value comes from Settings → Site: change it there and it updates on every page.',
+  'Per contatti e indirizzo che compaiono in più pagine: si scrivono una volta in Impostazioni → Sito.':
+    'For contacts and an address shown on several pages: write them once in Settings → Site.',
+  'Nome, descrizione, logo, icona e contatti del sito si cambiano in':
+    "The site's name, description, logo, icon and contacts are changed in",
+  'Impostazioni → Sito': 'Settings → Site',
+  'Dati del sito salvati: il sito si aggiorna da solo': 'Site details saved: the site updates by itself',
+  Identità: 'Identity',
+  'Come si chiama il sito e come si presenta: nei risultati di Google, nella scheda del browser, nelle condivisioni.':
+    'What the site is called and how it presents itself: in Google results, in the browser tab, when shared.',
+  'Descrizione del sito': 'Site description',
+  'Una o due frasi: Google la usa per le pagine che non hanno una descrizione propria.':
+    'One or two sentences: Google uses it for pages without their own description.',
+  'Per Google e per chi condivide il sito.': 'For Google and for people who share the site.',
+  'Indirizzo del sito': 'Site address',
+  'Lo decide il server: si cambia dove è installato Materialize.':
+    'Set by the server: change it where Materialize is installed.',
+  'Non è ancora impostato: sul server si indica con MATERIALIZE_SITE_URL.':
+    'Not set yet: on the server it is given with MATERIALIZE_SITE_URL.',
+  'Contatti e sede': 'Contacts and location',
+  'Scritti una volta qui: li legge Google, e testi e pulsanti delle pagine possono mostrarli (sulla tela, «Dato del sito»), così cambiano ovunque insieme.':
+    'Written once here: Google reads them, and texts and buttons on the pages can show them (on the canvas, “Site detail”), so they change everywhere together.',
+  'Che cosa è': 'What it is',
+  'Nome per Google': 'Name for Google',
+  'Se è diverso da quello del sito.': "If it differs from the site's name.",
+  'Per Google contano per le attività con una sede (scegli il tipo qui sopra).':
+    'For Google they count for businesses with a location (choose the type above).',
+  'Profili social': 'Social profiles',
+  'Anche qui': 'Also here',
+  'Altri dati del sito': 'Other site details',
 }

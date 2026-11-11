@@ -150,3 +150,17 @@ describe('updates', () => {
     expect(isPatch('0.1.0', '0.1.0')).toBe(false)
   })
 })
+
+describe('Impostazioni → Sito', () => {
+  it('renames the site everywhere at once, with its contacts', async () => {
+    start()
+    await call('POST', '/api/setup', { ...admin, site: { name: 'Studio Rossi' } })
+    const seo = { siteName: 'Vecchio nome', business: { email: 'ciao@studio.example', phone: '+39 02 1234567' } }
+    const res = await call('PUT', '/api/seo', { seo, name: 'Studio Bianchi' })
+    expect(res.status).toBe(200)
+    expect(res.body.seo).toEqual({ ...seo, siteName: 'Studio Bianchi' })
+    expect((await call('GET', '/api/collections/settings')).body.items[0].title).toBe('Studio Bianchi')
+    expect((await call('GET', '/api/schema')).body.site.name).toBe('Studio Bianchi')
+    expect((await call('GET', '/api/seo')).body.seo.business.email).toBe('ciao@studio.example')
+  })
+})

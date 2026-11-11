@@ -868,7 +868,8 @@ export const api = {
   /** A voice read by the AI from the texts already published: nothing is saved. */
   suggestVoice: () => request<{ voice: BrandVoice; texts: number }>('POST', '/voice/suggest'),
   seo: () => request<{ seo: SiteSeo }>('GET', '/seo'),
-  saveSeo: (seo: SiteSeo) => request<{ seo: SiteSeo }>('PUT', '/seo', { seo }),
+  saveSeo: (seo: SiteSeo, name?: string) =>
+    request<{ seo: SiteSeo }>('PUT', '/seo', { seo, ...(name ? { name } : {}) }),
   redirects: () => request<{ redirects: Redirect[] }>('GET', '/redirects'),
   urls: () => request<{ urls: string[] }>('GET', '/urls'),
   editorial: () => request<{ editorial: { editorsContentOnly?: boolean } }>('GET', '/editorial'),

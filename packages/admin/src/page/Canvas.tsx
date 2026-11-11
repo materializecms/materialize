@@ -19,6 +19,7 @@ import { useSession } from '../app/context.ts'
 import { cx } from '../components/ui.tsx'
 import { EMBED_FRAME } from '../lib/frames.ts'
 import { t, tn } from '../lib/i18n.ts'
+import { useSiteDetails } from '../lib/site-details.ts'
 import { domToRuns } from './runs.ts'
 
 export type Mode = 'design' | 'content'
@@ -280,6 +281,7 @@ export function Canvas({
   useEffect(() => onFitZoom(Math.round(fit * 100) / 100), [fit, onFitZoom])
 
   const { locale, schema } = useSession()
+  const site = useSiteDetails()
   const rendered = useMemo(
     () =>
       renderPage(nodes, theme, {
@@ -288,12 +290,13 @@ export function Canvas({
         srcset: librarySrcset,
         data,
         entry,
+        site,
         frame: EMBED_FRAME,
         // Language switchers show every language of the site.
         locale,
         alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
       }),
-    [nodes, theme, playing, preview, data, entry, locale, schema.locales.available],
+    [nodes, theme, playing, preview, data, entry, site, locale, schema.locales.available],
   )
 
   // The page is plain HTML from the renderer; while a text is being edited in place, it is left alone.

@@ -544,7 +544,7 @@ export function createApp(base: ServerContext) {
     await backups.prune((await backupSettings()).keep)
     await backups.mirrorMedia()
   }
-  /** Once a day: is there a new version? Fixes install by themselves when the admin allowed it. */
+  /** Every few hours: is there a new version? Fixes install by themselves when the admin allowed it. */
   const autoUpdate = async () => {
     if (!ctx.updates) return
     const s = await ctx.updates.check()
@@ -565,7 +565,8 @@ export function createApp(base: ServerContext) {
   const updateFailed = (error: unknown) => console.error('Materialize: update check failed', error)
   // Soon after starting, so the panel knows at once (the registry answers in a moment).
   setTimeout(() => void autoUpdate().catch(updateFailed), 15_000).unref?.()
-  setInterval(() => void autoUpdate().catch(updateFailed), 24 * 60 * 60_000).unref?.()
+  // Often enough that the panel announces a release the same day; auto-installs still wait for one.
+  setInterval(() => void autoUpdate().catch(updateFailed), 6 * 60 * 60_000).unref?.()
   /**
    * Who has a document open, in memory: each editor checks in every few seconds with the element it
    * has selected. Gone after 30 s of silence.
@@ -3465,7 +3466,12 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.get('/api/seo', requireUser, async (c) => c.json({ seo: (await settings.get<SiteSeo>('seo')) ?? {} }))
 
   app.put('/api/seo', requireUser, requireAdmin, async (c) => {
-    const input = await body(c, z.object({ seo: siteSeoSchema }))
+    // From Impostazioni → Sito the name comes too: one name for the site, its settings and Google.
+    const input = await body(c, z.object({ seo: siteSeoSchema, name: z.string().trim().min(1).max(120).optional() }))
+    if (input.name) {
+      await nameSite(input.name)
+      input.seo.siteName = input.name
+    }
     await settings.set('seo', input.seo, c.get('user').id)
     sitePublished()
     await record(c, 'settings.seo')

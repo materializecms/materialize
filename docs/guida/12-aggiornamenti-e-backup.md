@@ -2,7 +2,7 @@
 
 ## Aggiornare Materialize
 
-Una volta al giorno il server controlla se c'è una versione nuova. Quando c'è, gli amministratori la vedono subito: in alto a destra compare una pillola con il numero della versione (al passaggio del mouse, le prime novità), nella Panoramica una scheda **Aggiornamento**, e un pallino su **Impostazioni**. La pillola si chiude con la crocetta e torna alla versione successiva. In **Impostazioni → Aggiornamenti** un amministratore vede le novità e preme **Aggiorna ora**:
+Ogni 6 ore il server controlla se c'è una versione nuova (e subito, quando apri **Impostazioni → Aggiornamenti** o premi **Controlla ora**). Quando c'è, gli amministratori la vedono subito: in alto a destra compare una pillola con il numero della versione (al passaggio del mouse, le prime novità), nella Panoramica una scheda **Aggiornamento**, e un pallino su **Impostazioni**. La pillola si chiude con la crocetta e torna alla versione successiva. In **Impostazioni → Aggiornamenti** un amministratore vede le novità e preme **Aggiorna ora**:
 
 1. Materialize fa un **backup** del database e dei media;
 2. scarica la nuova versione **mentre il sito resta online**;

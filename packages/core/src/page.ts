@@ -264,6 +264,8 @@ export interface NodeProps {
   bind?: ListBinding | null
   /** Inside a bound list: which field of the entry fills this element ("title", "url", or a field name). */
   field?: string | null
+  /** One of the site's own details (Impostazioni → Sito) shown by this text or button, on every page. */
+  site?: SiteDetail | null
   /** A frame whose children scroll endlessly sideways. */
   /** fade: how far in from each side the band fades out, in % of its width (0 = a sharp cut). */
   marquee?: { duration: number; reverse?: boolean; fade?: number } | null
@@ -424,6 +426,20 @@ export interface Gradient {
   to: string
   angle: number
 }
+
+/** The site's details a text or button can show: written once in Impostazioni → Sito. */
+export const SITE_DETAILS = ['name', 'tagline', 'email', 'phone', 'address', 'hours'] as const
+export type SiteDetail = (typeof SITE_DETAILS)[number]
+export type SiteDetails = Partial<Record<SiteDetail, string>>
+
+export const siteDetailLabels = (): Record<SiteDetail, string> => ({
+  name: t('Nome del sito'),
+  tagline: t('Descrizione del sito'),
+  email: t('Email'),
+  phone: t('Telefono'),
+  address: t('Indirizzo'),
+  hours: t('Orari'),
+})
 
 export interface PageNode extends NodeProps {
   id: string
@@ -1024,6 +1040,8 @@ export interface RenderOptions {
    * instead of srcdoc frames, which would inherit the panel's security policy.
    */
   frame?: string
+  /** The site's details (Impostazioni → Sito), for the elements that show one. */
+  site?: SiteDetails
   /** The page's language, and the same page in the site's other languages, for language switchers. */
   locale?: string
   /** The home page of this language ("/", "/en/"): where links to sections not on this page go. */
@@ -1922,7 +1940,22 @@ function cleanProps<P extends Partial<NodeProps>>(p: P): P {
   if (out.tag != null && !SAFE_TAGS.has(out.tag)) delete out.tag
   if (out.hover != null && !HOVERS.has(out.hover)) delete out.hover
   if (out.focal) out.focal = { x: Number(out.focal.x) || 0, y: Number(out.focal.y) || 0 }
+  if (out.site != null && !(SITE_DETAILS as readonly string[]).includes(out.site)) delete out.site
   return out
+}
+
+/**
+ * Texts and buttons that show one of the site's details take its current value: a button with the
+ * email or the phone also writes to it or calls it. Without a value, the text written stays.
+ */
+function bindSite(n: PageNode, site: SiteDetails): PageNode {
+  const value = n.site ? site[n.site]?.trim() : undefined
+  const out: PageNode = value && (n.type === 'text' || n.type === 'button') ? { ...n, text: value, runs: null } : n
+  if (value && n.type === 'button') {
+    if (n.site === 'email') out.href = `mailto:${value}`
+    if (n.site === 'phone') out.href = `tel:${value.replace(/[^\d+]/g, '')}`
+  }
+  return n.children ? { ...out, children: n.children.map((ch) => bindSite(ch, site)) } : out
 }
 
 /**
@@ -1961,6 +1994,8 @@ export function renderSections(
   options: RenderOptions = {},
 ): { html: string; css: string } {
   sections = applyTextStyles(cleanNodes(sections), theme)
+  const site = options.site
+  if (site) sections = sections.map((n) => bindSite(n, site))
   const limits = breakpointsOf(theme)
   if (options.entry) {
     const entry = options.entry

@@ -24,6 +24,7 @@ import {
   getGlobals,
   getLinkMap,
   getLocales,
+  getSiteDetails,
   getTheme,
 } from '../content.ts'
 import { withMain } from '../landmarks.ts'
@@ -87,7 +88,17 @@ const page = entry
   : undefined
 // Links to a section that is not on this page go to the home page of the same language.
 const home = lang === locales.default ? '/' : ((await getLinkMap(lang))['/'] ?? '/')
-const rendered = renderPage(nodes, active, { srcset: librarySrcset, data, entry: page, locale: lang, alternates, home })
+// Texts and buttons that show the site's name, email, phone or address (Impostazioni → Sito).
+const site = await getSiteDetails()
+const rendered = renderPage(nodes, active, {
+  srcset: librarySrcset,
+  data,
+  entry: page,
+  site,
+  locale: lang,
+  alternates,
+  home,
+})
 const { css } = rendered
 const html = main ? withMain(rendered.html, nodes) : rendered.html
 ---

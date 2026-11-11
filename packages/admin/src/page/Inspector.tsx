@@ -9,6 +9,8 @@ import {
   plainText,
   resolveNode,
   type SharedTextStyle,
+  SITE_DETAILS,
+  siteDetailLabels,
   TEXT_STYLE_KEYS,
   TEXT_STYLES,
   type TextStyle,
@@ -529,6 +531,29 @@ export function Inspector({
             )}
           </Section>
         )
+      )}
+
+      {(node.type === 'text' || node.type === 'button') && !node.field && (
+        <Section title={t('Dato del sito')}>
+          <Row label={t('Mostra')}>
+            <Select
+              label={t('Dato del sito')}
+              value={node.site ?? ''}
+              onChange={(v) => onContent({ site: (v || null) as PageNode['site'] })}
+              options={[
+                { value: '', label: t('Testo scritto qui') },
+                ...SITE_DETAILS.map((k) => ({ value: k, label: siteDetailLabels()[k] })),
+              ]}
+            />
+          </Row>
+          <p className="text-[11.5px] leading-relaxed text-fg3">
+            {node.site
+              ? t('Il valore viene da Impostazioni → Sito: cambialo lì e si aggiorna in ogni pagina.')
+              : t(
+                  'Per contatti e indirizzo che compaiono in più pagine: si scrivono una volta in Impostazioni → Sito.',
+                )}
+          </p>
+        </Section>
       )}
 
       <SceneSection

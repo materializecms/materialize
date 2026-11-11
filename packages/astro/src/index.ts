@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { htmlToMarkdown, markdownPath } from '@materializecms/core/seo'
 import type { AstroIntegration } from 'astro'
 import { getRedirects, getSitemapPages, getSiteSeo, hasFeed } from './content.ts'
-import { hasRuntime, loadRuntime, onContentChange } from './runtime.ts'
+import { getRuntime, hasRuntime, loadRuntime, onContentChange } from './runtime.ts'
 
 export type { Entry } from './content.ts'
 
@@ -81,9 +81,18 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
     hooks: {
       'astro:config:setup': async ({ addMiddleware, command, config, injectRoute, updateConfig }) => {
         const root = fileURLToPath(config.root)
-        siteUrl = config.site
         // Inside `materialize dev` the runtime is already shared; `astro build` on its own opens the database.
         if (!hasRuntime()) await loadRuntime(root)
+        // The public address, for sitemap, feed and canonical links: astro.config's own `site` wins,
+        // then the one Materialize knows (site.url, or MATERIALIZE_SITE_URL on a server or in Docker).
+        siteUrl =
+          config.site ??
+          ((await getRuntime()
+            .then((r) => r.config().site.url)
+            .catch(() => undefined)) ||
+            process.env.MATERIALIZE_SITE_URL?.trim() ||
+            undefined)
+        if (siteUrl && !config.site) updateConfig({ site: siteUrl })
         injectRoute({
           pattern: '/_materialize/preview',
           entrypoint: new URL('./preview.astro', import.meta.url),

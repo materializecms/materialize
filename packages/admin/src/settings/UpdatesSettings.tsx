@@ -62,7 +62,7 @@ function Release({ release }: { release: ReleaseNotes }) {
 
 const card = 'rounded-2xl bg-panel2 p-5'
 
-/** The newer version waiting to be installed, for admins (checked by the server once a day). */
+/** The newer version waiting to be installed, for admins (checked by the server every few hours). */
 export function useUpdateAvailable(): string | null {
   const { user } = useSession()
   const data = useQuery({
@@ -141,6 +141,21 @@ export function UpdatesSettings() {
   useEffect(() => {
     if (data?.job.state === 'restarting') setRestarting(data.current)
   }, [data?.job.state, data?.current])
+
+  // Opening this page asks the registry again when the last answer is over an hour old.
+  const asked = useRef(false)
+  useEffect(() => {
+    if (!data || asked.current || data.job.state !== 'idle') return
+    if (data.checkedAt && Date.now() - Date.parse(data.checkedAt) < 60 * 60_000) return
+    asked.current = true
+    setChecking(true)
+    api
+      .checkUpdates()
+      // The same query feeds the notice beside the search, so it shows up at once.
+      .then((fresh) => queryClient.setQueryData(['updates'], fresh))
+      .catch(() => {})
+      .finally(() => setChecking(false))
+  }, [data, queryClient])
 
   useEffect(() => {
     if (!restarting) return

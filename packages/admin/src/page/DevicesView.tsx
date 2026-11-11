@@ -9,6 +9,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../app/context.ts'
 import { EMBED_FRAME } from '../lib/frames.ts'
+import { useSiteDetails } from '../lib/site-details.ts'
 
 const LABEL: Record<Breakpoint, string> = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' }
 
@@ -42,6 +43,7 @@ export function DevicesView({
   }, [])
   // One render serves every width: the page's own container queries do the rest.
   const { locale, schema } = useSession()
+  const site = useSiteDetails()
   const { html, css } = useMemo(
     () =>
       renderPage(nodes, theme, {
@@ -50,11 +52,12 @@ export function DevicesView({
         srcset: librarySrcset,
         data,
         entry,
+        site,
         frame: EMBED_FRAME,
         locale,
         alternates: schema.locales.available.map((l) => ({ locale: l, url: '#' })),
       }),
-    [nodes, theme, data, entry, locale, schema.locales.available],
+    [nodes, theme, data, entry, site, locale, schema.locales.available],
   )
   const devices = ['desktop', 'tablet', 'mobile'] as const
   const gap = 32

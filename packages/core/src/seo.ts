@@ -3,7 +3,7 @@
  * robots.txt, redirects and the checks shown in the editor. Pure functions, shared by the site and the admin.
  */
 import type { Media, Seo } from './fields.ts'
-import { type PageNode, textTag } from './page.ts'
+import { type PageNode, type SiteDetails, textTag } from './page.ts'
 import { t } from './t.ts'
 
 /** Kinds of business for structured data: what Google shows next to the site's name. */
@@ -69,6 +69,24 @@ export interface SiteSeo {
   /** Verification codes from Google Search Console and Bing Webmaster Tools. */
   google?: string
   bing?: string
+}
+
+/** What the site's sections can show of Impostazioni → Sito: name, contacts, address, hours. */
+export function siteDetails(seo: SiteSeo, name?: string): SiteDetails {
+  const b = seo.business ?? {}
+  const place = [b.postalCode, b.city].filter(Boolean).join(' ')
+  const address = [b.street, [place, b.region ? `(${b.region})` : ''].filter(Boolean).join(' ')]
+    .filter(Boolean)
+    .join(', ')
+  const out: SiteDetails = {
+    name: seo.siteName || name,
+    tagline: seo.description,
+    email: b.email,
+    phone: b.phone,
+    address,
+    hours: b.hours,
+  }
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => typeof v === 'string' && v.trim())) as SiteDetails
 }
 
 /** A permanent redirect: an old address that now lives elsewhere. */

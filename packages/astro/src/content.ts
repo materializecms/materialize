@@ -6,6 +6,7 @@ import {
   expandGlobals,
   normalizeTheme,
   type PageNode,
+  type SiteDetails,
   type Theme,
 } from '@materializecms/core/page'
 import {
@@ -16,6 +17,7 @@ import {
   type Redirect,
   type SitemapPage,
   type SiteSeo,
+  siteDetails,
 } from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { StoredDocument } from '@materializecms/db'
@@ -270,6 +272,18 @@ export async function getEntry<T extends Data = Data>(
   options: { locale?: string } = {},
 ): Promise<Entry<T> | undefined> {
   return (await getEntries<T>(collection, { ...options, templates: true })).find((e) => e.slug === slug)
+}
+
+/**
+ * The site's details from Impostazioni → Sito (name, description, contacts, address), for the texts
+ * and buttons that show one. The name: the one saved there, else the site settings', else the config's.
+ */
+export async function getSiteDetails(): Promise<SiteDetails> {
+  const { config } = await getRuntime()
+  const settings = config().collections.find((c) => c.singleton && c.fields.siteName)
+  const named = settings ? (await getSingleton(settings.name).catch(() => undefined))?.data.siteName : undefined
+  const name = typeof named === 'string' && named.trim() ? named : config().site.name
+  return siteDetails(await getSiteSeo().catch(() => ({})), name)
 }
 
 /** The single document of a singleton collection, such as site settings. */

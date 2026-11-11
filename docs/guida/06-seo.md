@@ -16,10 +16,17 @@ L'assistente AI può proporre titolo e descrizione partendo dal contenuto della 
 
 ## Per tutto il sito
 
+In **Impostazioni → Sito** scrivi una volta chi è il sito e come raggiungerlo:
+
+- **Identità**: nome, descrizione (Google la usa per le pagine che non ne hanno una), logo, icona del sito; l'indirizzo del sito, che decide il server.
+- **Contatti e sede**: che cosa è (azienda, attività locale, persona), email, telefono, indirizzo, orari. Google li usa per le schede delle attività.
+- **Profili social**: un indirizzo per riga.
+
+Testi e pulsanti delle pagine possono mostrare questi dati: selezionali sulla tela e scegli **Dato del sito** (nome, descrizione, email, telefono, indirizzo, orari). Un pulsante con l'email la scrive, uno con il telefono chiama. Cambi il dato in Impostazioni → Sito e si aggiorna in ogni pagina.
+
 In **Impostazioni → SEO**:
 
-- **Il sito sui motori di ricerca**: nome del sito, schema del titolo delle pagine (per esempio `%s · Studio Rossi`, dove `%s` è il titolo della pagina), descrizione e immagine di condivisione predefinite, icona del sito, account su X.
-- **Chi c'è dietro il sito**: tipo (azienda, attività locale, persona), nome, contatti, logo, indirizzo, orari, profili sui social. Google lo usa per le schede delle attività.
+- **Il sito sui motori di ricerca**: schema del titolo delle pagine (per esempio `%s · Studio Rossi`, dove `%s` è il titolo della pagina), immagine di condivisione predefinita, account su X.
 - **Motori di ricerca e AI**: pronto per le ricerche AI, blocco dei crawler che addestrano modelli AI, feed RSS, percorsi da non far visitare, codici di verifica di Google Search Console e Bing Webmaster.
 - **Reindirizzamenti**: vecchio indirizzo → nuovo indirizzo.
 

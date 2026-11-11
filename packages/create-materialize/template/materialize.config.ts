@@ -39,7 +39,6 @@ const settings = defineCollection({
   singleton: true,
   fields: {
     siteName: f.text({ label: 'Nome del sito', required: true }),
-    email: f.text({ label: 'Email' }),
   },
 })
 
