@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.9.3 — 2026-11-11
+
 - **L'indirizzo giusto negli articoli.** Il campo Indirizzo mostra la parte che viene prima, `/articoli/il-primo-articolo`, e non più solo `/il-primo-articolo`, che non era l'indirizzo vero.
 - **Nomi delle raccolte in inglese.** Nomi di raccolte, blocchi e campi possono essere scritti in più lingue, `label: { it: 'Articoli', en: 'Articles' }`, e ognuno li vede nella lingua del suo pannello. Il sito di partenza li ha in italiano e inglese; nei siti già creati si aggiungono in `materialize.config.ts`.
 - **Docker parla italiano e dice l'indirizzo vero.** All'avvio i messaggi del server mostrano l'indirizzo del dominio per sito e pannello, e quello interno solo come «In ascolto su». Il `compose.yaml` imposta `MATERIALIZE_LANG=it` (si cambia nel file `.env`), e anche i messaggi di avvio del container seguono la lingua. Niente più avviso di Vite sui file grandi a ogni pubblicazione: l'unico è three.js, che si scarica solo nelle pagine con una scena 3D.
