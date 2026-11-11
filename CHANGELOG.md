@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.9.1 — 2026-11-11
+
 - **Da sapere se aggiorni.** Il carattere predefinito dei titoli ora è Geist, lo stesso del testo e di Materialize (prima era Instrument Serif). Cambia solo nei siti che non hanno mai scelto un carattere per i titoli in Stili: chi vuole il precedente lo sceglie lì.
 
 - **Un blog in ogni sito nuovo.** Il sito di partenza (`npm create materialize` e Docker) ha la raccolta **Articoli**: titolo, data, sommario, copertina e testo, all'indirizzo `/articoli/…`. Una pagina scelta come Modello → Articoli dà a tutti gli articoli l'aspetto del sito; finché non c'è, escono come una pagina semplice nei colori e caratteri del tema. I siti già creati non cambiano: chi la vuole copia la raccolta da `materialize.config.ts` del modello. La pagina che il sito mostra prima della home ha l'aspetto di Materialize e dice dove trovare il link di installazione; anche la schermata del pannello che lo chiede lo dice, per Docker, VPS e computer.
