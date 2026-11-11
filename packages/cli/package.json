@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/cli",
   "version": "0.9.3",
-  "description": "Il comando materialize: sviluppo, produzione con aggiornamenti dal pannello, generazione del sito, backup, MCP.",
+  "description": "The materialize command: development, production with updates from the panel, site builds, backups, MCP.",
   "type": "module",
   "license": "MIT",
   "repository": {

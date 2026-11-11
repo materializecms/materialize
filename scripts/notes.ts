@@ -1,11 +1,14 @@
-/** Prints the CHANGELOG.md notes of one version: node scripts/notes.ts 0.2.0 */
+/**
+ * Prints the notes of one version for its GitHub release: English, then Italian folded below.
+ *   node scripts/notes.ts 0.2.0
+ */
 import { readFileSync } from 'node:fs'
-import { parseChangelog } from './changelog.ts'
+import { CHANGELOGS, parseChangelog } from './changelog.ts'
 
 const version = process.argv[2]?.replace(/^v/, '')
-const release = parseChangelog(readFileSync('CHANGELOG.md', 'utf8')).find((r) => r.version === version)
-if (!release) {
-  console.error(`✗ Il CHANGELOG non ha la ${version}`)
+const [en, it] = CHANGELOGS.map((c) => parseChangelog(readFileSync(c.file, 'utf8')).find((r) => r.version === version))
+if (!en || !it) {
+  console.error(`✗ ${en ? 'CHANGELOG.it.md' : 'CHANGELOG.md'} non ha la ${version}`)
   process.exit(1)
 }
-console.log(release.notes)
+console.log(`${en.notes}\n\n<details>\n<summary>Italiano</summary>\n\n${it.notes}\n\n</details>`)

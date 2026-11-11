@@ -256,7 +256,8 @@ export const lists: Record<string, string> = {
   'Per sicurezza, solo chi ha avviato il server può installare Materialize. All’avvio ha scritto un link che finisce con {link}: aprilo, oppure incolla qui il codice dopo l’uguale.':
     'For security, only whoever started the server can install Materialize. When it started, it printed a link ending in {link}: open it, or paste here the code after the equals sign.',
   'Codice di installazione': 'Installation code',
-  'Con Docker': 'With Docker',
+  'Con Docker Compose, su un server': 'With Docker Compose, on a server',
+  'Con Docker Desktop': 'With Docker Desktop',
   'Su un server (VPS)': 'On a server (VPS)',
   'Sul tuo computer': 'On your computer',
   'nel terminale dove gira Materialize': 'in the terminal where Materialize runs',

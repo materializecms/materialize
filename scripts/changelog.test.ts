@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { nextVersion, parseChangelog, stampChangelog } from './changelog.ts'
+import { CHANGELOGS, nextVersion, parseChangelog, stampChangelog } from './changelog.ts'
 
 describe('versions', () => {
   it('step patch, minor and major', () => {
@@ -31,8 +31,17 @@ describe('changelog', () => {
     expect(() => stampChangelog(stampChangelog(text, '0.2.0', '2026-11-05'), '0.3.0', 'x')).toThrow(/vuota/)
   })
 
-  it('has the current version in the real file', () => {
+  it('stamps the English one under its own heading', () => {
+    const en = '# What’s new\n\n## Next version\n\n- One\n'
+    expect(stampChangelog(en, '0.2.0', '2026-11-05', 'Next version')).toContain(
+      '## Next version\n\n## 0.2.0 — 2026-11-05',
+    )
+  })
+
+  it('has every version in both languages, the same ones', () => {
     const version = JSON.parse(readFileSync('packages/core/package.json', 'utf8')).version
-    expect(parseChangelog(readFileSync('CHANGELOG.md', 'utf8')).some((r) => r.version === version)).toBe(true)
+    const [en, it] = CHANGELOGS.map((c) => parseChangelog(readFileSync(c.file, 'utf8')).map((r) => r.version))
+    expect(en).toContain(version)
+    expect(en).toEqual(it)
   })
 })

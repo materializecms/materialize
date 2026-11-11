@@ -89,7 +89,8 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
           {/* Where the link is, by the way the server was started. */}
           <dl className="-mt-2 mb-5 space-y-1.5 rounded-xl bg-panel2 px-3.5 py-3 text-[13px]">
             {[
-              { where: t('Con Docker'), how: 'docker compose logs materialize', command: true },
+              { where: t('Con Docker Compose, su un server'), how: 'docker compose logs materialize', command: true },
+              { where: t('Con Docker Desktop'), how: 'docker logs materialize', command: true },
               { where: t('Su un server (VPS)'), how: 'journalctl -u materialize | grep installa', command: true },
               { where: t('Sul tuo computer'), how: t('nel terminale dove gira Materialize'), command: false },
             ].map(({ where, how, command }) => (

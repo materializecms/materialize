@@ -1,7 +1,13 @@
 /**
- * CHANGELOG.md, written for the people who use Materialize: one "## <version> — <date>" section
- * per release, newest first, and a "## Prossima versione" section that collects what is coming.
+ * The changelog, written for the people who use Materialize, in two files: CHANGELOG.md in English
+ * and CHANGELOG.it.md in Italian. One "## <version> — <date>" section per release, newest first, and
+ * a section on top that collects what is coming ("## Next version", "## Prossima versione").
  */
+
+export const CHANGELOGS = [
+  { file: 'CHANGELOG.md', lang: 'en', next: 'Next version' },
+  { file: 'CHANGELOG.it.md', lang: 'it', next: 'Prossima versione' },
+] as const
 
 export const NEXT = 'Prossima versione'
 
@@ -35,13 +41,13 @@ export function parseChangelog(text: string): { version: string; date?: string; 
   return out
 }
 
-/** Renames "## Prossima versione" to the new version and opens an empty one above it. */
-export function stampChangelog(text: string, version: string, date: string): string {
-  const heading = new RegExp(`^## ${NEXT}[ \\t]*$`, 'm')
+/** Renames the coming section ("## Prossima versione") to the new version and opens an empty one above it. */
+export function stampChangelog(text: string, version: string, date: string, next: string = NEXT): string {
+  const heading = new RegExp(`^## ${next}[ \\t]*$`, 'm')
   const match = heading.exec(text)
-  if (!match) throw new Error(`CHANGELOG.md non ha la sezione «## ${NEXT}»`)
+  if (!match) throw new Error(`Il CHANGELOG non ha la sezione «## ${next}»`)
   const body = text.slice(match.index + match[0].length).split(/^## /m)[0] ?? ''
-  if (!body.trim()) throw new Error(`La sezione «${NEXT}» del CHANGELOG è vuota: scrivi cosa cambia`)
+  if (!body.trim()) throw new Error(`La sezione «${next}» del CHANGELOG è vuota: scrivi cosa cambia`)
   if (parseChangelog(text).some((r) => r.version === version)) throw new Error(`Il CHANGELOG ha già la ${version}`)
-  return text.replace(heading, `## ${NEXT}\n\n## ${version} — ${date}`)
+  return text.replace(heading, `## ${next}\n\n## ${version} — ${date}`)
 }

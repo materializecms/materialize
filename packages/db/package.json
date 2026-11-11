@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/db",
   "version": "0.9.3",
-  "description": "Il database di Materialize: contenuti con bozze, pubblicazione e revisioni, utenti e sessioni (SQLite o libSQL).",
+  "description": "Materialize's database: content with drafts, publishing and revisions, users and sessions (SQLite or libSQL).",
   "type": "module",
   "license": "MIT",
   "repository": {

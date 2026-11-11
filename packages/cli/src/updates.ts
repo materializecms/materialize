@@ -4,6 +4,7 @@ import { access, copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promis
 import { createRequire } from 'node:module'
 import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { currentLang } from '@materializecms/core/lang'
 import { newer, type ReleaseNotes, type UpdateStatus, type Updates } from '@materializecms/server'
 import { type Pending, type SwapResult, updatesDir } from './supervisor.ts'
 import { t } from './t.ts'
@@ -59,7 +60,8 @@ export function createUpdates(options: {
   // Started by the supervisor right after a swap: not done until the site is built on it.
   let swapping = process.env.MATERIALIZE_UPDATE ? (JSON.parse(process.env.MATERIALIZE_UPDATE) as Pending) : null
   let latest: string | null = null
-  let notes: ReleaseNotes[] = []
+  // In both languages: each person reads them in the language of their panel.
+  let notes: { it: ReleaseNotes[]; en: ReleaseNotes[] } = { it: [], en: [] }
   let checkedAt: string | null = null
   // Kept as a kind and written when asked, in the language of whoever reads the status.
   let checkFailure: 'unpublished' | 'unreachable' | undefined
@@ -99,7 +101,8 @@ export function createUpdates(options: {
   const status = async (): Promise<UpdateStatus> => ({
     current: CURRENT,
     latest,
-    notes,
+    // Versions published before the English changelog have only the Italian one.
+    notes: currentLang() === 'en' && notes.en.length ? notes.en : notes.it,
     checkedAt,
     checkError:
       checkFailure === 'unpublished'
@@ -133,10 +136,14 @@ export function createUpdates(options: {
 
     async check() {
       try {
-        const out = await npm(['view', `${CLI}@latest`, 'version', 'changelog', '--json'], site, 30_000)
-        const info = JSON.parse(out) as { version?: string; changelog?: ReleaseNotes[] } | string
+        const out = await npm(['view', `${CLI}@latest`, 'version', 'changelog', 'changelogEn', '--json'], site, 30_000)
+        const info = JSON.parse(out) as
+          | { version?: string; changelog?: ReleaseNotes[]; changelogEn?: ReleaseNotes[] }
+          | string
         latest = typeof info === 'string' ? info : (info.version ?? null)
-        notes = (typeof info === 'string' ? [] : (info.changelog ?? [])).filter((r) => newer(r.version, CURRENT))
+        const fresh = (list?: ReleaseNotes[]) => (list ?? []).filter((r) => newer(r.version, CURRENT))
+        notes =
+          typeof info === 'string' ? { it: [], en: [] } : { it: fresh(info.changelog), en: fresh(info.changelogEn) }
         checkFailure = undefined
       } catch (error) {
         const log = (error as { log?: string }).log ?? ''

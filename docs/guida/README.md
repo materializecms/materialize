@@ -2,7 +2,7 @@
 
 Questa guida è per chi crea e gestisce siti con Materialize: agenzie, freelance e chi scrive i contenuti. Non serve saper programmare, tranne dove è detto esplicitamente.
 
-> Materialize è in **Alpha**: funziona, ma può cambiare da una versione all'altra. Le novità di ogni versione sono nel [CHANGELOG](../../CHANGELOG.md).
+> Materialize è in **Alpha**: funziona, ma può cambiare da una versione all'altra. Le novità di ogni versione sono nel [CHANGELOG](../../CHANGELOG.it.md).
 
 ## Per iniziare
 

@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { parseChangelog } from './changelog.ts'
+import { CHANGELOGS, parseChangelog } from './changelog.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PACKAGES = ['core', 'db', 'admin', 'server', 'astro', 'cli', 'create-materialize']
@@ -48,8 +48,9 @@ async function main() {
   const version = manifests[0]?.version ?? ''
   if (manifests.some((m) => m.version !== version)) throw new Error('I pacchetti non hanno tutti la stessa versione')
   if (values.tag && values.tag !== `v${version}`) throw new Error(`Il tag ${values.tag} non corrisponde a ${version}`)
-  if (!parseChangelog(await readFile(join(ROOT, 'CHANGELOG.md'), 'utf8')).some((r) => r.version === version))
-    throw new Error(`Il CHANGELOG non ha la ${version}: lancia npm run bump`)
+  for (const c of CHANGELOGS)
+    if (!parseChangelog(await readFile(join(ROOT, c.file), 'utf8')).some((r) => r.version === version))
+      throw new Error(`${c.file} non ha la ${version}: lancia npm run bump`)
 
   for (const m of manifests) {
     if (published(m.name, m.version)) {

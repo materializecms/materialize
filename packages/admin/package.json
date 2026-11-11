@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/admin",
   "version": "0.9.3",
-  "description": "Il pannello di Materialize già compilato: contenuti, editor visuale sulla tela, media, impostazioni.",
+  "description": "Materialize's prebuilt admin panel: content, visual canvas editor, media, settings.",
   "type": "module",
   "license": "MIT",
   "repository": {

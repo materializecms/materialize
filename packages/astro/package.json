@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/astro",
   "version": "0.9.3",
-  "description": "L'integrazione Astro di Materialize: il sito dai contenuti pubblicati e l'anteprima delle bozze sulla tela.",
+  "description": "Materialize's Astro integration: the site from published content, and draft previews on the canvas.",
   "type": "module",
   "license": "MIT",
   "repository": {

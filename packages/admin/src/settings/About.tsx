@@ -3,7 +3,7 @@ import { BookOpen, Bug, Code, FileText, Scale, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Logo } from '../app/Auth.tsx'
 import { api } from '../lib/api.ts'
-import { t, tx } from '../lib/i18n.ts'
+import { lang, t, tx } from '../lib/i18n.ts'
 import { SettingsPage, settingsCard } from './SettingsPage.tsx'
 
 const REPO = 'https://github.com/materializecms/materialize'
@@ -61,13 +61,13 @@ export function About() {
 
       <div className={`divide-y divide-line overflow-hidden ${settingsCard}`}>
         <Row
-          href={`${REPO}/blob/main/CHANGELOG.md`}
+          href={`${REPO}/blob/main/${lang() === 'it' ? 'CHANGELOG.it.md' : 'CHANGELOG.md'}`}
           icon={<Sparkles />}
           title={t('Novità')}
           detail={t('Cosa è cambiato in ogni versione')}
         />
         <Row
-          href={`${REPO}/blob/main/docs/guida/README.md`}
+          href={`${REPO}/blob/main/docs/${lang() === 'it' ? 'guida' : 'guide'}/README.md`}
           icon={<BookOpen />}
           title={t('Guida')}
           detail={t('Come si usa, passo per passo')}

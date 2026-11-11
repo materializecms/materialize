@@ -6,7 +6,7 @@ Materialize is a program that runs all the time. It powers the panel and builds 
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | **VPS** (Hetzner, DigitalOcean, OVH, Aruba Cloud…) with Debian 12 or Ubuntu 22.04 or newer | ✓ the easiest way, with one command                              |
 | **Server with Docker**                                                                     | ✓                                                                |
-| **Your computer**                                                                          | ✓ to try it out or develop a site                                |
+| **Your computer**, with Node.js or Docker Desktop                                          | ✓ to try it out or develop a site                                |
 | Shared PHP hosting (even with Node in cPanel)                                              | ✗ too little memory, and processes are paused when no one visits |
 
 The site Materialize builds is made of static files. If you ever want to, you can publish those files on any hosting. The panel, however, needs the server.
@@ -75,6 +75,46 @@ and open `http://localhost:4321/admin`. On your computer you don't need the inst
 
 The terminal speaks the system's language: Italian on an Italian computer, English otherwise. To choose it by hand, set `MATERIALIZE_LANG=en` (or `it`) in the environment, for example with `export MATERIALIZE_LANG=en` in your `~/.zshrc` file.
 
+## On your computer, with Docker Desktop
+
+To try Materialize the way it runs on a server, without installing Node.js, all you need is [Docker Desktop](https://www.docker.com/products/docker-desktop/), for Mac, Windows and Linux.
+
+1. Install Docker Desktop and open it: it has to stay running.
+2. Open the Terminal (PowerShell on Windows) and run:
+
+   ```bash
+   docker run -d --name materialize -p 127.0.0.1:4321:4321 -v materialize:/site -e MATERIALIZE_LANG=en --restart unless-stopped --pull always ghcr.io/materializecms/materialize:latest
+   ```
+
+   On the first start Docker downloads the image and sets up the site: it takes a few minutes.
+
+3. Ask for the link to finish the installation:
+
+   ```bash
+   docker logs materialize
+   ```
+
+   The **Setup** line has an address like `http://localhost:4321/admin/?installa=…`: open it in the browser and go on as in [Finishing the installation in the browser](#finishing-the-installation-in-the-browser). On your computer, HTTPS isn't needed.
+
+What the command does:
+
+| Part                       | What it's for                                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| `--name materialize`       | The container's name, as you see it in Docker Desktop                                     |
+| `-p 127.0.0.1:4321:4321`   | The site at `http://localhost:4321`, reachable from this computer only                    |
+| `-v materialize:/site`     | The volume that keeps the site, content, images and backups                               |
+| `-e MATERIALIZE_LANG=en`   | The server's messages in English (`it` for Italian)                                       |
+| `--restart unless-stopped` | Starts again by itself when you reopen Docker Desktop, unless you stopped it              |
+| `--pull always`            | Downloads the latest image: otherwise Docker uses the one it already has, even an old one |
+
+Then:
+
+- **Stopping and starting it**: in Docker Desktop, under **Containers**, the ■ and ▶ buttons next to `materialize`; or `docker stop materialize` and `docker start materialize`. The content stays.
+- **Updating it**: from the panel, in **Settings → Updates**, as on a server.
+- **Port 4321 is already taken**, for example by another site started with `npm run dev`: write `-p 127.0.0.1:4322:4321` in the command, and `4322` instead of `4321` in the link.
+- **Removing it**: `docker rm -f materialize` deletes the container but not the volume, so the same command as before starts again from the site as it was. To delete the site and its content too, run `docker volume rm materialize`: there is no going back.
+- **Putting it online**: this installation is meant for your computer. For a site with its own domain, use [Docker on a server](#with-docker) or [a VPS](#on-a-vps-with-one-command).
+
 ## Finishing the installation in the browser
 
 Open the link the installation gave you. It ends with `/admin/?installa=` followed by a code. The code makes sure no one else can "take over" a server that just went online.
@@ -87,6 +127,6 @@ The installation has three steps:
 
 At the end, press **Go to the panel**.
 
-> If you lose the link: on a VPS, run the installation command again and it prints the link again. With Docker, run `docker compose logs materialize`. The code stays valid until the installation is finished.
+> If you lose the link: on a VPS, run the installation command again and it prints the link again. With Docker, run `docker compose logs materialize` (with Docker Desktop, `docker logs materialize`). The code stays valid until the installation is finished.
 
 Next step: [Getting started](02-getting-started.md).

@@ -1,7 +1,7 @@
 {
   "name": "@materializecms/core",
   "version": "0.9.3",
-  "description": "Il modello dei contenuti di Materialize: raccolte, campi, validazione, libreria di sezioni, SEO.",
+  "description": "Materialize's content model: collections, fields, validation, section library, SEO.",
   "type": "module",
   "license": "MIT",
   "repository": {

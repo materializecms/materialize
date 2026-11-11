@@ -1,4 +1,4 @@
-[English](README.en.md) · **Italiano**
+**English** · [Italiano](README.it.md)
 
 <h1>
   <picture>
@@ -7,68 +7,68 @@
   </picture>
 </h1>
 
-CMS open source per agenzie, web designer e freelance: il sito si compone sulla tela con oltre 100 sezioni pronte, senza scrivere codice; il cliente lo aggiorna sulla pagina vera; il sito pubblicato è statico e velocissimo. Chi programma può aggiungere sezioni e contenuti in codice.
+An open source CMS for agencies, web designers and freelancers: you build the site on a canvas with over 100 ready sections, no code required; clients update it on the real page; the published site is static and very fast. Developers can add their own sections and content types in code.
 
-> Stato: **Alpha**. Le novità di ogni versione sono in [CHANGELOG.md](CHANGELOG.md).
+> Status: **Alpha**. What's new in each version is in [CHANGELOG.md](CHANGELOG.md).
 
-**Per chi usa Materialize** c'è la [guida](docs/guida/README.md): installazione, editor, contenuti, lingue, SEO, persone, aggiornamenti e backup. Questo README è per chi sviluppa.
+**If you use Materialize**, read the [guide](docs/guide/README.md): installation, editor, content, languages, SEO, people, updates and backups. This README is for developers.
 
-**Stai scegliendo un CMS?** Il [confronto con WordPress, Webflow, Strapi, Sanity, Ghost e gli altri](docs/confronto.md) dice quando Materialize fa al caso tuo, e quando no.
+**Choosing a CMS?** The [comparison with WordPress, Webflow, Strapi, Sanity, Ghost, EmDash and others](docs/confronto.md) (in Italian) tells you when Materialize is a good fit, and when it isn't.
 
-## Come si presenta
+## What it looks like
 
-![L'editor visuale: la pagina vera sulla tela con un titolo selezionato e le sue azioni rapide, i livelli a sinistra, le proprietà a destra](docs/assets/screenshots/01-editor.webp)
+![The visual editor: the real page on the canvas with a selected heading and its quick actions, layers on the left, properties on the right](docs/assets/screenshots/01-editor.webp)
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshots/02-contenuto.webp" alt="Modalità Contenuto: le sezioni in ordine e i testi da modificare"><br><sub>Modalità Contenuto: si cambiano testi e immagini, il design resta com'è</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/03-controlli.webp" alt="I controlli della pagina: motori di ricerca, accessibilità, prestazioni"><br><sub>Controlli: motori di ricerca, accessibilità e prestazioni</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/02-contenuto.webp" alt="Content mode: the sections in order and the texts to edit"><br><sub>Content mode: change texts and images, and the design stays as it is</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/03-controlli.webp" alt="Page checks: search engines, accessibility, performance"><br><sub>Checks: search engines, accessibility and performance</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshots/04-assistente.webp" alt="L'assistente AI aperto accanto alla pagina"><br><sub>L'assistente AI modifica la pagina su richiesta</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/05-raccolte.webp" alt="I progetti di una raccolta, in vista a schede"><br><sub>Le raccolte: progetti, articoli, persone</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/04-assistente.webp" alt="The AI assistant open next to the page"><br><sub>The AI assistant edits the page on request</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/05-raccolte.webp" alt="The projects in a collection, in card view"><br><sub>Collections: projects, articles, people</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshots/06-seo-e-ai.webp" alt="Impostazioni SEO: llms.txt, feed RSS, crawler AI"><br><sub>SEO e ricerche AI: llms.txt, feed RSS, crawler</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/07-panoramica.webp" alt="La panoramica: la richiesta all'AI, le cose da fare, le ultime modifiche"><br><sub>La panoramica: cosa c'è da fare, e una richiesta all'AI su tutto il sito</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/06-seo-e-ai.webp" alt="SEO settings: llms.txt, RSS feed, AI crawlers"><br><sub>SEO and AI search: llms.txt, RSS feed, crawlers</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/07-panoramica.webp" alt="The overview: the AI request, things to do, latest changes"><br><sub>The overview: what needs doing, and one AI request across the whole site</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshots/08-newsletter.webp" alt="Una newsletter in scrittura: oggetto, anteprima, testo, prova e invio"><br><sub>La newsletter: scrivi, prova su di te, invia o programma</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/09-effetti.webp" alt="La categoria Effetti della libreria accanto a un'apertura su sfondo aurora animato"><br><sub>Effetti: sfondi animati, logo e oggetti 3D come sezioni pronte</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/08-newsletter.webp" alt="A newsletter being written: subject, preview, text, test and send"><br><sub>Newsletter: write it, test it on yourself, send or schedule it</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/09-effetti.webp" alt="The Effects category of the library next to a hero on an animated aurora background"><br><sub>Effects: animated backgrounds, 3D logos and objects as ready-made sections</sub></td>
   </tr>
 </table>
 
-## Un nuovo sito
+## A new site
 
-Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
+You need Node 24 or later. There's no database to install: SQLite is included.
 
 ```bash
 npm create materialize@latest
 ```
 
-Il comando chiede la cartella, copia un sito Astro di partenza (le pagine si compongono sulla tela con le sezioni della libreria, e c'è già un blog: la raccolta Articoli), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
+The command asks for a folder, copies a starter Astro site (you build pages on the canvas from the library's sections, and a blog is ready: the Articoli collection), installs the dependencies and tells you how to start: `npm run dev`, then http://localhost:4321/admin.
 
-### Dove installarlo
+### Where to install it
 
-Con il pannello, Materialize è un programma Node sempre acceso: serve un **server tuo**, cioè un VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) o un ambiente Docker. **Gli hosting condivisi PHP non sono adatti**, anche quelli con Node nel cPanel: memoria scarsa e processi sospesi quando non ci sono visite rendono lenti la generazione del sito e le immagini. Il sito generato, invece, è fatto di file statici e si può pubblicare anche su qualsiasi hosting statico.
+With the panel, Materialize is a Node program that is always running, so you need **your own server**: a VPS (Hetzner, DigitalOcean, OVH, Aruba Cloud…) or a Docker environment. **Shared PHP hosting won't work**, even plans with Node in cPanel: little memory and processes suspended when there are no visits make site builds and images slow. The generated site, on the other hand, is plain static files, so you can also publish it on any static host.
 
-### Installazione su un VPS
+### Installing on a VPS
 
-Su un VPS nuovo con Debian 12 o Ubuntu 22.04 (o più recenti), almeno 1 GB di memoria e un dominio che punta al suo indirizzo IP, basta un comando:
+On a fresh VPS with Debian 12 or Ubuntu 22.04 (or newer), at least 1 GB of memory and a domain pointing to its IP address, one command does it:
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/npm/@materializecms/cli/install.sh | sudo bash -s -- --domain example.com
 ```
 
-Lo script installa Node.js e Caddy, che serve il sito in HTTPS con un certificato Let's Encrypt rinnovato da solo. Poi crea il sito in `/srv/materialize` e lo avvia come servizio, che riparte con il server e dopo un errore. Infine apre nel firewall solo SSH, HTTP e HTTPS, attiva gli aggiornamenti di sicurezza del sistema e, sui server con poca memoria, aggiunge memoria di scambio. Alla fine scrive il link per completare l'installazione nel browser.
+The script installs Node.js and Caddy, which serves the site over HTTPS with a Let's Encrypt certificate that renews itself. It then creates the site in `/srv/materialize` and runs it as a service that restarts with the server and after a crash. Finally it opens only SSH, HTTP and HTTPS in the firewall, turns on the system's security updates and, on low-memory servers, adds swap. At the end it prints the link to finish the installation in the browser.
 
-Rilanciato, ripara l'installazione e riscrive il link, senza toccare il sito e i contenuti. `--help` elenca le opzioni: email per Let's Encrypt, versione, cartella, porta, un altro registro npm, firewall. Le variabili per il sito, per esempio `ANTHROPIC_API_KEY`, vanno in `/etc/materialize/env`; poi si esegue `systemctl restart materialize`. Il registro si legge con `journalctl -u materialize -f`.
+Run it again and it repairs the installation and prints the link again, without touching the site or its content. `--help` lists the options: Let's Encrypt email, version, folder, port, another npm registry, firewall. Environment variables for the site, such as `ANTHROPIC_API_KEY`, go in `/etc/materialize/env`; then run `systemctl restart materialize`. Read the log with `journalctl -u materialize -f`.
 
-Il servizio passa al sito dall'ambiente quello che dipende dal server e non dal sito: `MATERIALIZE_SITE_URL`, `MATERIALIZE_PORT`, `MATERIALIZE_HOST` e `MATERIALIZE_TRUST_PROXY`. Valgono anche fuori dallo script, e `materialize.config.ts` resta uguale ovunque.
+The service passes the site the settings that depend on the server rather than the site, through the environment: `MATERIALIZE_SITE_URL`, `MATERIALIZE_PORT`, `MATERIALIZE_HOST` and `MATERIALIZE_TRUST_PROXY`. They also work outside the script, and `materialize.config.ts` stays the same everywhere.
 
-### Con Docker
+### With Docker
 
-Su un server dove c'è già Docker, `docker/compose.yaml` avvia Materialize con Caddy davanti, che gestisce l'HTTPS. Il dominio deve già puntare al server:
+On a server that already has Docker, `docker/compose.yaml` starts Materialize behind Caddy, which handles HTTPS. The domain must already point to the server:
 
 ```bash
 curl -fsSLO https://cdn.jsdelivr.net/npm/@materializecms/cli/compose.yaml
@@ -77,88 +77,89 @@ docker compose up -d
 docker compose logs materialize
 ```
 
-Il file `.env` ricorda il dominio per tutti i comandi successivi (`docker compose logs`, `stop`, `run`…). Il registro contiene il link per finire l'installazione nel browser. Da solo, senza Caddy:
+The `.env` file remembers the domain for every later command (`docker compose logs`, `stop`, `run`…). The log contains the link to finish the installation in the browser. On its own, without Caddy, for example on your computer with Docker Desktop ([the step-by-step guide](docs/guide/01-install.md#on-your-computer-with-docker-desktop)):
 
 ```bash
-docker run -d --name materialize -p 4321:4321 -v materialize:/site --restart unless-stopped ghcr.io/materializecms/materialize
+docker run -d --name materialize -p 127.0.0.1:4321:4321 -v materialize:/site -e MATERIALIZE_LANG=en --restart unless-stopped --pull always ghcr.io/materializecms/materialize:latest
+docker logs materialize
 ```
 
-**Il volume `/site`:**
-- contiene il sito intero, dai pacchetti ai contenuti;
-- gli aggiornamenti si installano dal pannello e restano nel volume;
-- se ricrei il container, anche da un'immagine più vecchia, il sito riparte dalla versione che aveva;
-- l'immagine serve solo a creare il sito al primo avvio.
+**The `/site` volume:**
+- holds the whole site, from packages to content;
+- updates are installed from the panel and stay in the volume;
+- if you recreate the container, even from an older image, the site starts again from the version it had;
+- the image is only used to create the site on first start.
 
-Le variabili d'ambiente per il sito (`ANTHROPIC_API_KEY`, `MATERIALIZE_SITE_URL`…) si passano al container.
+Pass environment variables for the site (`ANTHROPIC_API_KEY`, `MATERIALIZE_SITE_URL`…) to the container.
 
-### L'installazione nel browser
+### Setup in the browser
 
-Al primo avvio il pannello guida l'installazione in tre passi: controlla il server (versione di Node, cartelle scrivibili, sito, HTTPS, aggiornamenti), chiede nome e lingua del sito, crea l'account amministratore, poi apre il pannello.
+On first start the panel walks you through setup in three steps: it checks the server (Node version, writable folders, site, HTTPS, updates), asks for the site's name and language, creates the administrator account, then opens the panel.
 
-In produzione (`materialize start`) l'installazione chiede il link che il server scrive all'avvio, `/admin/?installa=<codice>`: così un server appena messo online non può essere preso da chi lo trova per primo. Il codice resta lo stesso anche se il server si riavvia (è in `.materialize/install-code`) e sparisce a installazione finita. In sviluppo (`materialize dev`) non serve.
+In production (`materialize start`) setup requires the link the server prints at startup, `/admin/?installa=<code>`, so a server that just went online can't be claimed by whoever finds it first. The code stays the same if the server restarts (it lives in `.materialize/install-code`) and disappears once setup is done. In development (`materialize dev`) it isn't needed.
 
-### Aggiornamenti
+### Updates
 
-Con `materialize start`, il server gira sotto un piccolo supervisore che lo tiene acceso (lo riavvia se si ferma) e applica gli aggiornamenti. Ogni 6 ore il server controlla se c'è una versione nuova; gli amministratori la vedono in una pillola in alto a destra e nella Panoramica, e in **Impostazioni → Aggiornamenti** con le novità dal changelog, e la installa con un clic:
+With `materialize start`, the server runs under a small supervisor that keeps it running (restarting it if it stops) and applies updates. Every 6 hours the server checks for a new version. Administrators see it in a pill at the top right and on the Overview, and in **Settings → Updates** with the changelog notes, and installs it with one click:
 
-1. backup del database e dei media;
-2. la nuova versione si scarica in `.materialize/updates/next`, mentre il sito resta online;
-3. il server si riavvia sulla nuova versione, che deve partire e compilare il sito: se non ci riesce, torna da sola quella di prima;
-4. la versione precedente resta in `.materialize/updates/previous`, per tornarci con un clic.
+1. the database and media are backed up;
+2. the new version downloads into `.materialize/updates/next` while the site stays online;
+3. the server restarts on the new version, which must start and build the site; if it can't, the previous version comes back on its own;
+4. the previous version stays in `.materialize/updates/previous`, so you can go back with one click.
 
-Si possono lasciar installare da sole le correzioni (stessa versione principale e secondaria, per esempio dalla 0.2.0 alla 0.2.1); le novità le decide sempre l'amministratore. Il server deve poter scrivere nella cartella del sito e trovare `npm`. Senza supervisore (`--no-supervisor`, o un altro programma che lancia il server) e in sviluppo il pannello mostra il comando da usare a mano. I file del sito (layout, blocchi, configurazione) non vengono mai toccati.
+You can let fixes install themselves (same major and minor version, for example 0.2.0 to 0.2.1); new features are always the administrator's call. The server must be able to write to the site folder and find `npm`. Without the supervisor (`--no-supervisor`, or another program launching the server) and in development, the panel shows the command to run by hand. Site files (layouts, blocks, configuration) are never touched.
 
-## Sviluppare Materialize
+## Developing Materialize
 
 ```bash
 npm install
 npm run dev
 ```
 
-La prima volta `npm run dev` crea `sito-locale/` dal sito di partenza, lo stesso che riceve chi usa `npm create materialize`. La cartella resta sul tuo computer e git la ignora: il repository non contiene siti né contenuti di prova. Il sito parte su http://localhost:4321 e il pannello su http://localhost:4321/admin: al primo accesso crei l'account amministratore direttamente dal pannello. Sito, pannello e API vivono sullo stesso indirizzo.
+The first time, `npm run dev` creates `sito-locale/` from the starter site, the same one people get with `npm create materialize`. The folder stays on your computer and git ignores it: the repository contains no sample sites or content. The site runs at http://localhost:4321 and the panel at http://localhost:4321/admin. On first visit you create the administrator account right in the panel. Site, panel and API all live at the same address.
 
-## Il pannello
+## The panel
 
-- **Contenuto**: form generati dallo schema, con titolo in evidenza, editor di testo formattato, immagini con punto focale, relazioni, blocchi riordinabili e anteprima per i motori di ricerca.
-- **Design**: la pagina vera sulla tela, disegnata dai componenti del sito, con livelli, inspector, modifica del testo direttamente sulla pagina e anteprima desktop, tablet e mobile. I blocchi si spostano trascinandoli sulla pagina. Ogni modifica si vede subito: viene ridisegnato solo il blocco che cambia.
-- **Stile di ogni blocco**: sfondo, spazio sopra e sotto, animazione all'ingresso (con anteprima) e ancora per i link interni. Le scelte sono nomi del tema del sito, non colori liberi: le pagine restano coerenti chiunque le modifichi.
-- **Bozze sempre al sicuro**: salvataggio automatico mentre scrivi, anche se la pagina è incompleta. Si pubblica solo quando è tutto a posto, e il pannello porta dritto ai campi da sistemare.
-- **Pubblicazione programmata**: dal pulsante con il calendario accanto a «Pubblica» si sceglie quando una pagina esce (con scorciatoie come «Domani alle 9») e, se serve, quando torna bozza da sola, per un'offerta o un evento. Esce la bozza com'è in quel momento, a nome di chi l'ha programmata. I campi mancanti vengono segnalati subito; se al momento di uscire la pagina non è più completa, non viene pubblicata e il pannello spiega perché. Un server spento a quell'ora recupera appena riparte. Gli elenchi mostrano la data accanto allo stato, e l'AI può programmare con lo strumento MCP `schedule_entry`.
-- **Un documento alla volta**: chi apre un documento che un'altra persona sta modificando lo vede in sola lettura, con chi ci lavora e da quanto, e può tornare indietro, aprire il sito o prendere il controllo (l'altra persona lo vede subito). Il turno si rinnova ogni pochi secondi e si libera da solo; il server rifiuta i salvataggi di chi non ha il turno, anche da un'altra scheda della stessa persona. API `POST` · `DELETE /api/documents/:id/turn`.
-- **Primi passi** (Panoramica, per gli amministratori): in un sito nuovo, cosa lo rende un sito vero: dati del sito, prima pagina pubblicata, primo articolo, AI collegata, una persona invitata. Ogni passo si spunta da solo quando è fatto; il riquadro sparisce a passi finiti, o con la crocetta.
-- **Tour del pannello**: la prima volta un tour illumina una zona alla volta (panoramica, richiesta all'AI, cose da fare, contenuti, rilasci e newsletter, media, impostazioni, ricerca ⌘K, profilo); si rifà dal menu del profilo o cercando «tour». Usa lo stesso componente del tour dell'editor, che salta da solo i passi di ciò che non c'è (per esempio l'AI spenta).
-- **Newsletter** (barra laterale → Newsletter): iscrizioni dal sito con doppia conferma via email (due sezioni pronte nella libreria, o qualsiasi modulo con «Iscrive alla newsletter»), elenco degli iscritti con import CSV da Mailchimp o Brevo ed export. Newsletter vuote, da un articolo o scritte dall'AI dagli ultimi articoli con la voce del brand; prova a sé stessi, invio subito o programmato, una email alla volta e con ripresa dopo un riavvio. Ogni email ha il link per disiscriversi (anche con un clic dall'app di posta, RFC 8058) e i dati del mittente; statistiche di aperture e clic, con link firmati, spegnibili. Usa l'email di Impostazioni → Email. API `/api/newsletters`, `/api/subscribers`.
-- **Rilasci** (barra laterale → Rilasci, o Altre azioni → Aggiungi a un rilascio): più pagine e articoli che escono insieme, subito o a un'ora stabilita, e pagine vecchie da togliere dal sito nello stesso momento. Tutto o niente: se una pagina non è pronta non esce niente, e il pannello dice quale e perché. Una pagina sta in un solo rilascio alla volta; annullare un rilascio lascia le pagine come sono. API `/api/releases`, strumenti MCP `list_releases`, `create_release`, `add_to_release`, `publish_release`, `schedule_release`.
-- **Link di anteprima da condividere**: da «Altre azioni» → «Condividi anteprima» si crea un link segreto che mostra la bozza con il design vero del sito a chi non ha un account, come un cliente o un collega. Vale 1, 7 o 30 giorni, o finché non lo revochi; segue le modifiche, perché mostra sempre l'ultima versione salvata. Porta un'etichetta «Anteprima», non è indicizzato dai motori di ricerca e non conta nelle statistiche. Il pannello dice quante volte è stato aperto, e l'AI può crearne uno con lo strumento MCP `share_preview`.
-- **Controlli della pagina** (scheda Controlli dell'editor): motori di ricerca, **accessibilità** (contrasto dei testi misurato sulla tela con la regola WCAG 4,5:1 e 3:1, immagini senza descrizione, pulsanti, icone e campi senza nome, link poco chiari, titoli saltati, video senza pausa) e **prestazioni** (file da altri siti, GIF e video pesanti, video senza copertina, troppe scene 3D, script esterni, troppi caratteri, pagine enormi). Un clic seleziona l'elemento da sistemare; prima di pubblicare, i problemi seri vengono elencati con «Pubblica lo stesso».
-- **SEO e ricerche AI** (Impostazioni → SEO): titoli, descrizioni, anteprime per i social e dati strutturati (attività, articoli, eventi, domande frequenti) in ogni pagina; `sitemap.xml` e `robots.txt` aggiornati a ogni pubblicazione; reindirizzamenti automatici quando cambia un indirizzo. Il feed **`/rss.xml`** raccoglie gli ultimi articoli (di serie le raccolte con pagine e una data, oppure quelle scelte). Per ChatGPT, Claude, Perplexity e gli altri assistenti c'è **`/llms.txt`**, l'indice del sito con il riassunto di ogni pagina, e una copia in Markdown di ogni pagina indicizzabile (`/chi-siamo.md`, `/index.md` per la home), scritta durante la build e annunciata nell'intestazione. Si possono bloccare i crawler che addestrano modelli AI senza perdere le ricerche AI, che mandano visitatori.
-- **Media**: libreria con caricamento trascinando i file, ricerca, testo alternativo e conteggio delle pagine che usano ogni immagine. Dal campo immagine si carica, si sceglie dalla libreria o si trascina un file.
-- **Persone**: gli amministratori invitano editor e altri amministratori con un link valido 7 giorni, cambiano ruoli, rimuovono accessi e creano link per una nuova password (24 ore). C'è sempre almeno un amministratore. Ognuno cambia nome e password dal proprio profilo.
-- **Password dimenticata**: dalla pagina di accesso arriva per email un link valido un'ora. La risposta è la stessa per ogni indirizzo, così non si scopre chi è registrato, e le richieste per email e per indirizzo sono limitate. Il link usa sempre l'indirizzo pubblico del sito (`site.url` o `MATERIALIZE_SITE_URL`), mai quello dichiarato dalla richiesta: online, senza quell'indirizzo il link non parte (in locale sì) e Impostazioni → Sicurezza lo segnala. Una password cambiata con il link chiude le sessioni e revoca i token personali. Senza email configurata, la pagina spiega chi può aiutare: un amministratore, oppure chi gestisce il server con `materialize reset-password <email>`, che stampa il link.
-- **Importa da WordPress** (Impostazioni → Importa): articoli, pagine, immagini, categorie e SEO, dall'indirizzo del sito (anche bozze, con una password applicativa) o dal file di esportazione. Funziona con Gutenberg, Elementor, WPBakery, Divi e gli altri editor. Le immagini vanno nella libreria, i link interni puntano alle nuove pagine e i vecchi indirizzi vengono reindirizzati con un 301. Le pagine arrivano con i contenuti in ordine e le descrizioni delle immagini; l'impaginazione si rifà sul canvas, oppure, con l'opzione **Rifai l'impaginazione con l'AI**, la ricompone l'AI con le sezioni della libreria, nella bozza e con gli stessi testi e immagini (controllati dopo: se cambierebbero, la pagina resta com'era).
-- **Cronologia**: ogni salvataggio è una versione, con il nome di chi l'ha fatta. Per le pagine sulla tela, il pulsante Cronologia elenca le versioni; cliccandone una la si vede su desktop, tablet e mobile prima di ripristinarla. Il ripristino torna nella bozza e ⌘Z lo annulla. Per le voci modificate con i campi la cronologia è nel pannello del documento.
-- **Esporta in PDF o PNG** la pagina com'è adesso, anche non pubblicata, per mandarla al cliente: desktop, tablet e mobile, ognuno come un'unica immagine lunga (nel PDF una pagina per dispositivo, con nome, dispositivo e data).
-- Annulla e ripristina (⌘Z, ⇧⌘Z), ricerca e comandi (⌘K), tema chiaro e scuro, lingue dei contenuti.
-- **Lingue del pannello**: italiano e inglese. Ognuno sceglie la lingua nel proprio profilo o nella pagina di accesso; prima di scegliere, il pannello segue la lingua del browser. Nella stessa lingua arrivano i messaggi del server e le email a chi ha un account. Il terminale parla la lingua del sistema, oppure quella di `MATERIALIZE_LANG` (`it` o `en`; con Docker è `it`, e si cambia nel file `.env`). I contenuti del sito hanno le loro lingue, a parte.
-- **Aspetto del pannello**: superfici arrotondate su un fondo scuro, controlli a pillola e barre degli strumenti negli incavi del bordo (ricerca e profilo in alto a destra, i comandi della tela in cima alla tela, lo zoom in basso a destra).
-- **Assistente AI** (facoltativo, Impostazioni → AI e MCP): con una chiave API di Claude, oppure un server compatibile OpenAI come Ollama. Il pulsante ✨ accanto ai testi riscrive, accorcia, allunga, corregge, cambia il tono o traduce. Funziona anche sul testo formattato degli articoli, mantenendo titoli, elenchi, grassetti e link, e il risultato rispetta la lunghezza massima del campo. L'AI scrive titolo e descrizione per Google, descrive le immagini (conservando il credito del fotografo già scritto, per esempio «foto di … su Unsplash»), traduce una pagina intera in un'altra lingua e, nell'editor, modifica la pagina su richiesta a parole, anche partendo da un'immagine di riferimento (uno screenshot, un mockup, uno schizzo) allegata, incollata o trascinata nella chat. Le modifiche restano in bozza e un ⌘Z le annulla. Le azioni rapide (✨, SEO, testo alternativo) usano un modello più economico, Claude Haiku 5.5 se non se ne sceglie un altro; l'assistente e le traduzioni delle pagine restano sul modello principale. Con Claude, l'assistente usa la cache dei prompt: istruzioni, strumenti e pagina, che si ripetono a ogni passaggio, costano una frazione dopo il primo. Impostazioni → AI e MCP mostra l'uso del mese: richieste, token letti (e quanti dalla cache) e scritti.
-- **Richieste dalla panoramica**: il campo «Cosa facciamo oggi sul sito?» manda all'AI una richiesta su tutto il sito (descrizioni per Google, controllo dei testi, pagine nuove, traduzioni). Lavora solo in bozza: non pubblica, non programma, non cambia il tema né le sezioni condivise; elenca le bozze toccate da rivedere e si può rispondere per chiedere altro. API `POST /api/ai/studio` (eventi in streaming).
-- **Sito da un brief** (Panoramica → Sito da un brief, per gli amministratori): poche righe sull'attività, e se vuoi fino a due immagini di riferimento. L'AI legge la libreria e prepara da 1 a 8 pagine in bozza con le sezioni della libreria, stessa navigazione e piè di pagina con i link tra loro, testi nella lingua del sito e titolo e descrizione per Google. Usa solo i fatti del brief: quelli mancanti restano come segnaposto tra [parentesi quadre]. Non tocca pagine esistenti, sezioni condivise, tema né sito online; colori e caratteri (e la voce del brand, se non c'è ancora) sono una proposta con **Applica il tema** e **Salva la voce**. Si può rispondere all'AI nella stessa finestra per chiedere altro. API `POST /api/ai/site` (eventi in streaming).
-- **Voce del brand** (Impostazioni → Voce del brand): chi siete e per chi scrivete, tono (fino a tre), tu, voi o lei, parole da usare ed evitare, regole e un testo d'esempio. Quando scrive da zero (testi per Google, richieste a parole, assistente, MCP: `get_site` la restituisce) l'AI usa tutta la voce; quando cambia un testo scritto da qualcuno (riscrivi, accorcia, allunga, tono, traduzioni) solo lo stile, così non aggiunge fatti; per correzioni e testi alternativi niente. **Ricavala dai testi del sito** la propone leggendo le pagine pubblicate. API `GET` · `PUT /api/voice` e `POST /api/voice/suggest`.
-- **Revisione AI prima di pubblicare** (scheda Controlli, o Altre azioni → Revisione AI per gli articoli): l'AI rilegge la bozza com'è nell'editor e segnala refusi, grammatica, frasi fuori dalla voce del brand, incoerenze (prezzi, date, nomi) e link le cui parole non corrispondono alla pagina di destinazione, di cui riceve il titolo. Ogni segnalazione ha le parole esatte e la correzione; quelle che l'AI cita in modo inesatto vengono scartate. **Applica** cambia la bozza come un solo passo annullabile. Parte solo a richiesta. API `POST /api/documents/:id/review` e `…/review/apply`.
-- **MCP**: Claude Desktop, Claude Code e gli altri client AI lavorano sul sito con un token personale, con gli stessi permessi di chi l'ha creato (Impostazioni → AI e MCP → Token di accesso).
-- **Informazioni su Materialize** (Impostazioni → Informazioni): versione installata, autore, licenza MIT, novità, guida, codice sorgente, segnalazione dei problemi e licenze del codice di terzi incluso nel pannello. La pagina di accesso porta al progetto, senza mostrare la versione: una pagina pubblica non deve dire quale versione è installata.
+- **Content**: forms generated from the schema, with a prominent title, a rich text editor, images with a focal point, relations, reorderable blocks and a search engine preview.
+- **Design**: the real page on the canvas, drawn by the site's components, with layers, an inspector, editing text right on the page, and desktop, tablet and mobile previews. Drag blocks on the page to move them. Every change shows up at once: only the block that changed is redrawn.
+- **Per-block style**: background, space above and below, entrance animation (with preview) and an anchor for internal links. The choices are names from the site's theme, not free colors, so pages stay consistent no matter who edits them.
+- **Drafts are always safe**: autosave while you type, even if the page is incomplete. You publish only when everything is in order, and the panel takes you straight to the fields that need fixing.
+- **Scheduled publishing**: the calendar button next to **Publish** lets you pick when a page goes live (with shortcuts like "Tomorrow at 9") and, if needed, when it goes back to draft on its own, for a sale or an event. The draft goes out as it is at that moment, under the name of whoever scheduled it. Missing fields are flagged right away. If the page is no longer complete when it's due, it isn't published and the panel explains why. A server that was off at that time catches up as soon as it restarts. Lists show the date next to the status, and the AI can schedule with the `schedule_entry` MCP tool.
+- **One editor per document**: if you open a document someone else is editing, you see it read-only, with who is working on it and for how long. You can go back, open the site, or take over (the other person sees it at once). The turn renews every few seconds and frees itself; the server rejects saves from whoever doesn't hold the turn, even from another tab of the same person. API `POST` · `DELETE /api/documents/:id/turn`.
+- **First steps** (Overview, for administrators): on a new site, what makes it a real site: the site details, the first published page, the first article, the AI connected, one person invited. Each step ticks itself off once done; the box goes away when they are all done, or with its close button.
+- **Panel tour**: the first time, a tour highlights one area at a time (overview, AI request, things to do, content, releases and newsletter, media, settings, ⌘K search, profile). Run it again from the profile menu or by searching for "tour". It uses the same component as the editor tour, which skips steps for things that aren't there (for example when AI is off).
+- **Newsletter** (sidebar → Newsletter): sign-ups from the site with double opt-in by email (two ready-made sections in the library, or any form set to **Signs up to the newsletter**), and a subscriber list with CSV import from Mailchimp or Brevo and export. Newsletters can start empty, from an article, or be written by the AI from the latest articles in the brand voice. Test on yourself, send now or schedule; emails go out one at a time and resume after a restart. Every email has an unsubscribe link (including one-click from the mail app, RFC 8058) and the sender's details. Open and click stats, with signed links, can be turned off. It uses the email from Settings → Email. API `/api/newsletters`, `/api/subscribers`.
+- **Releases** (sidebar → Releases, or More actions → Add to a release): several pages and articles that go live together, now or at a set time, plus old pages to take down at the same moment. All or nothing: if one page isn't ready, nothing goes out, and the panel says which one and why. A page belongs to one release at a time; canceling a release leaves the pages as they are. API `/api/releases`, MCP tools `list_releases`, `create_release`, `add_to_release`, `publish_release`, `schedule_release`.
+- **Shareable preview links**: More actions → Share preview creates a secret link that shows the draft with the site's real design to someone without an account, like a client or a colleague. It lasts 1, 7 or 30 days, or until you revoke it. It follows your edits, since it always shows the latest saved version. It carries a "Preview" label, isn't indexed by search engines and doesn't count in analytics. The panel shows how many times it was opened, and the AI can create one with the `share_preview` MCP tool.
+- **Page checks** (the editor's Checks tab): search engines, **accessibility** (text contrast measured on the canvas against the WCAG 4.5:1 and 3:1 rules, images without a description, unnamed buttons, icons and fields, vague links, skipped heading levels, videos without pause) and **performance** (files from other sites, heavy GIFs and videos, videos without a poster, too many 3D scenes, external scripts, too many fonts, huge pages). One click selects the element to fix. Before publishing, serious problems are listed with **Publish anyway**.
+- **SEO and AI search** (Settings → SEO): titles, descriptions, social previews and structured data (business, articles, events, FAQs) on every page; `sitemap.xml` and `robots.txt` updated on every publish; automatic redirects when an address changes. The **`/rss.xml`** feed collects the latest articles (by default the collections with pages and a date, or the ones you pick). For ChatGPT, Claude, Perplexity and other assistants there's **`/llms.txt`**, the site index with a summary of each page, plus a Markdown copy of every indexable page (`/chi-siamo.md`, `/index.md` for the home page), written during the build and announced in the page head. You can block crawlers that train AI models without losing AI search, which sends visitors.
+- **Media**: a library with drag-and-drop upload, search, alt text and a count of the pages that use each image. From an image field you can upload, pick from the library or drop a file.
+- **People**: administrators invite editors and other administrators with a link valid for 7 days, change roles, remove access and create new-password links (24 hours). There's always at least one administrator. Everyone changes their own name and password in their profile.
+- **Forgot password**: from the sign-in page, a link valid for one hour arrives by email. The response is the same for every address, so nobody can tell who is registered, and requests are rate-limited per email and per IP address. The link always uses the site's public address (`site.url` or `MATERIALIZE_SITE_URL`), never the one claimed by the request: online, without that address the link is not sent (locally it is) and Settings → Security points it out. A password changed with the link ends the sessions and revokes the personal access tokens. Without email set up, the page explains who can help: an administrator, or whoever runs the server with `materialize reset-password <email>`, which prints the link.
+- **Import from WordPress** (Settings → Import): posts, pages, images, categories and SEO, from the site's address (drafts too, with an application password) or from the export file. It works with Gutenberg, Elementor, WPBakery, Divi and the other builders. Images go into the library, internal links point to the new pages and old addresses get a 301 redirect. Pages arrive with their content in order and image descriptions. You redo the layout on the canvas, or, with **Redo the pages' layout with AI**, the AI rebuilds it from the library's sections, in the draft and with the same texts and images (checked afterward: if they would change, the page stays as it was).
+- **History**: every save is a version, with the name of whoever made it. For canvas pages, the History button lists the versions; click one to see it on desktop, tablet and mobile before restoring it. A restore goes into the draft and ⌘Z undoes it. For entries edited through fields, history is in the document panel.
+- **Export to PDF or PNG** the page as it is now, even unpublished, to send to a client: desktop, tablet and mobile, each as a single long image (in the PDF, one page per device, with name, device and date).
+- Undo and redo (⌘Z, ⇧⌘Z), search and commands (⌘K), light and dark theme, content languages.
+- **Panel languages**: English and Italian. Each person picks the language in their profile or on the sign-in page; until they do, the panel follows the browser. Server messages and emails to people with an account come in the same language. The terminal speaks the system's language, or the one in `MATERIALIZE_LANG` (`it` or `en`; with Docker it is `it`, changed in the `.env` file). Site content has its own languages, separately.
+- **Panel look**: rounded surfaces on a dark shell, pill-shaped controls, and toolbars set into notches in the frame (search and profile at top right, canvas controls at the top of the canvas, zoom at bottom right).
+- **AI assistant** (optional, Settings → AI and MCP): with a Claude API key, or an OpenAI-compatible server such as Ollama. The ✨ button next to texts rewrites, shortens, lengthens, corrects, changes the tone or translates. It also works on articles' rich text, keeping headings, lists, bold and links, and the result respects the field's maximum length. The AI writes the title and description for Google, describes images (keeping any photo credit already there, for example "photo by … on Unsplash"), translates a whole page into another language and, in the editor, changes the page from a plain-language request, even starting from a reference image (a screenshot, a mockup, a sketch) attached, pasted or dropped into the chat. Changes stay in the draft and one ⌘Z undoes them. Quick actions (✨, SEO, alt text) use a cheaper model, Claude Haiku 5.5 unless you pick another; the assistant and page translations stay on the main model. With Claude, the assistant uses prompt caching: instructions, tools and the page, which repeat at every step, cost a fraction after the first. Settings → AI and MCP shows the month's usage: requests, tokens read (and how many from the cache) and written.
+- **Requests from the overview**: the "What shall we do on the site today?" field sends the AI a request across the whole site (Google descriptions, proofreading, new pages, translations). It works only in drafts: it doesn't publish, schedule, or change the theme or shared sections. It lists the drafts it touched for you to review, and you can reply to ask for more. API `POST /api/ai/studio` (streamed events).
+- **Site from a brief** (Overview → Site from a brief, for administrators): a few lines about the business and, if you like, up to two reference images. The AI reads the library and prepares 1 to 8 draft pages from the library's sections, with the same navigation and footer linking them together, text in the site's language, and a title and description for Google. It uses only the facts in the brief: missing ones stay as placeholders in [square brackets]. It doesn't touch existing pages, shared sections, the theme or the live site. Colors and fonts (and the brand voice, if there isn't one yet) are a proposal, with **Apply the theme** and **Save the voice**. You can reply to the AI in the same window to ask for more. API `POST /api/ai/site` (streamed events).
+- **Brand voice** (Settings → Brand voice): who you are and who you write for, tone (up to three), form of address, words to use and avoid, rules and a sample text. When the AI writes from scratch (Google texts, plain-language requests, the assistant, MCP: `get_site` returns it) it uses the whole voice. When it changes text someone wrote (rewrite, shorten, lengthen, tone, translations) it uses only the style, so it doesn't add facts. For corrections and alt text, none of it. **Work it out from the site's texts** proposes a voice by reading the published pages. API `GET` · `PUT /api/voice` and `POST /api/voice/suggest`.
+- **AI review before publishing** (Checks tab, or More actions → AI review for articles): the AI rereads the draft as it is in the editor and flags typos, grammar, sentences off the brand voice, inconsistencies (prices, dates, names) and links whose words don't match the destination page, whose title it receives. Each finding has the exact words and the fix; findings the AI quotes inaccurately are dropped. **Apply** changes the draft as a single undoable step. It runs only on request. API `POST /api/documents/:id/review` and `…/review/apply`.
+- **MCP**: Claude Desktop, Claude Code and other AI clients work on the site with a personal token, with the same permissions as the person who created it (Settings → AI and MCP → Access tokens).
+- **About Materialize** (Settings → About): installed version, author, MIT license, what's new, guide, source code, issue reporting and the licenses of third-party code bundled in the panel. The sign-in page links to the project without showing the version: a public page shouldn't reveal which version is installed.
 
-Senza un sito Astro collegato la tela usa uno stile neutro, che mostra struttura e contenuti.
+Without a connected Astro site, the canvas uses a neutral style that shows structure and content.
 
-## Il sito
+## The site
 
-Il sito è un progetto [Astro](https://astro.build) accanto a `materialize.config.ts`. Bastano poche convenzioni:
+The site is an [Astro](https://astro.build) project next to `materialize.config.ts`. A few conventions are all it takes:
 
-- **Un componente per tipo di blocco** in `src/blocks`, con il nome del blocco: `ProjectsGrid.astro` disegna i blocchi `projectsGrid`. Riceve i campi del blocco e `field(nome)`: mettilo sull'elemento che mostra un testo (`<h1 {...field('title')}>`) e gli editor potranno modificarlo direttamente sulla tela.
-- **Un layout** in `src/layouts/Site.astro`, usato dalle pagine e dall'anteprima.
-- **Una rotta per tutte le pagine**: in `src/pages/[...path].astro`, `export const getStaticPaths = getRoutes` crea una pagina per ogni documento pubblicato che ha un indirizzo. La stessa rotta disegna i link di anteprima condivisi: riceve `entry` come prop, quindi la bozza appare con il design vero (per un'altra rotta, l'opzione `page` di `materialize()`).
-- **Feed, llms.txt e robots.txt** arrivano dall'integrazione; un file con lo stesso nome in `src/pages` o `public/` ha la precedenza.
+- **One component per block type** in `src/blocks`, named after the block: `ProjectsGrid.astro` renders `projectsGrid` blocks. It receives the block's fields and `field(name)`: put it on the element that shows a text (`<h1 {...field('title')}>`) and editors can edit it right on the canvas.
+- **A layout** in `src/layouts/Site.astro`, used by pages and by the preview.
+- **One route for all pages**: in `src/pages/[...path].astro`, `export const getStaticPaths = getRoutes` creates a page for every published document that has an address. The same route renders shared preview links: it receives `entry` as a prop, so the draft shows up with the real design (for a different route, use the `page` option of `materialize()`).
+- **Feed, llms.txt and robots.txt** come from the integration; a file with the same name in `src/pages` or `public/` takes precedence.
 
 ```astro
 ---
@@ -175,66 +176,66 @@ const { entry } = Astro.props
 </Site>
 ```
 
-### Immagini
+### Images
 
-Le immagini caricate perdono i metadati della fotocamera (posizione GPS compresa) e vengono raddrizzate. Il componente `Media` le serve in AVIF e WebP in più larghezze (`/media/foto.jpg@960.avif`), così ogni dispositivo scarica solo quello che gli serve: le varianti si creano alla prima richiesta e restano in cache in `.materialize/media`. Con `materialize build` le immagini usate dalle pagine finiscono in `dist/client`, pronte per qualsiasi hosting.
+Uploaded images lose their camera metadata (GPS location included) and are straightened. The `Media` component serves them as AVIF and WebP in several widths (`/media/foto.jpg@960.avif`), so each device downloads only what it needs. Variants are created on first request and cached in `.materialize/media`. With `materialize build`, the images used by the pages end up in `dist/client`, ready for any host.
 
-### Stile dei blocchi
+### Block styles
 
-Ogni blocco può avere `_style` con `background` (`default`, `muted`, `dark`, `accent`), `spacing` (`none`, `compact`, `normal`, `spacious`), `animation` (`fade`, `rise`, `zoom`, `slide`) e `anchor`. `Blocks` li trasforma in variabili CSS sul contenitore del blocco; il sito decide cosa significano definendo `--theme-muted-bg`, `--theme-dark-bg`, `--theme-dark-fg`, `--theme-accent-bg` e simili. I componenti leggono `--mz-bg`, `--mz-fg` e `--mz-space` con i loro valori predefiniti. Le animazioni partono allo scorrimento, in solo CSS, e non partono per chi ha chiesto meno movimento.
+Each block can have `_style` with `background` (`default`, `muted`, `dark`, `accent`), `spacing` (`none`, `compact`, `normal`, `spacious`), `animation` (`fade`, `rise`, `zoom`, `slide`) and `anchor`. `Blocks` turns them into CSS variables on the block's wrapper; the site decides what they mean by defining `--theme-muted-bg`, `--theme-dark-bg`, `--theme-dark-fg`, `--theme-accent-bg` and so on. Components read `--mz-bg`, `--mz-fg` and `--mz-space` with their own defaults. Animations start on scroll, in pure CSS, and don't run for people who asked for reduced motion.
 
-Nei template le relazioni arrivano già risolte: un campo `relation` contiene i documenti collegati, con titolo, indirizzo e dati. Per il resto ci sono `getEntries` (le pagine modello restano fuori, a meno di `{ templates: true }`), `getEntry`, `getSingleton`, `getTrail` (le pagine sopra una voce, per le briciole di pane) e i componenti `RichText`, `Media` (immagini con punto focale), `Seo` e `Page` (con `main` mette i contenuti in un `<main>`, lasciando fuori menu e piè di pagina). Il sito parte già con `Seo` e `<Page main />`.
+In templates, relations arrive already resolved: a `relation` field contains the linked documents, with title, address and data. For everything else there are `getEntries` (template pages are left out unless you pass `{ templates: true }`), `getEntry`, `getSingleton`, `getTrail` (the pages above an entry, for breadcrumbs) and the `RichText`, `Media` (images with a focal point), `Seo` and `Page` components (with `main`, `Page` puts the content in a `<main>` and leaves the menu and footer outside). New sites start with `Seo` and `<Page main />`.
 
-In sviluppo le pagine si generano a ogni richiesta, quindi una pubblicazione si vede subito. In produzione (`materialize start`) il sito è fatto di file statici e si rigenera da solo dopo ogni pubblicazione, di solito in meno di un secondo: la nuova versione sostituisce la precedente solo quando è completa.
+In development, pages are generated on every request, so a publish shows up immediately. In production (`materialize start`) the site is static files and rebuilds itself after every publish, usually in under a second: the new version replaces the old one only when it's complete.
 
-### Statistiche, tag e cookie
+### Analytics, tags and cookies
 
-In **Impostazioni → Tracciamento e cookie** un amministratore aggiunge Google Analytics 4, Google Tag Manager, Meta Pixel, Plausible o Matomo con il solo ID, e qualsiasi altro codice da mettere nell’`<head>` o in fondo al `<body>`, scegliendo a cosa serve: necessario, statistiche o marketing. Il componente `Tracking` (già nel layout dei siti nuovi: `<Tracking lang={entry?.locale} />` nell’`<head>`) lo inserisce in tutte le pagine pubblicate, mai nell’anteprima dell’editor.
+In **Settings → Tracking and cookies** an administrator adds Google Analytics 4, Google Tag Manager, Meta Pixel, Plausible or Matomo with just the ID, plus any other code for the `<head>` or the end of the `<body>`, choosing what it's for: necessary, analytics or marketing. The `Tracking` component (already in new sites' layout: `<Tracking lang={entry?.locale} />` in the `<head>`) adds it to every published page, never to the editor preview.
 
-Il codice di statistica e marketing resta fermo finché il visitatore non accetta: compare da solo un banner con Rifiuta, Personalizza e Accetta tutti, e Google Consent Mode parte da «negato». La scelta vale un anno; si cambia dal pulsantino in basso a sinistra, da un link a `#preferenze-cookie` (per esempio nel piè di pagina) o da un elemento con `data-mz-consent-open`. Privacy e cookie policy restano da scrivere per il sito.
+Analytics and marketing code stays blocked until the visitor accepts: a banner with Reject, Customize and Accept all appears on its own, and Google Consent Mode starts as "denied". The choice lasts a year. Visitors change it from the small button at bottom left, from a link to `#preferenze-cookie` (in the footer, for example) or from an element with `data-mz-consent-open`. You still need to write the site's privacy and cookie policy.
 
-## L’editor delle pagine
+## The page editor
 
-Le pagine si compongono sulla tela con sezioni ed elementi (contenitori, testi, immagini, pulsanti, video, codice, scene WebGL), partendo da una libreria di oltre 100 sezioni, tra cui la categoria **Effetti**: aperture su sfondi animati, logo e oggetti 3D, globo, immagini che si piegano al mouse, inviti su particelle. Ogni elemento ha:
+You build pages on the canvas from sections and elements (containers, texts, images, buttons, videos, code, WebGL scenes), starting from a library of more than 100 sections, including the **Effects** category: heroes on animated backgrounds, 3D logos and objects, a globe, images that bend with the mouse, calls to action on particles. Every element has:
 
-- **design libero**: disposizione in riga, colonna o griglia, posizione libera e livelli, colori e sfumature, tipografia per elemento, bordi, ombre, fusione, filtri ed effetto vetro, con modifiche separate per tablet e mobile;
-- **interazioni**: all’apertura, all’ingresso nello schermo, con lo scroll, al passaggio o al movimento del mouse, al clic; testi che entrano per parole o lettere, contatori, parallasse, elementi fissi durante lo scroll, nastri scorrevoli;
-- **linee temporali**: ogni interazione può avere più fotogrammi chiave, ciascuno con la sua curva, da provare sulla tela con il cursore della linea temporale;
-- **scene WebGL**: 21 shader (sfondi, movimento, effetti su immagine) più uno scritto a mano in GLSL, forme 3D e modelli glTF (.glb caricati nella libreria media) con materiali cromo, vetro, iridescente, argilla o fil di ferro; three.js si scarica solo nelle pagine che hanno una scena 3D;
-- **componenti**: un elemento diventa riutilizzabile, con più varianti; il design vale per tutte le copie, testi, immagini e link restano di ogni copia;
-- **dati**: un contenitore può ripetersi per ogni voce di una raccolta (per esempio i progetti), ordinata e filtrata per campo, con un pulsante “Mostra altri”; le sezioni globali, come menu e piè di pagina, valgono per tutte le pagine;
-- **stili di testo condivisi**: uno stile con nome (carattere, dimensioni per dispositivo, colore) si crea da un testo e si applica agli altri; cambiandolo, cambiano tutti.
+- **free-form design**: row, column or grid layout, free positioning and layers, colors and gradients, per-element typography, borders, shadows, blend modes, filters and a glass effect, with separate edits for tablet and mobile;
+- **interactions**: on load, on entering the viewport, on scroll, on hover or mouse move, on click; text that enters word by word or letter by letter, counters, parallax, elements pinned during scroll, scrolling marquees;
+- **timelines**: each interaction can have multiple keyframes, each with its own easing curve, to try out on the canvas with the timeline scrubber;
+- **WebGL scenes**: 21 shaders (backgrounds, motion, image effects) plus one hand-written in GLSL, 3D shapes and glTF models (.glb files uploaded to the media library) with chrome, glass, iridescent, clay or wireframe materials; three.js loads only on pages that have a 3D scene;
+- **components**: an element becomes reusable, with multiple variants; the design applies to every copy, while texts, images and links belong to each copy;
+- **data**: a container can repeat for each entry in a collection (the projects, for example), sorted and filtered by field, with a "Show more" button; global sections, like the menu and footer, apply to every page;
+- **shared text styles**: a named style (font, sizes per device, color) is created from one text and applied to others; change it and they all change.
 
-- **icone e forme**: icone a linee (frecce, contatti, social…), forme piene (arco, cerchio, onda…) e SVG incollati, ripuliti da script;
-- **stati al passaggio del mouse**: colori, scala, spostamento, ombra, anche quando il puntatore è sulla scheda che contiene l’elemento; le copie di un componente possono passare a un’altra variante;
-- **colori con nome** nel tema (uno per il tema chiaro, uno per lo scuro) e **punti di rottura** di tablet e mobile configurabili;
-- **pagine modello**: una pagina può fare da modello per ogni voce di una raccolta (la pagina di ogni progetto), con anteprima su una voce vera;
-- **moduli di contatto**: campi veri (anche **file allegati**, fino a 10 MB, privati), invio senza ricaricare la pagina (e anche senza JavaScript), messaggi in Impostazioni → Messaggi e per email via SMTP. Il server ricontrolla i campi del modulo pubblicato (obbligatori, email, scelte, tipo e peso dei file) e dice accanto al campo cosa non va. **Antispam senza CAPTCHA**: campo trappola, tempo minimo di compilazione, troppi link o link nascosti, messaggi ripetuti; lo spam resta in una cartella a parte e si può recuperare. Per ogni modulo: nome, destinatari, **risposta automatica** a chi scrive e **webhook** firmato (HMAC SHA-256) per Zapier, Make o n8n; destinatari e webhook li cambia solo un amministratore. Messaggi filtrabili per modulo, da leggere e spam, con ricerca, **esportazione CSV** e **cancellazione automatica** dopo 6, 12 o 24 mesi (GDPR); la casella del consenso può aprire l'informativa privacy. Con l’email configurata anche inviti e reset password arrivano per posta;
-- **email facile da configurare** (Impostazioni → Email):
-  - si sceglie il fornitore (Brevo, Postmark, Resend, Mailgun, Amazon SES, SendGrid, Mailjet, SMTP2GO, Aruba, Register.it, Gmail, Microsoft 365) e server, porta e sicurezza si compilano da soli, con l'indicazione di dove trovare utente e password;
-  - se la prova non riesce, il pannello dice perché, in parole semplici: server inesistente, porta bloccata dal fornitore del VPS (con le porte che invece rispondono), sicurezza sbagliata per la porta, password rifiutata, mittente non verificato, limite raggiunto;
-  - **Controlla il dominio** legge il DNS del mittente e verifica SPF, DKIM e DMARC, che tengono le email fuori dallo spam;
-- **lavoro in squadra**: commenti sugli elementi o sulla pagina, e chi altro ha aperta la pagina, con l’elemento che ha selezionato.
+- **icons and shapes**: line icons (arrows, contacts, social…), solid shapes (arch, circle, wave…) and pasted SVGs, cleaned of scripts;
+- **hover states**: colors, scale, offset, shadow, even when the pointer is over the card that contains the element; component copies can switch to another variant;
+- **named colors** in the theme (one for light, one for dark) and configurable tablet and mobile **breakpoints**;
+- **template pages**: a page can act as the template for every entry in a collection (each project's page), with a preview on a real entry;
+- **contact forms**: real fields (including **file attachments**, up to 10 MB, kept private), submission without a page reload (and without JavaScript too), messages in Settings → Messages and by email via SMTP. The server rechecks the published form's fields (required, email, choices, file type and size) and says next to the field what's wrong. **Spam protection without CAPTCHAs**: honeypot field, minimum fill-in time, too many or hidden links, repeated messages; spam goes to a separate folder and can be recovered. Per form: name, recipients, **auto-reply** to the sender and a signed **webhook** (HMAC SHA-256) for Zapier, Make or n8n; only an administrator can change recipients and webhooks. Messages can be filtered by form, unread and spam, with search, **CSV export** and **automatic deletion** after 6, 12 or 24 months (GDPR); the consent checkbox can open the privacy notice. With email set up, invitations and password resets arrive by mail too;
+- **easy email setup** (Settings → Email):
+  - pick the provider (Brevo, Postmark, Resend, Mailgun, Amazon SES, SendGrid, Mailjet, SMTP2GO, Aruba, Register.it, Gmail, Microsoft 365) and server, port and security fill themselves in, with a pointer to where to find the username and password;
+  - if the test fails, the panel says why in plain words: server doesn't exist, port blocked by the VPS provider (with the ports that do respond), wrong security for the port, password rejected, sender not verified, limit reached;
+  - **Check the domain** reads the sender's DNS and verifies SPF, DKIM and DMARC, which keep emails out of spam;
+- **teamwork**: comments on elements or on the page, and who else has the page open, with the element they've selected.
 
-Sulla tela:
+On the canvas:
 
-- ⇧ clic (sulla tela o nei livelli) seleziona più elementi, e così un riquadro trascinato dalla tela vuota o dallo sfondo di una sezione (con ⇧, ovunque): le modifiche di stile valgono per tutti; ⌘A seleziona gli elementi vicini; trascinandone uno si spostano tutti insieme;
-- righelli in pixel della pagina lungo i bordi della tela, con la selezione evidenziata (⇧R per mostrarli o nasconderli);
-- pannello sinistro allargabile trascinandone il bordo (fino a 440 px, ricordato dal browser);
-- larghezze di prova per ogni dispositivo e tutti i dispositivi affiancati; ⌥⌘C / ⌥⌘V copia e incolla lo stile; sopra l'elemento selezionato una barra di azioni rapide (AI sul testo, cambia immagine, duplica, sposta, com'è su mobile, elimina); ? mostra tutte le scorciatoie; la prima volta un tour di 14 passi illumina una zona dell’editor alla volta (e apre da solo le schede che spiega), e si rifà dalle scorciatoie;
-- ⌘G raggruppa la selezione in un contenitore, ⇧⌘G lo separa; ⌘D duplica, ⌫ elimina;
-- allinea e distribuisci (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): gli elementi liberi si spostano, quelli in colonna o in riga si allineano tramite il loro contenitore;
-- trascinando un elemento libero compaiono le guide magnetiche verso i bordi e i centri del contenitore e degli elementi vicini (⌘ per spostarlo senza agganci); tenendo premuto ⌥ si vedono le distanze dall’elemento sotto il puntatore.
+- ⇧-click (on the canvas or in the layers) selects multiple elements, and so does a box dragged from the empty canvas or a section's background (with ⇧, anywhere): style changes apply to all of them; ⌘A selects the neighboring elements; dragging one moves them all together;
+- rulers in page pixels along the canvas edges, with the selection highlighted (⇧R shows or hides them);
+- the left panel widens by dragging its edge (up to 440 px, remembered by the browser);
+- test widths for each device and all devices side by side; ⌥⌘C / ⌥⌘V copies and pastes style; above the selected element, a quick-action bar (AI on text, replace image, duplicate, move, how it looks on mobile, delete); ? shows all shortcuts; the first time, a 14-step tour highlights one area of the editor at a time (opening the tabs it explains on its own), and you can run it again from the shortcuts;
+- ⌘G groups the selection into a container, ⇧⌘G ungroups it; ⌘D duplicates, ⌫ deletes;
+- align and distribute (⌥⌘A, ⌥⌘H, ⌥⌘D, ⌥⌘W, ⌥⌘V, ⌥⌘S): free-positioned elements move, while those in a column or row align through their container;
+- dragging a free-positioned element shows snapping guides to the edges and centers of the container and nearby elements (⌘ to move it without snapping); holding ⌥ shows the distances to the element under the pointer.
 
-I link del menu alle sezioni della stessa pagina scorrono fluidi fino alla sezione, che si ferma sotto il menu fisso. Per tutto il sito si scelgono anche scorrimento morbido, cursore personalizzato e transizioni tra le pagine. Chi ha chiesto meno movimento al proprio dispositivo vede il sito fermo. Il codice personalizzato lo inserisce solo un amministratore.
+Menu links to a section of the same page glide to it, and the section stops below a fixed menu. For the whole site you can also choose smooth scrolling, a custom cursor and page transitions. People who asked their device for reduced motion see a still site. Only an administrator can add custom code.
 
-## Caratteri
+## Fonts
 
-Nella scheda **Stili** dell’editor si può scegliere qualsiasi Google Font (circa 2000). I file non vengono caricati da Google: Materialize li scarica una volta da Fontsource, li conserva in `.materialize/fonts` e li serve dal sito stesso su `/fonts/…`, così i visitatori non contattano terze parti. Con `materialize build` i caratteri usati finiscono in `dist/` insieme alle pagine.
+In the editor's **Styles** tab you can pick any Google Font (about 2,000). The files aren't loaded from Google: Materialize downloads them once from Fontsource, keeps them in `.materialize/fonts` and serves them from the site itself at `/fonts/…`, so visitors don't contact third parties. With `materialize build`, the fonts in use end up in `dist/` along with the pages.
 
-## Lo schema è codice
+## The schema is code
 
-I contenuti si definiscono in `materialize.config.ts`, con tipi TypeScript ricavati automaticamente:
+Content is defined in `materialize.config.ts`, with TypeScript types inferred automatically:
 
 ```ts
 import { defineBlock, defineCollection, defineConfig, f } from '@materializecms/core'
@@ -261,139 +262,139 @@ const pages = defineCollection({
 export default defineConfig({ site: { name: 'Il mio sito' }, collections: [pages] })
 ```
 
-Con `materialize dev` ogni salvataggio dello schema viene ricaricato senza riavviare. Se lo schema ha un errore, il server resta sulla versione precedente e spiega cosa correggere.
+With `materialize dev`, every save of the schema reloads without a restart. If the schema has an error, the server stays on the previous version and explains what to fix.
 
-I nomi di raccolte, blocchi e campi (`label`) possono essere in più lingue, `label: { it: 'Articoli', en: 'Articles' }`: ognuno li vede nella lingua del suo pannello, e il campo dell'indirizzo mostra la parte che viene prima (`/articoli/`).
+The names of collections, blocks and fields (`label`) can be in several languages, `label: { it: 'Articoli', en: 'Articles' }`: each person sees them in the language of their panel, and the address field shows the part that comes before the slug (`/articoli/`).
 
-Campi disponibili: `text`, `richText`, `number`, `boolean`, `date`, `select`, `slug`, `media`, `link`, `relation`, `blocks`, `group`, `array`, `seo`, `color`, `json`.
+Available fields: `text`, `richText`, `number`, `boolean`, `date`, `select`, `slug`, `media`, `link`, `relation`, `blocks`, `group`, `array`, `seo`, `color`, `json`.
 
-## Struttura
+## Structure
 
-| Cartella                      | Contenuto                                                                                                                 |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core`               | Schema come codice: collezioni, blocchi, campi, tipi, validazione, descrizione per l'admin                                |
-| `packages/db`                 | Documenti con bozza e versione pubblicata, revisioni, utenti e sessioni (Drizzle + libSQL)                                |
-| `packages/server`             | API HTTP (Hono): setup, login, gestione contenuti, API pubblica; serve il pannello su `/admin`                            |
-| `packages/admin`              | Pannello di amministrazione (React, Tailwind, Tiptap), compilato con Vite                                                 |
-| `packages/astro`              | Integrazione Astro: contenuti pubblicati per le pagine, componenti per blocchi e testo, anteprima delle bozze per la tela |
-| `packages/cli`                | Comando `materialize dev` / `materialize start`                                                                           |
-| `packages/create-materialize` | `npm create materialize`: copia il sito di partenza in `template/` e installa le dipendenze                               |
+| Folder                        | Contents                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `packages/core`               | Schema as code: collections, blocks, fields, types, validation, description for the admin                    |
+| `packages/db`                 | Documents with draft and published version, revisions, users and sessions (Drizzle + libSQL)                 |
+| `packages/server`             | HTTP API (Hono): setup, login, content management, public API; serves the panel at `/admin`                  |
+| `packages/admin`              | Admin panel (React, Tailwind, Tiptap), built with Vite                                                       |
+| `packages/astro`              | Astro integration: published content for pages, components for blocks and text, draft preview for the canvas |
+| `packages/cli`                | The `materialize dev` / `materialize start` command                                                          |
+| `packages/create-materialize` | `npm create materialize`: copies the starter site in `template/` and installs the dependencies               |
 
 ## API
 
-| Metodo e percorso                                                                                     | Descrizione                                                                                                                        |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/setup` · `POST /api/setup`                                                                  | Primo amministratore (solo se non ne esiste uno)                                                                                   |
-| `POST /api/auth/login` · `logout` · `GET /api/auth/me`                                                | Sessione con cookie sicuro                                                                                                         |
-| `GET /api/auth/recovery` · `POST /api/auth/forgot`                                                    | Password dimenticata: se l'email è configurata, e il link per email                                                                |
-| `GET /api/schema`                                                                                     | Collezioni e campi, per costruire le form                                                                                          |
-| `GET` · `POST /api/collections/:nome`                                                                 | Elenco con ricerca, creazione con validazione                                                                                      |
-| `GET` · `PUT` · `DELETE /api/documents/:id`                                                           | Lettura, salvataggio della bozza (anche incompleta, con l'elenco dei campi da sistemare), eliminazione (admin)                     |
-| `POST /api/documents/:id/publish` · `unpublish`                                                       | Pubblica la bozza se è valida, o la ritira dal sito                                                                                |
-| `PUT /api/documents/:id/schedule` · `GET /api/schedules`                                              | Programma (o annulla, con `at: null`) quando la voce esce o torna bozza; elenco di ciò che è in arrivo                             |
-| `GET` · `POST /api/documents/:id/previews` · `DELETE /api/previews/:id`                               | Link di anteprima della bozza: elenco, creazione (`days`, o `null` senza scadenza), revoca                                         |
-| `POST /api/forms/:id` · `GET /api/submissions` · `…/export.csv` · `…/:id/files/:n`                    | Invio dei moduli del sito (JSON o multipart); messaggi con filtri (`form`, `status=unread\|spam`, `q`), esportazione CSV, allegati |
-| `GET /api/documents/:id/revisions` · `POST …/:rev/restore`                                            | Cronologia e ripristino                                                                                                            |
-| `GET /api/users` · `POST /api/users/invites` · `PATCH` · `DELETE /api/users/:id` · `POST …/:id/reset` | Persone e inviti (admin): elenco, invito, ruolo, rimozione, link per nuova password                                                |
-| `GET /api/invites/:token` · `POST …/accept`                                                           | Link di invito o di nuova password: si usa una volta, senza essere collegati                                                       |
-| `PATCH /api/auth/me` · `POST /api/auth/password`                                                      | Il proprio nome e la propria password                                                                                              |
-| `GET` · `POST /api/media` · `GET` · `PATCH` · `DELETE /api/media/:id`                                 | Libreria media: elenco e ricerca, caricamento, testo alternativo e utilizzi, eliminazione (admin)                                  |
-| `GET /media/:file`                                                                                    | Immagini pubbliche: l’originale, o una variante con `@larghezza.formato`                                                           |
-| `GET /api/content/:nome` · `/:slug`                                                                   | API pubblica: solo contenuti pubblicati                                                                                            |
+| Method and path                                                                                       | Description                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/setup` · `POST /api/setup`                                                                  | First administrator (only if none exists)                                                                                      |
+| `POST /api/auth/login` · `logout` · `GET /api/auth/me`                                                | Session with a secure cookie                                                                                                   |
+| `GET /api/auth/recovery` · `POST /api/auth/forgot`                                                    | Forgot password: whether email is set up, and the link by email                                                                |
+| `GET /api/schema`                                                                                     | Collections and fields, to build the forms                                                                                     |
+| `GET` · `POST /api/collections/:nome`                                                                 | List with search, creation with validation                                                                                     |
+| `GET` · `PUT` · `DELETE /api/documents/:id`                                                           | Read, save the draft (even incomplete, with the list of fields to fix), delete (admin)                                         |
+| `POST /api/documents/:id/publish` · `unpublish`                                                       | Publish the draft if it's valid, or take it off the site                                                                       |
+| `PUT /api/documents/:id/schedule` · `GET /api/schedules`                                              | Schedule (or cancel, with `at: null`) when the entry goes live or back to draft; list of what's coming up                      |
+| `GET` · `POST /api/documents/:id/previews` · `DELETE /api/previews/:id`                               | Draft preview links: list, create (`days`, or `null` for no expiry), revoke                                                    |
+| `POST /api/forms/:id` · `GET /api/submissions` · `…/export.csv` · `…/:id/files/:n`                    | Site form submissions (JSON or multipart); messages with filters (`form`, `status=unread\|spam`, `q`), CSV export, attachments |
+| `GET /api/documents/:id/revisions` · `POST …/:rev/restore`                                            | History and restore                                                                                                            |
+| `GET /api/users` · `POST /api/users/invites` · `PATCH` · `DELETE /api/users/:id` · `POST …/:id/reset` | People and invitations (admin): list, invite, role, removal, new-password link                                                 |
+| `GET /api/invites/:token` · `POST …/accept`                                                           | Invitation or new-password link: single use, without being signed in                                                           |
+| `PATCH /api/auth/me` · `POST /api/auth/password`                                                      | Your own name and password                                                                                                     |
+| `GET` · `POST /api/media` · `GET` · `PATCH` · `DELETE /api/media/:id`                                 | Media library: list and search, upload, alt text and usage, delete (admin)                                                     |
+| `GET /media/:file`                                                                                    | Public images: the original, or a variant with `@width.format`                                                                 |
+| `GET /api/content/:nome` · `/:slug`                                                                   | Public API: published content only                                                                                             |
 
-Le bozze non toccano il sito online finché non pubblichi. Le richieste di modifica da altri siti vengono bloccate (CSRF); le password usano scrypt; dei token di sessione viene salvato solo l'hash.
+Drafts don't touch the live site until you publish. Cross-site write requests are blocked (CSRF); passwords use scrypt; only the hash of session tokens is stored.
 
-## Comandi
+## Commands
 
 ```bash
-npm run dev         # compila il pannello e avvia l'esempio con ricarica dello schema
-npm run dev:admin   # sviluppo del pannello con ricarica istantanea (con npm run dev attivo)
-npm run build       # compila il pannello
+npm run dev         # builds the panel and starts the example with schema reload
+npm run dev:admin   # panel development with hot reload (with npm run dev running)
+npm run build       # builds the panel
 
-# nella cartella del sito
-npx materialize build   # genera il sito statico in dist/, da pubblicare su qualsiasi hosting
-npx materialize start   # produzione: sito statico, pannello e rigenerazione a ogni pubblicazione
-npx materialize restore <file>   # rimette un backup o l'archivio completo (a server fermo)
-npx materialize decrypt <cartella> --key mzk1-…   # decifra i backup scaricati dallo spazio esterno
-npx materialize reset-password <email>   # stampa un link per una nuova password, valido un'ora
-npm test            # test (Vitest)
+# in the site folder
+npx materialize build   # generates the static site in dist/, to publish on any host
+npx materialize start   # production: static site, panel and rebuild on every publish
+npx materialize restore <file>   # restores a backup or the full archive (with the server stopped)
+npx materialize decrypt <folder> --key mzk1-…   # decrypts backups downloaded from external storage
+npx materialize reset-password <email>   # prints a new-password link, valid for one hour
+npm test            # tests (Vitest)
 npm run typecheck   # TypeScript 7
 npm run lint        # Biome
-npm run check       # tutto quanto sopra
-npm run audit       # vulnerabilità note nelle dipendenze
-npm run release     # prepara i pacchetti npm in .release/ (non pubblica nulla)
-npm run smoke       # crea, compila e avvia un sito con i pacchetti di .release/
-npm run bump patch  # nuova versione per tutti i pacchetti (patch, minor, major o 1.2.3)
+npm run check       # all of the above
+npm run audit       # known vulnerabilities in dependencies
+npm run release     # prepares the npm packages in .release/ (publishes nothing)
+npm run smoke       # creates, builds and starts a site with the packages in .release/
+npm run bump patch  # new version for all packages (patch, minor, major or 1.2.3)
 ```
 
-## Sicurezza
+## Security
 
-Il pannello si protegge da solo:
-- limiti agli accessi falliti;
-- verifica in due passaggi;
-- regole CSP;
-- registro delle attività;
-- in sviluppo (`materialize dev`) il server si raggiunge solo dal computer, a meno di `--host 0.0.0.0`; online (`materialize start`) l'installazione chiede il codice stampato all'avvio;
-- backup giornalieri del database e delle immagini, e un archivio completo da scaricare;
-- copia cifrata dei backup **fuori dal server**, ogni notte, su uno spazio S3 compatibile o in una cartella WebDAV (vedi sotto).
+The panel protects itself:
+- limits on failed sign-ins;
+- two-step verification;
+- CSP rules;
+- activity log;
+- in development (`materialize dev`) the server is reachable only from your computer, unless you pass `--host 0.0.0.0`; online (`materialize start`) setup requires the code printed at startup;
+- daily backups of the database and images, and a full archive to download;
+- an encrypted copy of the backups **off the server**, every night, on S3-compatible storage or in a WebDAV folder (see below).
 
-HTTPS, proxy, Cloudflare e firewall spettano a chi mette online il sito: sono spiegati in [docs/sicurezza.md](docs/sicurezza.md). Lo stato del singolo sito si vede in Impostazioni → Sicurezza; i backup in Impostazioni → Backup e il registro in Impostazioni → Registro attività.
+HTTPS, proxies, Cloudflare and firewalls are up to whoever puts the site online: they're covered in [docs/sicurezza.md](docs/sicurezza.md) (in Italian). Each site's status is in Settings → Security; backups in Settings → Backups and the log in Settings → Activity log.
 
-### Backup fuori dal server
+### Off-server backups
 
-In Impostazioni → Backup, **Copia fuori dal server** manda ogni notte i backup su:
-- **S3 compatibile**: Amazon S3, Cloudflare R2, Backblaze B2, Hetzner Object Storage, Scaleway, OVH, Wasabi, DigitalOcean Spaces, MinIO…
-- **WebDAV**: Nextcloud, ownCloud, NAS Synology e QNAP, pCloud, kDrive…
+In Settings → Backups, **Off-server copy** sends the backups every night to:
+- **S3-compatible storage**: Amazon S3, Cloudflare R2, Backblaze B2, Hetzner Object Storage, Scaleway, OVH, Wasabi, DigitalOcean Spaces, MinIO…
+- **WebDAV**: Nextcloud, ownCloud, Synology and QNAP NAS, pCloud, kDrive…
 
-**Cosa va fuori:**
-- ogni notte l'ultima copia del database;
-- media e caratteri non ancora inviati: i file caricati non cambiano mai, quindi partono una volta sola.
+**What gets copied:**
+- every night, the latest copy of the database;
+- media and fonts not yet sent: uploaded files never change, so they go out only once.
 
-Sullo spazio esterno i media si aggiungono soltanto. Le copie del database oltre il numero scelto vengono cancellate.
+On the external storage, media are only ever added. Database copies beyond the number you choose are deleted.
 
-**Cifratura:** tutto è cifrato prima di uscire (AES-256-GCM, a blocchi da 1 MiB autenticati, con l'ultimo blocco marcato, così un file troncato viene rifiutato). La chiave casuale è la **chiave di ripristino** (`mzk1-…`): il pannello la mostra una volta al primo salvataggio e poi solo a chi conferma la password.
+**Encryption:** everything is encrypted before it leaves (AES-256-GCM, in authenticated 1 MiB chunks, with the last chunk marked, so a truncated file is rejected). The random key is the **recovery key** (`mzk1-…`): the panel shows it once on the first save, and afterward only to someone who confirms their password.
 
-**Prova e avvisi:**
-- **Prova il collegamento** scrive, rilegge ed elimina un file;
-- **Esegui ora** fa subito una copia;
-- se una notte la copia non riesce, gli amministratori ricevono un'email e Impostazioni → Sicurezza lo segnala.
+**Tests and alerts:**
+- **Test the connection** writes, reads back and deletes a file;
+- **Run now** makes a copy right away;
+- if a nightly copy fails, administrators get an email and Settings → Security flags it.
 
-Per i client c'è solo `fetch` e `node:crypto`, con la firma AWS Signature Version 4 scritta in casa e verificata sull'esempio ufficiale di Amazon.
+The clients use only `fetch` and `node:crypto`, with an in-house AWS Signature Version 4 implementation checked against Amazon's official example.
 
-**Ripristino:**
-1. Scarica la cartella con qualsiasi strumento (la console del servizio, Nextcloud, `rclone`).
-2. Decifrala con `npx materialize decrypt <cartella> --key mzk1-…`. Nella cartella di un sito che ha ancora il suo database la chiave si legge da sola; altrimenti si può passare con `MATERIALIZE_BACKUP_KEY`.
-3. Rimetti il database con `npx materialize restore`, e copia `media/` e `fonts/` in `.materialize/`.
+**Restoring:**
+1. Download the folder with any tool (the service's console, Nextcloud, `rclone`).
+2. Decrypt it with `npx materialize decrypt <folder> --key mzk1-…`. In the folder of a site that still has its database, the key is read automatically; otherwise you can pass it with `MATERIALIZE_BACKUP_KEY`.
+3. Put the database back with `npx materialize restore`, and copy `media/` and `fonts/` into `.materialize/`.
 
-## Pubblicare una versione
+## Releasing a version
 
-I pacchetti si chiamano `@materializecms/*`, più `create-materialize`, e hanno sempre tutti la stessa versione. Le novità per chi usa Materialize si scrivono man mano in [CHANGELOG.md](CHANGELOG.md), sotto «Prossima versione», in parole semplici: il pannello le mostrerà quando propone un aggiornamento.
+The packages are named `@materializecms/*`, plus `create-materialize`, and they always share the same version. User-facing changes go into both changelogs as you work, [CHANGELOG.md](CHANGELOG.md) under «Next version» and [CHANGELOG.it.md](CHANGELOG.it.md) under «Prossima versione», in plain words: the panel shows them, in each person's language, when it offers an update. Commit messages are in English.
 
-Per una nuova versione:
+For a new version:
 
 ```bash
-npm run bump patch      # oppure minor, major, o una versione esatta come 0.2.0
+npm run bump patch      # or minor, major, or an exact version like 0.2.0
 git commit -am "Versione 0.1.1"
 git tag v0.1.1 && git push --follow-tags
 ```
 
-`bump` aggiorna la versione di tutti i pacchetti, delle dipendenze tra loro e del lockfile, e dà la data alla sezione «Prossima versione» del changelog (si rifiuta se è vuota). Il tag fa partire su GitHub il workflow **Rilascio**: gli stessi controlli di ogni modifica, poi `npm run release` (pannello e pacchetti compilati in `.release/`), `npm run smoke` (un sito nuovo creato da quei pacchetti deve installarsi, compilarsi e avviarsi), la pubblicazione su npm con la provenienza firmata e una release su GitHub con le note del changelog, infine l'immagine Docker su `ghcr.io`.
+`bump` updates the version of every package, their dependencies on each other and the lockfile, and dates the «Prossima versione» section of the changelog (it refuses if the section is empty). The tag starts the **Rilascio** workflow on GitHub: the same checks as every change, then `npm run release` (panel and packages built into `.release/`), `npm run smoke` (a new site created from those packages must install, build and start), publishing to npm with signed provenance, a GitHub release with the changelog notes, and finally the Docker image on `ghcr.io`.
 
-La pubblicazione su npm non usa token: ogni pacchetto, nelle sue impostazioni su npmjs.com (**Trusted Publisher**), si fida solo del workflow `release.yml` di `materializecms/materialize` nell'ambiente `npm`. Prima di pubblicare, l'ambiente aspetta l'approvazione di un responsabile su GitHub (**Actions → Rilascio → Review deployments**). Un pacchetto nuovo va prima pubblicato una volta a mano, poi gli si aggiunge il Trusted Publisher. Se un rilascio si ferma a metà, **Actions → Rilascio → Run workflow** con il tag lo riprende: quello che è già su npm viene saltato.
+Publishing to npm uses no tokens: each package, in its settings on npmjs.com (**Trusted Publisher**), trusts only the `release.yml` workflow of `materializecms/materialize` in the `npm` environment. Before publishing, the environment waits for a maintainer's approval on GitHub (**Actions → Rilascio → Review deployments**). A new package has to be published once by hand first, then you add the Trusted Publisher. If a release stops halfway, **Actions → Rilascio → Run workflow** with the tag resumes it: whatever is already on npm is skipped.
 
-Si può fare tutto anche a mano: `npm run release`, `npm run smoke`, poi `npm run publish-release`, che pubblica i pacchetti nell'ordine giusto e salta quelli già presenti, così si può ripetere se si interrompe. Per una prova senza pubblicare davvero, lo stesso comando accetta un registro locale (per esempio [Verdaccio](https://verdaccio.org)): `npm run publish-release -- --registry http://localhost:4873`, poi `npm create materialize@latest` con `--registry`.
+You can also do it all by hand: `npm run release`, `npm run smoke`, then `npm run publish-release`, which publishes the packages in the right order and skips those already there, so you can rerun it if it's interrupted. For a dry run without really publishing, the same command accepts a local registry (for example [Verdaccio](https://verdaccio.org)): `npm run publish-release -- --registry http://localhost:4873`, then `npm create materialize@latest` with `--registry`.
 
-## Scelte tecniche
+## Technical choices
 
-- **Node 24** esegue TypeScript direttamente: nessun passaggio di build in sviluppo. I pacchetti pubblicati invece sono compilati, perché Node non esegue TypeScript dentro `node_modules`.
-- **SQLite via libSQL**: un file locale di default; con la stessa API funziona un database remoto Turso (`database.url` nel config).
-- **Contenuti come JSON validato**: cambiare i campi nello schema non richiede migrazioni del database.
+- **Node 24** runs TypeScript directly: no build step in development. Published packages are compiled, though, because Node doesn't run TypeScript inside `node_modules`.
+- **SQLite via libSQL**: a local file by default; a remote Turso database works with the same API (`database.url` in the config).
+- **Content as validated JSON**: changing fields in the schema doesn't require database migrations.
 
-## Prossimi passi
+## Next steps
 
-In quest'ordine:
+In this order:
 
-1. **Verso la Beta**: una prova d'installazione su un server vero, l'invio delle email con fornitori reali, le prime persone che lo usano fuori dal progetto.
-2. **Più avanti**: vendita semplice con Stripe (non un negozio completo), modifica in tempo reale con più persone, da valutare prima.
+1. **Toward Beta**: a test install on a real server, sending email through real providers, the first people using it outside the project.
+2. **Later**: simple selling with Stripe (not a full store), real-time editing with several people, to be evaluated first.
 
-Per ora non sono in programma estensioni e plugin, né più siti in una sola installazione. Quello che è già uscito è nel [CHANGELOG](CHANGELOG.md).
+Extensions and plugins aren't planned for now, and neither are multiple sites in one installation. What has already shipped is in the [CHANGELOG](CHANGELOG.md).
