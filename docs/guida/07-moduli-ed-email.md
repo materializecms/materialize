@@ -54,6 +54,19 @@ In fondo a Impostazioni → Messaggi scegli se cancellare da soli i messaggi pi�
 
 Il webhook riceve una `POST` con un JSON: `id`, `form` (`id` e `name`), `page`, `data` (i campi), `files` (nome e peso degli allegati, che restano nel pannello) e `createdAt`. L'intestazione `X-Materialize-Signature: sha256=…` è l'HMAC SHA-256 del corpo con la **chiave dei webhook** mostrata agli amministratori in Impostazioni → Messaggi: confrontala per essere sicuro che la chiamata arrivi dal tuo sito. Se il destinatario non risponde, Materialize riprova due volte nei minuti successivi; il messaggio indica se il webhook non è riuscito.
 
+## Commenti sotto gli articoli
+
+I visitatori possono commentare gli articoli. Il modulo compare sotto ogni articolo, nei colori e nei caratteri del sito, e funziona anche senza JavaScript.
+
+- **Dove**: in **Impostazioni → Commenti**, sotto «Dove e come», scegli le raccolte con i commenti. Di serie sono attivi nelle raccolte con pagine e una data, come Articoli.
+- **Approvazione**: di serie ogni commento aspetta che tu lo approvi prima di comparire sul sito. Se la spegni, quelli che passano l'antispam compaiono subito, e li togli quando vuoi.
+- **Moderare**: in **Impostazioni → Commenti** trovi le schede **Da approvare**, **Approvati** e **Spam**, con l'articolo da cui arriva ogni commento. **Approva** lo pubblica, **Togli dal sito** lo rimette in attesa, **È spam** lo sposta nello spam. Un amministratore può anche eliminarlo. I commenti da approvare compaiono nella Panoramica e con un numero su Impostazioni.
+- **Avvisi**: per ogni commento nuovo arriva un'email all'indirizzo di Impostazioni → Email (lo spam escluso). Si spegne da «Avvisami per email».
+- **Antispam** senza CAPTCHA, come nei moduli: campo trappola, invio troppo veloce, troppi link, commenti ripetuti e un limite di invii per indirizzo.
+- **Privacy**: nome e commento sono pubblici. L'email è facoltativa, non si pubblica mai e serve solo a te per rispondere. L'indirizzo IP non si salva.
+
+Nei siti creati prima di questa funzione, chi sviluppa il sito aggiunge `<Comments entry={entry} />` (da `@materializecms/astro/components/Comments.astro`) nella pagina degli articoli.
+
 ## Configurare l'email
 
 Un amministratore la configura in **Impostazioni → Email**. Serve un server di posta in uscita (SMTP): quello della tua casella o di un servizio come Brevo, Postmark, Amazon SES.

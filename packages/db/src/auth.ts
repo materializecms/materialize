@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { and, asc, count, eq, gt, lt, ne, sql } from 'drizzle-orm'
 import type { Db } from './database.ts'
-import { apiTokens, invites, loginAttempts, sessions, users } from './tables.ts'
+import { apiTokens, invites, loginAttempts, passkeys, sessions, users } from './tables.ts'
 
 export type Role = 'admin' | 'editor'
 
@@ -12,6 +12,8 @@ export interface User {
   role: Role
   /** Signs in with a code from an authenticator app too. */
   twoFactor: boolean
+  /** How many passkeys: each one is a sign-in that needs no password and no code. */
+  passkeys: number
   /** The panel's language ("it", "en"); null: the browser's. */
   locale: string | null
 }
@@ -33,6 +35,7 @@ const toUser = (row: UserRow): User => ({
   name: row.name,
   role: row.role,
   twoFactor: !!row.totpSecret,
+  passkeys: row.passkeyCount ?? 0,
   locale: row.locale ?? null,
 })
 
@@ -63,6 +66,19 @@ export interface ApiToken {
   lastUsedAt: Date | null
 }
 
+/** A passkey as listed in Profilo → Sicurezza, and what signing in with it needs. */
+export interface Passkey {
+  id: string
+  userId: string
+  credentialId: string
+  publicKey: string
+  counter: number
+  transports: string[] | null
+  name: string
+  createdAt: Date
+  lastUsedAt: Date | null
+}
+
 /** Prefix of every personal access token, so they are easy to recognise (and to scan for if leaked). */
 export const TOKEN_PREFIX = 'mzp_'
 
@@ -79,6 +95,14 @@ const hashToken = (token: string) => createHash('sha256').update(token).digest('
 const hashCode = (code: string) => hashToken(code.replace(/[\s-]/g, '').toLowerCase())
 
 export function createAuthStore(db: Db) {
+  const recountPasskeys = async (userId: string) => {
+    const [row] = await db.select({ n: count() }).from(passkeys).where(eq(passkeys.userId, userId))
+    await db
+      .update(users)
+      .set({ passkeyCount: row?.n ?? 0 })
+      .where(eq(users.id, userId))
+  }
+
   return {
     async countUsers(): Promise<number> {
       const [row] = await db.select({ n: count() }).from(users)
@@ -93,7 +117,7 @@ export function createAuthStore(db: Db) {
         role: input.role,
       }
       await db.insert(users).values({ ...user, passwordHash: input.passwordHash, createdAt: new Date() })
-      return { ...user, twoFactor: false, locale: null }
+      return { ...user, twoFactor: false, passkeys: 0, locale: null }
     },
 
     async findForLogin(email: string): Promise<(User & { passwordHash: string }) | null> {
@@ -324,6 +348,42 @@ export function createAuthStore(db: Db) {
           .set({ lastUsedAt: new Date(now) })
           .where(eq(apiTokens.id, row.id))
       return toUser(user)
+    },
+
+    // ---------- passkeys ----------
+
+    async listPasskeys(userId: string): Promise<Passkey[]> {
+      return db.query.passkeys.findMany({ where: eq(passkeys.userId, userId), orderBy: asc(passkeys.createdAt) })
+    },
+
+    async passkeyByCredential(credentialId: string): Promise<Passkey | null> {
+      return (await db.query.passkeys.findFirst({ where: eq(passkeys.credentialId, credentialId) })) ?? null
+    },
+
+    async addPasskey(input: Omit<Passkey, 'id' | 'createdAt' | 'lastUsedAt'>): Promise<Passkey> {
+      const record: Passkey = { ...input, id: randomUUID(), createdAt: new Date(), lastUsedAt: null }
+      await db.insert(passkeys).values(record)
+      await recountPasskeys(input.userId)
+      return record
+    },
+
+    /** After a sign-in: the new counter, and when. */
+    async usePasskey(id: string, counter: number): Promise<void> {
+      await db.update(passkeys).set({ counter, lastUsedAt: new Date() }).where(eq(passkeys.id, id))
+    },
+
+    /** Only the owner removes a passkey from their profile. */
+    async removePasskey(userId: string, id: string): Promise<boolean> {
+      const res = await db.delete(passkeys).where(and(eq(passkeys.id, id), eq(passkeys.userId, userId)))
+      await recountPasskeys(userId)
+      return res.rowsAffected > 0
+    },
+
+    /** Every passkey of someone: an administrator's reset, for a lost device. */
+    async removePasskeys(userId: string): Promise<number> {
+      const res = await db.delete(passkeys).where(eq(passkeys.userId, userId))
+      await recountPasskeys(userId)
+      return res.rowsAffected
     },
 
     async deleteSession(token: string): Promise<void> {

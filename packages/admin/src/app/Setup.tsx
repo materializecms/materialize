@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useState } from 'react'
 import { Button, cx, Input, inputClass } from '../components/ui.tsx'
 import { ApiError, api, type SetupStatus } from '../lib/api.ts'
 import { t, tx } from '../lib/i18n.ts'
+import { RestoreUpload } from '../settings/RestoreArchive.tsx'
 import { LanguageSwitch, Logo } from './Auth.tsx'
 import { localeName } from './Sidebar.tsx'
 
@@ -64,6 +65,8 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  // A site moved here from another installation, instead of a new one.
+  const [moving, setMoving] = useState(false)
   const blocked = status.checks.some((c) => c.state === 'error')
   const languages = LANGUAGES.includes(status.site.locale) ? LANGUAGES : [status.site.locale, ...LANGUAGES]
 
@@ -182,6 +185,24 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
     </button>
   )
 
+  if (moving)
+    return (
+      <Frame>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('Sposta qui un sito Materialize')}</h1>
+        <p className="mt-1 mb-5 text-[14px] leading-relaxed text-fg2">
+          {status.restore?.unavailable ??
+            t(
+              'Carica l’archivio creato da «Scarica tutto» (Impostazioni → Backup) sul sito di partenza: contenuti, pagine, immagini, impostazioni e account arrivano qui, e poi entri con il tuo account di sempre.',
+            )}
+        </p>
+        {status.restore?.unavailable ? (
+          <Button onClick={() => setMoving(false)}>{t('Indietro')}</Button>
+        ) : (
+          <RestoreUpload token={token} onCancel={() => setMoving(false)} />
+        )}
+      </Frame>
+    )
+
   if (step === 0)
     return (
       <Frame step={0} languages>
@@ -208,6 +229,14 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
         <Button variant="primary" className="mt-6 w-full" disabled={blocked} onClick={() => setStep(1)} autoFocus>
           {t('Continua')}
         </Button>
+        <button
+          type="button"
+          disabled={blocked}
+          onClick={() => setMoving(true)}
+          className="mt-3 w-full text-center text-[13px] text-fg2 hover:text-accent disabled:opacity-50"
+        >
+          {t('Hai già un sito Materialize? Carica il suo archivio')}
+        </button>
       </Frame>
     )
 

@@ -129,4 +129,6 @@ Alla fine premi **Entra nel pannello**.
 
 > Se perdi il link: su un VPS rilancia il comando di installazione, che lo riscrive; con Docker `docker compose logs materialize` (con Docker Desktop `docker logs materialize`). Il codice resta valido finché l'installazione non è finita.
 
+Hai già un sito Materialize su un altro server? Nella prima schermata dell'installazione scegli «Carica il suo archivio»: vedi [Spostare il sito su un altro server](12-aggiornamenti-e-backup.md#spostare-il-sito-su-un-altro-server).
+
 Prossimo passo: [Primi passi](02-primi-passi.md).

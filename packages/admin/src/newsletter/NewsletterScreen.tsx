@@ -839,7 +839,7 @@ function Subscribers() {
           data-autofocus
           type="email"
           value={email}
-          placeholder={t('nome@esempio.it')}
+          placeholder={t('nome@example.com')}
           onChange={(e) => setEmail(e.target.value)}
         />
         <p className="mt-2 text-[12.5px] text-fg3">

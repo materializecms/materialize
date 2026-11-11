@@ -7,6 +7,7 @@ import { api, type DocumentSummary, thumb } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { href, navigate, type Route } from '../lib/router.ts'
+import { usePendingComments } from '../settings/Discussion.tsx'
 import { useUpdateNotice } from '../settings/UpdatesSettings.tsx'
 import { BriefDialog } from './BriefDialog.tsx'
 import { useSession } from './context.ts'
@@ -59,6 +60,7 @@ export function Overview() {
   const release = releases.data?.releases[0] ?? null
   const next = schedules.data?.items[0] ?? null
   const unread = messages.data?.unread ?? 0
+  const pending = usePendingComments()
   const update = useUpdateNotice()
   const lastMessage = messages.data?.items[0] ?? null
   const today = new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(
@@ -68,9 +70,11 @@ export function Overview() {
     toPublish ? tn(toPublish, 'un documento da pubblicare', '{n} documenti da pubblicare') : '',
     release ? (release.status === 'failed' ? t('un rilascio non uscito') : t('un rilascio in preparazione')) : '',
     unread ? tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi') : '',
+    pending ? tn(pending, 'un commento da approvare', '{n} commenti da approvare') : '',
   ].filter(Boolean)
   // "Ti aspetta un documento", "Ti aspettano 3 documenti": the verb follows what is waiting.
-  const waitsOne = summary.length === 1 && (toPublish ? toPublish === 1 : unread ? unread === 1 : true)
+  const waitsOne =
+    summary.length === 1 && (toPublish ? toPublish === 1 : unread ? unread === 1 : pending ? pending === 1 : true)
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -126,7 +130,7 @@ export function Overview() {
           </div>
         )}
 
-        {(waiting.length > 0 || release || next || unread > 0 || update) && (
+        {(waiting.length > 0 || release || next || unread > 0 || pending > 0 || update) && (
           <section
             data-tour="todo"
             aria-label={t('Da fare')}
@@ -196,6 +200,17 @@ export function Overview() {
                   className="text-[13px] font-medium text-accent hover:underline"
                 >
                   {update.installable ? t('Vedi le novità e aggiorna →') : t('Vedi le novità →')}
+                </a>
+              </Todo>
+            )}
+            {pending > 0 && (
+              <Todo label={t('Commenti')} color="#ec4899">
+                <p className="font-semibold">{tn(pending, 'Un commento da approvare', '{n} commenti da approvare')}</p>
+                <a
+                  {...go({ name: 'settings', tab: 'comments' })}
+                  className="text-[13px] font-medium text-accent hover:underline"
+                >
+                  {t('Leggi e approva →')}
                 </a>
               </Todo>
             )}

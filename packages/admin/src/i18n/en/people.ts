@@ -124,7 +124,6 @@ export const people: Record<string, string> = {
   'Aggiungi un iscritto': 'Add a subscriber',
   'Gli abbiamo mandato l’email per confermare': 'We sent them the email to confirm',
   'Aggiunto: dovrà confermare, ma l’email non è configurata': 'Added: they need to confirm, but email is not set up',
-  'nome@esempio.it': 'name@example.com',
   'Riceverà un’email per confermare: il consenso deve darlo lui. Per chi ha già acconsentito altrove, usa Importa CSV.':
     'They will get an email to confirm: the consent has to be theirs. For people who already agreed elsewhere, use Import CSV.',
   'Mittente, in fondo a ogni email': 'Sender, at the bottom of every email',
@@ -167,8 +166,8 @@ export const people: Record<string, string> = {
   'Ruolo aggiornato': 'Role updated',
   'Modifica nome ed email': 'Edit name and email',
   'Link per una nuova password': 'New-password link',
-  'Disattivare la verifica in due passaggi di {name}? Potrà entrare con la sola password e riattivarla dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.':
-    'Turn off two-step verification for {name}? They will be able to sign in with just the password and turn it back on from their profile. Do this only if they lost their phone and backup codes.',
+  'Disattivare la verifica in due passaggi di {name} e togliere le sue passkey? Potrà entrare con la sola password e riattivarle dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.':
+    'Turn off two-step verification for {name} and remove their passkeys? They will be able to sign in with just the password and set them up again from their profile. Do this only if they lost their phone and backup codes.',
   'Verifica in due passaggi disattivata': 'Two-step verification turned off',
   'Disattiva la verifica in due passaggi': 'Turn off two-step verification',
   'Rimuovi dal sito': 'Remove from the site',
@@ -283,4 +282,21 @@ export const people: Record<string, string> = {
     'At the bottom of every email: the unsubscribe link and the sender’s details (Newsletter → Settings).',
   'Nome dell’attività · Via Esempio 1, 00000 Città · P. IVA 00000000000':
     'Business name · 1 Example Street, City 00000 · VAT no. 00000000000',
+  'Entra con una passkey: Face ID, Touch ID o il PIN del dispositivo':
+    'Signs in with a passkey: Face ID, Touch ID or the device PIN',
+  Passkey: 'Passkey',
+  'Passkey aggiunta: la prossima volta entri con questa': 'Passkey added: next time, sign in with it',
+  'Una passkey: entri senza password': 'One passkey: you sign in without a password',
+  '{n} passkey: entri senza password': '{n} passkeys: you sign in without a password',
+  'Entri con Face ID, Touch ID o il PIN del dispositivo: niente da digitare, e un sito falso non può rubarla.':
+    'Sign in with Face ID, Touch ID or the device PIN: nothing to type, and a fake site can’t steal it.',
+  'Questo browser non supporta le passkey.': 'This browser doesn’t support passkeys.',
+  'Le passkey richiedono l’indirizzo del sito sul server (MATERIALIZE_SITE_URL o site.url).':
+    'Passkeys need the site’s address on the server (MATERIALIZE_SITE_URL or site.url).',
+  'Usata {when}': 'Used {when}',
+  'Aggiunta {when}, non ancora usata': 'Added {when}, not used yet',
+  'Togliere la passkey «{name}»? Su quel dispositivo non servirà più per entrare.':
+    'Remove the passkey “{name}”? It will no longer sign you in on that device.',
+  'Passkey tolta': 'Passkey removed',
+  Togli: 'Remove',
 }

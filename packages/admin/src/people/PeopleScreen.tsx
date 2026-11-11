@@ -297,14 +297,18 @@ export function PeopleScreen() {
                   <span
                     className={cx(
                       'hidden w-32 items-center gap-1.5 text-[13px] md:inline-flex [&_svg]:size-3.5 [&_svg]:shrink-0',
-                      person.twoFactor ? 'text-ok' : 'text-warn',
+                      person.twoFactor || person.passkeys ? 'text-ok' : 'text-warn',
                     )}
                     title={
-                      person.twoFactor ? t('Entra con password e codice dall’app') : t('Entra solo con la password')
+                      person.twoFactor
+                        ? t('Entra con password e codice dall’app')
+                        : person.passkeys
+                          ? t('Entra con una passkey: Face ID, Touch ID o il PIN del dispositivo')
+                          : t('Entra solo con la password')
                     }
                   >
-                    {person.twoFactor ? <ShieldCheck /> : <ShieldAlert />}
-                    {person.twoFactor ? t('Due passaggi') : t('Solo password')}
+                    {person.twoFactor || person.passkeys ? <ShieldCheck /> : <ShieldAlert />}
+                    {person.twoFactor ? t('Due passaggi') : person.passkeys ? t('Passkey') : t('Solo password')}
                   </span>
                   <span className="hidden w-36 items-center gap-1.5 text-[13px] sm:inline-flex">
                     {person.role === 'admin' && <ShieldCheck className="size-3.5 text-accent" />}
@@ -355,7 +359,7 @@ export function PeopleScreen() {
                         >
                           {t('Link per una nuova password')}
                         </MenuItem>
-                        {person.twoFactor && person.id !== me.id && (
+                        {(person.twoFactor || !!person.passkeys) && person.id !== me.id && (
                           <MenuItem
                             icon={<ShieldOff />}
                             onClick={() => {
@@ -363,7 +367,7 @@ export function PeopleScreen() {
                               if (
                                 confirm(
                                   t(
-                                    'Disattivare la verifica in due passaggi di {name}? Potrà entrare con la sola password e riattivarla dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.',
+                                    'Disattivare la verifica in due passaggi di {name} e togliere le sue passkey? Potrà entrare con la sola password e riattivarle dal profilo. Fallo solo se ha perso il telefono e i codici di riserva.',
                                     { name: person.name },
                                   ),
                                 )
@@ -393,9 +397,9 @@ export function PeopleScreen() {
             </section>
             <EditorialSetting />
             <TwoFactorSetting
-              everyone={people.data.users.every((u) => u.twoFactor)}
-              missing={people.data.users.filter((u) => !u.twoFactor).length}
-              mine={!!people.data.users.find((u) => u.id === me.id)?.twoFactor}
+              everyone={people.data.users.every((u) => u.twoFactor || u.passkeys)}
+              missing={people.data.users.filter((u) => !u.twoFactor && !u.passkeys).length}
+              mine={people.data.users.some((u) => u.id === me.id && (u.twoFactor || u.passkeys))}
             />
 
             {people.data.invites.length > 0 && (

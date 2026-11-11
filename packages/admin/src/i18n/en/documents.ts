@@ -232,4 +232,10 @@ export const documents: Record<string, string> = {
   'Caricamento interrotto: controlla la connessione': 'Upload interrupted: check your connection',
   'Torna alle impostazioni': 'Back to settings',
   'Il sito mostra già questa versione': 'The site already shows this version',
+  'Questo sito richiede due passaggi: entra con la tua passkey':
+    'This site requires two steps: sign in with your passkey',
+  'La passkey non è stata accettata: riprova': 'The passkey wasn’t accepted: try again',
+  'Questa passkey è già salvata': 'This passkey is already saved',
+  'Le passkey richiedono l’indirizzo del sito (MATERIALIZE_SITE_URL) sul server':
+    'Passkeys need the site’s address (MATERIALIZE_SITE_URL) on the server',
 }

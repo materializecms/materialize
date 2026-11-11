@@ -4,8 +4,8 @@ import type { Redirect, SiteSeo } from '@materializecms/core/seo'
 import type { TrackingSettings } from '@materializecms/core/tracking'
 import type { UpdateSettings, UpdateStatus } from '@materializecms/core/updates'
 import type { BrandVoice } from '@materializecms/core/voice'
-
 import { lang, t } from './i18n.ts'
+import type { PasskeyCreationJSON, PasskeyRequestJSON } from './passkey.ts'
 
 export type { CollectionDescription, FieldDescription, ValidationIssue }
 
@@ -18,6 +18,8 @@ export interface User {
   name: string
   /** Signs in with a code from an authenticator app too. */
   twoFactor?: boolean
+  /** How many passkeys: each one is a second step too. */
+  passkeys?: number
   role: 'admin' | 'editor'
   /** The panel's language; null: the browser's. */
   locale?: 'it' | 'en' | null
@@ -97,6 +99,46 @@ export interface AccountSecurity {
     lastSeenAt: string
     current: boolean
   }[]
+  passkeys: Passkey[]
+  /** Online, passkeys need the site's address (MATERIALIZE_SITE_URL, site.url). */
+  passkeysAvailable: boolean
+}
+
+export interface Passkey {
+  id: string
+  name: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+
+/** A visitor's comment under an article, as the panel sees it (with the private email). */
+export interface VisitorComment {
+  id: string
+  collection: string
+  documentId: string
+  title: string
+  locale: string
+  path: string
+  name: string
+  email: string | null
+  text: string
+  status: 'pending' | 'approved' | 'spam'
+  spam: string | null
+  createdAt: string
+}
+
+export interface DiscussionState {
+  settings: { collections?: string[]; moderation: boolean; notify: boolean }
+  /** Collections that could take comments (they have pages). */
+  collections: { name: string; label: string }[]
+  /** Where comments are on now. */
+  on: string[]
+}
+
+/** What the server sends to start a passkey ceremony: the browser's options, and a ticket to answer with. */
+export interface PasskeyStart<O> {
+  options: O
+  ticket: string
 }
 
 /** One line of the activity log. */
@@ -160,6 +202,22 @@ export interface BackupState {
   items: BackupFile[]
   /** The copy of the uploaded files beside the backups. */
   media: { files: number; size: number }
+  restore: RestoreState
+}
+
+/** Restoring a whole archive from the panel: why not here, and how the last one went. */
+export interface RestoreState {
+  unavailable?: string
+  last: { ok: boolean; at: string; media?: number; error?: string } | null
+}
+
+/** What the server read from an uploaded archive before restarting with it. */
+export interface ArchiveSummary {
+  site: string
+  version: string
+  createdAt: string | null
+  database: boolean
+  media: number
 }
 
 export type WpSource =
@@ -636,6 +694,12 @@ const messages = (): Record<string, string> => ({
   invalid_code: t('Il codice non è corretto'),
   challenge_expired: t('È passato troppo tempo: accedi di nuovo'),
   two_factor_required: t('Questo sito richiede la verifica in due passaggi'),
+  restore_unavailable: t('Qui il ripristino si fa da terminale, con materialize restore'),
+  invalid_archive: t('Questo archivio non si può ripristinare'),
+  passkey_required: t('Questo sito richiede due passaggi: entra con la tua passkey'),
+  invalid_passkey: t('La passkey non è stata accettata: riprova'),
+  passkey_exists: t('Questa passkey è già salvata'),
+  passkeys_unavailable: t('Le passkey richiedono l’indirizzo del sito (MATERIALIZE_SITE_URL) sul server'),
   two_factor_off: t('Prima attiva la verifica in due passaggi per te'),
   no_setup: t('Ricomincia l’attivazione'),
   backups_unavailable: t('Il database è ospitato da un fornitore: i backup li fa lui'),
@@ -665,7 +729,13 @@ export interface SetupCheck {
 /** Before the first account: what the installation needs to show. */
 export type SetupStatus =
   | { needsSetup: false }
-  | { needsSetup: true; needsToken: boolean; checks: SetupCheck[]; site: { name: string; locale: string } }
+  | {
+      needsSetup: true
+      needsToken: boolean
+      checks: SetupCheck[]
+      site: { name: string; locale: string }
+      restore?: RestoreState
+    }
 
 export const api = {
   setupStatus: () => request<SetupStatus>('GET', '/setup'),
@@ -684,13 +754,32 @@ export const api = {
   /** Whether "Password dimenticata?" can send an email (otherwise someone has to help). */
   recovery: () => request<{ mail: boolean }>('GET', '/auth/recovery'),
   forgot: (email: string) => request<{ ok: true; mail: boolean }>('POST', '/auth/forgot', { email }),
-  me: () => request<{ user: User; needsTwoFactor?: boolean }>('GET', '/auth/me'),
+  me: () => request<{ user: User; needsTwoFactor?: boolean; passkeysAvailable?: boolean }>('GET', '/auth/me'),
   security: () => request<AccountSecurity>('GET', '/auth/security'),
   setupTwoFactor: () => request<{ secret: string; uri: string }>('POST', '/auth/2fa/setup'),
   enableTwoFactor: (code: string) => request<{ recoveryCodes: string[] }>('POST', '/auth/2fa/enable', { code }),
   disableTwoFactor: (password: string) => request<{ ok: true }>('POST', '/auth/2fa/disable', { password }),
   newRecoveryCodes: (password: string) =>
     request<{ recoveryCodes: string[] }>('POST', '/auth/2fa/recovery', { password }),
+  passkeyOptions: (password: string) =>
+    request<PasskeyStart<PasskeyCreationJSON>>('POST', '/auth/passkeys/options', { password }),
+  addPasskey: (input: { ticket: string; response: unknown; name?: string }) =>
+    request<{ passkey: Passkey }>('POST', '/auth/passkeys', input),
+  removePasskey: (id: string) => request<void>('DELETE', `/auth/passkeys/${encodeURIComponent(id)}`),
+  passkeySignInOptions: () => request<PasskeyStart<PasskeyRequestJSON>>('POST', '/auth/passkey/options'),
+  passkeySignIn: (input: { ticket: string; response: unknown }) =>
+    request<{ user: User }>('POST', '/auth/passkey', input),
+  discussion: (params: { status?: VisitorComment['status']; limit?: number; offset?: number } = {}) =>
+    request<{ items: VisitorComment[]; total: number; pending: number; spam: number }>(
+      'GET',
+      `/discussion/admin${q(params)}`,
+    ),
+  setCommentStatus: (id: string, status: VisitorComment['status']) =>
+    request<{ comment: VisitorComment }>('PATCH', `/discussion/admin/${encodeURIComponent(id)}`, { status }),
+  removeVisitorComment: (id: string) => request<void>('DELETE', `/discussion/admin/${encodeURIComponent(id)}`),
+  discussionSettings: () => request<DiscussionState>('GET', '/discussion/settings'),
+  saveDiscussionSettings: (input: DiscussionState['settings']) =>
+    request<DiscussionState>('PUT', '/discussion/settings', input),
   endSession: (id: string) => request<{ ok: true }>('DELETE', `/auth/sessions/${encodeURIComponent(id)}`),
   endOtherSessions: () => request<{ ended: number }>('POST', '/auth/sessions/others'),
   siteSecurity: () => request<{ requireTwoFactor: boolean }>('GET', '/security'),
@@ -975,6 +1064,23 @@ export const api = {
   updateMedia: (id: string, input: { alt: string }) => request<MediaAsset>('PATCH', `/media/${id}`, input),
   removeMedia: (id: string) => request<void>('DELETE', `/media/${id}`),
   /** Uploads one file, reporting progress from 0 to 1. */
+  /**
+   * A whole archive («Scarica tutto») sent as it is, then the server restarts with it. With a token,
+   * from the installation in the browser, before any account exists.
+   */
+  restoreArchive: (file: File, onProgress?: (fraction: number) => void, token?: string) =>
+    new Promise<{ ok: true; summary: ArchiveSummary }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', token === undefined ? '/api/backups/restore' : '/api/setup/restore')
+      xhr.responseType = 'json'
+      xhr.setRequestHeader('x-mz-lang', lang())
+      if (token !== undefined) xhr.setRequestHeader('x-mz-setup-token', token)
+      xhr.setRequestHeader('content-type', 'application/gzip')
+      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total)
+      xhr.onload = () => (xhr.status < 300 ? resolve(xhr.response) : reject(errorFrom(xhr.status, xhr.response)))
+      xhr.onerror = () => reject(new ApiError(0, 'offline', t('Caricamento interrotto: controlla la connessione')))
+      xhr.send(file)
+    }),
   upload: (file: File, onProgress?: (fraction: number) => void) =>
     new Promise<MediaAsset>((resolve, reject) => {
       const xhr = new XMLHttpRequest()

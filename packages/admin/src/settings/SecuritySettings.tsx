@@ -14,12 +14,13 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useSession } from '../app/context.ts'
-import { Button, cx, EmptyState, IconButton, Segmented, Spinner, Switch, toast } from '../components/ui.tsx'
+import { Button, cx, Dialog, EmptyState, IconButton, Segmented, Spinner, Switch, toast } from '../components/ui.tsx'
 import { type ActivityEntry, api, type SecurityCheck } from '../lib/api.ts'
 import { fullDate, relativeTime, whenDate } from '../lib/format.ts'
 import { t, tn, tx } from '../lib/i18n.ts'
 import { navigate } from '../lib/router.ts'
 import { OffsiteBackup } from './OffsiteBackup.tsx'
+import { RestoreUpload } from './RestoreArchive.tsx'
 import { linkButton, SettingsHeading, SettingsPage } from './SettingsPage.tsx'
 
 const STATUS: Record<SecurityCheck['status'], { icon: ReactNode; tone: string }> = {
@@ -56,7 +57,20 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
   const [kind, what = ''] = e.action.split('.')
   switch (e.action) {
     case 'login.ok':
-      return { text: d.twoFactor ? t('è entrato con la verifica in due passaggi') : t('è entrato'), group: 'access' }
+      return {
+        text: d.passkey
+          ? t('è entrato con una passkey')
+          : d.twoFactor
+            ? t('è entrato con la verifica in due passaggi')
+            : t('è entrato'),
+        group: 'access',
+      }
+    case 'login.passkey_failed':
+      return { text: t('passkey non accettata'), group: 'access' }
+    case 'passkey.added':
+      return { text: t('ha aggiunto la passkey {name}', { name: `“${String(d.name ?? '')}”` }), group: 'access' }
+    case 'passkey.removed':
+      return { text: t('ha tolto la passkey {name}', { name: `“${String(d.name ?? '')}”` }), group: 'access' }
     case 'login.failed':
       return {
         text: d.known
@@ -381,6 +395,8 @@ export function describe(e: ActivityEntry): { text: string; group: 'access' | 'p
       return { text: t('ha eliminato il backup {target}', { target }), group: 'settings' }
     case 'backup.archive':
       return { text: t('ha scaricato l’archivio completo del sito'), group: 'settings' }
+    case 'backup.restore':
+      return { text: t('ha ripristinato il sito da un archivio'), group: 'settings' }
     case 'update.install':
       return {
         text: d.auto
@@ -505,6 +521,73 @@ const size = (bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 /** Daily copies of the database: switch, how many to keep, make one now, download or delete. */
+/**
+ * Ripristina da un archivio: a whole site from «Scarica tutto», this one or another installation.
+ * It replaces everything, so it asks first; the current database is saved among the backups.
+ */
+function RestoreCard({ state = { last: null } }: { state?: import('../lib/api.ts').RestoreState }) {
+  const [open, setOpen] = useState(false)
+  const [understood, setUnderstood] = useState(false)
+  const last = state.last
+  return (
+    <div className="rounded-2xl bg-panel2 px-4 py-3.5">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-medium">{t('Ripristina da un archivio')}</div>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
+            {state.unavailable ??
+              t('Rimette un archivio di «Scarica tutto»: di questo sito, o di un’altra installazione da spostare qui.')}
+          </p>
+          {last && (
+            <p className={cx('mt-1 text-[13px]', last.ok ? 'text-ok' : 'text-danger')}>
+              {last.ok
+                ? t('Ultimo ripristino riuscito, {when}.', { when: fullDate(last.at) })
+                : t('L’ultimo ripristino non è riuscito ({when}): {error}', {
+                    when: fullDate(last.at),
+                    error: last.error ?? '',
+                  })}
+            </p>
+          )}
+        </div>
+        {!state.unavailable && (
+          <Button
+            onClick={() => {
+              setUnderstood(false)
+              setOpen(true)
+            }}
+          >
+            {t('Ripristina…')}
+          </Button>
+        )}
+      </div>
+      <Dialog open={open} onClose={() => setOpen(false)} title={t('Ripristinare il sito da un archivio?')} width={480}>
+        <div className="space-y-4 text-[14px] leading-relaxed">
+          <p className="text-fg2">
+            {t(
+              'Contenuti, pagine, impostazioni e account diventano quelli dell’archivio: chi c’è adesso e non è nell’archivio non potrà più entrare. Immagini e caratteri si aggiungono a quelli che ci sono.',
+            )}
+          </p>
+          <p className="text-fg2">
+            {t(
+              'Il database di adesso si salva prima tra i backup («prima del ripristino»), così si può tornare indietro. Il sito si ferma per qualche minuto mentre riparte.',
+            )}
+          </p>
+          <label className="flex items-start gap-2 text-[14px]">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 accent-[var(--accent)]"
+              checked={understood}
+              onChange={(e) => setUnderstood(e.target.checked)}
+            />
+            {t('Ho capito: il sito di adesso viene sostituito.')}
+          </label>
+          {understood && <RestoreUpload onCancel={() => setOpen(false)} />}
+        </div>
+      </Dialog>
+    </div>
+  )
+}
+
 function BackupsSection() {
   const queryClient = useQueryClient()
   const query = useQuery({ queryKey: ['backups'], queryFn: api.backups })
@@ -534,11 +617,11 @@ function BackupsSection() {
           <p className="mt-0.5 text-[13px] leading-relaxed text-fg3">
             {data.available
               ? tx(
-                  'Un unico archivio con il database, tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.',
+                  'Un unico archivio con il database, tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette qui sotto, o con {command}.',
                   { command: restore },
                 )
               : tx(
-                  'Un unico archivio con tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.',
+                  'Un unico archivio con tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette qui sotto, o con {command}.',
                   { command: restore },
                 )}
           </p>
@@ -555,6 +638,7 @@ function BackupsSection() {
           <Download /> {t('Scarica tutto')}
         </a>
       </div>
+      <RestoreCard state={data.restore} />
       <OffsiteBackup />
       {!data.available ? (
         <p className="text-[14px] leading-relaxed text-fg2">

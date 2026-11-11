@@ -2,9 +2,9 @@
 
 # @materializecms/astro
 
-L'integrazione Astro di Materialize: il sito dai contenuti pubblicati e l'anteprima delle bozze sulla tela.
+Materialize's Astro integration: the site from published content, and draft previews on the canvas.
 
-Si aggiunge in `astro.config.ts`:
+Add it in `astro.config.ts`:
 
 ```ts
 import materialize from '@materializecms/astro'
@@ -12,14 +12,14 @@ import materialize from '@materializecms/astro'
 export default defineConfig({ integrations: [materialize()] })
 ```
 
-Contiene anche i componenti per blocchi, testo formattato e immagini, e le funzioni per leggere i contenuti nelle pagine.
+It also has the components for blocks, formatted text, images and visitor comments, and the functions to read content in pages.
 
 ## Materialize
 
-CMS open source con editor visuale: le pagine si disegnano sulla tela, il sito è fatto di file statici veloci. Per un nuovo sito (serve Node 24):
+An open-source CMS with a visual editor: pages are designed on a canvas, and the site is made of fast static files. The panel speaks English and Italian. For a new site (Node 24 or later):
 
 ```bash
 npm create materialize@latest
 ```
 
-Documentazione e codice: https://github.com/materializecms/materialize · Licenza MIT.
+Documentation and code: https://github.com/materializecms/materialize ([guide](https://github.com/materializecms/materialize/blob/main/docs/guide/README.md), [guida in italiano](https://github.com/materializecms/materialize/blob/main/docs/guida/README.md)) · MIT license.

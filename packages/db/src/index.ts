@@ -7,6 +7,7 @@ export {
   EmailTakenError,
   type Invite,
   type Member,
+  type Passkey,
   type Role,
   TOKEN_PREFIX,
   type User,
@@ -58,3 +59,10 @@ export {
   type SubmissionFilter,
   type SubmissionStore,
 } from './submissions.ts'
+export {
+  createVisitorCommentStore,
+  type PublicComment,
+  type VisitorComment,
+  type VisitorCommentStatus,
+  type VisitorCommentStore,
+} from './visitor-comments.ts'

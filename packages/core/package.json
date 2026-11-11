@@ -27,7 +27,8 @@
     "./updates": "./src/updates.ts",
     "./quality": "./src/quality.ts",
     "./voice": "./src/voice.ts",
-    "./lang": "./src/lang.ts"
+    "./lang": "./src/lang.ts",
+    "./discussion": "./src/discussion.ts"
   },
   "dependencies": {
     "lucide": "1.64.0",

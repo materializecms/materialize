@@ -129,4 +129,6 @@ At the end, press **Go to the panel**.
 
 > If you lose the link: on a VPS, run the installation command again and it prints the link again. With Docker, run `docker compose logs materialize` (with Docker Desktop, `docker logs materialize`). The code stays valid until the installation is finished.
 
+Already have a Materialize site on another server? On the first installation screen choose «Upload its archive»: see [Moving the site to another server](12-updates-and-backups.md#moving-the-site-to-another-server).
+
 Next step: [Getting started](02-getting-started.md).

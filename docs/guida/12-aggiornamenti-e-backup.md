@@ -60,9 +60,21 @@ Tutto è cifrato con una chiave che Materialize crea per te. Chi apre lo spazio 
 
 **Esegui ora** fa subito una copia, per esempio dopo aver caricato molte immagini.
 
+## Spostare il sito su un altro server
+
+Per trasferire un sito su un altro server, su Docker Desktop o da una prova a un server vero, bastano due archivi e nessun terminale:
+
+1. Sul sito di partenza, **Impostazioni → Backup → Scarica tutto**: un archivio `materialize-….tar.gz` con database, immagini, caratteri e allegati dei moduli.
+2. Sul nuovo server installa Materialize e apri il link di installazione. Nella prima schermata scegli **«Hai già un sito Materialize? Carica il suo archivio»** e carica quel file.
+3. Il server controlla l'archivio, si riavvia e lo rimette. Dopo qualche minuto entri con i tuoi account di sempre.
+
+Su un sito già installato lo stesso si fa da **Impostazioni → Backup → Ripristina da un archivio**, che chiede conferma: contenuti, pagine, impostazioni e account diventano quelli dell'archivio, e il database di prima si salva tra i backup («prima del ripristino»). L'esito dell'ultimo ripristino compare nella stessa scheda.
+
+Dal pannello il ripristino funziona con `materialize start`, quindi con Docker, sul VPS e in produzione. Un archivio di una versione più nuova di Materialize va ripristinato dopo aver aggiornato il sito. L'archivio non contiene il codice del sito (`materialize.config.ts`, `src/`): chi l'ha personalizzato lo copia a parte, di solito con Git. Il limite è 10 GB, e si cambia con `MATERIALIZE_RESTORE_MAX` (in MB).
+
 ## Ripristinare un backup
 
-Il ripristino si fa dal terminale del server, con il sito **fermo**. Materialize tiene sempre una copia del database di prima, così anche un ripristino si può annullare.
+Il ripristino di un archivio si fa anche dal pannello (vedi sopra). Quello di una copia del database, e in sviluppo anche dell'archivio, si fa dal terminale del server, con il sito **fermo**. Materialize tiene sempre una copia del database di prima, così anche un ripristino si può annullare.
 
 **Su un VPS installato con lo script:**
 

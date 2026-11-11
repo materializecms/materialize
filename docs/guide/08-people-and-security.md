@@ -34,6 +34,18 @@ On top of your password, you enter a 6-digit code from an app on your phone (Goo
 
 An administrator can **Require two-step verification for everyone** (in **People**). Anyone who doesn't have it turns it on at their next sign-in.
 
+## Passkeys
+
+With a **passkey** you sign in with Face ID, Touch ID, Windows Hello or the device PIN, without typing an email or a password. No fake site can steal it: the device uses it only with your site's real address.
+
+1. Go to **Your profile → Security** → **Passkeys** → **Add**.
+2. Type your password, then confirm on the device (fingerprint, face or PIN).
+3. Next time, press **Sign in with a passkey**, or pick it from the email field's suggestions.
+
+You can add more than one, for example on your phone and your computer, and remove them on the same tab. A passkey counts as a second step: if the site requires two-step verification, the passkey is enough, with no codes. Someone with passkeys only who tries to sign in with the password is asked to use the passkey.
+
+Online, passkeys need the site's address set on the server (`MATERIALIZE_SITE_URL`, already there with Docker and the VPS installation). If someone loses their device, an administrator can go to **People → ⋯ → Turn off two-step verification**, which removes their passkeys too.
+
 On the same tab you see the **devices** signed in to your account, and you can sign them out. A session that goes unused for 14 days closes by itself.
 
 ## Automatic protection
@@ -72,7 +84,7 @@ This needs email to be set up (see [Contact forms and email](07-forms-and-email.
 
 If you use two-step verification, you still need the code after setting the new password. A new password doesn't skip it.
 
-To secure the server (HTTPS, proxy, firewall), see the [security guide](../sicurezza.md).
+To secure the server (HTTPS, proxy, firewall), see the [security guide](../security.md).
 
 ## One document at a time
 

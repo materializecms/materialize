@@ -54,6 +54,19 @@ At the bottom of Settings → Messages, choose whether to automatically delete m
 
 The webhook receives a `POST` with a JSON body: `id`, `form` (`id` and `name`), `page`, `data` (the fields), `files` (name and size of the attachments, which stay in the panel), and `createdAt`. The `X-Materialize-Signature: sha256=…` header is the HMAC SHA-256 of the body, computed with the **webhook key** shown to administrators in Settings → Messages. Compare it to be sure the call comes from your site. If the receiver doesn't respond, Materialize tries again twice over the next few minutes, and the message shows whether the webhook failed.
 
+## Comments under articles
+
+Visitors can comment on articles. The form shows under each article, in the site's colors and fonts, and works without JavaScript too.
+
+- **Where**: in **Settings → Comments**, under «Where and how», choose the collections with comments. By default they are on in collections with pages and a date, such as Articles.
+- **Approval**: by default each comment waits for your approval before it shows on the site. If you turn it off, comments that pass the spam checks show at once, and you can take them off at any time.
+- **Moderating**: **Settings → Comments** has the **To approve**, **Approved** and **Spam** tabs, with the article each comment comes from. **Approve** publishes it, **Take off the site** puts it back in the queue, **It's spam** moves it to spam. An administrator can also delete it. Comments to approve show on the Overview and as a number on Settings.
+- **Notices**: an email goes to the address in Settings → Email for every new comment (spam excluded). Turn it off with «Email me».
+- **Spam protection** without CAPTCHA, as in forms: a trap field, a send that comes too fast, too many links, repeated comments and a limit per address.
+- **Privacy**: name and comment are public. The email is optional, never published and only for you to reply. The IP address isn't saved.
+
+On sites created before this feature, whoever develops the site adds `<Comments entry={entry} />` (from `@materializecms/astro/components/Comments.astro`) to the article page.
+
 ## Setting up email
 
 An administrator sets it up in **Settings → Email**. You need an outgoing mail server (SMTP): the one for your mailbox, or one from a service such as Brevo, Postmark, or Amazon SES.

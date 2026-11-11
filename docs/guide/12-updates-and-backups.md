@@ -60,9 +60,21 @@ Everything is encrypted with a key that Materialize creates for you. Anyone who 
 
 **Run now** makes a copy right away, for example after you upload a lot of images.
 
+## Moving the site to another server
+
+To move a site to another server, to Docker Desktop, or from a trial to a real server, two steps are enough, with no terminal:
+
+1. On the site you're moving, go to **Settings → Backups → Download everything**: a `materialize-….tar.gz` archive with the database, images, fonts and form attachments.
+2. On the new server, install Materialize and open the installation link. On the first screen choose **«Already have a Materialize site? Upload its archive»** and upload that file.
+3. The server checks the archive, restarts and puts it in place. After a few minutes you sign in with your usual accounts.
+
+On a site that's already installed, do the same from **Settings → Backups → Restore from an archive**, which asks you to confirm: content, pages, settings and accounts become those in the archive, and the previous database is saved among the backups («before the restore»). The outcome of the last restore shows on the same tab.
+
+From the panel, restoring works with `materialize start`: with Docker, on a VPS and in production. An archive from a newer version of Materialize can be restored once the site is updated. The archive doesn't include the site's code (`materialize.config.ts`, `src/`): if you customized it, copy it separately, usually with Git. The limit is 10 GB, changed with `MATERIALIZE_RESTORE_MAX` (in MB).
+
 ## Restoring a backup
 
-You restore from the server's terminal, with the site **stopped**. Materialize always keeps a copy of the previous database, so you can undo a restore too.
+Archives can also be restored from the panel (see above). A database copy, and in development an archive too, is restored from the server's terminal, with the site **stopped**. Materialize always keeps a copy of the previous database, so you can undo a restore too.
 
 **On a VPS installed with the script:**
 

@@ -2,16 +2,16 @@
 
 # @materializecms/admin
 
-Il pannello di Materialize già compilato: contenuti, editor visuale sulla tela, media, impostazioni.
+Materialize's prebuilt admin panel: content, visual canvas editor, media, settings.
 
-Lo serve il server di Materialize su `/admin`. Il pacchetto contiene il pannello già compilato; le licenze del codice di terzi incluso sono in `dist/THIRD-PARTY-LICENSES.txt`.
+The Materialize server serves it at `/admin`. The package holds the panel already built; the licenses of the third-party code it includes are in `dist/THIRD-PARTY-LICENSES.txt`.
 
 ## Materialize
 
-CMS open source con editor visuale: le pagine si disegnano sulla tela, il sito è fatto di file statici veloci. Per un nuovo sito (serve Node 24):
+An open-source CMS with a visual editor: pages are designed on a canvas, and the site is made of fast static files. The panel speaks English and Italian. For a new site (Node 24 or later):
 
 ```bash
 npm create materialize@latest
 ```
 
-Documentazione e codice: https://github.com/materializecms/materialize · Licenza MIT.
+Documentation and code: https://github.com/materializecms/materialize ([guide](https://github.com/materializecms/materialize/blob/main/docs/guide/README.md), [guida in italiano](https://github.com/materializecms/materialize/blob/main/docs/guida/README.md)) · MIT license.

@@ -21,6 +21,7 @@
     "@materializecms/core": "0.9.3",
     "@materializecms/db": "0.9.3",
     "@modelcontextprotocol/sdk": "1.32.2",
+    "@simplewebauthn/server": "14.0.3",
     "hono": "4.13.14",
     "htmlparser2": "12.0.0",
     "nodemailer": "10.2.1",

@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { type FormEvent, useState } from 'react'
+import { KeyRound } from 'lucide-react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Button, Input } from '../components/ui.tsx'
 import { ApiError, api } from '../lib/api.ts'
 import { LANGS, lang, setLang, t, tx } from '../lib/i18n.ts'
+import { autofillSupported, cancelled, getPasskey, passkeysSupported } from '../lib/passkey.ts'
 
 /** Blocks of the mark, left to right: the M takes shape, from faint to solid (docs/assets/logo.svg). */
 const MARK: [number, number, number][] = [
@@ -37,6 +39,53 @@ export function AuthScreen() {
   // Password accepted, the account asks for a code too.
   const [ticket, setTicket] = useState<string | null>(null)
   const [forgot, setForgot] = useState(false)
+  const [passkeyBusy, setPasskeyBusy] = useState(false)
+  // The quiet request behind the email field's suggestions: cancelled when the button asks instead.
+  const autofill = useRef<AbortController | null>(null)
+
+  const withPasskey = async (options: Awaited<ReturnType<typeof api.passkeySignInOptions>>, response: unknown) => {
+    await api.passkeySignIn({ ticket: options.ticket, response })
+    await queryClient.invalidateQueries()
+  }
+
+  // Where the browser can, it offers the site's passkeys right in the email field: when the screen
+  // opens, and again after the button's own request (which takes its place) is over.
+  const [autofillRound, setAutofillRound] = useState(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new round only when asked for one
+  useEffect(() => {
+    let live = true
+    void (async () => {
+      if (!(await autofillSupported())) return
+      const options = await api.passkeySignInOptions().catch(() => null)
+      if (!options || !live) return
+      const controller = new AbortController()
+      autofill.current = controller
+      try {
+        await withPasskey(options, await getPasskey(options.options, { autofill: true, signal: controller.signal }))
+      } catch (err) {
+        if (live && !cancelled(err)) setError((err as Error).message)
+      }
+    })()
+    return () => {
+      live = false
+      autofill.current?.abort()
+    }
+  }, [autofillRound])
+
+  const signInWithPasskey = async () => {
+    autofill.current?.abort()
+    setPasskeyBusy(true)
+    setError(null)
+    try {
+      const options = await api.passkeySignInOptions()
+      await withPasskey(options, await getPasskey(options.options))
+    } catch (err) {
+      if (!cancelled(err)) setError((err as Error).message)
+      setAutofillRound((n) => n + 1)
+    } finally {
+      setPasskeyBusy(false)
+    }
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -97,7 +146,7 @@ export function AuthScreen() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username webauthn"
               autoFocus
             />
           </label>
@@ -131,6 +180,17 @@ export function AuthScreen() {
         <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full">
           {t('Accedi')}
         </Button>
+        {passkeysSupported() && (
+          <Button
+            type="button"
+            icon={<KeyRound className="size-4" />}
+            loading={passkeyBusy}
+            onClick={signInWithPasskey}
+            className="mt-2 w-full"
+          >
+            {t('Accedi con una passkey')}
+          </Button>
+        )}
         {/* Who makes it, without the version: a public page should not tell which one is running. */}
         <p className="mt-10 text-center text-[12px] text-fg3">
           <a

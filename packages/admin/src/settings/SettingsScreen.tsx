@@ -10,6 +10,7 @@ import { navigate } from '../lib/router.ts'
 import { ProfileDialog } from '../people/ProfileDialog.tsx'
 import { About } from './About.tsx'
 import { AiScreen } from './AiSettings.tsx'
+import { Discussion, usePendingComments } from './Discussion.tsx'
 import { ImportWordPress } from './ImportWordPress.tsx'
 import { LanguagesSettings } from './LanguagesSettings.tsx'
 import { MailForm } from './MailSettings.tsx'
@@ -38,6 +39,7 @@ export function settingsLabel(c: CollectionDescription): string {
 export function SettingsScreen({ tab }: { tab?: string }) {
   const { user, schema } = useSession()
   const unread = useQuery({ queryKey: ['submissions'], queryFn: () => api.submissions() }).data?.unread ?? 0
+  const pending = usePendingComments()
   const singletons = schema.collections.filter((c) => c.singleton)
   const active = tab ?? singletons[0]?.name ?? 'mail'
   // The site settings (the single document with the site's name) open as the Sito page; their
@@ -66,6 +68,7 @@ export function SettingsScreen({ tab }: { tab?: string }) {
       items: [
         { value: 'mail', label: t('Email') },
         { value: 'messages', label: t('Messaggi'), badge: unread },
+        { value: 'comments', label: t('Commenti'), badge: pending },
       ],
     },
     {
@@ -168,6 +171,8 @@ export function SettingsScreen({ tab }: { tab?: string }) {
                 <LanguagesSettings />
               ) : active === 'messages' ? (
                 <Messages canDelete={user.role === 'admin'} />
+              ) : active === 'comments' ? (
+                <Discussion />
               ) : active === 'seo' ? (
                 <SeoSettings editable={user.role === 'admin'} />
               ) : user.role === 'admin' ? (

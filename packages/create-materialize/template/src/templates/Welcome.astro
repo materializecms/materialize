@@ -1,5 +1,11 @@
 ---
-/** The home until a page with the address "home" is published: in Materialize's own look. */
+/**
+ * The home until a page with the address "home" is published: in Materialize's own look, and in
+ * the site's main language (Italian, or English for every other one).
+ */
+import { getLocales } from '@materializecms/astro/content'
+
+const it = (await getLocales()).default.startsWith('it')
 ---
 
 <main class="welcome">
@@ -22,17 +28,37 @@
         <rect x="52" y="52" width="10" height="10" rx="2.6"></rect>
       </g>
     </svg>
-    <h1>Qui nascerà il sito.</h1>
-    <p>
-      Entra nel pannello e crea una pagina con indirizzo <code>home</code>: appena la pubblichi, comparirà
-      qui.
-    </p>
-    <a class="button" href="/admin/">Apri il pannello</a>
-    <p class="note">
-      Prima volta? Il pannello chiede il link di installazione che il server ha scritto all’avvio: con Docker lo
-      mostra <code>docker compose logs materialize</code>, oppure
-      <code>docker logs materialize</code> con Docker Desktop.
-    </p>
+    {
+      it ? (
+        <>
+          <h1>Qui nascerà il sito.</h1>
+          <p>
+            Entra nel pannello e crea una pagina con indirizzo <code>home</code>: appena la pubblichi, comparirà
+            qui.
+          </p>
+          <a class="button" href="/admin/">Apri il pannello</a>
+          <p class="note">
+            Prima volta? Il pannello chiede il link di installazione che il server ha scritto all’avvio: con Docker
+            lo mostra <code>docker compose logs materialize</code>, oppure <code>docker logs materialize</code> con
+            Docker Desktop.
+          </p>
+        </>
+      ) : (
+        <>
+          <h1>Your site will grow here.</h1>
+          <p>
+            Open the panel and create a page with the address <code>home</code>: as soon as you publish it, it shows
+            here.
+          </p>
+          <a class="button" href="/admin/">Open the panel</a>
+          <p class="note">
+            First time? The panel asks for the installation link the server printed when it started: with Docker,{' '}
+            <code>docker compose logs materialize</code> shows it, or <code>docker logs materialize</code> with Docker
+            Desktop.
+          </p>
+        </>
+      )
+    }
   </div>
 </main>
 

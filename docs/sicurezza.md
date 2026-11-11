@@ -1,8 +1,10 @@
+[English](security.md) · **Italiano**
+
 # Mettere online Materialize in sicurezza
 
 Materialize protegge da solo il pannello:
 - limiti agli accessi falliti, per email e per indirizzo;
-- verifica in due passaggi;
+- verifica in due passaggi e passkey;
 - regole di sicurezza del browser (CSP) sul pannello;
 - registro delle attività;
 - backup giornalieri del database.
@@ -19,7 +21,7 @@ Il pannello va servito solo in HTTPS, altrimenti password e sessioni viaggiano i
 - **Caddy** davanti a Materialize: ottiene e rinnova da solo i certificati di Let's Encrypt.
 - **Cloudflare** (vedi sotto): imposta la cifratura su _Full (strict)_, non su _Flexible_.
 
-Nella configurazione indica l'indirizzo pubblico, che serve anche per SEO e sitemap:
+Nella configurazione indica l'indirizzo pubblico, che serve anche per SEO, sitemap e passkey:
 
 ```ts
 site: { name: 'Studio Rossi', url: 'https://www.example.com' },
@@ -43,6 +45,8 @@ export default defineConfig({
 - **Senza proxy e `trustProxy` acceso**, chiunque può scrivere un indirizzo falso nell'intestazione e aggirare quei limiti.
 
 Impostazioni → Sicurezza avvisa in entrambi i casi.
+
+Ogni proxy aggiunge in fondo all'intestazione l'indirizzo che ha visto, e quello che viene prima lo può scrivere chiunque: Materialize lo legge da destra. Con un solo proxy (Docker con Caddy, il VPS, Nginx) basta `true`; con due proxy in fila, per esempio Cloudflare davanti a Caddy, indica `trustProxy: 2` (o `MATERIALIZE_TRUST_PROXY=2`).
 
 ### Nginx
 
@@ -108,7 +112,7 @@ La porta di Materialize (4321) non deve essere raggiungibile da fuori: ci arriva
 
 ## 5. Persone e accessi
 
-- Attiva la **verifica in due passaggi** per te (Il tuo profilo → Sicurezza). Poi richiedila a tutti, da **Persone**.
+- Attiva la **verifica in due passaggi** per te, oppure aggiungi una **passkey** (Il tuo profilo → Sicurezza). Poi richiedila a tutti, da **Persone**: una passkey vale come secondo passaggio.
 - Configura l'**invio delle email** (Impostazioni → Email). Così le persone ricevono gli avvisi di tentativi falliti e di cambi di indirizzo, e i link per una nuova password arrivano da soli.
 - Dai il ruolo di amministratore solo a chi deve gestire persone, impostazioni e codice personalizzato. A tutti gli altri basta quello di redattore.
 - Ogni tanto guarda Impostazioni → Registro attività, e i token in Impostazioni → AI e MCP: revoca quelli che non servono più.
@@ -120,7 +124,7 @@ Ogni giorno il server salva nella cartella `backups`, accanto al database (per e
 - **una copia del database**. Tiene le ultime 14 copie; il numero si cambia in Impostazioni → Backup;
 - **una copia delle immagini** in `backups/media`. Aggiunge solo i file nuovi, perché un originale caricato non cambia mai. Le versioni ridimensionate non servono: il server le rifà. Un'immagine eliminata dalla libreria resta nella copia almeno 30 giorni, e comunque finché c'è un backup del database più vecchio dell'eliminazione.
 
-Queste copie stanno sullo stesso server: se il server si rompe, si perdono con lui. La soluzione consigliata è la **copia fuori dal server**, in Impostazioni → Sicurezza → Backup: ogni notte i backup vanno, cifrati, su uno spazio S3 compatibile o in una cartella WebDAV. Come attivarla e come rimettere i backup è spiegato nella [guida](guida/12-aggiornamenti-e-backup.md#copia-fuori-dal-server).
+Queste copie stanno sullo stesso server: se il server si rompe, si perdono con lui. La soluzione consigliata è la **copia fuori dal server**, in Impostazioni → Backup: ogni notte i backup vanno, cifrati, su uno spazio S3 compatibile o in una cartella WebDAV. Come attivarla e come rimettere i backup è spiegato nella [guida](guida/12-aggiornamenti-e-backup.md#copia-fuori-dal-server).
 
 C'è anche **Scarica tutto**: un unico archivio `.tar.gz` con il database, tutte le immagini originali e i caratteri. Si prepara mentre lo scarichi, quindi non occupa spazio sul server anche con molti GB. Tienine una copia altrove, per esempio sul tuo computer o in un cloud.
 
@@ -141,7 +145,7 @@ npx materialize restore .materialize/backups/content-20261030-031500-auto.db
 npx materialize restore ~/Scaricati/materialize-2026-10-30.tar.gz
 ```
 
-Prima di sostituirlo, il database attuale viene salvato a sua volta tra i backup. Così anche un ripristino si può annullare. L'archivio serve anche per spostare il sito su un altro server: installa Materialize, copia il progetto, poi `restore` dell'archivio.
+Prima di sostituirlo, il database attuale viene salvato a sua volta tra i backup. Così anche un ripristino si può annullare. L'archivio serve anche per spostare il sito su un altro server: installa Materialize e, nella prima schermata dell'installazione, carica l'archivio; oppure, su un sito già installato, Impostazioni → Backup → Ripristina da un archivio. Il server controlla l'archivio (completo, di Materialize, non di una versione più nuova) prima di sostituire qualcosa. Il caricamento è riservato agli amministratori, o a chi ha il link di installazione.
 
 Con un database ospitato (Turso, libSQL), i backup del database li fa il fornitore: controlla che siano attivi nel suo pannello. L'archivio completo contiene comunque immagini e caratteri.
 
@@ -153,20 +157,22 @@ Con un database ospitato (Turso, libSQL), i backup del database li fa il fornito
 
 ## Cosa fa già Materialize
 
-| Protezione                                                                                                 | Dove                         |
-| ---------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Password cifrate con scrypt                                                                                | sempre                       |
-| Pausa dopo 5 errori per email e 20 per indirizzo, che raddoppia fino a un'ora                              | sempre, salvata nel database |
-| Verifica in due passaggi (app di autenticazione) e codici di riserva                                       | Il tuo profilo → Sicurezza   |
-| Sessioni che scadono dopo 14 giorni di inattività, elenco dei dispositivi                                  | Il tuo profilo → Sicurezza   |
-| Avvisi per email: tentativi falliti, cambi di indirizzo, verifica disattivata                              | con l'email configurata      |
-| Regole del browser (CSP) sul pannello: niente script estranei, dati inviati solo al proprio server         | sempre                       |
-| Protezione CSRF, cookie di sessione `HttpOnly` e `SameSite`                                                | sempre                       |
-| Codice personalizzato solo dagli amministratori, in anteprima isolata                                      | sempre                       |
-| Script di statistica e marketing fermi fino al consenso del visitatore                                     | Impostazioni → Tracciamento  |
-| Immagini ricaricate e riconvertite; indirizzi interni bloccati quando si importa un'immagine da un URL     | sempre                       |
-| Pagine salvate ripulite prima di diventare HTML: niente script da tag, CSS, componenti o SVG               | sempre                       |
-| Webhook dei moduli solo verso indirizzi pubblici (`MATERIALIZE_PRIVATE_WEBHOOKS=1` per un servizio locale) | sempre                       |
-| Limite di dimensione delle richieste e dei messaggi dei moduli per indirizzo                               | sempre                       |
-| Registro delle attività, conservato un anno                                                                | Impostazioni → Sicurezza     |
-| Backup giornalieri del database                                                                            | Impostazioni → Sicurezza     |
+| Protezione                                                                                                 | Dove                             |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Password cifrate con scrypt                                                                                | sempre                           |
+| Pausa dopo 5 errori per email e 20 per indirizzo, che raddoppia fino a un'ora                              | sempre, salvata nel database     |
+| Verifica in due passaggi (app di autenticazione) e codici di riserva                                       | Il tuo profilo → Sicurezza       |
+| Passkey (Face ID, Touch ID, Windows Hello, chiavi di sicurezza), legate all'indirizzo del sito             | Il tuo profilo → Sicurezza       |
+| Sessioni che scadono dopo 14 giorni di inattività, elenco dei dispositivi                                  | Il tuo profilo → Sicurezza       |
+| Avvisi per email: tentativi falliti, cambi di indirizzo, verifica disattivata                              | con l'email configurata          |
+| Regole del browser (CSP) sul pannello: niente script estranei, dati inviati solo al proprio server         | sempre                           |
+| Protezione CSRF, cookie di sessione `HttpOnly` e `SameSite`                                                | sempre                           |
+| Codice personalizzato solo dagli amministratori, in anteprima isolata                                      | sempre                           |
+| Script di statistica e marketing fermi fino al consenso del visitatore                                     | Impostazioni → Tracciamento      |
+| Immagini ricaricate e riconvertite; indirizzi interni bloccati quando si importa un'immagine da un URL     | sempre                           |
+| Pagine salvate ripulite prima di diventare HTML: niente script da tag, CSS, componenti o SVG               | sempre                           |
+| Webhook dei moduli solo verso indirizzi pubblici (`MATERIALIZE_PRIVATE_WEBHOOKS=1` per un servizio locale) | sempre                           |
+| Commenti dei visitatori: antispam senza CAPTCHA, approvazione prima di comparire, nessun IP salvato        | Impostazioni → Commenti          |
+| Limite di dimensione delle richieste e dei messaggi dei moduli per indirizzo                               | sempre                           |
+| Registro delle attività, conservato un anno                                                                | Impostazioni → Registro attività |
+| Backup giornalieri del database                                                                            | Impostazioni → Backup            |

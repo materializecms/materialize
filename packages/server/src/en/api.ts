@@ -138,8 +138,9 @@ export const api: Record<string, string> = {
     '{name} invited you to work on the site with Materialize.',
   'Apri questo link per scegliere la tua password ed entrare:': 'Open this link to choose your password and sign in:',
   'Verifica in due passaggi disattivata': 'Two-step verification turned off',
-  '{name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.':
-    '{name} turned off two-step verification on your account: signing in to the panel now takes only the password.',
+  '{name} ha disattivato la verifica in due passaggi e tolto le passkey del tuo account: per entrare nel pannello ora basta la password.':
+    '{name} turned off two-step verification and removed the passkeys on your account: signing in to the panel now takes only the password.',
+  Passkey: 'Passkey',
   'Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.':
     'Turn it back on in your profile as soon as you can. If you did not expect this, tell an administrator.',
   'È stata chiesta una nuova password per il tuo account. Il link vale 24 ore:':
@@ -250,4 +251,29 @@ export const api: Record<string, string> = {
   // Pieces of saved messages (a release that did not go out)
   '{list}': '{list}',
   '{title}: {message}': '{title}: {message}',
+  'Scrivi il tuo nome': 'Write your name',
+  'Email non valida': 'Invalid email',
+  'Scrivi un commento (al massimo {n} caratteri)': 'Write a comment (at most {n} characters)',
+  'Commento ripetuto': 'Repeated comment',
+  'Nuovo commento su «{title}»': 'New comment on “{title}”',
+  'Lo approvi in Impostazioni → Commenti: finché non lo fai, non compare sul sito.':
+    'Approve it in Settings → Comments: until you do, it doesn’t show on the site.',
+  'È già pubblicato. Lo togli da Impostazioni → Commenti.':
+    'It’s already published. You can remove it in Settings → Comments.',
+  'In sviluppo il ripristino si fa da terminale, con materialize restore.':
+    'In development, restore from the terminal with materialize restore.',
+  'L’archivio è troppo grande.': 'The archive is too large.',
+  'L’archivio è troppo grande una volta aperto.': 'The archive is too large once unpacked.',
+  'Questo file non è un archivio completo: scaricalo di nuovo con «Scarica tutto».':
+    'This file isn’t a complete archive: download it again with “Download everything”.',
+  'Questo archivio non viene da Materialize: manca materialize.json.':
+    'This archive doesn’t come from Materialize: materialize.json is missing.',
+  'L’archivio viene da Materialize {version}: aggiorna prima questo sito almeno a quella versione.':
+    'The archive comes from Materialize {version}: first update this site to at least that version.',
+  'Il database dentro l’archivio è rovinato.': 'The database inside the archive is damaged.',
+  'L’archivio non contiene il database del sito.': 'The archive doesn’t contain the site’s database.',
+  'Il caricamento si è interrotto: riprova.': 'The upload was interrupted: try again.',
+  'Nessun file ricevuto': 'No file received',
+  'Il codice personalizzato e i destinatari dei moduli si cambiano dal pannello, non con un token':
+    'Custom code and form recipients are changed from the panel, not with a token',
 }

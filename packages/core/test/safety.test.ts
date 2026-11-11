@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { sanitizeSvg } from '../src/icons.ts'
-import { type Component, expandComponents, type PageNode, renderPage } from '../src/page.ts'
+import { type Component, expandComponents, type PageNode, renderPage, renderSections, safeHref } from '../src/page.ts'
 
 /** Saved pages are written by editors, an AI or an import: nothing in them may become markup or script. */
 describe('saved pages render safely', () => {
@@ -87,5 +87,34 @@ describe('custom SVG', () => {
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/></linearGradient></defs><g fill="url(#g)"><path d="M12 2L2 22h20z" stroke-width="2"/><circle cx="12" cy="12" r="3"/></g></svg>'
     expect(sanitizeSvg(svg)).toBe(svg)
     expect(sanitizeSvg('not an svg')).toBe('')
+  })
+})
+
+describe('values written straight into the page', () => {
+  const sec = (children: PageNode[]): PageNode[] => [{ id: 's', type: 'frame', children }]
+  it('cannot open attributes, styles or scripts', () => {
+    const { html } = renderSections(
+      sec([
+        { id: 'i', type: 'input', text: 'x', inputKind: 'x" autofocus onfocus="alert(1)' as never },
+        { id: 'f', type: 'frame', bgImage: { src: '/m.jpg', alt: '' }, bgDim: '1)}</style><script>alert(2)' as never },
+        { id: 'm', type: 'frame', marquee: { duration: '1s}body{display:none' as never }, children: [] },
+        { id: 'l', type: 'input', text: 'f', inputKind: 'file', accept: 'nope' as never },
+      ]),
+    )
+    expect(html).not.toMatch(/onfocus|alert|display:none/)
+    expect(html).toContain('type="text"')
+  })
+
+  it('links: no javascript, however it is written', () => {
+    for (const h of [
+      'java\tscript:alert(1)',
+      'java\nscript:alert(1)',
+      '\u0001javascript:alert(1)',
+      ' JavaScript:x',
+      'data:text/html,x',
+    ])
+      expect(safeHref(h)).toBe('#')
+    for (const h of ['/chi-siamo', 'https://example.com', 'mailto:a@example.com', 'tel:+39', '#sezione', 'pagina'])
+      expect(safeHref(h)).toBe(h)
   })
 })

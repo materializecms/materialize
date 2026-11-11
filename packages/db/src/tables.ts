@@ -63,6 +63,8 @@ export const users = sqliteTable('users', {
   recoveryCodes: text('recovery_codes', { mode: 'json' }).$type<string[]>(),
   /** The panel's language for this person ("it", "en"); null: the browser's. */
   locale: text('locale'),
+  /** How many passkeys this person has: kept by the auth store, read on every request. */
+  passkeyCount: integer('passkey_count').notNull().default(0),
 })
 
 /** Only a SHA-256 hash of each session token is stored. */
@@ -198,6 +200,63 @@ export const apiTokens = sqliteTable(
     lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
   },
   (t) => [index('api_tokens_user').on(t.userId)],
+)
+
+/**
+ * Comments that visitors write under articles (not the editor's notes, which are `comments`).
+ * Public: name and text. Private: the email, for the site's owner only. No IP address is kept.
+ */
+export const visitorComments = sqliteTable(
+  'visitor_comments',
+  {
+    id: text('id').primaryKey(),
+    collection: text('collection').notNull(),
+    documentId: text('document_id').notNull(),
+    /** The article's title when the comment arrived, for the moderation list. */
+    title: text('title').notNull().default(''),
+    locale: text('locale').notNull(),
+    /** The page's address (/articoli/il-primo): what the site asks comments for. */
+    path: text('path').notNull(),
+    name: text('name').notNull(),
+    email: text('email'),
+    text: text('text').notNull(),
+    status: text('status', { enum: ['pending', 'approved', 'spam'] }).notNull(),
+    /** Why it looks like spam, in words; null otherwise. */
+    spam: text('spam'),
+    /** Hash of what was written: the same comment twice in a day is spam. */
+    fingerprint: text('fingerprint'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    index('visitor_comments_document').on(t.documentId, t.locale, t.status, t.createdAt),
+    index('visitor_comments_status').on(t.status, t.createdAt),
+    index('visitor_comments_fingerprint').on(t.fingerprint),
+  ],
+)
+
+/**
+ * Passkeys (WebAuthn): a key pair made by a phone, a computer or a security key. Only the public
+ * key is stored; the private one never leaves the device.
+ */
+export const passkeys = sqliteTable(
+  'passkeys',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** The credential ID the browser sends back when signing in (base64url). */
+    credentialId: text('credential_id').notNull().unique(),
+    /** COSE public key (base64url). */
+    publicKey: text('public_key').notNull(),
+    /** The signature counter: a value that goes back means a cloned key. */
+    counter: integer('counter').notNull(),
+    transports: text('transports', { mode: 'json' }).$type<string[]>(),
+    name: text('name').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    lastUsedAt: integer('last_used_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('passkeys_user').on(t.userId)],
 )
 
 /**
@@ -624,5 +683,42 @@ export const MIGRATIONS: string[][] = [
     )`,
     'CREATE UNIQUE INDEX IF NOT EXISTS newsletter_sends_pair ON newsletter_sends (newsletter_id, subscriber_id)',
     'CREATE INDEX IF NOT EXISTS newsletter_sends_status ON newsletter_sends (newsletter_id, status)',
+  ],
+  // Passkeys, and how many each person has.
+  [
+    `CREATE TABLE IF NOT EXISTS passkeys (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      credential_id TEXT NOT NULL UNIQUE,
+      public_key TEXT NOT NULL,
+      counter INTEGER NOT NULL,
+      transports TEXT,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      last_used_at INTEGER
+    )`,
+    'CREATE INDEX IF NOT EXISTS passkeys_user ON passkeys (user_id)',
+    'ALTER TABLE users ADD COLUMN passkey_count INTEGER NOT NULL DEFAULT 0',
+  ],
+  // Visitors' comments under articles.
+  [
+    `CREATE TABLE IF NOT EXISTS visitor_comments (
+      id TEXT PRIMARY KEY,
+      collection TEXT NOT NULL,
+      document_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      locale TEXT NOT NULL,
+      path TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT,
+      text TEXT NOT NULL,
+      status TEXT NOT NULL,
+      spam TEXT,
+      fingerprint TEXT,
+      created_at INTEGER NOT NULL
+    )`,
+    'CREATE INDEX IF NOT EXISTS visitor_comments_document ON visitor_comments (document_id, locale, status, created_at)',
+    'CREATE INDEX IF NOT EXISTS visitor_comments_status ON visitor_comments (status, created_at)',
+    'CREATE INDEX IF NOT EXISTS visitor_comments_fingerprint ON visitor_comments (fingerprint)',
   ],
 ]

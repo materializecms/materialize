@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Download, Laptop, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
+import { Check, Copy, Download, KeyRound, Laptop, Monitor, ShieldCheck, Smartphone } from 'lucide-react'
 import qrcode from 'qrcode-generator'
 import { type FormEvent, useMemo, useState } from 'react'
 import { Button, cx, Input, Spinner, toast } from '../components/ui.tsx'
 import { type AccountSecurity, ApiError, api } from '../lib/api.ts'
 import { relativeTime } from '../lib/format.ts'
 import { t, tn, tx } from '../lib/i18n.ts'
+import { cancelled, createPasskey, passkeysSupported } from '../lib/passkey.ts'
 
 /** The QR code an authenticator app scans, drawn as SVG on white (phones read it in dark mode too). */
 function QrCode({ value, size = 168 }: { value: string; size?: number }) {
@@ -237,6 +238,118 @@ function PasswordStep({
   )
 }
 
+/** The password again, then the device makes the passkey: in the profile, and where the site requires a second step. */
+export function AddPasskeyStep({ onCancel, onDone }: { onCancel: () => void; onDone: () => Promise<void> | void }) {
+  return (
+    <PasswordStep
+      label={t('Continua')}
+      onCancel={onCancel}
+      onConfirm={async (password) => {
+        const start = await api.passkeyOptions(password)
+        try {
+          const response = await createPasskey(start.options)
+          await api.addPasskey({ ticket: start.ticket, response, name: deviceName(navigator.userAgent).label })
+        } catch (err) {
+          if (!cancelled(err)) throw err
+          onCancel()
+          return
+        }
+        toast(t('Passkey aggiunta: la prossima volta entri con questa'))
+        await onDone()
+      }}
+    />
+  )
+}
+
+/**
+ * Passkeys: signing in with Face ID, Touch ID or the device's PIN. Nothing to type, nothing a fake
+ * site can take: the device signs only for this site's address.
+ */
+function Passkeys({ data, onChange }: { data: AccountSecurity; onChange: () => Promise<void> }) {
+  const [adding, setAdding] = useState(false)
+  const supported = passkeysSupported()
+  const count = data.passkeys.length
+  return (
+    <section className="rounded-2xl bg-panel2 p-3.5">
+      <div className="flex items-center gap-2.5">
+        <KeyRound className={cx('size-4.5 shrink-0', count ? 'text-ok' : 'text-fg3')} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-medium">{t('Passkey')}</div>
+          <div className="text-[13px] text-fg3">
+            {count
+              ? tn(count, 'Una passkey: entri senza password', '{n} passkey: entri senza password')
+              : t(
+                  'Entri con Face ID, Touch ID o il PIN del dispositivo: niente da digitare, e un sito falso non può rubarla.',
+                )}
+          </div>
+        </div>
+        {supported && data.passkeysAvailable && !adding && (
+          <Button size="sm" variant={count ? 'secondary' : 'primary'} onClick={() => setAdding(true)}>
+            {t('Aggiungi')}
+          </Button>
+        )}
+      </div>
+      {!supported ? (
+        <p className="mt-2 text-[13px] text-fg3">{t('Questo browser non supporta le passkey.')}</p>
+      ) : (
+        !data.passkeysAvailable && (
+          <p className="mt-2 text-[13px] text-fg3">
+            {t('Le passkey richiedono l’indirizzo del sito sul server (MATERIALIZE_SITE_URL o site.url).')}
+          </p>
+        )
+      )}
+      {adding && (
+        <AddPasskeyStep
+          onCancel={() => setAdding(false)}
+          onDone={async () => {
+            setAdding(false)
+            await onChange()
+          }}
+        />
+      )}
+      {count > 0 && (
+        <ul className="mt-3 divide-y divide-line overflow-hidden rounded-xl border border-line">
+          {data.passkeys.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-medium">{p.name}</div>
+                <div className="text-[12px] text-fg3">
+                  {p.lastUsedAt
+                    ? t('Usata {when}', { when: relativeTime(p.lastUsedAt) })
+                    : t('Aggiunta {when}, non ancora usata', { when: relativeTime(p.createdAt) })}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="hover:text-danger"
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      t('Togliere la passkey «{name}»? Su quel dispositivo non servirà più per entrare.', {
+                        name: p.name,
+                      }),
+                    )
+                  )
+                    return
+                  try {
+                    await api.removePasskey(p.id)
+                    toast(t('Passkey tolta'))
+                    await onChange()
+                  } catch (err) {
+                    toast((err as Error).message, 'error')
+                  }
+                }}
+              >
+                {t('Togli')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 /** Profilo → Sicurezza: two-step verification and the devices signed in. */
 export function SecurityPanel() {
   const queryClient = useQueryClient()
@@ -318,7 +431,7 @@ export function SecurityPanel() {
               <Button size="sm" onClick={() => setMode('recovery')}>
                 {t('Nuovi codici di riserva')}
               </Button>
-              {data.required ? (
+              {data.required && !data.passkeys.length ? (
                 <span className="self-center text-[13px] text-fg3">{t('Il sito la richiede a tutti.')}</span>
               ) : (
                 <Button size="sm" className="hover:text-danger" onClick={() => setMode('disable')}>
@@ -329,6 +442,8 @@ export function SecurityPanel() {
           )
         )}
       </section>
+
+      <Passkeys data={data} onChange={refresh} />
 
       <section>
         <div className="mb-2 flex items-center">

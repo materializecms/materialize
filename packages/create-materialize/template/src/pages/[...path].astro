@@ -1,6 +1,7 @@
 ---
+import Comments from '@materializecms/astro/components/Comments.astro'
 import Page from '@materializecms/astro/components/Page.astro'
-import { type Entry, getRoutes, getTemplate } from '@materializecms/astro/content'
+import { type Entry, getLocales, getRoutes, getTemplate } from '@materializecms/astro/content'
 import Site from '../layouts/Site.astro'
 import Article from '../templates/Article.astro'
 import Welcome from '../templates/Welcome.astro'
@@ -16,13 +17,15 @@ export async function getStaticPaths() {
 const { entry } = Astro.props as { entry: Entry | null }
 // Pages are drawn on the canvas. Other documents, such as articles, take the look of the page
 // chosen as their collection's template (Modello → Articoli); without one, a plain readable page.
+// Below them, visitors' comments where Impostazioni → Commenti turns them on.
 const canvas = Array.isArray(entry?.data.page)
 const template = entry && !canvas ? await getTemplate(entry.collection, entry.locale) : null
+const welcome = (await getLocales()).default.startsWith('it') ? 'Benvenuto' : 'Welcome'
 ---
 
 {
   !entry ? (
-    <Site title="Benvenuto">
+    <Site title={welcome}>
       <Welcome />
     </Site>
   ) : canvas ? (
@@ -32,10 +35,12 @@ const template = entry && !canvas ? await getTemplate(entry.collection, entry.lo
   ) : template ? (
     <Site title={entry.title} entry={entry}>
       <Page sections={template} entry={entry} document={entry} main />
+      <Comments entry={entry} />
     </Site>
   ) : (
     <Site title={entry.title} entry={entry}>
       <Article entry={entry} />
+      <Comments entry={entry} />
     </Site>
   )
 }

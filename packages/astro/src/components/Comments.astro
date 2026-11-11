@@ -1,0 +1,203 @@
+---
+/**
+ * Visitors' comments under an article: the approved ones, loaded by the browser, and a form to
+ * write one (it works without JavaScript too). Nothing shows when the entry's collection has no
+ * comments (Impostazioni → Commenti). Colors and fonts follow the page around it.
+ *
+ *   <Comments entry={entry} />
+ */
+import { DISCUSSION_LIMITS, discussionTexts } from '@materializecms/core/discussion'
+import { palette } from '@materializecms/core/page'
+import { type Entry, getTheme, hasComments } from '../content.ts'
+
+interface Props {
+  entry: Entry
+  class?: string
+}
+
+const { entry, class: className } = Astro.props
+const on = entry.url ? await hasComments(entry.collection) : false
+const texts = discussionTexts(entry.locale)
+const id = `mz-comments-${entry.id.slice(0, 8)}`
+// The button takes the theme's accent, like the site's own buttons.
+const colors = on ? palette(await getTheme()) : null
+const style = colors ? `--mz-accent:${colors.accent};--mz-on-accent:${colors.onAccent}` : undefined
+---
+
+{
+  on && (
+    <section
+      class:list={['mz-comments', className]}
+      aria-labelledby={id}
+      style={style}
+      data-mz-comments={entry.url}
+      data-mz-texts={JSON.stringify(texts)}
+    >
+      <h2 id={id}>
+        {texts.title} <span data-mz-comment-count />
+      </h2>
+      <div data-mz-comment-list aria-live="polite">
+        <noscript>
+          <p class="mz-comments-empty">{texts.noScript}</p>
+        </noscript>
+      </div>
+      <form action="/api/discussion" method="post" class="mz-comments-form">
+        <h3>{texts.write}</h3>
+        <input type="hidden" name="path" value={entry.url} />
+        {/* A field people never see: bots fill it in. */}
+        <label class="mz-comments-trap" aria-hidden="true">
+          Website <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" />
+        </label>
+        <div class="mz-comments-row">
+          <label>
+            <span>{texts.name}</span>
+            <input type="text" name="name" required maxlength={DISCUSSION_LIMITS.name} autocomplete="name" />
+          </label>
+          <label>
+            <span>
+              {texts.email} <small>{texts.emailHint}</small>
+            </span>
+            <input type="email" name="email" maxlength={DISCUSSION_LIMITS.email} autocomplete="email" />
+          </label>
+        </div>
+        <label>
+          <span>{texts.text}</span>
+          <textarea name="text" required rows="5" maxlength={DISCUSSION_LIMITS.text} />
+        </label>
+        <p class="mz-comments-privacy">{texts.privacy}</p>
+        <p data-mz-comment-message role="status" hidden />
+        <button type="submit">{texts.send}</button>
+      </form>
+    </section>
+  )
+}
+
+<script>
+  import { startComments } from '@materializecms/core/discussion'
+  startComments()
+</script>
+
+<style>
+  .mz-comments {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(32px, 6vw, 64px) 24px clamp(64px, 10vw, 112px);
+    border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  }
+  .mz-comments h2 {
+    margin: 0;
+    font-family: var(--mz-display, inherit);
+    font-size: clamp(24px, 3.4vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .mz-comments h2 [data-mz-comment-count] {
+    margin-left: 6px;
+    font-size: 0.55em;
+    font-weight: 500;
+    opacity: 0.55;
+  }
+  .mz-comments :global(.mz-comment) {
+    padding: 20px 0;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  }
+  .mz-comments :global(.mz-comment header) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .mz-comments :global(.mz-comment time) {
+    font-size: 14px;
+    opacity: 0.55;
+  }
+  .mz-comments :global(.mz-comment p) {
+    margin: 8px 0 0;
+    line-height: 1.65;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .mz-comments :global(.mz-comments-empty) {
+    margin: 16px 0 0;
+    opacity: 0.6;
+  }
+  .mz-comments-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 40px;
+  }
+  .mz-comments-form h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .mz-comments-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .mz-comments-form label {
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .mz-comments-form small {
+    font-weight: 400;
+    opacity: 0.6;
+  }
+  .mz-comments-form input,
+  .mz-comments-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 16px;
+  }
+  .mz-comments-form textarea {
+    resize: vertical;
+  }
+  .mz-comments-form input:focus-visible,
+  .mz-comments-form textarea:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+  }
+  .mz-comments-form [aria-invalid='true'] {
+    border-color: #d33;
+  }
+  .mz-comments-trap {
+    position: absolute;
+    left: -9999px;
+  }
+  .mz-comments-privacy {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.6;
+  }
+  .mz-comments-form [data-mz-comment-message] {
+    margin: 0;
+    font-size: 15px;
+  }
+  .mz-comments-form [data-failed='true'] {
+    color: #d33;
+  }
+  .mz-comments-form button {
+    justify-self: start;
+    padding: 11px 22px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--mz-accent, currentColor);
+    color: var(--mz-on-accent, #fff);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mz-comments-form button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+</style>

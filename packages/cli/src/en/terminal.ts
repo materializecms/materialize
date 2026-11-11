@@ -130,4 +130,12 @@ export const terminal: Record<string, string> = {
   'Controllo la nuova versione': 'Checking the new version',
   'Installata la {installed} invece della {version}': 'Installed {installed} instead of {version}',
   'Non c’è una versione precedente a cui tornare': 'There is no previous version to go back to',
+  'In sviluppo (materialize dev) il ripristino si fa da terminale, con materialize restore.':
+    'In development (materialize dev), restore from the terminal with materialize restore.',
+  'Il server è avviato senza il suo supervisore: ripristina da terminale con materialize restore, oppure avvialo con materialize start.':
+    'The server was started without its supervisor: restore from the terminal with materialize restore, or start it with materialize start.',
+  'Ripristino l’archivio caricato dal pannello…': 'Restoring the archive uploaded from the panel…',
+  'Archivio ripristinato': 'Archive restored',
+  'Il ripristino non è riuscito: {error}': 'The restore failed: {error}',
+  'Il ripristino si è interrotto a metà.': 'The restore stopped halfway.',
 }

@@ -39,12 +39,15 @@ export function withEnvironment(config: MaterializeConfig, env = process.env): M
     server: {
       ...config.server,
       port: Number.isInteger(port) && port > 0 ? port : config.server.port,
+      // MATERIALIZE_TRUST_PROXY: 1 or true for one proxy, 2 or more for proxies in a row, 0 or false for none.
       trustProxy:
         trust === '1' || trust === 'true'
           ? true
           : trust === '0' || trust === 'false'
             ? false
-            : config.server.trustProxy,
+            : trust && /^\d+$/.test(trust)
+              ? Number(trust)
+              : config.server.trustProxy,
     },
   }
 }

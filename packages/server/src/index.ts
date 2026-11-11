@@ -23,6 +23,15 @@ export { createMcpServer, registerTools } from './mcp.ts'
 export { createMediaFiles, type MediaFiles } from './media.ts'
 export { decryptTree, type OffsiteSettings, parseRecoveryKey } from './offsite.ts'
 export { hashPassword, verifyPassword } from './password.ts'
+export {
+  ArchiveError,
+  applyArchive,
+  checkArchive,
+  movePending,
+  pendingRestore,
+  type RestoreResult,
+  type Restorer,
+} from './restore.ts'
 export { apiCaller, siteTools } from './tools.ts'
 
 /** Serves the public site: every request outside /api, /admin and /media goes here. */
@@ -44,6 +53,8 @@ export interface ServerOptions {
   site?: SiteHandler
   onPublish?: () => void
   updates?: Updates
+  /** Restoring a whole archive from the panel (materialize start). */
+  restore?: import('./restore.ts').Restorer
   /** Required by the installation in the browser while there is no account yet. */
   setupToken?: string
 }
@@ -104,6 +115,7 @@ export async function startServer(initial: MaterializeConfig, options: ServerOpt
     onPublish: options.onPublish,
     updates: options.updates,
     setupToken: options.setupToken,
+    restore: options.restore,
   })
   const api = getRequestListener(app.fetch)
   const site = options.site

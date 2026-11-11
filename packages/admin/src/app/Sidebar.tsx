@@ -21,6 +21,7 @@ import { cx, MenuItem, Popover, TintIcon, tintOf } from '../components/ui.tsx'
 import { api, type CollectionDescription } from '../lib/api.ts'
 import { intlLocale, t, tn } from '../lib/i18n.ts'
 import { href, navigate, type Route, useRoute } from '../lib/router.ts'
+import { usePendingComments } from '../settings/Discussion.tsx'
 import { useUpdateAvailable } from '../settings/UpdatesSettings.tsx'
 import { Logo } from './Auth.tsx'
 import { useSession } from './context.ts'
@@ -79,6 +80,7 @@ export function Sidebar() {
       queryFn: () => api.submissions({ status: 'unread', limit: 1 }),
       staleTime: 30_000,
     }).data?.unread ?? 0
+  const pending = usePendingComments()
   const countOf = (name: string) => overview.data?.counts.find((c) => c.collection === name)?.total
 
   return (
@@ -164,12 +166,19 @@ export function Sidebar() {
                 ? { name: 'settings', tab: 'updates' }
                 : unread
                   ? { name: 'settings', tab: 'messages' }
-                  : { name: 'settings' }
+                  : pending
+                    ? { name: 'settings', tab: 'comments' }
+                    : { name: 'settings' }
             }
             active={route.name === 'settings'}
             label={t('Impostazioni')}
-            badge={unread || undefined}
-            badgeLabel={tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi')}
+            badge={unread + pending || undefined}
+            badgeLabel={[
+              unread ? tn(unread, 'un messaggio nuovo', '{n} messaggi nuovi') : '',
+              pending ? tn(pending, 'un commento da approvare', '{n} commenti da approvare') : '',
+            ]
+              .filter(Boolean)
+              .join(', ')}
             note={update ? t('È disponibile Materialize {version}', { version: update }) : undefined}
           >
             <TintIcon color="#64748b" size="sm">

@@ -1534,12 +1534,18 @@ const PLACEHOLDER_ICON =
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-/** Only web addresses, site paths, anchors, email and phone links. */
-function safeHref(href: string | undefined): string {
-  const h = (href ?? '').trim()
+/**
+ * Only web addresses, site paths, anchors, email and phone links. Browsers drop tabs and line
+ * breaks anywhere in an address and control characters around it ("java\tscript:" is javascript:),
+ * so the scheme is read as they would read it.
+ */
+export function safeHref(href: string | undefined): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: the characters browsers ignore in URLs
+  const h = (href ?? '').replace(/[\t\n\r]/g, '').replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '')
   if (!h) return '#'
   if (/^(https?:|mailto:|tel:|\/|#|\?)/i.test(h)) return h
-  if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return '#'
+  // Anything else that reads as a scheme (javascript:, data:, vbscript:…) is refused.
+  if (/^[^/?#]*:/.test(h)) return '#'
   return h
 }
 
@@ -1941,7 +1947,22 @@ function cleanProps<P extends Partial<NodeProps>>(p: P): P {
   if (out.hover != null && !HOVERS.has(out.hover)) delete out.hover
   if (out.focal) out.focal = { x: Number(out.focal.x) || 0, y: Number(out.focal.y) || 0 }
   if (out.site != null && !(SITE_DETAILS as readonly string[]).includes(out.site)) delete out.site
+  // Values written straight into attributes and styles: only what the editor itself can produce.
+  if (out.inputKind != null && !INPUT_KINDS.has(out.inputKind)) delete out.inputKind
+  if (out.accept != null && !(out.accept in FILE_TYPES)) delete out.accept
+  if (out.bgDim != null) out.bgDim = clampNumber(out.bgDim, 0, 1, 0.45)
+  if (out.marquee) out.marquee = { ...out.marquee, duration: clampNumber(out.marquee.duration, 1, 600, 30) }
+  if (out.bind)
+    out.bind = { ...out.bind, limit: out.bind.limit == null ? undefined : clampNumber(out.bind.limit, 1, 100, 12) }
   return out
+}
+
+const INPUT_KINDS = new Set<string>(['text', 'email', 'tel', 'textarea', 'select', 'checkbox', 'file'])
+
+/** A number from saved data, held within bounds; anything else becomes the fallback. */
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
 }
 
 /**

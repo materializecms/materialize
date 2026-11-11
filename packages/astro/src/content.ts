@@ -1,4 +1,5 @@
 import type { Collection, Field, Fields, MaterializeConfig, Media } from '@materializecms/core'
+import { type DiscussionSettings, discussionCollections } from '@materializecms/core/discussion'
 import { mergeTranslation } from '@materializecms/core/i18n'
 import {
   type Component,
@@ -342,6 +343,13 @@ export async function blocksFieldOf(collection: string): Promise<string | undefi
 export async function getSiteSeo(): Promise<SiteSeo> {
   const { settings } = await getRuntime()
   return ((settings ? await settings.get('seo') : null) as SiteSeo | null) ?? {}
+}
+
+/** Whether a collection's pages take visitors' comments (Impostazioni → Commenti). */
+export async function hasComments(collection: string): Promise<boolean> {
+  const { config, settings } = await getRuntime()
+  const chosen = ((settings ? await settings.get('discussion') : null) as DiscussionSettings | null)?.collections
+  return discussionCollections(config().collections, chosen).includes(collection)
 }
 
 /** Old addresses and where they now live. */

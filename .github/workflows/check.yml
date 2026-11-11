@@ -1,6 +1,6 @@
 # Lint, types, tests and build on every change; known vulnerabilities in the dependencies every
 # week too, since new advisories appear without any change here.
-name: Controlli
+name: Checks
 
 on:
   push:

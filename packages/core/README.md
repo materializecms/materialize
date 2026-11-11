@@ -2,9 +2,9 @@
 
 # @materializecms/core
 
-Il modello dei contenuti di Materialize: raccolte, campi, validazione, libreria di sezioni, SEO.
+Materialize's content model: collections, fields, validation, section library, SEO.
 
-Qui si definisce lo schema del sito in `materialize.config.ts`, con `defineConfig`, `defineCollection` e i campi `f.*`. Contiene anche i tipi condivisi, la libreria di sezioni del costruttore di pagine, la SEO e le animazioni.
+This is where the site's schema is defined in `materialize.config.ts`, with `defineConfig`, `defineCollection` and the `f.*` fields. It also has the shared types, the page builder's section library, SEO and animations.
 
 ```ts
 import { defineCollection, defineConfig, f } from '@materializecms/core'
@@ -12,10 +12,10 @@ import { defineCollection, defineConfig, f } from '@materializecms/core'
 
 ## Materialize
 
-CMS open source con editor visuale: le pagine si disegnano sulla tela, il sito è fatto di file statici veloci. Per un nuovo sito (serve Node 24):
+An open-source CMS with a visual editor: pages are designed on a canvas, and the site is made of fast static files. The panel speaks English and Italian. For a new site (Node 24 or later):
 
 ```bash
 npm create materialize@latest
 ```
 
-Documentazione e codice: https://github.com/materializecms/materialize · Licenza MIT.
+Documentation and code: https://github.com/materializecms/materialize ([guide](https://github.com/materializecms/materialize/blob/main/docs/guide/README.md), [guida in italiano](https://github.com/materializecms/materialize/blob/main/docs/guida/README.md)) · MIT license.

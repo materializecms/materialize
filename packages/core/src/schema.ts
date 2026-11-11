@@ -83,9 +83,10 @@ export interface MaterializeConfig {
   media: { dir: string }
   /**
    * `trustProxy`: the site runs behind a proxy (Cloudflare, Nginx, the host's load balancer) that
-   * sets X-Forwarded-For; only then is that header used to know who is connecting.
+   * sets X-Forwarded-For; only then is that header used to know who is connecting. `true` is one
+   * proxy; a number is how many proxies in a row (Cloudflare in front of Caddy: 2).
    */
-  server: { port: number; trustProxy: boolean }
+  server: { port: number; trustProxy: boolean | number }
 }
 
 export interface ConfigInput {
@@ -94,7 +95,7 @@ export interface ConfigInput {
   locales?: Partial<Locales>
   database?: { url?: string; authToken?: string }
   media?: { dir?: string }
-  server?: { port?: number; trustProxy?: boolean }
+  server?: { port?: number; trustProxy?: boolean | number }
 }
 
 export class MaterializeConfigError extends Error {

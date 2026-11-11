@@ -2,20 +2,20 @@
 
 # create-materialize
 
-Crea un nuovo sito Materialize con un comando: npm create materialize@latest
+Create a new Materialize site with one command: npm create materialize@latest
 
 ```bash
 npm create materialize@latest
 ```
 
-Chiede la cartella, copia il sito di partenza e installa le dipendenze. Poi `npm run dev` e il pannello su http://localhost:4321/admin.
+It asks for the folder, copies the starter site and installs the dependencies. Then `npm run dev`, and the panel is at http://localhost:4321/admin.
 
 ## Materialize
 
-CMS open source con editor visuale: le pagine si disegnano sulla tela, il sito è fatto di file statici veloci. Per un nuovo sito (serve Node 24):
+An open-source CMS with a visual editor: pages are designed on a canvas, and the site is made of fast static files. The panel speaks English and Italian. For a new site (Node 24 or later):
 
 ```bash
 npm create materialize@latest
 ```
 
-Documentazione e codice: https://github.com/materializecms/materialize · Licenza MIT.
+Documentation and code: https://github.com/materializecms/materialize ([guide](https://github.com/materializecms/materialize/blob/main/docs/guide/README.md), [guida in italiano](https://github.com/materializecms/materialize/blob/main/docs/guida/README.md)) · MIT license.

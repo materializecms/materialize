@@ -31,7 +31,7 @@ This guide is for people who build and run sites with Materialize: agencies, fre
 
 ## For developers
 
-The content schema, the Astro site, blocks, the APIs and the development of Materialize itself are described in the [project README](../../README.md). To secure a server, see the [security guide](../sicurezza.md).
+The content schema, the Astro site, blocks, the APIs and the development of Materialize itself are described in the [project README](../../README.md). To secure a server, see the [security guide](../security.md).
 
 ## Two words that come up often
 

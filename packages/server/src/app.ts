@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -18,6 +18,7 @@ import {
   type ValidationIssue,
   validate,
 } from '@materializecms/core'
+import { DISCUSSION_LIMITS, type DiscussionSettings, discussionCollections } from '@materializecms/core/discussion'
 import {
   documentSlots,
   isLocaleCode,
@@ -65,6 +66,7 @@ import {
   createScheduleStore,
   createSettingsStore,
   createSubmissionStore,
+  createVisitorCommentStore,
   type Database,
   EmailTakenError,
   type MediaAsset,
@@ -141,8 +143,10 @@ import {
   runOffsite,
   testOffsite,
 } from './offsite.ts'
+import { createPasskeys, type PasskeySite } from './passkeys.ts'
 import { hashPassword, verifyPassword } from './password.ts'
 import { fetchPublicFile, RemoteError, remoteFetch } from './remote.ts'
+import { ArchiveError, checkArchive, type Restorer, receiveArchive } from './restore.ts'
 import { statusPage } from './status-page.ts'
 import { studioSystem, studioTools } from './studio.ts'
 import { t } from './t.ts'
@@ -390,6 +394,8 @@ export interface ServerContext {
    * fresh server first cannot claim it: `materialize start` prints the link that carries it.
    */
   setupToken?: string
+  /** Restoring a whole archive from the panel, when whoever started the server can apply it (materialize start). */
+  restore?: Restorer
   /**
    * Lets form webhooks post to this machine or its network (an n8n beside the site). Off by
    * default, since what visitors write is sent there; MATERIALIZE_PRIVATE_WEBHOOKS=1 turns it on.
@@ -586,16 +592,30 @@ export function createApp(base: ServerContext) {
   // Files sent with the site's forms: next to the database, never served by the public site.
   const uploadsDir = join(dirname(resolve(ctx.config().media.dir)), 'uploads')
   let formCache: { at: number; forms: Map<string, FormDefinition> } | null = null
+  /** Published pages that take comments, by address: built when first asked, dropped on every publish. */
+  let discussionIndex: Promise<Map<string, { def: Collection; doc: StoredDocument }>> | null = null
   /** The live site changed: rebuild it, and read its forms again. */
   const sitePublished = () => {
     formCache = null
+    discussionIndex = null
     ctx.onPublish?.()
   }
   const app = new Hono<Env>()
 
-  const guardEmbeds = (user: User, before: unknown, after: unknown) => {
-    if (user.role === 'admin') return
-    if (JSON.stringify(embedsOf(before).sort()) !== JSON.stringify(embedsOf(after).sort()))
+  /**
+   * Custom code and where form messages go: an administrator, from the panel. Not with a personal
+   * token, whoever owns it: a leaked token, or an AI client steered by what it reads, would otherwise
+   * put scripts on the site or send the forms elsewhere.
+   */
+  const guardEmbeds = (c: Context<Env>, before: unknown, after: unknown) => {
+    if (JSON.stringify(embedsOf(before).sort()) === JSON.stringify(embedsOf(after).sort())) return
+    if (c.get('viaToken'))
+      throw new ApiError(
+        403,
+        'embed_admin_only',
+        t('Il codice personalizzato e i destinatari dei moduli si cambiano dal pannello, non con un token'),
+      )
+    if (c.get('user').role !== 'admin')
       throw new ApiError(
         403,
         'embed_admin_only',
@@ -632,8 +652,16 @@ export function createApp(base: ServerContext) {
    * the site sits behind one (otherwise anyone could send that header and pretend).
    */
   const clientIp = (c: Context): string => {
-    if (ctx.config().server.trustProxy) {
-      const forwarded = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip')
+    const trust = ctx.config().server.trustProxy
+    if (trust) {
+      // Each proxy adds the address it saw at the end: what comes before can be written by anyone.
+      // So the address is read from the right, past the proxies the config trusts.
+      const hops = typeof trust === 'number' ? Math.max(1, Math.floor(trust)) : 1
+      const chain = (c.req.header('x-forwarded-for') ?? '')
+        .split(',')
+        .map((a) => a.trim())
+        .filter(Boolean)
+      const forwarded = chain[Math.max(0, chain.length - hops)] || c.req.header('x-real-ip')
       if (forwarded) return forwarded
     }
     try {
@@ -704,7 +732,7 @@ export function createApp(base: ServerContext) {
     if (bearer) {
       const user = await auth.userForToken(bearer)
       if (!user) throw new ApiError(401, 'invalid_token', 'This access token is not valid or was revoked')
-      if (!user.twoFactor && (await twoFactorRequired()))
+      if (!secondStep(user) && (await twoFactorRequired()))
         throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
       c.set('user', user)
       c.set('viaToken', true)
@@ -717,10 +745,13 @@ export function createApp(base: ServerContext) {
     c.set('user', user)
     useProfileLang(user.locale)
     // When the site requires two-step verification, someone without it can only set it up.
-    if (!user.twoFactor && !c.req.path.startsWith('/api/auth/') && (await twoFactorRequired()))
+    if (!secondStep(user) && !c.req.path.startsWith('/api/auth/') && (await twoFactorRequired()))
       throw new ApiError(403, 'two_factor_required', 'Set up two-step verification to continue')
     await next()
   }
+
+  /** A second step beyond the password: a code from an app, or a passkey (the device itself asks for Face ID, Touch ID or a PIN). */
+  const secondStep = (user: User) => user.twoFactor || user.passkeys > 0
 
   const twoFactorRequired = async () =>
     !!(await settings.get<{ requireTwoFactor?: boolean }>('security'))?.requireTwoFactor
@@ -802,7 +833,7 @@ export function createApp(base: ServerContext) {
   app.use('*', secureHeaders())
   // Every body is limited before anything reads it: the sign-in, setup and form routes are open to
   // anyone. Uploads and the WordPress export set their own limits (larger, after the sign-in check).
-  const ownLimit = /^\/api\/(media|forms\/[^/]+|import\/wordpress\/analyze)$/
+  const ownLimit = /^\/api\/(media|forms\/[^/]+|import\/wordpress\/analyze|backups\/restore|setup\/restore)$/
   const limitBody = (max: number) =>
     bodyLimit({
       maxSize: max,
@@ -927,6 +958,16 @@ export function createApp(base: ServerContext) {
     return checks
   }
 
+  /** The install code, compared in constant time. Without one (materialize dev), the installation is open. */
+  const setupTokenMatches = (given: string | undefined) => {
+    if (!ctx.setupToken) return true
+    const a = createHash('sha256')
+      .update(given ?? '')
+      .digest()
+    const b = createHash('sha256').update(ctx.setupToken).digest()
+    return timingSafeEqual(a, b)
+  }
+
   app.get('/api/setup', async (c) => {
     const needsSetup = (await auth.countUsers()) === 0
     if (!needsSetup) return c.json({ needsSetup })
@@ -940,6 +981,7 @@ export function createApp(base: ServerContext) {
     return c.json({
       needsSetup,
       needsToken: !!ctx.setupToken,
+      restore: await restoreState(true),
       checks: await setupChecks(c),
       site: {
         name: (doc?.data.siteName as string | undefined) || config.site.name,
@@ -951,7 +993,7 @@ export function createApp(base: ServerContext) {
   app.post('/api/setup', async (c) => {
     const input = await body(c, setupBody)
     if ((await auth.countUsers()) > 0) throw new ApiError(409, 'already_set_up', 'An administrator already exists')
-    if (ctx.setupToken && input.token !== ctx.setupToken)
+    if (!setupTokenMatches(input.token))
       throw new ApiError(
         403,
         'setup_token',
@@ -1049,6 +1091,10 @@ export function createApp(base: ServerContext) {
   /** Signs in, or asks for the second step when the account has two-step verification. */
   const signIn = async (c: Context, user: User, status: 200 | 201 = 200) => {
     if (user.twoFactor) return c.json({ twoFactor: true, ticket: challenge(user.id) }, 200)
+    // With passkeys only, a password (typed, or new from a reset link) is not a second step where
+    // the site asks for one: the passkey is.
+    if (user.passkeys > 0 && (await twoFactorRequired()))
+      throw new ApiError(403, 'passkey_required', 'Sign in with your passkey')
     await startSession(c, user.id)
     await record(c, 'login.ok', user.email, null, user)
     return c.json({ user }, status)
@@ -1179,7 +1225,11 @@ export function createApp(base: ServerContext) {
   })
 
   app.get('/api/auth/me', requireUser, async (c) =>
-    c.json({ user: c.get('user'), needsTwoFactor: !c.get('user').twoFactor && (await twoFactorRequired()) }),
+    c.json({
+      user: c.get('user'),
+      needsTwoFactor: !secondStep(c.get('user')) && (await twoFactorRequired()),
+      passkeysAvailable: !!passkeySite(c),
+    }),
   )
 
   // ---------- account security: two-step verification and devices ----------
@@ -1200,6 +1250,13 @@ export function createApp(base: ServerContext) {
       twoFactor: { enabled: !!state?.secret, recoveryLeft: state?.recoveryLeft ?? 0 },
       required: await twoFactorRequired(),
       sessions: (await auth.listSessions(user.id)).map((s) => ({ ...s, current: s.id === current })),
+      passkeys: (await auth.listPasskeys(user.id)).map(({ id, name, createdAt, lastUsedAt }) => ({
+        id,
+        name,
+        createdAt,
+        lastUsedAt,
+      })),
+      passkeysAvailable: !!passkeySite(c),
     })
   })
 
@@ -1231,7 +1288,7 @@ export function createApp(base: ServerContext) {
 
   app.post('/api/auth/2fa/disable', requireUser, requireSession, async (c) => {
     const input = await body(c, z.object({ password: z.string().min(1) }))
-    if (await twoFactorRequired())
+    if (!c.get('user').passkeys && (await twoFactorRequired()))
       throw new ApiError(409, 'two_factor_required', 'This site requires two-step verification')
     await checkPassword(c.get('user').id, input.password)
     await auth.disableTwoFactor(c.get('user').id)
@@ -1247,6 +1304,118 @@ export function createApp(base: ServerContext) {
     await auth.setRecoveryCodes(c.get('user').id, codes)
     await record(c, 'twofactor.recovery', c.get('user').email)
     return c.json({ recoveryCodes: codes })
+  })
+
+  // ---------- passkeys ----------
+
+  const passkeys = createPasskeys()
+
+  /**
+   * Where passkeys work. Online, the site's own address (MATERIALIZE_SITE_URL, site.url): a passkey
+   * is bound to it, so the Host header of a stranger's request is never trusted. On this computer,
+   * the address in use. Null online without the site's address: passkeys need it.
+   */
+  const passkeySite = (c: Context): PasskeySite | null => {
+    const url = new URL(c.req.url)
+    const site = siteOrigin()
+    const name = ctx.config().site.name
+    if (site && new URL(site).hostname === url.hostname) return { origin: site, rpID: url.hostname, name }
+    if (isLocalHost(url.hostname))
+      return { origin: `${secureRequest(c) ? 'https' : 'http'}://${url.host}`, rpID: url.hostname, name }
+    // Behind a proxy that changes the Host header: the site's address is the one the browser sees.
+    return site ? { origin: site, rpID: new URL(site).hostname, name } : null
+  }
+
+  const needPasskeySite = (c: Context) => {
+    const site = passkeySite(c)
+    if (!site)
+      throw new ApiError(
+        409,
+        'passkeys_unavailable',
+        'Passkeys need the site address: set MATERIALIZE_SITE_URL or site.url on the server',
+      )
+    return site
+  }
+
+  /** Step one of a new passkey: the password again, as for every change to how someone signs in. */
+  app.post('/api/auth/passkeys/options', requireUser, requireSession, async (c) => {
+    const input = await body(c, z.object({ password: z.string().min(1) }))
+    const user = c.get('user')
+    const site = needPasskeySite(c)
+    await checkPassword(user.id, input.password)
+    return c.json(await passkeys.registration(site, user, await auth.listPasskeys(user.id)))
+  })
+
+  /** Step two: the device's answer becomes a passkey of this account. */
+  app.post('/api/auth/passkeys', requireUser, requireSession, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        ticket: z.string().min(1).max(100),
+        response: z.record(z.string(), z.unknown()),
+        name: z.string().trim().max(80).optional(),
+      }),
+    )
+    const user = c.get('user')
+    const made = await passkeys.register(needPasskeySite(c), user.id, input.ticket, input.response as never)
+    if (!made) throw new ApiError(422, 'invalid_passkey', 'The passkey could not be verified: try again')
+    if (await auth.passkeyByCredential(made.credentialId))
+      throw new ApiError(409, 'passkey_exists', 'This passkey is already saved')
+    const passkey = await auth.addPasskey({
+      ...made,
+      userId: user.id,
+      name: input.name || t('Passkey'),
+    })
+    await record(c, 'passkey.added', user.email, { name: passkey.name })
+    const { id, name, createdAt, lastUsedAt } = passkey
+    return c.json({ passkey: { id, name, createdAt, lastUsedAt } }, 201)
+  })
+
+  app.delete('/api/auth/passkeys/:id', requireUser, requireSession, async (c) => {
+    const user = c.get('user')
+    // The last way past the password, where the site requires one: it is replaced first, then removed.
+    if (!user.twoFactor && user.passkeys <= 1 && (await twoFactorRequired()))
+      throw new ApiError(409, 'two_factor_required', 'This site requires two-step verification')
+    const passkey = (await auth.listPasskeys(user.id)).find((p) => p.id === c.req.param('id'))
+    if (!passkey || !(await auth.removePasskey(user.id, passkey.id)))
+      throw new ApiError(404, 'not_found', 'This passkey does not exist')
+    await record(c, 'passkey.removed', user.email, { name: passkey.name })
+    return c.body(null, 204)
+  })
+
+  /** Signing in with a passkey: no email, the device offers the passkeys it keeps for this site. */
+  // Asked before anyone is known: a few times a minute per address is plenty for people.
+  const allowPasskeyOptions = createLimiter(20, 60_000)
+
+  app.post('/api/auth/passkey/options', async (c) => {
+    const site = needPasskeySite(c)
+    if (!allowPasskeyOptions(clientIp(c)))
+      throw new ApiError(429, 'too_many_attempts', t('Troppi tentativi: riprova tra un minuto'))
+    await checkLocks(`ip:${clientIp(c)}`)
+    return c.json(await passkeys.authentication(site))
+  })
+
+  app.post('/api/auth/passkey', async (c) => {
+    const input = await body(
+      c,
+      z.object({ ticket: z.string().min(1).max(100), response: z.record(z.string(), z.unknown()) }),
+    )
+    const site = needPasskeySite(c)
+    const ip = clientIp(c)
+    await checkLocks(`ip:${ip}`)
+    const credentialId = typeof input.response.id === 'string' ? input.response.id : ''
+    const passkey = credentialId ? await auth.passkeyByCredential(credentialId) : null
+    const counter = passkey ? await passkeys.authenticate(site, input.ticket, input.response as never, passkey) : null
+    const user = passkey && counter !== null ? await auth.getUser(passkey.userId) : null
+    if (!passkey || counter === null || !user) {
+      await auth.recordFailure(`ip:${ip}`, IP_THRESHOLD)
+      await record(c, 'login.passkey_failed', passkey?.name ?? '', null, null)
+      throw new ApiError(401, 'invalid_passkey', 'This passkey was not accepted')
+    }
+    await auth.usePasskey(passkey.id, counter)
+    await startSession(c, user.id)
+    await record(c, 'login.ok', user.email, { passkey: true }, user)
+    return c.json({ user })
   })
 
   app.delete('/api/auth/sessions/:id', requireUser, requireSession, async (c) => {
@@ -1269,7 +1438,7 @@ export function createApp(base: ServerContext) {
 
   /** Groups of the activity log, by the start of their action codes. */
   const ACTIVITY_GROUPS: Record<string, string[]> = {
-    access: ['login.', 'logout', 'session.', 'twofactor.', 'token.', 'security.', 'password.'],
+    access: ['login.', 'logout', 'session.', 'twofactor.', 'passkey.', 'token.', 'security.', 'password.'],
     people: ['user.'],
     content: ['document.', 'release.', 'site.', 'newsletter.', 'import.', 'media.', 'message.'],
     settings: ['settings.', 'backup.', 'update.'],
@@ -1314,8 +1483,8 @@ export function createApp(base: ServerContext) {
     const people = await auth.listUsers()
     const required = await twoFactorRequired()
     const admins = people.filter((p) => p.role === 'admin')
-    const adminsWithout = admins.filter((p) => !p.twoFactor)
-    const without = people.filter((p) => !p.twoFactor)
+    const adminsWithout = admins.filter((p) => !secondStep(p))
+    const without = people.filter((p) => !secondStep(p))
     checks.push(
       adminsWithout.length
         ? {
@@ -1589,6 +1758,94 @@ export function createApp(base: ServerContext) {
     available: backups.available(),
     items: await backups.list(),
     media: await backups.mediaCopy(),
+    restore: await restoreState(),
+  })
+
+  // ---------- restoring a whole archive from the panel ----------
+
+  /** How large an uploaded archive may be: 10 GB, or MATERIALIZE_RESTORE_MAX (in MB). */
+  const restoreMax = () => {
+    const mb = Number(process.env.MATERIALIZE_RESTORE_MAX)
+    return (Number.isFinite(mb) && mb > 0 ? mb : 10 * 1024) * 1024 * 1024
+  }
+
+  /**
+   * Whether the panel can restore here, and how the last restore went. Before the first account
+   * (`stranger`), a failure is told without its details: they are in the server's log.
+   */
+  const restoreState = async (stranger = false) => {
+    const last = (await ctx.restore?.result().catch(() => null)) ?? null
+    return {
+      unavailable: ctx.restore
+        ? ctx.restore.unavailable()
+        : t('In sviluppo il ripristino si fa da terminale, con materialize restore.'),
+      last: last && stranger && !last.ok ? { ok: false, at: last.at } : last,
+    }
+  }
+
+  /** The restart that applies an archive: if it cannot start, the archive goes and the log says why. */
+  const scheduleRestore = (file: string) =>
+    setTimeout(() => {
+      ctx.restore?.schedule(file).catch((error) => {
+        console.error('Materialize: restore not started', error)
+        void rm(file, { force: true })
+      })
+    }, 300)
+
+  /**
+   * The archive in the request body, saved to disk as it arrives and checked through to its end;
+   * then `materialize start` takes it, restarts, and puts it in place before the database opens.
+   */
+  const takeArchive = async (c: Context) => {
+    const why = ctx.restore?.unavailable() ?? (ctx.restore ? undefined : (await restoreState()).unavailable)
+    if (why || !ctx.restore) throw new ApiError(409, 'restore_unavailable', why ?? '')
+    const declared = Number(c.req.header('content-length'))
+    if (declared > restoreMax()) throw new ApiError(413, 'file_too_large', t('L’archivio è troppo grande.'))
+    const file = join(dirname(resolve(ctx.config().media.dir)), 'restore', `upload-${randomUUID()}.tar.gz`)
+    try {
+      await receiveArchive(c.req.raw.body, file, restoreMax())
+      const summary = await checkArchive(file, {
+        localDb: backups.available(),
+        version: VERSION,
+        max: restoreMax(),
+      })
+      return { file, summary }
+    } catch (error) {
+      await rm(file, { force: true })
+      if (error instanceof ArchiveError)
+        throw error.message === 'too large'
+          ? new ApiError(413, 'file_too_large', t('L’archivio è troppo grande.'))
+          : new ApiError(422, 'invalid_archive', error.message)
+      throw error
+    }
+  }
+
+  app.post('/api/backups/restore', requireUser, requireSession, requireAdmin, async (c) => {
+    const { file, summary } = await takeArchive(c)
+    await record(c, 'backup.restore', summary.site, { version: summary.version, media: summary.media })
+    // The answer goes out first: the restart follows.
+    scheduleRestore(file)
+    return c.json({ ok: true, summary })
+  })
+
+  /** Before the first account: a site moved here from another installation, with the install code. */
+  app.post('/api/setup/restore', async (c) => {
+    if ((await auth.countUsers()) > 0) throw new ApiError(409, 'already_set_up', 'An administrator already exists')
+    // In a header, not in the address: addresses end up in the logs of proxies.
+    if (!setupTokenMatches(c.req.header('x-mz-setup-token')))
+      throw new ApiError(
+        403,
+        'setup_token',
+        t('Per installare serve il link stampato all’avvio del server (materialize start), con il suo codice'),
+      )
+    const { file, summary } = await takeArchive(c)
+    // The upload may have taken minutes: someone may have installed the site meanwhile.
+    if ((await auth.countUsers()) > 0) {
+      await rm(file, { force: true })
+      throw new ApiError(409, 'already_set_up', 'An administrator already exists')
+    }
+    scheduleRestore(file)
+    return c.json({ ok: true, summary })
   })
 
   app.get('/api/backups', requireUser, requireSession, requireAdmin, async (c) => c.json(await backupState()))
@@ -1833,7 +2090,7 @@ export function createApp(base: ServerContext) {
 
   app.put('/api/security', requireUser, requireSession, requireAdmin, async (c) => {
     const input = await body(c, z.object({ requireTwoFactor: z.boolean() }))
-    if (input.requireTwoFactor && !c.get('user').twoFactor)
+    if (input.requireTwoFactor && !secondStep(c.get('user')))
       throw new ApiError(409, 'two_factor_off', 'Turn on two-step verification for yourself first')
     await settings.set('security', input, c.get('user').id)
     await record(c, input.requireTwoFactor ? 'security.require_2fa' : 'security.optional_2fa')
@@ -2020,10 +2277,12 @@ export function createApp(base: ServerContext) {
   app.delete('/api/users/:id/two-factor', requireUser, requireSession, requireAdmin, async (c) => {
     const target = await loadUser(c.req.param('id'))
     await auth.disableTwoFactor(target.id)
+    // A lost phone takes its passkey with it: they go too, and the password is the way back in.
+    await auth.removePasskeys(target.id)
     await withLang(langFor(target.locale), () =>
       mailNotice(target.email, t('Verifica in due passaggi disattivata'), [
         t(
-          '{name} ha disattivato la verifica in due passaggi del tuo account: per entrare nel pannello ora basta la password.',
+          '{name} ha disattivato la verifica in due passaggi e tolto le passkey del tuo account: per entrare nel pannello ora basta la password.',
           { name: c.get('user').name },
         ),
         t('Riattivala dal tuo profilo appena puoi. Se non te lo aspettavi, avvisa un amministratore.'),
@@ -2194,7 +2453,7 @@ export function createApp(base: ServerContext) {
       return c.json({ globals: await globalsIn(lang) })
     }
     const before = (await settings.get<Record<string, PageNode>>('globals')) ?? {}
-    guardEmbeds(c.get('user'), before, input.globals)
+    guardEmbeds(c, before, input.globals)
     const removed = Object.keys(before).filter((id) => !input.globals[id])
     if (removed.length) {
       const usage = await globalUsage()
@@ -3276,6 +3535,190 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     },
   )
 
+  // ---------- visitors' comments ----------
+
+  const discussion = createVisitorCommentStore(ctx.database.db)
+  // A few comments a minute from one address: enough for people, not for spam.
+  const allowComment = createLimiter(3, 60_000)
+  const allowCommentHour = createLimiter(20, 60 * 60_000)
+  const discussionSettings = async (): Promise<
+    Required<Omit<DiscussionSettings, 'collections'>> & DiscussionSettings
+  > => ({
+    moderation: true,
+    notify: true,
+    ...((await settings.get<DiscussionSettings>('discussion')) ?? {}),
+  })
+
+  /** The published document at a page's address, when its collection has comments. */
+  const discussedAt = async (path: string) => {
+    discussionIndex ??= (async () => {
+      const index = new Map<string, { def: Collection; doc: StoredDocument }>()
+      const on = discussionCollections(ctx.config().collections, (await discussionSettings()).collections)
+      for (const def of ctx.config().collections) {
+        if (!on.includes(def.name)) continue
+        for (const doc of await content.published(def.name)) {
+          const url = doc.publishedData ? publicUrl(def, doc.locale, doc.publishedData) : null
+          // Written as the site writes it, compared as the form sends it: /blog/x/ is /blog/x.
+          if (url) index.set(normalizePath(url), { def, doc })
+        }
+      }
+      return index
+    })().catch((error) => {
+      discussionIndex = null
+      throw error
+    })
+    return (await discussionIndex).get(normalizePath(path)) ?? null
+  }
+
+  const publicComment = (c: { id: string; name: string; text: string; createdAt: Date }) => ({
+    id: c.id,
+    name: c.name,
+    text: c.text,
+    createdAt: c.createdAt,
+  })
+
+  /** What a page shows: its approved comments. Never cached: one approved a minute ago shows now. */
+  app.get('/api/discussion', async (c) => {
+    const found = await discussedAt(normalizePath(c.req.query('path') ?? '/'))
+    c.header('cache-control', 'no-store')
+    const comments = found ? await discussion.approved(found.doc.id, found.doc.locale) : []
+    return c.json({ comments: comments.map(publicComment) })
+  })
+
+  app.post('/api/discussion', async (c) => {
+    const ip = clientIp(c)
+    if (!allowComment(ip) || !allowCommentHour(ip))
+      throw new ApiError(429, 'too_many_attempts', 'Troppi commenti: riprova tra un minuto')
+    const isJson = (c.req.header('content-type') ?? '').includes('application/json')
+    const wantsJson = isJson || (c.req.header('accept') ?? '').includes('application/json')
+    const parsed: unknown = isJson ? await c.req.json().catch(() => ({})) : await c.req.parseBody()
+    // Anything but an object (null, a list) is an empty comment, refused below.
+    const raw = (parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}) as Record<
+      string,
+      unknown
+    >
+    const field = (name: string) => (typeof raw[name] === 'string' ? (raw[name] as string).trim() : '')
+    const back = (c.req.header('referer') ?? '/').split('#')[0]
+    // A field people never see: bots fill it in, and get the same answer as everyone.
+    if (field('_gotcha')) return wantsJson ? c.json({ ok: true }, 201) : c.redirect(`${back}#commento-inviato`, 303)
+
+    const path = normalizePath(field('path') || new URL(back ?? '/', 'http://x').pathname)
+    const found = await discussedAt(path)
+    if (!found) throw new ApiError(404, 'not_found', 'This page does not take comments')
+    const name = field('name').replace(/\s+/g, ' ')
+    const email = field('email')
+    const text = field('text').replace(/\r\n/g, '\n')
+    const issues: { field: string; message: string }[] = []
+    if (!name || name.length > DISCUSSION_LIMITS.name) issues.push({ field: 'name', message: t('Scrivi il tuo nome') })
+    if (email && (email.length > DISCUSSION_LIMITS.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
+      issues.push({ field: 'email', message: t('Email non valida') })
+    if (!text || text.length > DISCUSSION_LIMITS.text)
+      issues.push({
+        field: 'text',
+        message: t('Scrivi un commento (al massimo {n} caratteri)', { n: DISCUSSION_LIMITS.text }),
+      })
+    if (issues.length)
+      return wantsJson
+        ? c.json({ error: { code: 'invalid', message: 'Controlla i campi evidenziati', issues } }, 422)
+        : c.redirect(`${back}#commento-non-inviato`, 303)
+
+    const elapsed = /^\d+$/.test(field('_t')) ? Number(field('_t')) : null
+    const fingerprint = fingerprintOf(`discussion:${path}`, { name, text })
+    const spam =
+      spamReason({ name, text }, elapsed) ??
+      ((await discussion.seen(fingerprint, new Date(Date.now() - 86_400_000))) ? t.keep('Commento ripetuto') : null)
+    const options = await discussionSettings()
+    const { def, doc } = found
+    const title = String(doc.publishedData?.[def.titleField] ?? '')
+    const saved = await discussion.add({
+      collection: def.name,
+      documentId: doc.id,
+      title,
+      locale: doc.locale,
+      path,
+      name,
+      email: email || null,
+      text,
+      status: spam ? 'spam' : options.moderation ? 'pending' : 'approved',
+      spam,
+      fingerprint,
+    })
+    // Spam waits in its folder, recoverable, and nobody is notified.
+    if (!spam && options.notify) {
+      const mail = await settings.get<MailSettings>('mail')
+      const to = (mail?.to || '').trim()
+      if (isConfigured(mail) && to) {
+        const notice = withLang(await ownerLang(to), () => ({
+          subject: t('Nuovo commento su «{title}»', { title: title || path }),
+          text: [
+            `${name}${email ? ` <${email}>` : ''}`,
+            text,
+            saved.status === 'pending'
+              ? t('Lo approvi in Impostazioni → Commenti: finché non lo fai, non compare sul sito.')
+              : t('È già pubblicato. Lo togli da Impostazioni → Commenti.'),
+          ].join('\n\n'),
+        }))
+        sendMail(mail, { to, ...notice, replyTo: email || undefined }).catch((error) =>
+          console.error('Materialize: email not sent', error),
+        )
+      }
+    }
+    if (!wantsJson)
+      return c.redirect(`${back}#${saved.status === 'approved' ? 'commento-pubblicato' : 'commento-inviato'}`, 303)
+    return c.json({ ok: true, ...(saved.status === 'approved' ? { comment: publicComment(saved) } : {}) }, 201)
+  })
+
+  app.get('/api/discussion/admin', requireUser, async (c) => {
+    const status = (['pending', 'approved', 'spam'] as const).find((s) => s === c.req.query('status'))
+    const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 200)
+    const offset = Math.max(Number(c.req.query('offset')) || 0, 0)
+    const list = await discussion.list({ status, limit, offset })
+    // The spam reason is saved as a kept text: read in the language of whoever looks.
+    return c.json({ ...list, items: list.items.map((m) => ({ ...m, spam: m.spam && t.read(m.spam) })) })
+  })
+
+  app.patch('/api/discussion/admin/:id', requireUser, async (c) => {
+    const input = await body(c, z.object({ status: z.enum(['pending', 'approved', 'spam']) }))
+    const updated = await discussion.setStatus(c.req.param('id'), input.status)
+    if (!updated) throw new ApiError(404, 'not_found', 'This comment does not exist')
+    return c.json({ comment: updated })
+  })
+
+  app.delete('/api/discussion/admin/:id', requireUser, requireAdmin, async (c) => {
+    if (!(await discussion.remove(c.req.param('id'))))
+      throw new ApiError(404, 'not_found', 'This comment does not exist')
+    return c.body(null, 204)
+  })
+
+  /** Impostazioni → Commenti: where comments are on, and how they go. */
+  const discussionState = async () => {
+    const current = await discussionSettings()
+    const eligible = ctx.config().collections.filter((d) => d.url && !d.singleton)
+    return {
+      settings: current,
+      collections: eligible.map((d) => ({ name: d.name, label: d.label })),
+      on: discussionCollections(ctx.config().collections, current.collections),
+    }
+  }
+
+  app.get('/api/discussion/settings', requireUser, async (c) => c.json(await discussionState()))
+
+  app.put('/api/discussion/settings', requireUser, requireAdmin, async (c) => {
+    const input = await body(
+      c,
+      z.object({
+        collections: z.array(z.string().max(80)).max(100).optional(),
+        moderation: z.boolean(),
+        notify: z.boolean(),
+      }),
+    )
+    await settings.set('discussion', input, c.get('user').id)
+    // The comment form is in the static pages: they are built again with it, or without it.
+    sitePublished()
+    await record(c, 'settings.discussion', '')
+    return c.json(await discussionState())
+  })
+
   const filterOf = (c: Context) => ({
     form: c.req.query('form') || undefined,
     status: (['unread', 'spam'] as const).find((s) => s === c.req.query('status')),
@@ -3523,7 +3966,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
   app.put('/api/components', requireUser, async (c) => {
     const input = await body(c, z.object({ components: z.record(z.string(), z.record(z.string(), z.unknown())) }))
     const before = (await settings.get('components')) ?? {}
-    guardEmbeds(c.get('user'), before, input.components)
+    guardEmbeds(c, before, input.components)
     if (JSON.stringify(before) !== JSON.stringify(input.components) && (await contentOnly(c.get('user'))))
       throw designLocked()
     await settings.set('components', input.components, c.get('user').id)
@@ -3639,7 +4082,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
       throw new ApiError(409, 'singleton_exists', `"${def.label}" already exists; edit it instead`)
     }
     const draft = draftData(def, input.data)
-    guardEmbeds(c.get('user'), null, draft.data)
+    guardEmbeds(c, null, draft.data)
     const doc = await slugGuard(() =>
       content.create({ collection: def.name, locale: lang, ...draft, userId: c.get('user').id }),
     )
@@ -3661,7 +4104,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     const input = await body(c, documentBody)
     const def = collection(existing.collection)
     const draft = draftData(def, input.data)
-    guardEmbeds(c.get('user'), existing.data, draft.data)
+    guardEmbeds(c, existing.data, draft.data)
     for (const [name, f] of Object.entries(def.fields))
       if (f.kind === 'page') await guardDesign(c.get('user'), existing.data[name], draft.data[name])
     const doc = await slugGuard(() => content.update(existing.id, { ...draft, userId: c.get('user').id }))
@@ -4698,7 +5141,7 @@ When done, say in one or two short sentences what you changed. Reply in the pers
     // could not write today (an admin's version, or one from before the rules changed).
     const revision = await content.revision(existing.id, c.req.param('revision'))
     if (!revision) throw new ApiError(404, 'not_found', 'This version does not exist')
-    guardEmbeds(c.get('user'), existing.data, revision.data)
+    guardEmbeds(c, existing.data, revision.data)
     for (const [name, f] of Object.entries(collection(existing.collection).fields))
       if (f.kind === 'page') await guardDesign(c.get('user'), existing.data[name], revision.data[name])
     const doc = await content.restore(existing.id, c.req.param('revision'), c.get('user').id)

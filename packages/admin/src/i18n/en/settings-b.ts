@@ -110,10 +110,10 @@ export const settingsB: Record<string, string> = {
   Backup: 'Backups',
   Persone: 'People',
   'Scarica tutto': 'Download everything',
-  'Un unico archivio con il database, tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.':
-    'A single archive with the database, all original images and the fonts: to keep off the server, or to move the site. Restore it with {command}.',
-  'Un unico archivio con tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette con {command}.':
-    'A single archive with all original images and the fonts: to keep off the server, or to move the site. Restore it with {command}.',
+  'Un unico archivio con il database, tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette qui sotto, o con {command}.':
+    'A single archive with the database, all original images and the fonts: to keep off the server, or to move the site. Restore it below, or with {command}.',
+  'Un unico archivio con tutte le immagini originali e i caratteri: da tenere fuori dal server, o per spostare il sito. Si rimette qui sotto, o con {command}.':
+    'A single archive with all original images and the fonts: to keep off the server, or to move the site. Restore it below, or with {command}.',
   'L’archivio si sta preparando: il download parte tra poco': 'Preparing the archive: the download will start shortly',
   'Il database è ospitato da un fornitore (Turso, libSQL): i backup del database li fa lui, controlla che siano attivi nel suo pannello. L’archivio qui sopra contiene comunque immagini e caratteri.':
     'The database is hosted by a provider (Turso, libSQL): the provider backs it up, so check that backups are on in its dashboard. The archive above still contains images and fonts.',
@@ -464,4 +464,72 @@ export const settingsB: Record<string, string> = {
   'Profili social': 'Social profiles',
   'Anche qui': 'Also here',
   'Altri dati del sito': 'Other site details',
+  'è entrato con una passkey': 'signed in with a passkey',
+  'passkey non accettata': 'passkey not accepted',
+  'ha aggiunto la passkey {name}': 'added the passkey {name}',
+  'ha tolto la passkey {name}': 'removed the passkey {name}',
+  'Quello che i visitatori scrivono sotto gli articoli. Compare sul sito solo dopo l’approvazione.':
+    'What visitors write under the articles. It shows on the site only once approved.',
+  'Da approvare': 'To approve',
+  Approvati: 'Approved',
+  'Nessun commento qui': 'No comments here',
+  'I commenti nuovi aspettano qui la tua approvazione.': 'New comments wait here for your approval.',
+  'Qui finiscono i commenti che sembrano spam: scritti in un attimo, pieni di link o ripetuti.':
+    'Comments that look like spam end up here: written in a moment, full of links or repeated.',
+  'I commenti approvati compaiono sotto i loro articoli.': 'Approved comments show under their articles.',
+  'Commento approvato: ora è sul sito': 'Comment approved: it’s on the site now',
+  'Non è spam, approva': 'Not spam, approve',
+  Approva: 'Approve',
+  'Commento tolto dal sito': 'Comment taken off the site',
+  'Eliminare il commento di {name}? Non si può recuperare.': 'Delete {name}’s comment? It can’t be recovered.',
+  'Commento eliminato': 'Comment deleted',
+  'Dove e come': 'Where and how',
+  'Commenti attivi in': 'Comments on in',
+  'Nessuna raccolta ha pagine sul sito.': 'No collection has pages on the site.',
+  'Approva ogni commento prima che compaia': 'Approve each comment before it shows',
+  'Consigliato: niente arriva sul sito senza che tu l’abbia letto.':
+    'Recommended: nothing reaches the site before you’ve read it.',
+  'I commenti che passano l’antispam compaiono subito; li togli quando vuoi.':
+    'Comments that pass the spam checks show at once; you can take them off at any time.',
+  'Avvisami per email': 'Email me',
+  'Un’email all’indirizzo di Impostazioni → Email per ogni commento nuovo, spam escluso.':
+    'An email to the address in Settings → Email for every new comment, spam excluded.',
+  'Antispam senza CAPTCHA, come nei moduli. Il modulo dei commenti compare in una raccolta.':
+    'Spam protection without CAPTCHA, as in forms. The comment form shows in one collection.',
+  'Antispam senza CAPTCHA, come nei moduli. Il modulo dei commenti compare in {n} raccolte.':
+    'Spam protection without CAPTCHA, as in forms. The comment form shows in {n} collections.',
+  'Salvato: il sito si aggiorna da solo': 'Saved: the site updates by itself',
+  'ha ripristinato il sito da un archivio': 'restored the site from an archive',
+  'Ripristina da un archivio': 'Restore from an archive',
+  'Rimette un archivio di «Scarica tutto»: di questo sito, o di un’altra installazione da spostare qui.':
+    'Puts back an archive from “Download everything”: of this site, or of another installation to move here.',
+  'Ultimo ripristino riuscito, {when}.': 'Last restore succeeded, {when}.',
+  'L’ultimo ripristino non è riuscito ({when}): {error}': 'The last restore failed ({when}): {error}',
+  'Ripristina…': 'Restore…',
+  'Ripristinare il sito da un archivio?': 'Restore the site from an archive?',
+  'Contenuti, pagine, impostazioni e account diventano quelli dell’archivio: chi c’è adesso e non è nell’archivio non potrà più entrare. Immagini e caratteri si aggiungono a quelli che ci sono.':
+    'Content, pages, settings and accounts become those in the archive: anyone here now who isn’t in the archive won’t be able to sign in. Images and fonts are added to the ones already here.',
+  'Il database di adesso si salva prima tra i backup («prima del ripristino»), così si può tornare indietro. Il sito si ferma per qualche minuto mentre riparte.':
+    'The current database is saved among the backups first (“before the restore”), so you can go back. The site stops for a few minutes while it starts again.',
+  'Ho capito: il sito di adesso viene sostituito.': 'I understand: the current site will be replaced.',
+  'Archivio controllato: il sito riparte con i suoi contenuti…':
+    'Archive checked: the site is starting again with its content…',
+  'un’immagine': 'one image',
+  'salvato {when}': 'saved {when}',
+  'Ci vuole qualche minuto, il tempo di rimettere tutto e rigenerare il sito. Poi entri con gli account del sito ripristinato.':
+    'It takes a few minutes to put everything back and build the site again. Then sign in with the accounts of the restored site.',
+  'Scegli l’archivio (materialize-….tar.gz)': 'Choose the archive (materialize-….tar.gz)',
+  'Lo crea «Scarica tutto», in Impostazioni → Backup del sito di partenza.':
+    '“Download everything” makes it, in Settings → Backups of the site you’re moving.',
+  'Caricamento {n}%': 'Uploading {n}%',
+  'Controllo l’archivio…': 'Checking the archive…',
+  'Qui il ripristino si fa da terminale, con materialize restore':
+    'Here, restore from the terminal with materialize restore',
+  'Questo archivio non si può ripristinare': 'This archive can’t be restored',
+  'Sposta qui un sito Materialize': 'Move a Materialize site here',
+  'Carica l’archivio creato da «Scarica tutto» (Impostazioni → Backup) sul sito di partenza: contenuti, pagine, immagini, impostazioni e account arrivano qui, e poi entri con il tuo account di sempre.':
+    'Upload the archive made by “Download everything” (Settings → Backups) on the site you’re moving: content, pages, images, settings and accounts come here, then you sign in with your usual account.',
+  'Hai già un sito Materialize? Carica il suo archivio': 'Already have a Materialize site? Upload its archive',
+  'Il server non è ancora tornato. Controlla i suoi messaggi (con Docker: docker compose logs materialize), poi ricarica la pagina.':
+    'The server isn’t back yet. Check its messages (with Docker: docker compose logs materialize), then reload the page.',
 }

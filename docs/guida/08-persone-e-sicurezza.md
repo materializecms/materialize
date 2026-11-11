@@ -34,6 +34,18 @@ Oltre alla password, un codice di 6 cifre da un'app sul telefono (Google Authent
 
 Un amministratore può **richiedere la verifica in due passaggi a tutti** (in **Persone**): chi non l'ha la attiva al prossimo accesso.
 
+## Passkey
+
+Con una **passkey** entri con Face ID, Touch ID, Windows Hello o il PIN del dispositivo, senza scrivere email né password. Nessun sito falso può rubarla: il dispositivo la usa solo con l'indirizzo vero del tuo sito.
+
+1. **Il tuo profilo → Sicurezza** → **Passkey** → **Aggiungi**.
+2. Scrivi la tua password, poi conferma sul dispositivo (impronta, volto o PIN).
+3. Al prossimo accesso premi **Accedi con una passkey**, oppure sceglila dai suggerimenti del campo email.
+
+Puoi aggiungerne più di una, per esempio sul telefono e sul computer, e toglierle dalla stessa scheda. Una passkey vale come secondo passaggio: se il sito richiede la verifica in due passaggi, basta la passkey, senza codici. Chi ha solo passkey e prova a entrare con la password riceve l'invito a usare la passkey.
+
+Online le passkey richiedono l'indirizzo del sito impostato sul server (`MATERIALIZE_SITE_URL`, già presente con Docker e con l'installazione su VPS). Se una persona perde il dispositivo, un amministratore da **Persone → ⋯ → Disattiva la verifica in due passaggi** toglie anche le sue passkey.
+
 Nella stessa scheda vedi i **dispositivi** collegati al tuo account e puoi disconnetterli. Una sessione non usata per 14 giorni si chiude da sola.
 
 ## Protezioni automatiche

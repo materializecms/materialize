@@ -1,16 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Compass, Menu } from 'lucide-react'
+import { Compass, KeyRound, Menu } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ErrorBoundary } from '../components/ErrorBoundary.tsx'
 import { Button, cx, EmptyState, Spinner } from '../components/ui.tsx'
 import { ApiError, api, type User } from '../lib/api.ts'
 import { setLang, t, useLang } from '../lib/i18n.ts'
+import { passkeysSupported } from '../lib/passkey.ts'
 import { usePref } from '../lib/prefs.ts'
 import { href, navigate, useRoute } from '../lib/router.ts'
 import { MediaLibrary } from '../media/MediaLibrary.tsx'
 import { NewsletterScreen } from '../newsletter/NewsletterScreen.tsx'
 import { InviteScreen } from '../people/InviteScreen.tsx'
 import { PeopleScreen } from '../people/PeopleScreen.tsx'
-import { TwoFactorSetup } from '../people/Security.tsx'
+import { AddPasskeyStep, TwoFactorSetup } from '../people/Security.tsx'
 import { SettingsScreen } from '../settings/SettingsScreen.tsx'
 import { AuthScreen, Logo } from './Auth.tsx'
 import { CollectionView } from './CollectionView.tsx'
@@ -35,7 +37,11 @@ export function App() {
     shown.current = lang
     void queryClient.invalidateQueries()
   }, [lang, queryClient])
-  return <Routed key={lang} />
+  return (
+    <ErrorBoundary>
+      <Routed key={lang} />
+    </ErrorBoundary>
+  )
 }
 
 function Routed() {
@@ -261,6 +267,9 @@ function Fatal({ message }: { message: string }) {
 /** Shown when the site requires two-step verification of everyone and this account has none yet. */
 function RequiredTwoFactor() {
   const queryClient = useQueryClient()
+  const [passkey, setPasskey] = useState(false)
+  // Online without the site's address, passkeys cannot work: only the app's codes are offered.
+  const passkeys = useQuery({ queryKey: ['me'], queryFn: api.me }).data?.passkeysAvailable === true
   return (
     <div className="mz-backdrop flex min-h-full items-center justify-center px-4 py-12">
       <div className="mz-card w-full max-w-[468px]">
@@ -272,6 +281,21 @@ function RequiredTwoFactor() {
           )}
         </p>
         <TwoFactorSetup onDone={() => void queryClient.invalidateQueries()} />
+        {passkeysSupported() && passkeys && (
+          <div className="mt-6 border-t border-line pt-5">
+            <p className="text-[14px] font-medium">{t('Oppure una passkey')}</p>
+            <p className="mt-1 text-[13px] text-fg2">
+              {t('Entri con Face ID, Touch ID o il PIN del dispositivo, senza codici da copiare.')}
+            </p>
+            {passkey ? (
+              <AddPasskeyStep onCancel={() => setPasskey(false)} onDone={() => void queryClient.invalidateQueries()} />
+            ) : (
+              <Button className="mt-3" icon={<KeyRound className="size-4" />} onClick={() => setPasskey(true)}>
+                {t('Aggiungi una passkey')}
+              </Button>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="mt-6 text-[13px] text-fg2 hover:text-fg"

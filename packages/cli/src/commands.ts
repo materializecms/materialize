@@ -1,7 +1,7 @@
 import './lang.ts'
 import { randomBytes } from 'node:crypto'
-import { watch } from 'node:fs'
-import { copyFile, mkdir, open, readFile, rm, writeFile } from 'node:fs/promises'
+import { existsSync, watch } from 'node:fs'
+import { copyFile, mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { styleText } from 'node:util'
 import type { MaterializeConfig } from '@materializecms/core'
@@ -16,13 +16,17 @@ import {
 } from '@materializecms/db'
 import {
   apiCaller,
+  applyArchive,
   createFonts,
   createMcpServer,
   createMediaFiles,
   decryptTree,
-  extractTarGz,
+  movePending,
   type OffsiteSettings,
   parseRecoveryKey,
+  pendingRestore,
+  type RestoreResult,
+  type Restorer,
   restoreMedia,
   startServer,
   VERSION,
@@ -176,21 +180,38 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   let contentChanged = () => {}
   let redirectOf: (path: string) => Promise<string | null> = async () => null
   let closeSite: (() => Promise<void>) | undefined
-  const updates = createUpdates({
-    site: cwd,
-    mode,
-    // The supervisor (supervisor.ts) swaps in the new version and starts the server again.
-    restart: async () => {
-      await closeSite?.()
-      await server.close()
-      process.exit(RESTART)
+  // The supervisor (supervisor.ts) starts the server again: with a new version, or a restored archive.
+  const restartServer = async () => {
+    await closeSite?.()
+    await server.close()
+    process.exit(RESTART)
+  }
+  const updates = createUpdates({ site: cwd, mode, restart: restartServer })
+  // An archive uploaded from the panel waits for the restart, then goes in before the database opens.
+  const pending = pendingRestore(dirname(resolve(config.media.dir)))
+  if (mode === 'start') await applyPendingRestore(config)
+  const restorer: Restorer = {
+    unavailable: () =>
+      mode === 'dev'
+        ? t('In sviluppo (materialize dev) il ripristino si fa da terminale, con materialize restore.')
+        : process.env.MATERIALIZE_SUPERVISED
+          ? undefined
+          : t(
+              'Il server è avviato senza il suo supervisore: ripristina da terminale con materialize restore, oppure avvialo con materialize start.',
+            ),
+    schedule: async (file) => {
+      await rm(pending.result, { force: true })
+      await movePending(file, pending.file)
+      await restartServer()
     },
-  })
+    result: async () => JSON.parse(await readFile(pending.result, 'utf8').catch(() => 'null')) as RestoreResult | null,
+  }
   // In production the first account needs the link printed below: a fresh server online cannot be
   // claimed by whoever finds it first.
   const setupToken = mode === 'start' ? await installCode(cwd) : undefined
   const server = await startServer(config, {
     updates,
+    restore: restorer,
     setupToken,
     port,
     host,
@@ -346,6 +367,38 @@ async function mcp(args: string[]): Promise<void> {
 }
 
 /**
+ * An archive uploaded from the panel (Impostazioni → Backup, or the installation) waits in
+ * .materialize/restore: it goes in here, before the database opens. Whatever happens, the server
+ * starts; the outcome is kept for the panel to show.
+ */
+export async function applyPendingRestore(config: MaterializeConfig): Promise<void> {
+  const pending = pendingRestore(dirname(resolve(config.media.dir)))
+  const save = (result: RestoreResult) => writeFile(pending.result, JSON.stringify(result))
+  // Left from a start that stopped while applying it (no memory, no disk): never tried again.
+  if (existsSync(pending.applying)) {
+    await rm(pending.applying, { force: true })
+    await save({ ok: false, at: new Date().toISOString(), error: t('Il ripristino si è interrotto a metà.') })
+  }
+  if (!existsSync(pending.file)) return
+  await rename(pending.file, pending.applying)
+  console.log(`  ${t('Ripristino l’archivio caricato dal pannello…')}`)
+  try {
+    const { written } = await applyArchive({
+      file: pending.applying,
+      database: config.database,
+      mediaDir: config.media.dir,
+    })
+    await save({ ok: true, at: new Date().toISOString(), media: written.filter((n) => n.startsWith('media/')).length })
+    console.log(`  ${ok('✓')} ${t('Archivio ripristinato')}`)
+  } catch (error) {
+    // The details stay here, in the server's log; the panel says only that it did not work.
+    console.error(fail(`  ${t('Il ripristino non è riuscito: {error}', { error: (error as Error).message })}`))
+    await save({ ok: false, at: new Date().toISOString(), error: (error as Error).message })
+  }
+  await rm(pending.applying, { force: true })
+}
+
+/**
  * Puts a backup back: a database copy (content-….db), whose missing images come back from the
  * media copy beside the backups, or a whole archive (materialize-….tar.gz: database, media and
  * fonts). The current database is kept as a backup first, so a restore can itself be undone.
@@ -396,49 +449,13 @@ async function restore(args: string[]): Promise<void> {
   }
 
   const mediaDir = resolve(config.media.dir)
-  const fontsDir = join(dirname(mediaDir), 'fonts')
-  const uploadsDir = join(dirname(mediaDir), 'uploads')
   const db = local ? resolve(config.database.url.slice('file:'.length)) : null
   let kept: string | null = null
-  // The images the backup uses, read before it replaces the database (one connection, opened once).
-  let keys: string[] = []
-  if (db) {
-    const backups = join(dirname(db), 'backups')
-    await mkdir(backups, { recursive: true })
-    const p = (n: number) => String(n).padStart(2, '0')
-    const d = new Date()
-    kept = join(
-      backups,
-      `content-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-prima-del-ripristino.db`,
-    )
-    // Made by SQLite, which also reads what is still in the write-ahead file.
-    const current = await openDatabase(config.database)
-    await current.client.execute({ sql: 'VACUUM INTO ?', args: [kept] })
-    if (!archive) {
-      await current.client.execute({ sql: 'ATTACH DATABASE ? AS restored', args: [resolve(file)] })
-      keys = (await current.client.execute('SELECT key FROM restored.media')).rows.map((r) => String(r.key))
-      await current.client.execute('DETACH DATABASE restored')
-    }
-    current.close()
-    // The write-ahead files belong to the old database.
-    await rm(`${db}-wal`, { force: true })
-    await rm(`${db}-shm`, { force: true })
-  }
-
   if (archive) {
     // Only what belongs where it says: the database, flat media names, fonts without "..".
-    const written = await extractTarGz(resolve(file), (name) => {
-      if (name === 'content.db') return db
-      const media = /^media\/([^/\\]+)$/.exec(name)?.[1]
-      if (media && !media.startsWith('.')) return join(mediaDir, media)
-      const font = /^fonts\/(.+)$/.exec(name)?.[1]
-      if (font && !font.split('/').some((part) => part === '..' || part.startsWith('.'))) return join(fontsDir, font)
-      // Files sent with the forms: "<message id>/<n>-<name>".
-      const upload = /^uploads\/([\w-]+\/[^/\\]+)$/.exec(name)?.[1]
-      if (upload && !upload.split('/').some((part) => part === '..' || part.startsWith('.')))
-        return join(uploadsDir, upload)
-      return null
-    })
+    const done = await applyArchive({ file: resolve(file), database: config.database, mediaDir: config.media.dir })
+    kept = done.kept
+    const { written } = done
     const media = written.filter((n) => n.startsWith('media/')).length
     const uploads = written.filter((n) => n.startsWith('uploads/')).length
     const withDb = written.includes('content.db')
@@ -452,6 +469,25 @@ async function restore(args: string[]): Promise<void> {
     ]
     console.log(dim(`  ${parts.join(', ')}.`))
   } else if (db) {
+    const backups = join(dirname(db), 'backups')
+    await mkdir(backups, { recursive: true })
+    const p = (n: number) => String(n).padStart(2, '0')
+    const d = new Date()
+    kept = join(
+      backups,
+      `content-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-prima-del-ripristino.db`,
+    )
+    // Made by SQLite, which also reads what is still in the write-ahead file; the images the
+    // backup uses are read before it replaces the database (one connection, opened once).
+    const current = await openDatabase(config.database)
+    await current.client.execute({ sql: 'VACUUM INTO ?', args: [kept] })
+    await current.client.execute({ sql: 'ATTACH DATABASE ? AS restored', args: [resolve(file)] })
+    const keys = (await current.client.execute('SELECT key FROM restored.media')).rows.map((r) => String(r.key))
+    await current.client.execute('DETACH DATABASE restored')
+    current.close()
+    // The write-ahead files belong to the old database.
+    await rm(`${db}-wal`, { force: true })
+    await rm(`${db}-shm`, { force: true })
     await copyFile(resolve(file), db)
     // The images this database uses that are no longer in the library come back from the media copy.
     const back = await restoreMedia(db, mediaDir, keys)

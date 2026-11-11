@@ -1,11 +1,30 @@
 ---
+import { getLocales } from '@materializecms/astro/content'
 import Site from '../layouts/Site.astro'
+
+// In the site's main language: Italian, or English for every other one.
+const it = (await getLocales()).default.startsWith('it')
 ---
 
-<Site title="Pagina non trovata">
+<Site title={it ? 'Pagina non trovata' : 'Page not found'}>
   <main>
-    <h1>Questa pagina non c’è.</h1>
-    <p>Forse è stata spostata. <a href="/">Torna alla home</a>.</p>
+    {
+      it ? (
+        <>
+          <h1>Questa pagina non c’è.</h1>
+          <p>
+            Forse è stata spostata. <a href="/">Torna alla home</a>.
+          </p>
+        </>
+      ) : (
+        <>
+          <h1>This page doesn’t exist.</h1>
+          <p>
+            Maybe it was moved. <a href="/">Back to the home page</a>.
+          </p>
+        </>
+      )
+    }
   </main>
 </Site>
 

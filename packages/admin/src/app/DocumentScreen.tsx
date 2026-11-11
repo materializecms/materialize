@@ -491,10 +491,23 @@ function Editor({
       docTitle: title,
       docUrl: doc?.url ?? null,
       siteUrl: schema.site.url,
-      urlPrefix: collection.urlPrefix,
+      // Documents in another language than the site's main one live under it: /en/articoli/…
+      urlPrefix:
+        collection.urlPrefix && (doc?.locale ?? locale) !== schema.locales.default
+          ? `/${doc?.locale ?? locale}${collection.urlPrefix}`
+          : collection.urlPrefix,
       docText: () => wordsOf(latest.current.value).join('\n').slice(0, 20_000),
     }),
-    [visibleIssues, title, doc?.url, schema.site.url, collection.urlPrefix],
+    [
+      visibleIssues,
+      title,
+      doc?.url,
+      doc?.locale,
+      locale,
+      schema.site.url,
+      schema.locales.default,
+      collection.urlPrefix,
+    ],
   )
 
   const status = doc?.status ?? 'draft'

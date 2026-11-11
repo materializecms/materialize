@@ -15,6 +15,7 @@ export type Route =
       tab?:
         | 'mail'
         | 'messages'
+        | 'comments'
         | 'seo'
         | 'ai'
         | 'languages'
@@ -49,6 +50,7 @@ export function parse(pathname: string): Route {
         (
           {
             messaggi: 'messages',
+            commenti: 'comments',
             lingue: 'languages',
             email: 'mail',
             sicurezza: 'security',
@@ -81,7 +83,7 @@ export function href(route: Route): string {
     case 'newsletter':
       return `${BASE}/_newsletter${route.view ? `/${route.view === 'subscribers' ? 'iscritti' : route.view}` : ''}`
     case 'settings':
-      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni', voice: 'voce' }[route.tab as string] ?? route.tab}` : ''}`
+      return `${BASE}/_settings${route.tab ? `/${{ messages: 'messaggi', comments: 'commenti', languages: 'lingue', mail: 'email', security: 'sicurezza', backups: 'backup', activity: 'registro', import: 'importa', tracking: 'tracciamento', updates: 'aggiornamenti', about: 'informazioni', voice: 'voce' }[route.tab as string] ?? route.tab}` : ''}`
     case 'invite':
       return `${BASE}/_invite/${route.token}`
     case 'collection':

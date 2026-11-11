@@ -196,4 +196,16 @@ export const app: Record<string, string> = {
   'Vai al contenuto': 'Skip to content',
   'Lingua dei contenuti': 'Content language',
   'Lingua dei contenuti: {language}': 'Content language: {language}',
+  'Oppure una passkey': 'Or a passkey',
+  'Entri con Face ID, Touch ID o il PIN del dispositivo, senza codici da copiare.':
+    'Sign in with Face ID, Touch ID or the device PIN, with no codes to copy.',
+  'Aggiungi una passkey': 'Add a passkey',
+  'Accedi con una passkey': 'Sign in with a passkey',
+  'un commento da approvare': 'one comment to approve',
+  '{n} commenti da approvare': '{n} comments to approve',
+  'Un commento da approvare': 'One comment to approve',
+  'Leggi e approva →': 'Read and approve →',
+  'Qualcosa nel pannello si è fermato': 'Something in the panel stopped',
+  'Il lavoro salvato è al sicuro. Ricarica la pagina; se succede di nuovo, segnalalo con quello che stavi facendo.':
+    'Your saved work is safe. Reload the page; if it happens again, report it with what you were doing.',
 }
