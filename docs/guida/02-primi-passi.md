@@ -31,6 +31,7 @@ Quando la pagina è pronta, premi **Pubblica** in alto a destra.
 - Se manca qualcosa di obbligatorio (per esempio il titolo), il pannello non pubblica e ti porta dritto al campo da sistemare.
 - Dopo la pubblicazione il sito si rigenera da solo, di solito in meno di un secondo.
 - Se modifichi di nuovo una pagina pubblicata, il pulsante diventa **Pubblica modifiche**: il sito continua a mostrare la versione precedente finché non lo premi.
+- Per vedere la pagina come la vedono i visitatori, usa l'icona **Apri nel browser** accanto al pulsante: apre la versione pubblicata in una nuova scheda.
 
 ## Contenuto o Design
 

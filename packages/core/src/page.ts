@@ -566,7 +566,8 @@ export const DEFAULT_THEME: Theme = {
       onInverse: '#141414',
     },
   },
-  display: 'Instrument Serif',
+  // Materialize's own typeface, for headings and text: each site picks its own in Stili.
+  display: 'Geist',
   body: 'Geist',
   scale: 1,
   btnRadius: 999,

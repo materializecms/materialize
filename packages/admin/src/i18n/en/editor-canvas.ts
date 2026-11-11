@@ -12,6 +12,8 @@ export const editorCanvas: Record<string, string> = {
   'Trascina per cambiare lo spazio della sezione': 'Drag to change the section’s spacing',
   'Trascina per cambiare la larghezza': 'Drag to change the width',
   'Trascina per cambiare le proporzioni': 'Drag to change the proportions',
+  'Trascina per cambiare l’altezza · doppio clic: automatica': 'Drag to change the height · double-click: automatic',
+  'Trascina per cambiare larghezza e altezza': 'Drag to change width and height',
   'Trascina per cambiare dimensioni e proporzioni': 'Drag to change size and proportions',
   Contenitore: 'Container',
   Lingue: 'Languages',

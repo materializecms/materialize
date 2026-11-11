@@ -2,9 +2,20 @@
 
 ## Raccolte
 
-Le voci del menu **Contenuti** sono le **raccolte** del sito: Pagine e, a seconda del sito, altre come Progetti, Diario o Team. Ogni voce di una raccolta ha i suoi campi: titolo, testi, immagini, date, collegamenti ad altre voci.
+Le voci del menu **Contenuti** sono le **raccolte** del sito. Ogni sito nuovo ne ha due: **Pagine** e **Articoli**, il blog. A seconda del sito ce ne possono essere altre, come Progetti o Team. Ogni voce di una raccolta ha i suoi campi: titolo, testi, immagini, date, collegamenti ad altre voci.
 
-Quali raccolte e quali campi esistono lo decide chi sviluppa il sito, in `materialize.config.ts` (vedi il [README](../../README.md#lo-schema-è-codice)). Chi scrive i contenuti li trova già pronti nel pannello.
+Raccolte e campi oltre a Pagine e Articoli li aggiunge chi sviluppa il sito, in `materialize.config.ts` (vedi il [README](../../README.md#lo-schema-è-codice)). Chi scrive i contenuti li trova già pronti nel pannello.
+
+## Articoli
+
+Un articolo ha titolo, data, sommario, copertina e testo, e si pubblica all'indirizzo `/articoli/…`. Finché non ne disegni l'aspetto, ogni articolo esce come una pagina semplice e leggibile, con i colori e i caratteri del sito.
+
+Per dargli menu, piè di pagina e il tuo stile:
+
+1. crea una pagina, per esempio «Articolo», e disegnala sulla tela; i testi e le immagini collegati ai campi (titolo, data, copertina…) si riempiono con l'articolo vero;
+2. nel pannello a destra, alla voce **Modello**, scegli **Articoli**: da quel momento ogni articolo usa questa pagina.
+
+Per l'elenco degli articoli, in una pagina come «Blog», usa un contenitore che si ripete per ogni articolo (vedi [Elenchi e pagine modello](03-editor.md#elenchi-e-pagine-modello)). Gli articoli finiscono anche nel feed RSS del sito.
 
 Negli elenchi:
 
@@ -75,6 +86,7 @@ I campi di testo lungo hanno titoli, grassetto, corsivo, elenchi, link, citazion
 In **Media** ci sono tutti i file caricati.
 
 - **Caricare**: trascina i file nella pagina, oppure usa il pulsante. Si può caricare anche direttamente da un campo immagine.
+- **Guardare in grande**: clicca un file per vederne i dettagli accanto all'elenco; clicca l'anteprima per vedere l'immagine a tutto schermo (Esc per chiudere).
 - **Testo alternativo**: per ogni immagine descrivi cosa mostra. Serve a chi non vede e ai motori di ricerca. L'assistente AI può suggerirlo (vedi [Assistente AI](09-ai-e-mcp.md)).
 - **Punto focale**: nelle immagini che lo prevedono, clicca il punto più importante; quando l'immagine viene ritagliata, resta al centro.
 - **Dove è usata**: ogni immagine mostra quante pagine la usano, così sai cosa tocchi prima di eliminarla.

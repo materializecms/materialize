@@ -1,0 +1,113 @@
+---
+/** The home until a page with the address "home" is published: in Materialize's own look. */
+---
+
+<main class="welcome">
+  <div class="card">
+    <svg class="mark" viewBox="0 0 72 72" aria-hidden="true">
+      <rect width="72" height="72" rx="17" fill="#5B4BEA"></rect>
+      <g transform="translate(14 14) scale(0.6875)" fill="#fff">
+        <rect x="2" y="2" width="10" height="10" rx="2.6" opacity="0.3"></rect>
+        <rect x="2" y="14.5" width="10" height="10" rx="2.6" opacity="0.3"></rect>
+        <rect x="2" y="27" width="10" height="10" rx="2.6" opacity="0.3"></rect>
+        <rect x="2" y="39.5" width="10" height="10" rx="2.6" opacity="0.3"></rect>
+        <rect x="2" y="52" width="10" height="10" rx="2.6" opacity="0.3"></rect>
+        <rect x="14.5" y="14.5" width="10" height="10" rx="2.6" opacity="0.5"></rect>
+        <rect x="27" y="27" width="10" height="10" rx="2.6" opacity="0.7"></rect>
+        <rect x="39.5" y="14.5" width="10" height="10" rx="2.6" opacity="0.85"></rect>
+        <rect x="52" y="2" width="10" height="10" rx="2.6"></rect>
+        <rect x="52" y="14.5" width="10" height="10" rx="2.6"></rect>
+        <rect x="52" y="27" width="10" height="10" rx="2.6"></rect>
+        <rect x="52" y="39.5" width="10" height="10" rx="2.6"></rect>
+        <rect x="52" y="52" width="10" height="10" rx="2.6"></rect>
+      </g>
+    </svg>
+    <h1>Qui nascerà il sito.</h1>
+    <p>
+      Entra nel pannello e crea una pagina con indirizzo <code>home</code>: appena la pubblichi, comparirà
+      qui.
+    </p>
+    <a class="button" href="/admin/">Apri il pannello</a>
+    <p class="note">
+      Prima volta? Il pannello chiede il link di installazione che il server ha scritto all’avvio: con Docker lo
+      mostra <code>docker compose logs materialize</code>.
+    </p>
+  </div>
+</main>
+
+<style>
+  .welcome {
+    min-height: 100vh;
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+    background:
+      radial-gradient(60% 40% at 50% 0%, rgb(91 75 234 / 0.18), transparent 70%),
+      radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px) 0 0 / 18px 18px,
+      #0b0b0e;
+    color: #ededf0;
+    font-family: 'Geist Variable', system-ui, sans-serif;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    padding: 28px;
+    box-sizing: border-box;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: 20px;
+    background: #141418;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 0.45);
+  }
+  .mark {
+    display: block;
+    width: 36px;
+    height: 36px;
+  }
+  h1 {
+    margin: 22px 0 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 10px 0 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: rgb(237 237 240 / 0.72);
+  }
+  code {
+    font: 500 0.9em 'Geist Mono Variable', ui-monospace, monospace;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: rgb(255 255 255 / 0.08);
+    color: #ededf0;
+    white-space: nowrap;
+  }
+  .button {
+    display: flex;
+    justify-content: center;
+    margin-top: 22px;
+    padding: 11px 18px;
+    border-radius: 999px;
+    background: #6d5ff5;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .button:hover {
+    background: #7b6ef7;
+  }
+  .note {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+    font-size: 13px;
+    color: rgb(237 237 240 / 0.55);
+  }
+  .note code {
+    white-space: normal;
+  }
+</style>

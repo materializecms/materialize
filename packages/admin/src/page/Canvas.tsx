@@ -126,7 +126,7 @@ function gapsBetween(a: Box, b: Box, scale: number): Gap[] {
   else if (b.y + b.h <= a.y) out.push({ x1: midX, y1: b.y + b.h, x2: midX, y2: a.y, label: v(a.y - b.y - b.h) })
   return out
 }
-type Handle = 'left' | 'right' | 'bottom' | 'corner' | 'section'
+type Handle = 'left' | 'right' | 'top' | 'bottom' | 'corner' | 'section'
 
 /** Section heights the renderer knows (desktop padding), from smallest to largest. */
 const SECTION_SIZES: [NonNullable<NodeProps['size']>, number][] = [
@@ -822,21 +822,29 @@ export function Canvas({
         if (handle === 'right' || handle === 'corner') w = startW + dx
         if (handle === 'left') w = startW - dx
         w = Math.round(Math.max(24, Math.min(parentW, w)))
+        const vertical = handle === 'top' || handle === 'bottom'
         let h = startH
         if (handle === 'bottom' || handle === 'corner') h = Math.round(Math.max(24, startH + dy))
-        if (handle !== 'bottom') {
+        if (handle === 'top') h = Math.round(Math.max(24, startH - dy))
+        if (!vertical) {
           el.style.width = `${w}px`
           el.style.flex = '0 0 auto'
           el.style.maxWidth = 'none'
           patch = w >= parentW - 1 ? { width: 'fill', maxW: null } : { width: 'fixed', fixedW: w, maxW: null }
         }
-        if (node.type === 'image' && (handle === 'bottom' || handle === 'corner')) {
-          const W = handle === 'bottom' ? Math.round(startW) : w
-          const g = gcd(W, h) || 1
-          el.style.aspectRatio = `${W} / ${h}`
-          patch = { ...patch, ratio: `${W / g}/${h / g}` }
+        if (vertical || handle === 'corner') {
+          const W = vertical ? Math.round(startW) : w
+          if (node.type === 'image') {
+            // An image keeps its proportions as a ratio, so it still scales with the screen.
+            const g = gcd(W, h) || 1
+            el.style.aspectRatio = `${W} / ${h}`
+            patch = { ...patch, ratio: `${W / g}/${h / g}` }
+          } else {
+            el.style.height = `${h}px`
+            patch = { ...patch, h, hUnit: undefined }
+          }
         }
-        setBadge(`${handle === 'bottom' ? Math.round(startW) : w} × ${h}`)
+        setBadge(`${vertical ? Math.round(startW) : w} × ${h}`)
       }
       measure()
     }
@@ -1306,6 +1314,7 @@ export function Canvas({
                   node={selectedNode}
                   section={findNode(nodes, selected)?.depth === 0}
                   onStart={startResize}
+                  onAutoHeight={() => selected && onResize(selected, { h: null, hUnit: undefined })}
                 />
               )}
             {selectionBar &&
@@ -1495,17 +1504,23 @@ function Rulers({
   )
 }
 
-/** Square handles on the selection: sides change the width, the bottom an image's proportions or a section's height. */
+/**
+ * Square handles on the selection: the sides change the width, top and bottom the height (an
+ * image's proportions), the bottom of a section its space. Texts and buttons have no height
+ * handles: they grow with what they say, on every screen.
+ */
 function Handles({
   box,
   node,
   section,
   onStart,
+  onAutoHeight,
 }: {
   box: Box
   node: PageNode
   section: boolean
   onStart: (handle: Handle, e: React.PointerEvent) => void
+  onAutoHeight: () => void
 }) {
   // A 9 px square inside a 20 px target, easy to grab.
   const dot =
@@ -1536,32 +1551,39 @@ function Handles({
         title: t('Trascina per cambiare la larghezza'),
       },
     )
-    if (node.type === 'image')
+    const image = node.type === 'image'
+    if (node.type !== 'text' && node.type !== 'button') {
+      const height = image
+        ? t('Trascina per cambiare le proporzioni')
+        : t('Trascina per cambiare l’altezza · doppio clic: automatica')
       list.push(
-        {
-          h: 'bottom',
-          x: box.x + box.w / 2,
-          y: box.y + box.h,
-          cursor: 'ns-resize',
-          title: t('Trascina per cambiare le proporzioni'),
-        },
+        { h: 'top', x: box.x + box.w / 2, y: box.y, cursor: 'ns-resize', title: height },
+        { h: 'bottom', x: box.x + box.w / 2, y: box.y + box.h, cursor: 'ns-resize', title: height },
         {
           h: 'corner',
           x: box.x + box.w,
           y: box.y + box.h,
           cursor: 'nwse-resize',
-          title: t('Trascina per cambiare dimensioni e proporzioni'),
+          title: image
+            ? t('Trascina per cambiare dimensioni e proporzioni')
+            : t('Trascina per cambiare larghezza e altezza'),
         },
       )
+    }
   }
   return (
     <>
       {list.map((d) => (
+        // Pointer-only shortcuts: every size is also a field in the properties panel.
+        // biome-ignore lint/a11y/noStaticElementInteractions: the same sizes are editable from the keyboard there
         <span
           key={d.h}
           role="presentation"
           title={d.title}
           onPointerDown={(e) => onStart(d.h, e)}
+          onDoubleClick={
+            (d.h === 'top' || d.h === 'bottom') && node.type !== 'image' && !section ? onAutoHeight : undefined
+          }
           className={dot}
           style={{ left: d.x - 10, top: d.y - 10, cursor: d.cursor }}
         >

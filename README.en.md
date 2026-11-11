@@ -46,7 +46,7 @@ You need Node 24 or later. There's no database to install: SQLite is included.
 npm create materialize@latest
 ```
 
-The command asks for a folder, copies a starter Astro site (you build pages on the canvas from the library's sections), installs the dependencies and tells you how to start: `npm run dev`, then http://localhost:4321/admin.
+The command asks for a folder, copies a starter Astro site (you build pages on the canvas from the library's sections, and a blog is ready: the Articoli collection), installs the dependencies and tells you how to start: `npm run dev`, then http://localhost:4321/admin.
 
 ### Where to install it
 

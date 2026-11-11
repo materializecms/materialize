@@ -15,7 +15,8 @@ const CATEGORIES = () => [
   { value: 'handwriting', label: t('Calligrafici') },
   { value: 'monospace', label: t('Monospazio') },
 ]
-const SHOWN = 120
+/** Rows drawn at a time: more appear as the list scrolls, so all of them can be reached. */
+const PAGE = 120
 
 /** Every Google Font, searchable, each name shown in its own typeface. */
 export function FontPicker({
@@ -67,6 +68,11 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('all')
   const q = query.trim().toLowerCase()
+  const [shown, setShown] = useState(PAGE)
+  const scroller = useRef<HTMLDivElement>(null)
+  // A new search or category starts from the top again.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the filter changes
+  useEffect(() => setShown(PAGE), [q, category])
   const matches = useMemo(
     () =>
       (fonts.data?.items ?? []).filter(
@@ -76,7 +82,8 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
   )
 
   return (
-    <div className="flex max-h-[420px] flex-col">
+    // A fixed height, known when the menu opens: it is placed where it fits, even before the list loads.
+    <div className="flex h-[min(420px,70vh)] flex-col">
       <div className="space-y-2 border-b border-line p-2">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
@@ -105,20 +112,18 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
           ))}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-1">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto p-1">
         {fonts.isPending ? (
           <div className="flex justify-center py-6">
             <Spinner />
           </div>
         ) : (
           <>
-            {matches.slice(0, SHOWN).map((f) => (
+            {matches.slice(0, shown).map((f) => (
               <FontRow key={f.id} font={f} selected={f.family === value} onPick={() => onPick(f)} />
             ))}
-            {matches.length > SHOWN && (
-              <p className="px-2 py-2 text-[12px] text-fg3">
-                {t('Altri {n} caratteri: scrivi il nome per trovarli.', { n: matches.length - SHOWN })}
-              </p>
+            {matches.length > shown && (
+              <MoreRows key={shown} root={scroller.current} onShow={() => setShown((n) => n + PAGE)} />
             )}
             {!matches.length && (
               <p className="px-2 py-4 text-center text-[12.5px] text-fg3">{t('Nessun carattere trovato.')}</p>
@@ -126,6 +131,32 @@ function FontList({ value, onPick }: { value: string; onPick: (f: FontInfo) => v
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+/** At the end of the list: once it scrolls into view, the next rows are drawn. */
+function MoreRows({ root, onShow }: { root: HTMLElement | null; onShow: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    // Watched against the list itself, a little ahead, so the rows are there before they are reached.
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e?.isIntersecting) {
+          io.disconnect()
+          onShow()
+        }
+      },
+      { root, rootMargin: '0px 0px 300px 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [root, onShow])
+  return (
+    <div ref={ref} className="flex justify-center py-3">
+      <Spinner />
     </div>
   )
 }

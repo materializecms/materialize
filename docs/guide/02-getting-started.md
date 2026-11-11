@@ -31,6 +31,7 @@ When the page is ready, press **Publish** at the top right.
 - If something required is missing (for example the title), the panel doesn't publish and takes you straight to the field to fix.
 - After publishing, the site rebuilds by itself, usually in less than a second.
 - If you edit a published page again, the button becomes **Publish changes**. The site keeps showing the previous version until you press it.
+- To see the page as visitors see it, use the **Open in the browser** icon beside the button: it opens the published version in a new tab.
 
 ## Content or Design
 

@@ -83,9 +83,22 @@ export function SetupWizard({ status }: { status: Extract<SetupStatus, { needsSe
           <p className="mt-2 mb-5 text-[14px] leading-relaxed text-fg2">
             {tx(
               'Per sicurezza, solo chi ha avviato il server può installare Materialize. All’avvio ha scritto un link che finisce con {link}: aprilo, oppure incolla qui il codice dopo l’uguale.',
-              { link: <code className="font-mono text-[13px]">?installa=…</code> },
+              { link: <code className="font-mono text-[13px] whitespace-nowrap">?installa=…</code> },
             )}
           </p>
+          {/* Where the link is, by the way the server was started. */}
+          <dl className="-mt-2 mb-5 space-y-1.5 rounded-xl bg-panel2 px-3.5 py-3 text-[13px]">
+            {[
+              { where: t('Con Docker'), how: 'docker compose logs materialize', command: true },
+              { where: t('Su un server (VPS)'), how: 'journalctl -u materialize | grep installa', command: true },
+              { where: t('Sul tuo computer'), how: t('nel terminale dove gira Materialize'), command: false },
+            ].map(({ where, how, command }) => (
+              <div key={where}>
+                <dt className="text-fg3">{where}</dt>
+                <dd className={cx('text-fg', command && 'font-mono text-[12.5px] break-all')}>{how}</dd>
+              </div>
+            ))}
+          </dl>
           <Input
             value={typed}
             onChange={(e) => setTyped(e.target.value)}

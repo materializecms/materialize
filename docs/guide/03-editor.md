@@ -48,6 +48,7 @@ On Windows, use **Ctrl** instead of **⌘** and **Alt** instead of **⌥**.
 
 A container arranges its elements **in a row**, **in a column**, or **in a grid**, with spacing and alignment. An element can also sit in a **free position**, on top of the others.
 
+- **Handles**: the side ones change the width, the top and bottom ones the height (an image's proportions), the corner one both. Double-click a top or bottom handle and the height goes back to automatic. Texts and buttons only have side handles: their height follows the text.
 - When you drag a free element, **snap guides** appear toward nearby edges and centers (hold **⌘** to move it without snapping).
 - Hold **⌥** to see the distances to the element under the pointer.
 - **⇧R** shows the rulers. Drag from a ruler to create a guide.
@@ -100,7 +101,7 @@ An element, for example a card or a button, can become a reusable **component**,
 This applies to the whole site:
 
 - named **colors**, one for the light theme and one for the dark theme;
-- **fonts**: any Google Font (about 2,000). Materialize downloads them once and serves them from your site, so visitors don't contact Google;
+- **fonts**: any Google Font (about 2,000, all in the list: scroll or search by name). Materialize downloads them once and serves them from your site, so visitors don't contact Google;
 - corners, tablet and mobile widths, smooth scrolling, custom cursor, page transitions.
 
 ## Page checks

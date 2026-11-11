@@ -75,28 +75,27 @@ export function ThemePanel({
           />
         </Section>
         <Section title={t('Colori')}>
-          <div className="grid grid-cols-2 gap-1.5">
+          {/* One per row: the full name on the left, its code on the right. */}
+          <div className="space-y-1.5">
             {colorLabels().map((c) => (
               <div
                 key={c.key}
                 title={c.hint}
-                className="flex h-9 items-center gap-2 rounded-md border border-line px-1.5 hover:border-line2"
+                className="flex h-11 items-center gap-2.5 rounded-lg border border-line pr-1.5 pl-2 hover:border-line2"
               >
                 <input
                   type="color"
                   aria-label={c.label}
                   value={colors[c.key]}
                   onChange={(e) => setColor(c.key, e.target.value)}
-                  className="size-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[5px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
+                  className="size-7 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-[6px] [&::-webkit-color-swatch]:border [&::-webkit-color-swatch]:border-black/15 [&::-webkit-color-swatch-wrapper]:p-0"
                 />
-                <span className="min-w-0">
-                  <span className="block truncate text-[12px] font-medium">{c.label}</span>
-                  <HexInput
-                    label={t('{name}: codice', { name: c.label })}
-                    value={colors[c.key]}
-                    onChange={(v) => setColor(c.key, v)}
-                  />
-                </span>
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{c.label}</span>
+                <HexInput
+                  label={t('{name}: codice', { name: c.label })}
+                  value={colors[c.key]}
+                  onChange={(v) => setColor(c.key, v)}
+                />
               </div>
             ))}
           </div>

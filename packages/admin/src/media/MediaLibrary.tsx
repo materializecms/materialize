@@ -4,6 +4,7 @@ import {
   Copy,
   Download,
   Images,
+  Maximize2,
   MoreHorizontal,
   PanelRight,
   Search,
@@ -12,6 +13,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSession } from '../app/context.ts'
 import { SelectBox } from '../app/ListActions.tsx'
 import { AiButton } from '../components/AiMenu.tsx'
@@ -204,58 +206,59 @@ export function MediaLibrary() {
   )
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="flex min-w-0 flex-1 flex-col">
-        {checked.size > 0 ? (
-          <header className="mt-6 flex h-12 shrink-0 items-center gap-2 px-4 sm:mt-8 sm:px-8">
-            <SelectBox checked label={t('Deseleziona tutti')} onToggle={() => setChecked(new Map())} />
-            <span className="ml-1 text-[14px] font-medium">
-              {tn(checked.size, '1 file selezionato', '{n} file selezionati')}
-            </span>
-            <div className="flex-1" />
-            {admin && (
-              <Button
-                variant="danger"
-                size="sm"
-                icon={<Trash2 className="size-3.5" />}
-                loading={busy}
-                onClick={() => setDeleting([...checked.values()])}
-              >
-                {t('Elimina')}
-              </Button>
-            )}
-            <Button size="sm" icon={<X className="size-3.5" />} onClick={() => setChecked(new Map())}>
-              {t('Annulla')}
+    // The header spans the whole width, so opening the details never moves its buttons.
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {checked.size > 0 ? (
+        <header className="mt-6 flex h-12 shrink-0 items-center gap-2 px-4 sm:mt-8 sm:px-8">
+          <SelectBox checked label={t('Deseleziona tutti')} onToggle={() => setChecked(new Map())} />
+          <span className="ml-1 text-[14px] font-medium">
+            {tn(checked.size, '1 file selezionato', '{n} file selezionati')}
+          </span>
+          <div className="flex-1" />
+          {admin && (
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 className="size-3.5" />}
+              loading={busy}
+              onClick={() => setDeleting([...checked.values()])}
+            >
+              {t('Elimina')}
             </Button>
-          </header>
-        ) : (
-          <ScreenHeader
-            icon={<Images />}
-            color="#0ea5e9"
-            title={t('Media')}
-            subtitle={t('Immagini, video e modelli 3D del sito: trascinali qui per caricarli.')}
-            actions={
-              <Button variant="primary" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
-                {t('Carica')}
-              </Button>
-            }
-          >
-            <div className="mt-6 flex items-center">
-              <div className="relative w-full sm:w-80">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t('Cerca per nome o descrizione')}
-                  className="pl-8"
-                  aria-label={t('Cerca nei media')}
-                />
-              </div>
+          )}
+          <Button size="sm" icon={<X className="size-3.5" />} onClick={() => setChecked(new Map())}>
+            {t('Annulla')}
+          </Button>
+        </header>
+      ) : (
+        <ScreenHeader
+          icon={<Images />}
+          color="#0ea5e9"
+          title={t('Media')}
+          subtitle={t('Immagini, video e modelli 3D del sito: trascinali qui per caricarli.')}
+          actions={
+            <Button variant="primary" icon={<UploadIcon className="size-4" />} onClick={picker.open}>
+              {t('Carica')}
+            </Button>
+          }
+        >
+          <div className="mt-6 flex items-center">
+            <div className="relative w-full sm:w-80">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('Cerca per nome o descrizione')}
+                className="pl-8"
+                aria-label={t('Cerca nei media')}
+              />
             </div>
-          </ScreenHeader>
-        )}
-        {picker.element}
-        <DropZone onFiles={start} className="min-h-0 flex-1 overflow-y-auto">
+          </div>
+        </ScreenHeader>
+      )}
+      {picker.element}
+      <div className="flex min-h-0 flex-1">
+        <DropZone onFiles={start} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           <MediaGrid
             className="px-4 pt-4 pb-8 sm:px-8"
             search={debounced}
@@ -269,8 +272,8 @@ export function MediaLibrary() {
             menu={menu}
           />
         </DropZone>
+        {selected && <MediaDetails key={selected.id} asset={selected} onClose={() => setSelected(null)} />}
       </div>
-      {selected && <MediaDetails key={selected.id} asset={selected} onClose={() => setSelected(null)} />}
       <Dialog
         open={!!deleting}
         onClose={() => setDeleting(null)}
@@ -305,7 +308,9 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
   const [alt, setAlt] = useState(asset.alt)
   const [saved, setSaved] = useState(false)
   const [confirm, setConfirm] = useState(false)
+  const [viewing, setViewing] = useState(false)
   const usage = detail.data?.usage
+  const image = asset.mime.startsWith('image/')
 
   const saveAlt = async (value = alt) => {
     if (value === (detail.data?.alt ?? asset.alt)) return
@@ -334,15 +339,35 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
   const row = 'flex justify-between gap-3 py-1'
 
   return (
-    // A card of its own beside the grid, lined up with the header; on phones a sheet over the grid.
-    <aside className="flex w-[320px] shrink-0 flex-col pt-6 pr-4 pb-4 sm:pt-8 sm:pr-8 max-md:fixed max-md:inset-x-2 max-md:bottom-2 max-md:z-30 max-md:max-h-[75dvh] max-md:w-auto max-md:p-0">
+    // A card of its own beside the grid, lined up with its first row; on phones a sheet over the grid.
+    <aside className="flex w-[340px] shrink-0 flex-col pt-4 pr-4 pb-4 sm:pr-8 max-md:fixed max-md:inset-x-2 max-md:bottom-2 max-md:z-30 max-md:max-h-[75dvh] max-md:w-auto max-md:p-0">
       <div className="min-h-0 overflow-y-auto rounded-2xl bg-panel2 max-md:shadow-pop">
         <div className="relative p-3">
-          <img
-            src={thumb(asset.url, 640)}
-            alt={asset.alt}
-            className="mx-auto max-h-64 rounded-xl object-contain max-md:max-h-40"
-          />
+          {image ? (
+            <button
+              type="button"
+              onClick={() => setViewing(true)}
+              title={t('Guarda in grande')}
+              aria-label={t('Guarda in grande')}
+              className="group relative block w-full cursor-zoom-in rounded-xl"
+            >
+              <img
+                src={thumb(asset.url, 640)}
+                alt={asset.alt}
+                className="mx-auto max-h-72 rounded-xl object-contain max-md:max-h-40"
+              />
+              <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[12px] font-medium text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 [&_svg]:size-3.5">
+                <Maximize2 />
+                {t('Guarda in grande')}
+              </span>
+            </button>
+          ) : (
+            <img
+              src={thumb(asset.url, 640)}
+              alt={asset.alt}
+              className="mx-auto max-h-72 rounded-xl object-contain max-md:max-h-40"
+            />
+          )}
           <IconButton
             label={t('Chiudi')}
             onClick={onClose}
@@ -423,6 +448,7 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
           </div>
         </div>
       </div>
+      {viewing && <MediaViewer asset={asset} onClose={() => setViewing(false)} />}
       <Dialog
         open={confirm}
         onClose={() => setConfirm(false)}
@@ -445,5 +471,51 @@ function MediaDetails({ asset, onClose }: { asset: MediaAsset; onClose: () => vo
           : t('Non è usata in nessun documento. Il file verrà eliminato definitivamente.')}
       </Dialog>
     </aside>
+  )
+}
+
+/** The image at full size over the whole panel: Esc, a click outside or × closes it. */
+function MediaViewer({ asset, onClose }: { asset: MediaAsset; onClose: () => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  // Focus moves into the viewer, so Esc reaches it; closed, it goes back to the preview.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    box.current?.focus()
+    return () => opener?.focus()
+  }, [])
+  return createPortal(
+    <div
+      ref={box}
+      role="dialog"
+      aria-modal="true"
+      aria-label={asset.filename}
+      tabIndex={-1}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return
+        e.stopPropagation()
+        onClose()
+      }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/85 p-4 outline-none backdrop-blur-sm sm:p-10"
+    >
+      <img src={asset.url} alt={asset.alt} className="min-h-0 max-w-full flex-1 rounded-lg object-contain" />
+      <div className="flex max-w-full items-center gap-3 text-[13px] text-white/80">
+        <span className="truncate font-medium text-white">{asset.filename}</span>
+        {asset.width && (
+          <span className="shrink-0 tabular-nums">
+            {asset.width} × {asset.height}
+          </span>
+        )}
+        <span className="shrink-0">{formatSize(asset.size)}</span>
+      </div>
+      <IconButton
+        label={t('Chiudi')}
+        onClick={onClose}
+        className="absolute top-3 right-3 size-9 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+      >
+        <X />
+      </IconButton>
+    </div>,
+    document.body,
   )
 }

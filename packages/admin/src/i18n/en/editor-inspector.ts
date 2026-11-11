@@ -294,7 +294,6 @@ export const editorInspector: Record<string, string> = {
   'Cerca tra {n} caratteri': 'Search {n} fonts',
   Cerca: 'Search',
   'Cerca un carattere': 'Search for a font',
-  'Altri {n} caratteri: scrivi il nome per trovarli.': '{n} more fonts: type the name to find them.',
   'Nessun carattere trovato.': 'No fonts found.',
   variabile: 'variable',
   'un peso': '1 weight',

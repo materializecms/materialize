@@ -48,6 +48,7 @@ Su Windows usa **Ctrl** al posto di **⌘** e **Alt** al posto di **⌥**.
 
 Un contenitore dispone i suoi elementi **in riga**, **in colonna** o **a griglia**, con spaziature e allineamenti. Un elemento può anche stare in **posizione libera**, sopra gli altri.
 
+- **Maniglie**: quelle ai lati cambiano la larghezza, quelle sopra e sotto l'altezza (in un'immagine le proporzioni), quella nell'angolo entrambe. Doppio clic su una maniglia sopra o sotto e l'altezza torna automatica. Testi e pulsanti hanno solo le maniglie dei lati: la loro altezza segue il testo.
 - Trascinando un elemento libero compaiono **guide magnetiche** verso bordi e centri vicini (tieni **⌘** per spostarlo senza agganci).
 - Tenendo premuto **⌥** vedi le distanze dall'elemento sotto il puntatore.
 - **⇧R** mostra i righelli; trascinando da un righello crei una guida.
@@ -100,7 +101,7 @@ Un elemento, per esempio una scheda o un pulsante, può diventare un **component
 Vale per tutto il sito:
 
 - **colori** con nome, uno per il tema chiaro e uno per lo scuro;
-- **caratteri**: qualsiasi Google Font (circa 2000). Materialize li scarica una volta e li serve dal tuo sito, così i visitatori non contattano Google;
+- **caratteri**: qualsiasi Google Font (circa 2000, tutti nell'elenco: scorri o cerca per nome). Materialize li scarica una volta e li serve dal tuo sito, così i visitatori non contattano Google;
 - angoli, larghezze di tablet e mobile, scorrimento morbido, cursore personalizzato, transizioni tra le pagine.
 
 ## Controlli della pagina

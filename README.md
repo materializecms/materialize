@@ -46,7 +46,7 @@ Richiede Node 24 o superiore. Nessun database da installare: SQLite è incluso.
 npm create materialize@latest
 ```
 
-Il comando chiede la cartella, copia un sito Astro di partenza (le pagine si compongono sulla tela con le sezioni della libreria), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
+Il comando chiede la cartella, copia un sito Astro di partenza (le pagine si compongono sulla tela con le sezioni della libreria, e c'è già un blog: la raccolta Articoli), installa le dipendenze e dice come partire: `npm run dev`, poi http://localhost:4321/admin.
 
 ### Dove installarlo
 

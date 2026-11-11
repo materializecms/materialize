@@ -2,9 +2,20 @@
 
 ## Collections
 
-The items in the **Content** menu are the site's **collections**: Pages and, depending on the site, others such as Projects, Journal, or Team. Each item in a collection has its own fields: title, text, images, dates, links to other items.
+The items in the **Content** menu are the site's **collections**. Every new site has two: **Pages** and **Articoli** (the blog). Depending on the site there can be others, such as Projects or Team. Each item in a collection has its own fields: title, text, images, dates, links to other items.
 
-Which collections and fields exist is decided by whoever develops the site, in `materialize.config.ts` (see the [README](../../README.md#lo-schema-è-codice)). People who write content find them ready in the panel.
+Collections and fields beyond Pages and Articoli are added by whoever develops the site, in `materialize.config.ts` (see the [README](../../README.md#lo-schema-è-codice)). People who write content find them ready in the panel.
+
+## Articles
+
+An article has a title, date, summary, cover and text, and is published at `/articoli/…`. Until you design how it looks, each article comes out as a plain, readable page in the site's colors and fonts.
+
+To give it the menu, the footer and your style:
+
+1. create a page, for example "Article", and design it on the canvas; text and images linked to the fields (title, date, cover…) fill in with the real article;
+2. in the right panel, under **Template**, choose **Articoli**: from then on every article uses this page.
+
+For the list of articles, on a page such as "Blog", use a container that repeats for every article (see [Lists and template pages](03-editor.md#lists-and-template-pages)). Articles also go into the site's RSS feed.
 
 In the lists:
 
@@ -75,6 +86,7 @@ Long text fields have headings, bold, italics, lists, links, quotes, and images 
 **Media** holds all uploaded files.
 
 - **Uploading**: drag files onto the page, or use the button. You can also upload straight from an image field.
+- **Viewing large**: click a file to see its details beside the list; click the preview to see the image full screen (Esc to close).
 - **Alt text**: for each image, describe what it shows. It helps people who can't see the image, and search engines. The AI assistant can suggest it (see [AI assistant](09-ai-and-mcp.md)).
 - **Focal point**: in images that support it, click the most important spot. When the image is cropped, that spot stays in the center.
 - **Used in**: each image shows how many pages use it, so you know what you affect before deleting it.

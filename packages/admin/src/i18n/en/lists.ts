@@ -65,6 +65,7 @@ export const lists: Record<string, string> = {
   'Apri sul sito': 'Open on the site',
   'Indirizzo copiato': 'Address copied',
   'Copia indirizzo': 'Copy address',
+  'Guarda in grande': 'View large',
   Duplica: 'Duplicate',
   'Pubblica le modifiche': 'Publish changes',
   Pubblica: 'Publish',
@@ -255,6 +256,10 @@ export const lists: Record<string, string> = {
   'Per sicurezza, solo chi ha avviato il server può installare Materialize. All’avvio ha scritto un link che finisce con {link}: aprilo, oppure incolla qui il codice dopo l’uguale.':
     'For security, only whoever started the server can install Materialize. When it started, it printed a link ending in {link}: open it, or paste here the code after the equals sign.',
   'Codice di installazione': 'Installation code',
+  'Con Docker': 'With Docker',
+  'Su un server (VPS)': 'On a server (VPS)',
+  'Sul tuo computer': 'On your computer',
+  'nel terminale dove gira Materialize': 'in the terminal where Materialize runs',
   Continua: 'Continue',
   'Materialize è installato': 'Materialize is installed',
   'Il sito {site} è pronto e il tuo account è attivo. Quando vorrai, nelle Impostazioni trovi l’email per i messaggi del sito e la verifica in due passaggi.':

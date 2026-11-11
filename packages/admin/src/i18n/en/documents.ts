@@ -173,6 +173,8 @@ export const documents: Record<string, string> = {
   'Prendi il controllo': 'Take over',
   'Torna indietro': 'Go back',
   'Apri il sito': 'Open the site',
+  'Apri nel browser': 'Open in the browser',
+  'Pubblica la pagina per aprirla nel browser': 'Publish the page to open it in the browser',
   'Riprendi il controllo': 'Take over again',
   'Continua da qui': 'Continue here',
 

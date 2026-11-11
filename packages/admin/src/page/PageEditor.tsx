@@ -1642,7 +1642,7 @@ export function PageEditor({
                   title={t('Larghezza dello schermo su cui provi la pagina')}
                   value={widths[device]}
                   onChange={(e) => setWidths({ ...widths, [device]: Number(e.target.value) })}
-                  className="h-7 rounded-full bg-transparent px-1 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
+                  className="h-7 rounded-full bg-transparent pr-2 pl-3 font-mono text-[12px] text-fg2 outline-none hover:bg-hover"
                 >
                   {widthPresets[device].map((w) => (
                     <option key={w} value={w}>

@@ -7,6 +7,7 @@ import {
   CircleAlert,
   Copy,
   CopyPlus,
+  ExternalLink,
   EyeOff,
   FileText,
   History as HistoryIcon,
@@ -830,6 +831,22 @@ function Editor({
                 </div>
               )}
             </Popover>
+            {doc?.url && (
+              <IconButton
+                label={doc.publishedAt ? t('Apri nel browser') : t('Pubblica la pagina per aprirla nel browser')}
+                disabled={!doc.publishedAt}
+                className="size-8"
+                onClick={() => {
+                  // On this computer the site is served next to the panel; online, at its own address.
+                  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)
+                  const base = local ? location.origin : schema.site.url || location.origin
+                  const url = new URL(doc.url as string, base).toString()
+                  window.open(url, '_blank', 'noopener')
+                }}
+              >
+                <ExternalLink />
+              </IconButton>
+            )}
             {doc?.release && <ReleaseChip release={doc.release} onClick={() => setReleasing(true)} />}
             {!collection.singleton && (
               <ScheduleMenu

@@ -4,6 +4,14 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Da sapere se aggiorni.** Il carattere predefinito dei titoli ora è Geist, lo stesso del testo e di Materialize (prima era Instrument Serif). Cambia solo nei siti che non hanno mai scelto un carattere per i titoli in Stili: chi vuole il precedente lo sceglie lì.
+
+- **Un blog in ogni sito nuovo.** Il sito di partenza (`npm create materialize` e Docker) ha la raccolta **Articoli**: titolo, data, sommario, copertina e testo, all'indirizzo `/articoli/…`. Una pagina scelta come Modello → Articoli dà a tutti gli articoli l'aspetto del sito; finché non c'è, escono come una pagina semplice nei colori e caratteri del tema. I siti già creati non cambiano: chi la vuole copia la raccolta da `materialize.config.ts` del modello. La pagina che il sito mostra prima della home ha l'aspetto di Materialize e dice dove trovare il link di installazione; anche la schermata del pannello che lo chiede lo dice, per Docker, VPS e computer.
+
+- **Dalla prova di installazione con Docker.** Nell'editor, accanto a «Pubblicato», «Apri nel browser» apre la pagina pubblicata. In Media il pulsante Carica resta al suo posto quando si aprono i dettagli, l'anteprima è più grande e «Guarda in grande» mostra l'immagine a tutto schermo. Il selettore della larghezza nell'editor ha più respiro. Nella scheda Stili i colori del tema stanno uno per riga, con il nome intero e il codice.
+- **Maniglie sopra e sotto.** Contenitori, immagini, video e scene si ridimensionano anche in altezza, dall'alto, dal basso o dall'angolo; doppio clic e l'altezza torna automatica. Testi e pulsanti seguono il loro contenuto.
+- **Tutti i Google Fonts nell'elenco**: scorrendo compaiono tutti, non solo i primi 120. Il menu si apre dove c'è spazio.
+
 ## 0.9.0 — 2026-11-10
 
 - **Da sapere se aggiorni.** `materialize dev` si raggiunge solo dal computer (`--host 0.0.0.0` per il telefono). Online, «Password dimenticata?» manda il link solo se è configurato l'indirizzo del sito (`site.url` o `MATERIALIZE_SITE_URL`). I webhook dei moduli verso indirizzi interni vengono rifiutati (`MATERIALIZE_PRIVATE_WEBHOOKS=1` per un servizio sullo stesso server). `getEntries` non restituisce più le pagine modello (`{ templates: true }` per averle). Il pannello parte nella lingua del browser finché ognuno non ne sceglie una. Cambiando il server dell'AI, dell'email o dei backup esterni, la chiave salvata va scritta di nuovo. Il terminale parla la lingua del sistema (`MATERIALIZE_LANG=it` per l'italiano).
