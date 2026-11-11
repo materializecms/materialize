@@ -20,3 +20,4 @@ dist/
 # Il sito creato da npm run dev per sviluppare Materialize.
 /sito-locale/
 packages/cli/test/.site-*
+*.tsbuildinfo
