@@ -65,6 +65,10 @@ export const checks: Record<string, string> = {
   'Descrizione del sito': 'Site description',
   Email: 'Email',
   Indirizzo: 'Address',
+  // seo.ts: sitemap.xml in a browser
+  'Mappa del sito': 'Sitemap',
+  'Le pagine che i motori di ricerca possono trovare. Il file è scritto per Google e gli altri motori di ricerca: qui lo vedi in forma leggibile.':
+    'The pages search engines can find. The file is written for Google and other search engines: here you see it in a readable form.',
   // seo.ts: structured data
   Organizzazione: 'Organization',
   'Attività locale': 'Local business',

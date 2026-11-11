@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **La sitemap si legge anche nel browser.** Aperta da una persona, `/sitemap.xml` mostra un elenco delle pagine con la data dell'ultima modifica, nella lingua del sito e nel tema chiaro o scuro. Usa un foglio di stile CSS, non XSLT, che Chrome smette di supportare dal 17 novembre 2026. Per Google non cambia nulla.
+
 ## 0.9.2 — 2026-11-11
 
 - **Impostazioni → Sito, rifatta.** Una pagina vera con un pulsante Salva: nome, descrizione, logo e icona del sito, il suo indirizzo; contatti, sede, orari e profili social. Erano sparsi tra il documento delle impostazioni e la pagina SEO, con due nomi del sito diversi: ora il nome è uno solo. Sulla tela testi e pulsanti possono mostrare un **Dato del sito** (nome, descrizione, email, telefono, indirizzo, orari), che si aggiorna in ogni pagina; un pulsante con l'email la scrive, uno con il telefono chiama. Il campo Email del sito di partenza, che non serviva a niente, non c'è più. I siti con altri campi nelle impostazioni li trovano in «Altri dati del sito».

@@ -116,8 +116,16 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
         const seo = await getSiteSeo().catch(() => ({}) as Awaited<ReturnType<typeof getSiteSeo>>)
         const feed = command === 'dev' || (await hasFeed().catch(() => false))
         const llms = command === 'dev' || seo.llms !== false
-        for (const name of ['sitemap.xml', 'robots.txt', ...(feed ? ['rss.xml'] : []), ...(llms ? ['llms.txt'] : [])]) {
-          if (own(name)) continue
+        const routes = [
+          'sitemap.xml',
+          'sitemap.css',
+          'robots.txt',
+          ...(feed ? ['rss.xml'] : []),
+          ...(llms ? ['llms.txt'] : []),
+        ]
+        for (const name of routes) {
+          // The sitemap's stylesheet goes with Materialize's sitemap, not with one the site wrote itself.
+          if (own(name) || (name === 'sitemap.css' && own('sitemap.xml'))) continue
           injectRoute({
             pattern: `/${name}`,
             // TypeScript here, compiled JavaScript in the published package.

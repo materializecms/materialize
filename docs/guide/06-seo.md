@@ -38,7 +38,7 @@ If you change the address of a page that is already published, Materialize adds 
 
 ## Sitemap
 
-The sitemap is at `/sitemap.xml` and updates with every publish. Submit it once in Google Search Console.
+The sitemap is at `/sitemap.xml` and updates with every publish. Submit it once in Google Search Console. Opened in a browser, it reads as a list of pages with the date they last changed.
 
 ## AI search
 

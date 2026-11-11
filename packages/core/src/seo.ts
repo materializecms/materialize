@@ -455,7 +455,7 @@ export interface SitemapPage {
 }
 
 /** sitemap.xml: every page search engines may index, with its other languages. */
-export function sitemapXml(pages: SitemapPage[], siteUrl: string | URL): string {
+export function sitemapXml(pages: SitemapPage[], siteUrl: string | URL, options: { stylesheet?: string } = {}): string {
   const base = String(siteUrl)
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
   const items = pages.map((p) => {
@@ -468,7 +468,35 @@ export function sitemapXml(pages: SitemapPage[], siteUrl: string | URL): string 
     const lastmod = p.updatedAt ? `\n    <lastmod>${p.updatedAt.toISOString().slice(0, 10)}</lastmod>` : ''
     return `  <url>\n    <loc>${esc(absolute(p.url, base))}</loc>${lastmod}${alts.join('')}\n  </url>`
   })
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${items.join('\n')}\n</urlset>\n`
+  // A CSS stylesheet, not XSLT: browsers show the list readably (Chrome drops XSLT in 2026), crawlers ignore it.
+  const style = options.stylesheet ? `<?xml-stylesheet type="text/css" href="${esc(options.stylesheet)}"?>\n` : ''
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${style}<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${items.join('\n')}\n</urlset>\n`
+}
+
+/**
+ * The look of sitemap.xml opened in a browser: a readable list with a title and a line on what the
+ * file is for. Plain CSS on the XML, so it works in every browser; search engines never load it.
+ */
+export function sitemapCss(lang = 'it'): string {
+  const l = lang === 'it' ? 'it' : 'en'
+  const title = JSON.stringify(t.in(l, 'Mappa del sito'))
+  const about = JSON.stringify(
+    t.in(
+      l,
+      'Le pagine che i motori di ricerca possono trovare. Il file è scritto per Google e gli altri motori di ricerca: qui lo vedi in forma leggibile.',
+    ),
+  )
+  return `@namespace xhtml url(http://www.w3.org/1999/xhtml);
+:root{color-scheme:light dark}
+urlset{display:block;max-width:880px;margin:0 auto;padding:56px 24px 80px;font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#18181b;background:#fff}
+urlset::before{content:${title} "\\A" ${about};display:block;white-space:pre-line;margin-bottom:28px;color:#52525b}
+urlset::first-line{font-size:30px;font-weight:600;color:#18181b;letter-spacing:-.02em}
+url{display:flex;gap:24px;align-items:baseline;justify-content:space-between;padding:12px 0;border-bottom:1px solid #e4e4e7}
+loc{display:block;min-width:0;overflow-wrap:anywhere;color:#4f46e5}
+lastmod{flex:none;color:#71717a;font-variant-numeric:tabular-nums}
+xhtml|link{display:none}
+@media (prefers-color-scheme:dark){urlset{color:#e4e4e7;background:#0b0b0e}urlset::before{color:#a1a1aa}urlset::first-line{color:#fafafa}url{border-color:#27272a}loc{color:#a5b4fc}lastmod{color:#a1a1aa}}
+`
 }
 
 /** Crawlers that collect pages to train AI models, not to send visitors. */

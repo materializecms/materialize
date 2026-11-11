@@ -12,6 +12,7 @@ import {
   resolveRedirect,
   robotsTxt,
   rssXml,
+  sitemapCss,
   sitemapXml,
 } from '../src/seo.ts'
 
@@ -236,5 +237,20 @@ describe('feeds and AI search', () => {
         '',
       ].join('\n'),
     )
+  })
+})
+
+describe('the sitemap in a browser', () => {
+  it('links a CSS stylesheet, never XSLT', () => {
+    const xml = sitemapXml([{ url: '/' }], 'https://studio.example', { stylesheet: '/sitemap.css' })
+    expect(xml).toContain('<?xml-stylesheet type="text/css" href="/sitemap.css"?>')
+    expect(xml.indexOf('<?xml-stylesheet')).toBeLessThan(xml.indexOf('<urlset'))
+    expect(sitemapXml([{ url: '/' }], 'https://studio.example')).not.toContain('xml-stylesheet')
+  })
+
+  it('titles the list in the site language', () => {
+    expect(sitemapCss('it')).toContain('"Mappa del sito"')
+    expect(sitemapCss('en')).toContain('"Sitemap"')
+    expect(sitemapCss('de')).toContain('"Sitemap"')
   })
 })
