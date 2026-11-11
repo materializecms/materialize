@@ -10,6 +10,7 @@ import { href, navigate, type Route } from '../lib/router.ts'
 import { useUpdateNotice } from '../settings/UpdatesSettings.tsx'
 import { BriefDialog } from './BriefDialog.tsx'
 import { useSession } from './context.ts'
+import { FirstSteps } from './FirstSteps.tsx'
 import { useReleases } from './ReleasesScreen.tsx'
 import { collectionIcon, useCollectionTint, useOverview } from './Sidebar.tsx'
 import { Studio } from './Studio.tsx'
@@ -87,7 +88,9 @@ export function Overview() {
                   ? tn(waitsOne ? 1 : 2, 'Ti aspetta {list}.', 'Ti aspettano {list}.', {
                       list: new Intl.ListFormat(intlLocale(), { type: 'conjunction' }).format(summary),
                     })
-                  : t('Tutto il sito è pubblicato e aggiornato.')}
+                  : counts.some((c) => c.total > 0 && lists.some((l) => l.name === c.collection))
+                    ? t('Tutto il sito è pubblicato e aggiornato.')
+                    : t('Il sito è ancora vuoto: si comincia dalla prima pagina.')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -112,6 +115,10 @@ export function Overview() {
             )}
           </div>
         </header>
+
+        {user.role === 'admin' && overview.data && (
+          <FirstSteps lists={lists} singletons={singletons} counts={counts} aiReady={aiReady} />
+        )}
 
         {aiReady && (
           <div data-tour="studio">
@@ -285,7 +292,14 @@ export function Overview() {
                   </a>
                 )
               })}
-              <a {...go({ name: 'media' })} className="rounded-xl border border-line bg-panel p-3 hover:border-line2">
+              <a
+                {...go({ name: 'media' })}
+                className={cx(
+                  'rounded-xl border border-line bg-panel p-3 hover:border-line2',
+                  // Fills the row, with no hole beside it.
+                  lists.length % 2 === 0 && 'col-span-2',
+                )}
+              >
                 <span className="flex items-center gap-2 text-[12.5px] font-medium text-fg2">
                   <span aria-hidden="true" className="size-2 rounded-[2px] bg-[#0ea5e9]" />
                   {t('Media')}

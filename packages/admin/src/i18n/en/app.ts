@@ -90,6 +90,25 @@ export const app: Record<string, string> = {
   'Un attimo…': 'One moment…',
   'Ti aspettano {list}.': 'Waiting for you: {list}.',
   'Tutto il sito è pubblicato e aggiornato.': 'The whole site is published and up to date.',
+  'Il sito è ancora vuoto: si comincia dalla prima pagina.': 'The site is still empty: start with the first page.',
+  'Primi passi': 'First steps',
+  '{done} di {total} fatti: si spuntano da soli man mano che il sito prende forma.':
+    '{done} of {total} done: they tick themselves off as the site takes shape.',
+  'Nascondi i primi passi': 'Hide the first steps',
+  'Completa i dati del sito': 'Complete the site details',
+  'Descrizione, logo e contatti: li legge Google e le pagine possono mostrarli.':
+    'Description, logo and contacts: Google reads them and pages can show them.',
+  'Pubblica la prima pagina': 'Publish the first page',
+  'Con indirizzo «home» diventa la pagina iniziale del sito.':
+    'With the address “home” it becomes the site’s home page.',
+  'Scrivi il primo articolo': 'Write the first article',
+  'Aggiungi il primo contenuto in {collection}': 'Add the first entry to {collection}',
+  'Compare da solo nel sito, con il suo indirizzo.': 'It shows up on the site by itself, at its own address.',
+  'Collega l’AI': 'Connect the AI',
+  'Con una chiave Claude scrive testi, traduce e costruisce pagine da un brief.':
+    'With a Claude key it writes copy, translates and builds pages from a brief.',
+  'Invita chi lavora con te': 'Invite the people you work with',
+  'Ognuno con il suo accesso e il suo ruolo.': 'Each with their own access and role.',
   'Apri il sito': 'Open the site',
   'Sito da un brief': 'Site from a brief',
   'Nuova pagina': 'New page',

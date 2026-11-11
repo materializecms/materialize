@@ -4,6 +4,8 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **Primi passi nella Panoramica.** In un sito nuovo gli amministratori trovano cosa lo rende un sito vero: dati del sito, prima pagina pubblicata, primo articolo, AI collegata, una persona invitata. Ogni passo porta dove si fa e si spunta da solo; il riquadro sparisce a passi finiti, o con la crocetta. Con il sito ancora vuoto la Panoramica lo dice, invece di «Tutto il sito è pubblicato». Nel sito a colpo d'occhio la scheda Media riempie la riga quando resterebbe un buco.
+
 - **La sitemap si legge anche nel browser.** Aperta da una persona, `/sitemap.xml` mostra un elenco delle pagine con la data dell'ultima modifica, nella lingua del sito e nel tema chiaro o scuro. Usa un foglio di stile CSS, non XSLT, che Chrome smette di supportare dal 17 novembre 2026. Per Google non cambia nulla.
 
 ## 0.9.2 — 2026-11-11
