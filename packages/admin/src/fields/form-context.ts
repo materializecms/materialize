@@ -7,6 +7,8 @@ export interface FormState {
   docTitle: string
   docUrl: string | null
   siteUrl?: string
+  /** What comes before the slug in the document's address (`/articoli/`). */
+  urlPrefix?: string
   /** The document's words, for AI that writes from them (an SEO description). */
   docText?: () => string
 }

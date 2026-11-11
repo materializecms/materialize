@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from 'vitest'
+import { afterEach, describe, expect, expectTypeOf, it } from 'vitest'
 import {
   defineBlock,
   defineCollection,
@@ -12,6 +12,7 @@ import {
   titleOf,
   validate,
 } from '../src/index.ts'
+import { setLangSource } from '../src/lang.ts'
 
 const hero = defineBlock({
   name: 'hero',
@@ -160,5 +161,47 @@ describe('describeCollection', () => {
     const blocks = description.fields.find((x) => x.name === 'blocks')
     expect(blocks?.blocks?.map((b) => b.name)).toEqual(['hero', 'gallery'])
     expect(blocks?.blocks?.[0]?.fields[0]).toMatchObject({ name: 'title', kind: 'text', required: true })
+  })
+  it('tells the admin what comes before the slug in the address', () => {
+    const fields = { title: f.text(), slug: f.slug({ from: 'title' }) }
+    const of = (url?: (d: { slug?: string }) => string) =>
+      describeCollection(defineCollection({ name: 'x', fields, url })).urlPrefix
+    expect(of((d) => `/articoli/${d.slug}`)).toBe('/articoli/')
+    expect(of((d) => (d.slug === 'home' ? '/' : `/${d.slug}`))).toBe('/')
+    // Anything else (the slug in the middle, an outside address, no address): no prefix.
+    expect(of((d) => `/blog/${d.slug}/amp`)).toBeUndefined()
+    expect(of((d) => `https://altro.example/${d.slug}`)).toBeUndefined()
+    expect(
+      of(() => {
+        throw new Error('no')
+      }),
+    ).toBeUndefined()
+    expect(of()).toBeUndefined()
+  })
+})
+
+describe('names in the languages of the panel', () => {
+  afterEach(() => setLangSource(() => 'it'))
+  const posts = defineCollection({
+    name: 'posts',
+    label: { it: 'Articoli', en: 'Articles' },
+    fields: { title: f.text({ label: { it: 'Titolo', en: 'Title' } }), body: f.richText({ label: 'Testo' }) },
+  })
+
+  it('come in the language of whoever reads them', () => {
+    expect(describeCollection(posts)).toMatchObject({ label: 'Articoli', fields: [{ label: 'Titolo' }, {}] })
+    setLangSource(() => 'en')
+    const english = describeCollection(posts)
+    expect(english.label).toBe('Articles')
+    // A name in one language stays as it is.
+    expect(english.fields.map((x) => x.label)).toEqual(['Title', 'Testo'])
+  })
+
+  it('fall back to Italian, then to whatever there is', () => {
+    setLangSource(() => 'en')
+    expect(defineCollection({ name: 'a', label: { it: 'Pagine' }, fields: {} }).label).toBe('Pagine')
+    setLangSource(() => 'it')
+    expect(defineCollection({ name: 'a', label: { en: 'Pages' }, fields: {} }).label).toBe('Pages')
+    expect(defineCollection({ name: 'news-items', fields: {} }).label).toBe('News items')
   })
 })

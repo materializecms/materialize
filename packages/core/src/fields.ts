@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { type Label, labelText } from './lang.ts'
 import type { PageNode } from './page.ts'
 import { SLUG_PATTERN } from './slug.ts'
 import { ANCHOR_PATTERN, BLOCK_STYLE, type BlockStyle } from './style.ts'
@@ -63,7 +64,8 @@ export interface Block<N extends string = string, F extends Fields = Fields> {
 }
 
 interface Common<R extends boolean> {
-  label?: string
+  /** A text, or one per language of the panel: `{ it: 'Titolo', en: 'Title' }`. */
+  label?: Label
   description?: string
   required?: R
   /** Store a separate value per locale. Defaults to true for text-like fields in localized collections. */
@@ -83,7 +85,10 @@ function field(
   return {
     kind,
     required: (common?.required ?? false) as never,
-    label: common?.label,
+    // Read when used: each person sees it in the language of their panel.
+    get label() {
+      return labelText(common?.label)
+    },
     description: common?.description,
     localized: common?.localized ?? ['text', 'richText', 'slug', 'seo', 'link'].includes(kind),
     options,

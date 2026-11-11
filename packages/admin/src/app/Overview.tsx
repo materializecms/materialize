@@ -247,7 +247,7 @@ export function Overview() {
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">{c.singleton ? c.label : doc.title}</span>
                           <span className="block truncate text-[13px] text-fg3">
-                            {c.label}
+                            {c.singleton ? t('Impostazioni') : c.label}
                             {doc.updatedBy && ` · ${doc.updatedBy}`}
                           </span>
                         </span>

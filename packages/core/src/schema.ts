@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type Block, type Field, type Fields, type InferFields, objectShape } from './fields.ts'
+import { type Label, labelText } from './lang.ts'
 import { slugify } from './slug.ts'
 import { t } from './t.ts'
 
@@ -21,7 +22,8 @@ export interface Collection<N extends string = string, F extends Fields = Fields
 
 export interface CollectionInput<N extends string, F extends Fields> {
   name: N
-  label?: string
+  /** A text, or one per language of the panel: `{ it: 'Articoli', en: 'Articles' }`. */
+  label?: Label
   fields: F
   titleField?: Extract<keyof F, string>
   url?: (doc: InferFields<F>) => string
@@ -38,7 +40,10 @@ export function defineCollection<const N extends string, const F extends Fields>
   const titleField = input.titleField ?? entries.find(([, def]) => def.kind === 'text')?.[0] ?? entries[0]?.[0] ?? 'id'
   return {
     name: input.name,
-    label: input.label ?? capitalize(input.name),
+    // Read when used: each person sees it in the language of their panel.
+    get label() {
+      return labelText(input.label) ?? capitalize(input.name)
+    },
     fields: input.fields,
     titleField,
     slugField,
@@ -50,13 +55,15 @@ export function defineCollection<const N extends string, const F extends Fields>
 
 export function defineBlock<const N extends string, const F extends Fields>(input: {
   name: N
-  label?: string
+  label?: Label
   description?: string
   fields: F
 }): Block<N, F> {
   return {
     name: input.name,
-    label: input.label ?? capitalize(input.name),
+    get label() {
+      return labelText(input.label) ?? capitalize(input.name)
+    },
     description: input.description,
     fields: input.fields,
   }
@@ -243,6 +250,8 @@ export interface CollectionDescription {
   singleton: boolean
   /** Its documents have an address on the site. */
   hasPages?: boolean
+  /** What comes before the slug in its address (`/articoli/`), when the address is a path ending with it. */
+  urlPrefix?: string
   fields: FieldDescription[]
 }
 
@@ -256,7 +265,22 @@ export function describeCollection(collection: Collection): CollectionDescriptio
     localized: collection.localized,
     singleton: collection.singleton,
     hasPages: !!collection.url,
+    urlPrefix: urlPrefix(collection),
     fields: describeFields(collection.fields),
+  }
+}
+
+/** Asks the collection's `url` for the address of a made-up slug, and keeps what comes before it. */
+function urlPrefix(collection: Collection): string | undefined {
+  if (!collection.url || !collection.slugField) return undefined
+  const marker = 'mz-slug-c0ffee'
+  try {
+    const url = collection.url({ [collection.slugField]: marker } as never)
+    if (typeof url !== 'string' || !url.endsWith(marker)) return undefined
+    const prefix = url.slice(0, -marker.length)
+    return prefix.startsWith('/') && !prefix.includes(marker) ? prefix : undefined
+  } catch {
+    return undefined
   }
 }
 

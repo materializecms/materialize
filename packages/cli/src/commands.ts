@@ -253,10 +253,14 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
   console.log()
   console.log(`  ${accent('Materialize')} ${dim(VERSION)}  ${config.site.name}`)
   console.log()
+  // Online (Docker, a VPS) the public address is the one to open; the local one only answers inside.
+  const publicUrl = mode === 'start' ? config.site.url?.replace(/\/+$/, '') : undefined
+  const base = publicUrl ?? server.url
   const rows: [string, string][] = [
-    [withSite ? t('Sito') : t('Locale'), server.url],
-    [t('Pannello'), `${server.url}/admin`],
-    ['API', `${server.url}/api/schema`],
+    [withSite ? t('Sito') : t('Locale'), base],
+    [t('Pannello'), `${base}/admin`],
+    ['API', `${base}/api/schema`],
+    ...(publicUrl ? [[t('In ascolto su'), server.url] as [string, string]] : []),
     ['Database', config.database.url],
     [t('Collezioni'), summary(config)],
   ]
@@ -271,8 +275,7 @@ async function run(mode: 'dev' | 'start' | 'build', args: string[]): Promise<voi
     if (setupToken) await rm(join(cwd, INSTALL_CODE), { force: true })
   } else {
     const path = `/admin/${setupToken ? `?installa=${setupToken}` : ''}`
-    // The public address when the site knows it (MATERIALIZE_SITE_URL in Docker or on a VPS).
-    const site = mode === 'start' ? config.site.url?.replace(/\/+$/, '') : undefined
+    const site = publicUrl
     const label = t('Installazione')
     console.log(`  ${accent(label)}  ${t('apri {url}', { url: `${site ?? server.url}${path}` })}`)
     if (setupToken && !site)

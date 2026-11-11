@@ -143,7 +143,14 @@ export default function materialize(options: MaterializeOptions = {}): AstroInte
                 .map((r) => [r.from, { status: 301 as const, destination: r.to }]),
             ),
           })
-        updateConfig({ vite: { plugins: [sitePlugin(root, resolved)] } })
+        updateConfig({
+          vite: {
+            plugins: [sitePlugin(root, resolved)],
+            // three.js (685 kB) loads only on pages with a 3D scene: no warning for it at every build,
+            // unless the site chose its own limit.
+            ...(config.vite?.build?.chunkSizeWarningLimit === undefined && { build: { chunkSizeWarningLimit: 1024 } }),
+          },
+        })
       },
       // A Markdown copy of every indexable page next to its HTML (/diario/articolo.md), for AI
       // assistants; in dev the middleware converts on request.

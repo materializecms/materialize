@@ -491,9 +491,10 @@ function Editor({
       docTitle: title,
       docUrl: doc?.url ?? null,
       siteUrl: schema.site.url,
+      urlPrefix: collection.urlPrefix,
       docText: () => wordsOf(latest.current.value).join('\n').slice(0, 20_000),
     }),
-    [visibleIssues, title, doc?.url, schema.site.url],
+    [visibleIssues, title, doc?.url, schema.site.url, collection.urlPrefix],
   )
 
   const status = doc?.status ?? 'draft'

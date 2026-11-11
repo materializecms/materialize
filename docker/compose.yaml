@@ -16,6 +16,8 @@ services:
     environment:
       MATERIALIZE_SITE_URL: https://${DOMAIN:?Indica il dominio nel file .env, per esempio DOMAIN=example.com}
       MATERIALIZE_TRUST_PROXY: "1"
+      # The language of the server's messages in the logs: it or en. The panel has its own, per person.
+      MATERIALIZE_LANG: ${MATERIALIZE_LANG:-it}
       # Other variables for the site go here, for example ANTHROPIC_API_KEY.
 
   caddy:

@@ -4,6 +4,10 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+- **L'indirizzo giusto negli articoli.** Il campo Indirizzo mostra la parte che viene prima, `/articoli/il-primo-articolo`, e non più solo `/il-primo-articolo`, che non era l'indirizzo vero.
+- **Nomi delle raccolte in inglese.** Nomi di raccolte, blocchi e campi possono essere scritti in più lingue, `label: { it: 'Articoli', en: 'Articles' }`, e ognuno li vede nella lingua del suo pannello. Il sito di partenza li ha in italiano e inglese; nei siti già creati si aggiungono in `materialize.config.ts`.
+- **Docker parla italiano e dice l'indirizzo vero.** All'avvio i messaggi del server mostrano l'indirizzo del dominio per sito e pannello, e quello interno solo come «In ascolto su». Il `compose.yaml` imposta `MATERIALIZE_LANG=it` (si cambia nel file `.env`), e anche i messaggi di avvio del container seguono la lingua. Niente più avviso di Vite sui file grandi a ogni pubblicazione: l'unico è three.js, che si scarica solo nelle pagine con una scena 3D.
+- Nelle ultime modifiche della Panoramica, le impostazioni non ripetono più il loro nome due volte.
 - **Primi passi nella Panoramica.** In un sito nuovo gli amministratori trovano cosa lo rende un sito vero: dati del sito, prima pagina pubblicata, primo articolo, AI collegata, una persona invitata. Ogni passo porta dove si fa e si spunta da solo; il riquadro sparisce a passi finiti, o con la crocetta. Con il sito ancora vuoto la Panoramica lo dice, invece di «Tutto il sito è pubblicato». Nel sito a colpo d'occhio la scheda Media riempie la riga quando resterebbe un buco.
 
 - **La sitemap si legge anche nel browser.** Aperta da una persona, `/sitemap.xml` mostra un elenco delle pagine con la data dell'ultima modifica, nella lingua del sito e nel tema chiaro o scuro. Usa un foglio di stile CSS, non XSLT, che Chrome smette di supportare dal 17 novembre 2026. Per Google non cambia nulla.

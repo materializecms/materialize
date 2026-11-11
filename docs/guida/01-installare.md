@@ -54,7 +54,7 @@ docker compose up -d
 docker compose logs materialize
 ```
 
-Il file `.env` ricorda il dominio: Docker lo legge da solo a ogni comando, nella stessa cartella. L'ultimo comando mostra il link per finire l'installazione. Il sito e i contenuti stanno nel volume `site`: puoi fermare, aggiornare o ricreare i container senza perdere niente.
+Il file `.env` ricorda il dominio: Docker lo legge da solo a ogni comando, nella stessa cartella. L'ultimo comando mostra il link per finire l'installazione, con l'indirizzo del dominio. I messaggi del server sono in italiano; per averli in inglese aggiungi `MATERIALIZE_LANG=en` al file `.env`. Il sito e i contenuti stanno nel volume `site`: puoi fermare, aggiornare o ricreare i container senza perdere niente.
 
 ## Sul tuo computer
 

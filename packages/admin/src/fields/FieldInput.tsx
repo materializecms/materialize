@@ -147,6 +147,7 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
   const id = `f-${pathKey(path)}`
   const invalid = useIssues(pathKey(path)).length > 0
   const group = `${field.kind}:${pathKey(path)}`
+  const form = useForm()
 
   switch (field.kind) {
     case 'text': {
@@ -227,17 +228,20 @@ export function FieldControl({ field, value, onChange, path, siblings }: FieldPr
     }
 
     case 'slug': {
+      const prefix = (path.length === 1 && form.urlPrefix) || '/'
       const from = typeof field.options.from === 'string' ? siblings?.[field.options.from] : undefined
       const suggestion = typeof from === 'string' ? slugify(from) : ''
       return (
         <div className="flex gap-1.5">
           <div className="relative flex-1">
             <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 font-mono text-[13px] text-fg3">
-              /
+              {prefix}
             </span>
             <Input
               id={id}
-              className="pl-5 font-mono text-[13px]"
+              // Geist Mono is 0.6em a character: the text starts right after the prefix, however long it is.
+              style={{ fontSize: 13, paddingLeft: `calc(10px + ${prefix.length * 0.6}em)` }}
+              className="font-mono text-[13px]"
               value={typeof value === 'string' ? value : ''}
               placeholder={suggestion || t('indirizzo-della-pagina')}
               aria-invalid={invalid || undefined}

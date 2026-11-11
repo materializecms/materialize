@@ -15,6 +15,9 @@ export const LANGS: Lang[] = ['it', 'en']
 
 export const isLang = (value: unknown): value is Lang => value === 'it' || value === 'en'
 
+/** A name in the schema, in one language or in the panel's languages: `{ it: 'Articoli', en: 'Articles' }`. */
+export type Label = string | Partial<Record<Lang, string>>
+
 let source: () => Lang = () => 'it'
 let scoped: () => Lang | undefined = () => undefined
 
@@ -90,4 +93,10 @@ export function translator(en: Record<string, string>): Translate {
     }
   }
   return t
+}
+
+/** A schema name in the language of whoever reads it, then Italian, then whatever there is. */
+export function labelText(label: Label | undefined): string | undefined {
+  if (label === undefined || typeof label === 'string') return label
+  return label[currentLang()] ?? label.it ?? Object.values(label).find(Boolean)
 }

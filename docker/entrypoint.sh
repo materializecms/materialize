@@ -5,6 +5,10 @@ set -eu
 SITE=/site
 STARTER=/opt/materialize/site
 
+# Messages in the language of the terminal, like Materialize's own (MATERIALIZE_LANG, then LANG).
+case "${MATERIALIZE_LANG:-${LANG:-}}" in it*) it=1 ;; *) it= ;; esac
+say() { if [ -n "$it" ]; then echo "$1"; else echo "$2"; fi; }
+
 # Started as root (the default): a folder from the host may belong to root, the site runs as "node".
 if [ "$(id -u)" = 0 ]; then
   if [ "$(stat -c %u "$SITE")" != "$(id -u node)" ]; then chown -R node:node "$SITE"; fi
@@ -13,10 +17,11 @@ fi
 
 if [ ! -f "$SITE/materialize.config.ts" ] && [ ! -f "$SITE/materialize.config.js" ]; then
   if [ -n "$(ls -A "$SITE")" ]; then
-    echo "  /site contiene altri file ma non un sito Materialize: usa un volume vuoto." >&2
+    say "  /site contiene altri file ma non un sito Materialize: usa un volume vuoto." \
+      "  /site holds other files but not a Materialize site: use an empty volume." >&2
     exit 1
   fi
-  echo "  Primo avvio: preparo il sito nel volume /site…"
+  say "  Primo avvio: preparo il sito nel volume /site…" "  First start: setting up the site in the /site volume…"
   cp -a "$STARTER/." "$SITE/"
 fi
 
@@ -25,7 +30,8 @@ cd "$SITE"
 site=$(node -p "require('./node_modules/@materializecms/cli/package.json').version" 2>/dev/null || echo '')
 image=$(node -p "require('$STARTER/node_modules/@materializecms/cli/package.json').version")
 if [ -n "$site" ] && [ "$site" != "$image" ]; then
-  echo "  Il sito usa Materialize $site (questa immagine porta la $image): gli aggiornamenti si installano dal pannello."
+  say "  Il sito usa Materialize $site (questa immagine porta la $image): gli aggiornamenti si installano dal pannello." \
+    "  The site uses Materialize $site (this image brings $image): updates are installed from the panel."
 fi
 
 exec node_modules/.bin/materialize "$@"

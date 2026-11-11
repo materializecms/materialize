@@ -44,6 +44,7 @@ export const terminal: Record<string, string> = {
   Locale: 'Local',
   Pannello: 'Panel',
   Collezioni: 'Collections',
+  'In ascolto su': 'Listening on',
   'Raggiungibile solo da questo computer. Per provarlo dal telefono: --host 0.0.0.0':
     'Reachable from this computer only. To try it from a phone: --host 0.0.0.0',
   Installazione: 'Setup',
