@@ -27,11 +27,11 @@
     "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {
-    "@astrojs/node": "11.1.9",
-    "@biomejs/biome": "2.6.4",
+    "@astrojs/node": "11.1.11",
+    "@biomejs/biome": "2.6.6",
     "@types/node": "26.6.6",
-    "astro": "7.4.4",
+    "astro": "7.4.8",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }
