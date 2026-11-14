@@ -1,6 +1,6 @@
 {
   "name": "@materializecms/admin",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Materialize's prebuilt admin panel: content, visual canvas editor, media, settings.",
   "type": "module",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@materializecms/core": "0.9.3",
+    "@materializecms/core": "0.10.0",
     "qrcode-generator": "2.0.4"
   },
   "devDependencies": {
