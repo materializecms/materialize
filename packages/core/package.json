@@ -1,6 +1,6 @@
 {
   "name": "@materializecms/core",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Materialize's content model: collections, fields, validation, section library, SEO.",
   "type": "module",
   "license": "MIT",

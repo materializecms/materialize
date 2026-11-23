@@ -4,6 +4,10 @@ Ogni versione, dalla più recente. Le novità in arrivo si scrivono sotto «Pros
 
 ## Prossima versione
 
+## 0.10.1 — 2026-11-23
+
+- **Aggiornamenti di sicurezza.** Hono, il suo server per Node, Astro e l'adattatore Node di Astro passano a versioni che correggono vulnerabilità moderate: middleware che su alcuni percorsi si potevano saltare, una barra rovesciata nell'indirizzo letta come separatore dietro un proxy, un arresto su una connessione WebSocket interrotta, l'inserimento di HTML e l'endpoint delle immagini che leggeva file fuori dalla cartella di build. Nel funzionamento del sito non cambia nulla: si aggiorna con `npm update` o scaricando la nuova immagine Docker.
+
 ## 0.10.0 — 2026-11-14
 
 - **Da sapere se aggiorni.** Con `trustProxy` l'indirizzo di chi si collega ora si legge da destra in `X-Forwarded-For`: con un proxy solo (Docker con Caddy, il VPS, Nginx) non cambia nulla, con due proxy in fila (Cloudflare davanti a Caddy) imposta `trustProxy: 2` o `MATERIALIZE_TRUST_PROXY=2`. I token personali, anche di un amministratore, non cambiano più il codice personalizzato né i destinatari dei moduli: si fa dal pannello. Se il sito richiede la verifica in due passaggi, chi ha solo passkey entra con la passkey, non con la password. I siti già creati non hanno il componente dei commenti: si aggiunge `<Comments entry={entry} />` nella pagina degli articoli.

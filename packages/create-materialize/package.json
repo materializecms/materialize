@@ -1,6 +1,6 @@
 {
   "name": "create-materialize",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Create a new Materialize site with one command: npm create materialize@latest",
   "type": "module",
   "license": "MIT",

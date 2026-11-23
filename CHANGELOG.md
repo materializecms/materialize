@@ -4,6 +4,10 @@ Every version, newest first. Upcoming changes go under «Next version»: `npm ru
 
 ## Next version
 
+## 0.10.1 — 2026-11-23
+
+- **Security updates.** Hono, its Node server, Astro and the Astro Node adapter are updated to versions that fix moderate vulnerabilities: middleware that could be skipped on some paths, a backslash in the address read as a separator behind a proxy, a crash on a dropped WebSocket connection, HTML injection, and the image endpoint reading files outside the build folder. Nothing changes in how the site works: update with `npm update` or by pulling the new Docker image.
+
 ## 0.10.0 — 2026-11-14
 
 - **Good to know if you update.** With `trustProxy`, the address of whoever connects is now read from the right of `X-Forwarded-For`: with a single proxy (Docker with Caddy, the VPS, Nginx) nothing changes; with two proxies in a row (Cloudflare in front of Caddy) set `trustProxy: 2` or `MATERIALIZE_TRUST_PROXY=2`. Personal tokens, even an administrator's, no longer change custom code or form recipients: do it from the panel. If the site requires two-step verification, people with passkeys only sign in with the passkey, not with the password. Existing sites don't have the comments component: add `<Comments entry={entry} />` to the article page.

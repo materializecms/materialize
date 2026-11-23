@@ -8,7 +8,7 @@
     "start": "materialize start"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.9",
+    "@astrojs/node": "^11.1.14",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
@@ -17,7 +17,7 @@
     "@materializecms/astro": "__VERSION__",
     "@materializecms/cli": "__VERSION__",
     "@materializecms/core": "__VERSION__",
-    "astro": "^7.4.4"
+    "astro": "^7.4.13"
   },
   "engines": {
     "node": ">=24"
